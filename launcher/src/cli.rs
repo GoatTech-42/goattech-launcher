@@ -17,7 +17,7 @@ use std::process::Command;
 #[command(
     name = "horizon-launcher",
     version = backend::VERSION,
-    about = "Installs, prepares and starts Horizon. Without a subcommand, opens the window."
+    about = "Installs, prepares and starts GoatTech Launcher. Without a subcommand, opens the window."
 )]
 struct Cli {
     /// Print JSON instead of text, where a command has something to report
@@ -785,7 +785,7 @@ enum Cmd {
     /// ("default" removes it), while-playing stay|minimize|hide (what the window does while the game runs), language
     /// system|en|fr|ru|de|zh|es|uk|pl (the window's language; system follows the computer's), accent
     /// violet|blue|teal|green|amber|red|pink, background PATH (a picture behind Home; "default"
-    /// shows Horizon's landscape)
+    /// shows GoatTech's landscape)
     Settings {
         #[arg(value_parser = SETTING_KEYS)]
         key: Option<String>,
@@ -826,7 +826,7 @@ enum Cmd {
         #[arg(long)]
         check: bool,
     },
-    /// Linux: put Horizon in the applications menu (an entry and the icon, under
+    /// Linux: put GoatTech Launcher in the applications menu (an entry and the icon, under
     /// $XDG_DATA_HOME), or take it out with --remove
     DesktopEntry {
         /// Remove the entry and the icon, and stop adding them back
@@ -1505,10 +1505,10 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             settings.save();
             if remove {
                 crate::desktop::remove()?;
-                println!("Removed Horizon from the applications menu.");
+                println!("Removed GoatTech Launcher from the applications menu.");
             } else {
                 crate::desktop::install(backend::exe_path())?;
-                println!("Horizon is in the applications menu.");
+                println!("GoatTech Launcher is in the applications menu.");
             }
         }
         Cmd::Worlds { action } => worlds(
@@ -1550,11 +1550,11 @@ fn java(action: JavaCmd, as_json: bool) -> Result<(), String> {
             if as_json {
                 json(serde_json::json!(all));
             } else if all.is_empty() {
-                println!("No Java yet. Horizon downloads Mojang's when an instance needs it.");
+                println!("No Java yet. GoatTech Launcher downloads Mojang's when an instance needs it.");
             } else {
                 for r in &all {
                     let from = match r.source {
-                        java::Source::Mojang => "Mojang's, downloaded by Horizon",
+                        java::Source::Mojang => "Mojang's, downloaded by GoatTech Launcher",
                         java::Source::Installed => "installed",
                     };
                     println!("Java {}  ({from})\n  {}", r.version, r.home.display());
@@ -1637,8 +1637,8 @@ fn update(check: bool, as_json: bool) -> Result<(), String> {
         return Ok(());
     }
     match &updates.horizon {
-        None => println!("Horizon: up to date."),
-        Some(r) if check => println!("Horizon: {} is available.", r.tag),
+        None => println!("GoatTech Launcher: up to date."),
+        Some(r) if check => println!("GoatTech Launcher: {} is available.", r.tag),
         Some(r) => {
             let tag =
                 backend::install_tag(&r.tag, true, progress(format!("Installing {}", r.tag)))?;
