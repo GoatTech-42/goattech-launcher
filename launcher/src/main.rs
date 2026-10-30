@@ -1,4 +1,4 @@
-//! Horizon launcher: installs Horizon builds, prepares them from the player's own Minecraft,
+//! GoatTech launcher (a fork of the Horizon launcher): installs Horizon builds, prepares them from the player's own Minecraft,
 //! and starts the client or a dedicated server.
 
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
@@ -6,8 +6,6 @@
 mod agents_page;
 mod art;
 mod blocks;
-mod cli;
-mod cli_tools;
 mod collection;
 mod console;
 mod console_page;
@@ -15,7 +13,6 @@ mod cull;
 mod datapacks_page;
 mod dev_options;
 mod export_page;
-mod game_tools;
 mod github_mods_page;
 mod home;
 mod home_tabs;
@@ -28,7 +25,6 @@ mod language_page;
 mod launch_page;
 mod line_edit;
 mod markdown;
-mod mcp;
 mod microsoft;
 mod modpacks_page;
 mod mods_page;
@@ -38,7 +34,6 @@ mod new_instance;
 mod owner_page;
 mod packs_page;
 mod partner;
-mod perf;
 mod plate;
 mod screenshots_page;
 mod scrollbar;
@@ -55,6 +50,7 @@ mod titlebar;
 mod while_playing;
 mod worlds_page;
 
+use horizon_launcher::{cli, perf};
 use gpui::{
     actions, div, ease_out_quint, prelude::*, px, relative, size, Animation, AnimationExt,
     AnyElement, App, Application, Bounds, ClickEvent, Context, Div, ElementId, FocusHandle,
@@ -2282,7 +2278,7 @@ impl Launcher {
                 .child(
                     shell::text(theme::night::TITLE, shell::c(n.ink))
                         .font_family(theme::DISPLAY_FONT)
-                        .child("Horizon"),
+                        .child("GoatTech"),
                 )
         });
         shell::sidebar_plate(&t)
@@ -4356,7 +4352,7 @@ fn main() {
                     titlebar: Some(titlebar::options()),
                     #[cfg(target_os = "linux")]
                     window_decorations: Some(gpui::WindowDecorations::Client),
-                    app_id: Some("horizon-launcher".into()),
+                    app_id: Some("goattech-launcher".into()),
                     ..Default::default()
                 },
                 |window, cx| cx.new(|cx| Launcher::new(window, cx)),

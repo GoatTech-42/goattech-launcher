@@ -29,8 +29,11 @@ const OVERRIDES: [&str; 2] = ["overrides/", "client-overrides/"];
 pub enum Dropped {
     /// A shared instance: a new instance is made from it.
     Instance,
-    /// A Java modpack, for the Modpacks import.
+    /// A Java modpack, for the Modpacks import (CurseForge zips; explicit port flow).
     Modpack,
+    /// A .mrpack with a mod loader: becomes a Java instance of its own (Fabric or Quilt);
+    /// Forge and NeoForge packs are refused with the reason.
+    JavaModpack,
     /// A resource or shader pack, for the selected instance.
     Pack(packs::Kind),
     /// A data pack: it goes into a world.
@@ -74,7 +77,7 @@ pub fn what(file: &Path) -> Result<Dropped, String> {
                 .as_object()
                 .is_some_and(|d| d.keys().any(|k| k != "minecraft"));
             return Ok(match loaders {
-                true => Dropped::Modpack,
+                true => Dropped::JavaModpack,
                 false => Dropped::Instance,
             });
         }
@@ -172,11 +175,147 @@ pub fn import_into(
     Ok(instance)
 }
 
+/// Where an archive entry goes in a Java Edition instance's folder: the folders and files a
+/// copy from another launcher keeps (`other_launchers::SHARED`), and nothing else, each
+/// checked to stay inside the folder exactly as [`target`] does.
+fn java_target(home: &Path, relative: &str) -> Option<PathBuf> {
+    const FILES: [&str; 3] = ["options.txt", "servers.dat", "optionsshaders.txt"];
+    const FOLDERS: [&str; 6] = [
+        "saves",
+        "mods",
+        "config",
+        "resourcepacks",
+        "shaderpacks",
+        "screenshots",
+    ];
+    let path = Path::new(relative);
+    if relative.ends_with('/') || !path.components().all(|c| matches!(c, Component::Normal(_))) {
+        return None;
+    }
+    let top = relative.split('/').next()?;
+    let kept = FILES.contains(&relative) || (relative.contains('/') && FOLDERS.contains(&top));
+    kept.then(|| home.join(path))
+}
+
+/// A loader a `.mrpack` asks for, as its `dependencies` name it.
+fn pack_loader(deps: &serde_json::Map<String, serde_json::Value>) -> Result<Option<(String, String)>, String> {
+    for (key, kind) in [("fabric-loader", "fabric"), ("quilt-loader", "quilt")] {
+        if let Some(version) = deps.get(key).and_then(|v| v.as_str()) {
+            return Ok(Some((kind.to_string(), version.to_string())));
+        }
+    }
+    for key in ["forge", "neoforge"] {
+        if let Some(version) = deps.get(key).and_then(|v| v.as_str()) {
+            return Err(format!(
+                "This pack needs {key} {version}: this launcher installs Fabric and Quilt \
+                 loaders only, and its mods would not run without {key}."
+            ));
+        }
+    }
+    Ok(None)
+}
+
+/// A `.mrpack` with a mod loader becomes a Minecraft: Java Edition instance of its own: its
+/// mods, resource packs, settings and saves copied and downloaded as they are, nothing
+/// ported. The loader (Fabric or Quilt) is set on the instance and installed on the first
+/// Play, as for any Modded instance. The pack's Minecraft version must be one Mojang lists:
+/// it is never guessed. The new instance never overwrites one that exists (a "(2)" name is
+/// taken instead), and a failed import removes the half-made instance's folder.
+///
+/// `resolve` names the Minecraft version id a pack version means, `choose` checks the
+/// loader against its service and `create` makes the Java instance with its loader; the
+/// first two reach the network in the launcher and all three are faked in tests.
+pub fn import_java_instance_with(
+    file: &Path,
+    progress: &dyn Fn(&str, f32),
+    resolve: &dyn Fn(&str) -> Result<String, String>,
+    choose: &dyn Fn(&str, &str, &str) -> Result<crate::loaders::Loader, String>,
+    create: &dyn Fn(&str, &str, crate::loaders::Loader) -> Result<Instance, String>,
+) -> Result<Instance, String> {
+    let mut zip = open(file)?;
+    let index = read_index(&mut zip)?;
+    let deps = index["dependencies"]
+        .as_object()
+        .ok_or_else(|| format!("Its {INDEX} has no dependencies."))?;
+    let minecraft = deps["minecraft"]
+        .as_str()
+        .ok_or_else(|| format!("Its {INDEX} names no Minecraft version."))?;
+    let loader = pack_loader(deps)?
+        .ok_or_else(|| {
+            format!(
+                "{} has no mod loader: import it as a shared instance instead.",
+                name_of(file)
+            )
+        })?;
+    let version = resolve(minecraft)?;
+    let loader = choose(&loader.0, &version, &loader.1)?;
+    let stem = file
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "Imported".into());
+    let base = index["name"]
+        .as_str()
+        .map(str::trim)
+        .filter(|n| !n.is_empty())
+        .map(str::to_string)
+        .unwrap_or(stem);
+    let instance = (1..20)
+        .map(|n| match n {
+            1 => base.clone(),
+            n => format!("{base} ({n})"),
+        })
+        .find_map(|name| create(&name, &version, loader.clone()).ok())
+        .ok_or_else(|| format!("Could not make an instance called {base}."))?;
+    let home = instance.home.clone();
+    if let Err(e) = fill_with(&mut zip, Some(&index), &home, progress, &java_target) {
+        let _ = fs::remove_dir_all(&home);
+        return Err(e);
+    }
+    Ok(instance)
+}
+
+/// [`import_java_instance_with`] against Mojang's and the loader's own services.
+pub fn import_java_instance(
+    file: &Path,
+    progress: &dyn Fn(&str, f32),
+) -> Result<Instance, String> {
+    import_java_instance_with(
+        file,
+        progress,
+        &|minecraft| {
+            Ok(crate::minecraft_versions::load()?
+                .find(minecraft)?
+                .id
+                .clone())
+        },
+        &|kind, minecraft, version| crate::loaders::choose(kind, minecraft, Some(version)),
+        &|name, version, loader| {
+            let made = instances::create_java(name, version)?;
+            let loader = Some(loader);
+            instances::edit(&made.id, move |m| {
+                m.java.get_or_insert_with(Default::default).loader = loader.clone()
+            })
+        },
+    )
+}
+
 fn fill(
     zip: &mut zip::ZipArchive<fs::File>,
     index: Option<&serde_json::Value>,
     home: &Path,
     progress: &dyn Fn(&str, f32),
+) -> Result<(), String> {
+    fill_with(zip, index, home, progress, &target)
+}
+
+/// `fill` with the rule for where an entry may land: Horizon instances take their own files,
+/// Java instances theirs ([`java_target`]).
+fn fill_with(
+    zip: &mut zip::ZipArchive<fs::File>,
+    index: Option<&serde_json::Value>,
+    home: &Path,
+    progress: &dyn Fn(&str, f32),
+    target: &dyn Fn(&Path, &str) -> Option<PathBuf>,
 ) -> Result<(), String> {
     let count = zip.len();
     for i in 0..count {

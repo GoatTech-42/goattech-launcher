@@ -11,7 +11,6 @@ use std::path::{Path, PathBuf};
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Accent {
-    #[default]
     Violet,
     Blue,
     Teal,
@@ -19,10 +18,13 @@ pub enum Accent {
     Amber,
     Red,
     Pink,
+    /// GoatTech: no hue at all - greys that keep the violet's lightness and contrast.
+    #[default]
+    Mono,
 }
 
 impl Accent {
-    pub const ALL: [Accent; 7] = [
+    pub const ALL: [Accent; 8] = [
         Self::Violet,
         Self::Blue,
         Self::Teal,
@@ -30,6 +32,7 @@ impl Accent {
         Self::Amber,
         Self::Red,
         Self::Pink,
+        Self::Mono,
     ];
 
     /// Its name in `settings.json` and on the command line.
@@ -42,6 +45,7 @@ impl Accent {
             Self::Amber => "amber",
             Self::Red => "red",
             Self::Pink => "pink",
+            Self::Mono => "mono",
         }
     }
 
@@ -49,6 +53,8 @@ impl Accent {
         let name = name.trim().to_ascii_lowercase();
         let name = if name == "purple" || name == "default" {
             "violet"
+        } else if name == "monochrome" || name == "graphite" || name == "grey" || name == "gray" {
+            "mono"
         } else {
             &name
         };
@@ -65,17 +71,24 @@ impl Accent {
             Self::Amber => Some(36.),
             Self::Red => Some(356.),
             Self::Pink => Some(322.),
+            Self::Mono => None,
         }
     }
 
     /// `palette` with this accent.
     pub fn apply(self, mut p: Blocks) -> Blocks {
-        let Some(hue) = self.hue() else {
+        if self == Self::Violet {
             return p;
-        };
+        }
+        let mono = self == Self::Mono;
+        let hue = self.hue();
         let turn = |c: u32| {
-            let (_, s, l) = hsl(c);
-            (hue, s, l)
+            let (h, s, l) = hsl(c);
+            if mono {
+                (h, 0., l)
+            } else {
+                (hue.unwrap(), s, l)
+            }
         };
         // The face holds white text.
         let face = fit(turn(p.face), |c| contrast(p.on_face, c) >= 4.5, -1.);

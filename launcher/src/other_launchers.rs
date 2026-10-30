@@ -258,18 +258,47 @@ fn game_folders(dir: &Path, launcher: &'static str) -> Vec<Found> {
                 .any(|f| p.join(f).exists())
         })
         .filter_map(|game| {
-            Some(Found {
+            let mut found = Found {
                 launcher,
                 name: game.file_name()?.to_string_lossy().into_owned(),
                 minecraft: None,
                 loader: None,
                 game,
                 shared: false,
-            })
+            };
+            if launcher == CURSEFORGE {
+                read_curseforge_json(&mut found);
+            }
+            Some(found)
         })
         .collect();
     found.sort_by_key(|f| f.name.to_lowercase());
     found
+}
+
+/// The CurseForge app's own record beside the game folder: the Minecraft version and the mod
+/// loader (`"baseModLoader": {"name": "forge-47.2.0"}`), when it says them.
+fn read_curseforge_json(found: &mut Found) {
+    let Ok(text) = fs::read_to_string(found.game.join("minecraftinstance.json")) else {
+        return;
+    };
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return;
+    };
+    if let Some(v) = json["gameVersion"].as_str().filter(|s| !s.is_empty()) {
+        found.minecraft = Some(v.to_string());
+    }
+    if let Some((kind, version)) = json["baseModLoader"]["name"].as_str().and_then(|n| n.split_once('-')) {
+        if let Some(kind) = ["fabric", "quilt", "forge", "neoforge"]
+            .into_iter()
+            .find(|k| *k == kind)
+        {
+            found.loader = Some(Loader {
+                name: kind,
+                version: version.to_string(),
+            });
+        }
+    }
 }
 
 /// The CurseForge app's instances: in its modding folder's `Instances/`.
@@ -355,16 +384,28 @@ pub fn curseforge_folders(os: Os, folders: &Folders) -> Vec<PathBuf> {
 
 /// Copies `found`'s game folder into `to`: all of it from an instance's own folder but its
 /// logs, and only what an instance holds from a folder shared with the launcher. Nothing in
-/// the other launcher's folder changes.
+/// the other launcher's folder changes. Links are not followed: one pointing outside the
+/// folder would copy somewhere the import was never asked to look.
 pub fn copy_game(found: &Found, to: &Path) -> std::io::Result<()> {
+    copy_game_skipping(found, to, false)
+}
+
+/// `copy_game`, optionally leaving `mods/` behind (a copy whose mods could never load).
+pub fn copy_game_skipping(found: &Found, to: &Path, skip_mods: bool) -> std::io::Result<()> {
     fs::create_dir_all(to)?;
     let Ok(entries) = fs::read_dir(&found.game) else {
         return Ok(());
     };
     for entry in entries {
         let entry = entry?;
+        if entry.file_type()?.is_symlink() {
+            continue;
+        }
         let name = entry.file_name();
         let name = name.to_string_lossy();
+        if skip_mods && name == "mods" {
+            continue;
+        }
         let wanted = if found.shared {
             SHARED.contains(&name.as_ref())
         } else {
@@ -374,9 +415,29 @@ pub fn copy_game(found: &Found, to: &Path) -> std::io::Result<()> {
             continue;
         }
         if entry.file_type()?.is_dir() {
-            crate::backend::copy_dir(&entry.path(), &to.join(name.as_ref()))?;
+            copy_dir_no_links(&entry.path(), &to.join(name.as_ref()))?;
         } else {
             fs::copy(entry.path(), to.join(name.as_ref()))?;
+        }
+    }
+    Ok(())
+}
+
+/// A recursive copy that leaves linked files and folders out: an import must only ever read
+/// inside the folder it was given.
+fn copy_dir_no_links(from: &Path, to: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(to)?;
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        let kind = entry.file_type()?;
+        if kind.is_symlink() {
+            continue;
+        }
+        let target = to.join(entry.file_name());
+        if kind.is_dir() {
+            copy_dir_no_links(&entry.path(), &target)?;
+        } else {
+            fs::copy(entry.path(), &target)?;
         }
     }
     Ok(())
@@ -391,20 +452,66 @@ pub fn loader(found: &Found) -> Option<loaders::Loader> {
     })
 }
 
+/// The mod jars a copy of `found` would carry: the `.jar` files in its mods folder (links are
+/// never followed).
+fn mod_jars(found: &Found) -> usize {
+    fs::read_dir(found.game.join("mods"))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| !t.is_symlink()))
+        .filter(|e| e.path().extension().is_some_and(|x| x == "jar"))
+        .count()
+}
+
+/// Why `found`'s mods would never load in a copy, when they would not: the loader they need is
+/// one this launcher doesn't install (Forge, NeoForge), or none is recorded at all. Vanilla
+/// Minecraft ignores everything in `mods/`, so copying the jars without saying so would look
+/// like the mods came along when they did not.
+pub fn mods_blocked(found: &Found) -> Option<String> {
+    let jars = mod_jars(found);
+    if jars == 0 {
+        return None;
+    }
+    match &found.loader {
+        Some(l) if crate::loaders::Kind::parse(l.name).is_ok() => None,
+        Some(l) => Some(format!(
+            "{}'s {jars} mod(s) need {} {}, which this launcher doesn't install (Fabric and              Quilt only): without {} they never load.",
+            found.name, l.name, l.version, l.name
+        )),
+        None => Some(format!(
+            "{} comes with {jars} mod(s), but {} records no mod loader for it: plain Minecraft              doesn't load mods, and which loader they need is unknown.",
+            found.name, found.launcher
+        )),
+    }
+}
+
 /// A new Java instance named `name` playing what `found` plays (or `minecraft`, the version the
 /// player names), with its loader when Horizon installs it ([`loader`]) and a copy of its game
-/// folder.
-pub fn import(found: &Found, name: &str, minecraft: Option<&str>) -> Result<Instance, String> {
+/// folder. `with_mods` copies its mods too: refused when they could never load
+/// ([`mods_blocked`]), so a copy is never silent about losing them - pass `false` to copy
+/// everything but the mods instead.
+pub fn import(
+    found: &Found,
+    name: &str,
+    minecraft: Option<&str>,
+    with_mods: bool,
+) -> Result<Instance, String> {
     let Some(minecraft) = minecraft.or(found.minecraft.as_deref()) else {
         return Err(format!(
             "{} doesn't say which Minecraft version {} plays here: name it with --minecraft.",
             found.launcher, found.name
         ));
     };
+    if with_mods {
+        if let Some(why) = mods_blocked(found) {
+            return Err(format!("{why} Copy everything but the mods with --no-mods."));
+        }
+    }
     let versions = crate::minecraft_versions::load()?;
     let version = versions.find(minecraft)?.id.clone();
     let instance = instances::create_java(name, &version)?;
-    if let Err(e) = copy_game(found, &instance.home) {
+    if let Err(e) = copy_game_skipping(found, &instance.home, !with_mods) {
         let _ = instances::delete(&instance.id);
         return Err(format!("Could not copy {}: {e}", found.game.display()));
     }

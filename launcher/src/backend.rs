@@ -3040,7 +3040,7 @@ pub struct Settings {
     /// What the window does while the game runs. Stays by default.
     #[serde(default)]
     pub while_playing: WhilePlaying,
-    /// The accent colour on top of the appearance (`themes::Accent`). Horizon's violet by default.
+    /// The accent colour on top of the appearance (`themes::Accent`). GoatTech: mono by default (upstream: violet).
     #[serde(default)]
     pub accent: crate::themes::Accent,
     /// Home's background: a picture the player picked, kept in the data folder under this name
@@ -3601,7 +3601,8 @@ pub fn {f}("
     #[test]
     fn the_accent_is_violet_unless_picked_and_an_unknown_one_keeps_the_rest() {
         use crate::themes::Accent;
-        assert_eq!(Settings::parse("{}").accent, Accent::Violet);
+        // GoatTech fork: the default accent is Mono (upstream: Violet).
+        assert_eq!(Settings::parse("{}").accent, Accent::Mono);
         let teal =
             Settings::parse(r#"{"accent": "teal", "background": "background-0123456789ab.png"}"#);
         assert_eq!(
@@ -3611,7 +3612,7 @@ pub fn {f}("
         let future = Settings::parse(r#"{"accent": "plaid", "game_args": "--x"}"#);
         assert_eq!(
             (future.accent, future.game_args.as_str()),
-            (Accent::Violet, "--x")
+            (Accent::Mono, "--x")
         );
     }
 

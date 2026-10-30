@@ -1,6 +1,8 @@
 //! Files dropped anywhere on the window (`horizon_launcher::import`): a shared instance becomes
-//! a new instance, a Java modpack goes to the Modpacks import, a resource or shader pack into
-//! the selected instance. The Packs section and the world rows take their own drops first.
+//! a new instance, a .mrpack with a Fabric or Quilt loader becomes a Java instance of its own
+//! (Forge and NeoForge packs are refused with the reason), a CurseForge pack goes to the
+//! Modpacks import, a resource or shader pack into the selected instance. The Packs section
+//! and the world rows take their own drops first.
 use super::*;
 use gpui::ExternalPaths;
 use horizon_launcher::import::{self, Dropped};
@@ -24,6 +26,7 @@ impl Launcher {
             match import::what(&file) {
                 Err(e) => self.importing.note = Some(Err(e)),
                 Ok(Dropped::Instance) => self.import_instance(file, cx),
+                Ok(Dropped::JavaModpack) => self.import_java_instance(file, cx),
                 Ok(Dropped::Modpack) => {
                     self.show_modpack(None);
                     self.pack_job(move |log| horizon_launcher::modpacks::import(&file, log));
@@ -52,6 +55,28 @@ impl Launcher {
                 }
             }
         }
+    }
+
+    fn import_java_instance(&mut self, file: PathBuf, cx: &mut Context<Self>) {
+        self.importing.busy += 1;
+        self.importing.note = None;
+        let task = cx
+            .background_executor()
+            .spawn(async move { import::import_java_instance(&file, &|_, _| {}) });
+        cx.spawn(async move |this, cx| {
+            let made = task.await;
+            let _ = this.update(cx, |this, cx| {
+                this.importing.busy -= 1;
+                this.importing.note = Some(made.map(|i| {
+                    this.reload_instances();
+                    this.select_instance(&i);
+                    this.go(Page::Play);
+                    format!("Made the Java instance {} from the modpack.", i.name)
+                }));
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     fn import_instance(&mut self, file: PathBuf, cx: &mut Context<Self>) {

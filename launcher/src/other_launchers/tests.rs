@@ -239,11 +239,137 @@ fn curseforge_and_modrinth_app_instances_are_their_game_folders() {
     assert!(to.join("mods/a.jar").is_file());
     assert!(!to.join("minecraftinstance.json").exists() && !to.join(".curseclient").exists());
 
-    let err = import(&found[1], "x", None).unwrap_err();
+    let err = import(&found[1], "x", None, true).unwrap_err();
     assert_eq!(
         err,
         "the CurseForge app doesn't say which Minecraft version All the Mods plays here: name \
          it with --minecraft."
     );
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+#[cfg(unix)]
+fn a_linked_file_or_folder_is_not_copied() {
+    let root = scratch("links");
+    let game = root.join("game");
+    write(&game.join("mods/real.jar"), "jar");
+    write(&game.join("saves/world/level.dat"), "level");
+    write(&root.join("outside/secret.txt"), "secret");
+    std::os::unix::fs::symlink(root.join("outside"), game.join("linked-dir")).unwrap();
+    std::os::unix::fs::symlink(
+        root.join("outside/secret.txt"),
+        game.join("mods/linked.jar"),
+    )
+    .unwrap();
+    let found = Found {
+        launcher: "Prism Launcher",
+        name: "Linked".into(),
+        minecraft: None,
+        loader: None,
+        game,
+        shared: false,
+    };
+    let to = root.join("copy");
+    copy_game(&found, &to).unwrap();
+    assert!(to.join("mods/real.jar").is_file());
+    assert!(to.join("saves/world/level.dat").is_file());
+    assert!(!to.join("mods/linked.jar").exists());
+    assert!(!to.join("linked-dir").exists());
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn a_curseforge_record_says_its_version_and_loader() {
+    let root = scratch("cf-json");
+    let pack = root.join("Documents/curseforge/minecraft/Instances/ForgePack");
+    write(&pack.join("mods/forge-mod.jar"), "jar");
+    write(&pack.join("options.txt"), "");
+    write(
+        &pack.join("minecraftinstance.json"),
+        r#"{"gameVersion":"1.20.1","baseModLoader":{"name":"forge-47.2.0"}}"#,
+    );
+    let folders = Folders {
+        home: root.clone(),
+        data: root.join("data"),
+        config: root.join("config"),
+    };
+    let found = scan(Os::Linux, &folders);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].minecraft.as_deref(), Some("1.20.1"));
+    let loader = found[0].loader.as_ref().expect("a loader");
+    assert_eq!(loader.name, "forge");
+    assert_eq!(loader.version, "47.2.0");
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn mods_that_could_never_load_are_refused_or_left_behind_never_silent() {
+    let root = scratch("blocked");
+    let game = root.join("game");
+    write(&game.join("mods/a.jar"), "jar");
+    write(&game.join("options.txt"), "lang:en_us");
+    let base = Found {
+        launcher: "Prism Launcher",
+        name: "x".into(),
+        minecraft: Some("1.21.1".into()),
+        loader: None,
+        game: game.clone(),
+        shared: false,
+    };
+
+    // No loader recorded, mods present: blocked, and the reason says why and how to proceed.
+    let why = mods_blocked(&base).expect("unknown loader + mods is blocked");
+    assert!(why.contains("records no mod loader"), "{why}");
+    assert!(why.contains("1 mod(s)"), "{why}");
+
+    // Fabric/Quilt loaders are installed: not blocked.
+    let mut fabric = base.clone();
+    fabric.loader = Some(Loader {
+        name: "fabric",
+        version: "0.16".into(),
+    });
+    assert_eq!(mods_blocked(&fabric), None);
+
+    // Forge/NeoForge: blocked, naming the loader and version.
+    let mut forge = base.clone();
+    forge.loader = Some(Loader {
+        name: "forge",
+        version: "47.2.0".into(),
+    });
+    let why = mods_blocked(&forge).expect("forge is blocked");
+    assert!(why.contains("forge 47.2.0"), "{why}");
+
+    // No mods: never blocked.
+    let mut empty = base.clone();
+    empty.game = root.join("empty");
+    write(&empty.game.join("options.txt"), "");
+    assert_eq!(mods_blocked(&empty), None);
+
+    // A link in mods/ is not a jar the copy would carry.
+    #[cfg(unix)]
+    {
+        write(&game.join("mods/real.jar"), "jar");
+        std::os::unix::fs::symlink("/etc/hostname", game.join("mods/link.jar")).unwrap();
+        let mut linked = base.clone();
+        linked.loader = Some(Loader {
+            name: "fabric",
+            version: "0.16".into(),
+        });
+        assert_eq!(mods_blocked(&linked), None);
+        let _ = fs::remove_file(game.join("mods/link.jar"));
+        let _ = fs::remove_file(game.join("mods/real.jar"));
+    }
+
+    // The import refuses with the reason and the escape, and makes nothing.
+    let err = import(&base, "blocked-copy", Some("1.21.1"), true).unwrap_err();
+    assert!(err.contains("records no mod loader"), "{err}");
+    assert!(err.contains("--no-mods"), "{err}");
+
+    // With mods left behind, the copy keeps the rest.
+    let made = import(&base, "light-copy", Some("1.21.1"), false).unwrap();
+    assert!(made.home.join("options.txt").is_file());
+    assert!(!made.home.join("mods").exists());
+    let _ = crate::instances::delete(&made.id);
     let _ = fs::remove_dir_all(&root);
 }

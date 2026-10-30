@@ -4,9 +4,9 @@
 //! come from its `horizon-ctl` as `game_*` (game_tools.rs).
 use crate::cli_tools;
 use crate::game_tools::{self, GameTools};
-use horizon_launcher::account::{self, Accounts, SignIn, SignInState};
-use horizon_launcher::backend::{self, Job, Logged};
-use horizon_launcher::instances;
+use crate::account::{self, Accounts, SignIn, SignInState};
+use crate::backend::{self, Job, Logged};
+use crate::instances;
 use serde_json::{json, Value};
 use std::io::{BufRead, Write};
 use std::path::PathBuf;
@@ -89,8 +89,8 @@ impl Session {
                     backend::join_friend(&mut cmd, code)?;
                 }
                 if let Some(server) = arg_str(args, "server") {
-                    let list = horizon_launcher::server_list::List::load(&instance.home);
-                    let ip = horizon_launcher::server_list::find(&list, server)
+                    let list = crate::server_list::List::load(&instance.home);
+                    let ip = crate::server_list::find(&list, server)
                         .map_or_else(|_| server.to_string(), |(_, s)| s.ip);
                     cmd.arg("--server").arg(ip);
                 }

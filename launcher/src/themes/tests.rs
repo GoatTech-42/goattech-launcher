@@ -34,10 +34,11 @@ fn every_accent_reads_as_well_as_the_violet() {
                 "{what}"
             );
             if accent != Accent::Violet {
-                let (h, _, _) = hsl(p.face);
-                let want = accent.hue().unwrap();
-                let off = ((h - want).rem_euclid(360.)).min((want - h).rem_euclid(360.));
-                assert!(off < 3., "{what}: face hue {h:.0}, not {want}");
+                if let Some(want) = accent.hue() {
+                    let (h, _, _) = hsl(p.face);
+                    let off = ((h - want).rem_euclid(360.)).min((want - h).rem_euclid(360.));
+                    assert!(off < 3., "{what}: face hue {h:.0}, not {want}");
+                }
             }
         }
         let violet = Accent::Violet.apply(base);

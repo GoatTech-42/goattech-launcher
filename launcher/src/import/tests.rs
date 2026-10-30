@@ -75,7 +75,7 @@ fn says_what_a_dropped_file_is() {
                 "java.mrpack",
                 r#"{"minecraft":"1.21.1","fabric-loader":"0.16"}"#,
             ),
-            Ok(Dropped::Modpack),
+            Ok(Dropped::JavaModpack),
         ),
         {
             let p = dir.join("cf.zip");
@@ -206,4 +206,144 @@ fn an_export_comes_back_as_an_instance_and_nothing_escapes_its_folder() {
     );
     assert!(import_into(&java, NONE, &maker(&made)).is_err());
     fs::remove_dir_all(&dir).unwrap();
+}
+
+fn java_maker(root: &Path) -> impl Fn(&str, &str, crate::loaders::Loader) -> Result<Instance, String> + '_ {
+    move |name: &str, minecraft: &str, loader: crate::loaders::Loader| {
+        let home = root.join(crate::modpacks::slug(name));
+        if home.exists() {
+            return Err(format!("There is already an instance called {name}."));
+        }
+        fs::create_dir_all(&home).unwrap();
+        Ok(Instance {
+            id: crate::modpacks::slug(name),
+            name: name.into(),
+            kind: instances::Kind::Own,
+            work: home.clone(),
+            home,
+            icon: None,
+            group: None,
+            version: None,
+            played: Duration::ZERO,
+            last_played: None,
+            launch: Default::default(),
+            java: Some(instances::JavaGame {
+                minecraft: minecraft.into(),
+                loader: Some(loader),
+                ..Default::default()
+            }),
+        })
+    }
+}
+
+fn loader_pack(root: &Path, deps: serde_json::Value, files: serde_json::Value) -> PathBuf {
+    let pack = root.join("cool-pack.mrpack");
+    let index = serde_json::json!({
+        "formatVersion": 1,
+        "game": "minecraft",
+        "name": "Cool Pack",
+        "versionId": "1.0",
+        "dependencies": deps,
+        "files": files,
+    });
+    zip_file(
+        &pack,
+        &[
+            ("modrinth.index.json", index.to_string().as_bytes()),
+            ("overrides/options.txt", b"gamma:1.0\n"),
+            ("overrides/mods/cool.jar", b"PK"),
+            ("overrides/../../escape.txt", b"nope"),
+            ("overrides/randomfolder/evil.txt", b"not an instance file"),
+        ],
+    );
+    pack
+}
+
+#[test]
+fn a_loader_mrpack_becomes_a_java_instance_and_nothing_escapes() {
+    let root = scratch("java-pack");
+    let pack = loader_pack(
+        &root,
+        serde_json::json!({"minecraft": "26.3", "fabric-loader": "0.20.1"}),
+        serde_json::json!([]),
+    );
+    let made = import_java_instance_with(
+        &pack,
+        NONE,
+        &|mc| Ok(mc.to_string()),
+        &|kind, mc, version| {
+            assert_eq!((kind, mc, version), ("fabric", "26.3", "0.20.1"));
+            Ok(crate::loaders::Loader {
+                kind: crate::loaders::Kind::Fabric,
+                version: version.into(),
+            })
+        },
+        &java_maker(&root),
+    )
+    .unwrap();
+    assert_eq!(made.name, "Cool Pack");
+    let java = made.java.unwrap();
+    assert_eq!(java.minecraft, "26.3");
+    assert_eq!(java.loader.unwrap().version, "0.20.1");
+    assert_eq!(
+        fs::read_to_string(made.home.join("options.txt")).unwrap(),
+        "gamma:1.0\n"
+    );
+    assert!(made.home.join("mods/cool.jar").is_file());
+    assert!(!root.join("escape.txt").exists() && !root.join("randomfolder").exists());
+    assert!(!made.home.join("modrinth.index.json").exists());
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn a_java_pack_file_cant_escape_its_folder() {
+    let root = scratch("java-pack-evil");
+    let pack = loader_pack(
+        &root,
+        serde_json::json!({"minecraft": "26.3", "fabric-loader": "0.20.1"}),
+        serde_json::json!([{
+            "path": "../evil.jar",
+            "hashes": {"sha512": "ab".repeat(64), "sha1": "ab".repeat(20)},
+            "downloads": ["https://cdn.modrinth.com/data/x/evil.jar"],
+            "fileSize": 3
+        }]),
+    );
+    let err = import_java_instance_with(
+        &pack,
+        NONE,
+        &|mc| Ok(mc.to_string()),
+        &|_, _, version| {
+            Ok(crate::loaders::Loader {
+                kind: crate::loaders::Kind::Fabric,
+                version: version.into(),
+            })
+        },
+        &java_maker(&root),
+    )
+    .unwrap_err();
+    assert!(err.contains("../evil.jar"), "{err}");
+    assert!(!root.join("evil.jar").exists());
+    assert!(!root.join("cool-pack").exists());
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn a_forge_pack_says_so_instead_of_importing_broken() {
+    let root = scratch("java-pack-forge");
+    let pack = loader_pack(
+        &root,
+        serde_json::json!({"minecraft": "26.3", "neoforge": "21.1.0"}),
+        serde_json::json!([]),
+    );
+    let err = import_java_instance_with(
+        &pack,
+        NONE,
+        &|_| panic!("the version is never asked of Mojang"),
+        &|_, _, _| panic!("the loader is never asked of its service"),
+        &java_maker(&root),
+    )
+    .unwrap_err();
+    assert!(err.contains("neoforge 21.1.0"), "{err}");
+    assert!(err.contains("Fabric and Quilt"), "{err}");
+    let _ = fs::remove_dir_all(&root);
 }

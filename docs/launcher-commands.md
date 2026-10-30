@@ -486,7 +486,7 @@ MCP: `instance_shortcut`.
 
 ## `horizon-launcher instance import`
 
-Import what a file is, as dropping it on the window does: a shared instance (a .mrpack without mod loaders, such as `instance export` writes, or a game folder zip) becomes a new instance; a Java modpack goes to the Modpacks import; a resource or shader pack into the instance (default: the selected one).
+Import what a file is, as dropping it on the window does: a shared instance (a .mrpack without mod loaders, such as `instance export` writes, or a game folder zip) becomes a new instance; a .mrpack with a Fabric or Quilt loader becomes a Java instance of its own (Forge and NeoForge packs are refused); a CurseForge pack goes to the Modpacks import; a resource or shader pack into the instance (default: the selected one).
 
     horizon-launcher instance import <FILE>
 
@@ -512,6 +512,7 @@ Copy another launcher's instance into a new Java instance: its Minecraft version
     horizon-launcher instance copy-from <NAME>
 
 - `NAME`: Its name, as `instance others` lists it
+- `--no-mods`: Copy worlds, packs, options and configs but leave the mods behind (their loader isn't one this launcher installs, so they would never load)
 - `--folder`: Look in this folder instead: a launcher's folder, its instances/ or one instance
 - `--as`: The new instance's name (default: the same)
 - `--minecraft`: The Minecraft version it plays, when its launcher doesn't say (the CurseForge app, the Modrinth App)

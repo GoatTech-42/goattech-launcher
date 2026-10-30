@@ -1,14 +1,14 @@
 //! `horizon-launcher <subcommand>`: the same steps as the window, from a terminal. Every
 //! command goes through `backend`; this file only parses arguments and prints.
 use clap::{Parser, Subcommand};
-use horizon_launcher::account::{self, Accounts};
-use horizon_launcher::backend::{self, Release};
-use horizon_launcher::github_mods;
-use horizon_launcher::instances;
-use horizon_launcher::loaders;
-use horizon_launcher::native_mods;
-use horizon_launcher::other_launchers;
-use horizon_launcher::server_list;
+use crate::account::{self, Accounts};
+use crate::backend::{self, Release};
+use crate::github_mods;
+use crate::instances;
+use crate::loaders;
+use crate::native_mods;
+use crate::other_launchers;
+use crate::server_list;
 use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -334,8 +334,9 @@ enum InstanceCmd {
     },
     /// Import what a file is, as dropping it on the window does: a shared instance (a .mrpack
     /// without mod loaders, such as `instance export` writes, or a game folder zip) becomes a
-    /// new instance; a Java modpack goes to the Modpacks import; a resource or shader pack into
-    /// the instance (default: the selected one)
+    /// new instance; a .mrpack with a Fabric or Quilt loader becomes a Java instance of its
+    /// own (Forge and NeoForge packs are refused); a CurseForge pack goes to the Modpacks
+    /// import; a resource or shader pack into the instance (default: the selected one)
     Import {
         file: PathBuf,
         /// The instance a pack goes into
@@ -354,6 +355,10 @@ enum InstanceCmd {
     CopyFrom {
         /// Its name, as `instance others` lists it
         name: String,
+        /// Copy worlds, packs, options and configs but leave the mods behind (their loader
+        /// isn't one this launcher installs, so they would never load)
+        #[arg(long)]
+        no_mods: bool,
         /// Look in this folder instead: a launcher's folder, its instances/ or one instance
         #[arg(long)]
         folder: Option<PathBuf>,
@@ -431,7 +436,7 @@ enum PackKindArg {
     Shader,
 }
 
-impl From<PackKindArg> for horizon_launcher::packs::Kind {
+impl From<PackKindArg> for crate::packs::Kind {
     fn from(k: PackKindArg) -> Self {
         match k {
             PackKindArg::Resource => Self::Resource,
@@ -668,8 +673,8 @@ enum SourceArg {
 }
 
 impl SourceArg {
-    fn get(self) -> Result<Box<dyn horizon_launcher::browser::Source>, String> {
-        use horizon_launcher::browser::{self, SourceId};
+    fn get(self) -> Result<Box<dyn crate::browser::Source>, String> {
+        use crate::browser::{self, SourceId};
         let id = match self {
             SourceArg::Modrinth => SourceId::Modrinth,
             SourceArg::Curseforge => SourceId::CurseForge,
@@ -976,7 +981,7 @@ fn set_setting(s: &mut backend::Settings, key: &str, value: &str) -> Result<(), 
                 .ok_or_else(|| format!("{value}: say stay, minimize or hide"))?
         }
         "accent" => {
-            use horizon_launcher::themes::Accent;
+            use crate::themes::Accent;
             s.accent = Accent::parse(value).ok_or_else(|| {
                 let names: Vec<_> = Accent::ALL.iter().map(|a| a.name()).collect();
                 format!("{value}: say {}", names.join(", "))
@@ -985,14 +990,14 @@ fn set_setting(s: &mut backend::Settings, key: &str, value: &str) -> Result<(), 
         "background" => {
             s.background = match value.trim() {
                 "default" | "" => None,
-                file => Some(horizon_launcher::themes::keep_background(
+                file => Some(crate::themes::keep_background(
                     &backend::data_dir(),
                     std::path::Path::new(file),
                 )?),
             }
         }
         "language" => {
-            use horizon_launcher::i18n::Language;
+            use crate::i18n::Language;
             s.language = match value.trim() {
                 "system" | "default" => None,
                 code => Some(Language::parse(code).ok_or_else(|| {
@@ -1003,7 +1008,7 @@ fn set_setting(s: &mut backend::Settings, key: &str, value: &str) -> Result<(), 
         "proxy" => {
             if value == "default" || value.is_empty() {
                 s.proxy = None;
-            } else if let Some(why) = horizon_launcher::proxy::refuse(value) {
+            } else if let Some(why) = crate::proxy::refuse(value) {
                 return Err(why);
             } else {
                 s.proxy = Some(value.trim().to_string());
@@ -1030,7 +1035,7 @@ fn settings_json(s: &backend::Settings) -> serde_json::Value {
         "while_playing": s.while_playing.name(),
         "language": s.language.map_or("system", |l| l.code()),
         "accent": s.accent.name(),
-        "background": horizon_launcher::themes::background(&backend::data_dir(), s.background.as_deref()),
+        "background": crate::themes::background(&backend::data_dir(), s.background.as_deref()),
         "no_ai": backend::no_ai(),
     })
 }
@@ -1187,11 +1192,11 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             let (folder, target) = match folder {
                 Some(folder) => (folder, None),
                 None => (
-                    horizon_launcher::native_mods::installed_mods(&target.home)?,
+                    crate::native_mods::installed_mods(&target.home)?,
                     Some(&target),
                 ),
             };
-            let built = horizon_launcher::native_mods::build(
+            let built = crate::native_mods::build(
                 &base,
                 &folder,
                 target,
@@ -1199,7 +1204,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 |step| eprintln!("{}", step.label()),
             )
             .map_err(|e| {
-                match e.starts_with(horizon_launcher::native_mods::MISMATCH) {
+                match e.starts_with(crate::native_mods::MISMATCH) {
                     true => {
                         format!("{e} They often still build: pass --allow-version-mismatch to try.")
                     }
@@ -1272,7 +1277,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 let vars = instance.vars(cmd.get_program());
                 cmd.envs(vars.iter().map(|(k, v)| (k, v)));
                 let started = std::time::Instant::now();
-                let played = attached(horizon_launcher::launch::wrap(cmd, &instance.launch));
+                let played = attached(crate::launch::wrap(cmd, &instance.launch));
                 if let Err(e) = instances::record_play(&instance.id, started.elapsed()) {
                     eprintln!("Play time not saved: {e}");
                 }
@@ -1304,7 +1309,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             cmd.envs(accounts.look_env());
             let vars = instance.vars(cmd.get_program());
             cmd.envs(vars.iter().map(|(k, v)| (k, v)));
-            let played = attached(horizon_launcher::launch::wrap(cmd, &instance.launch));
+            let played = attached(crate::launch::wrap(cmd, &instance.launch));
             if let Err(e) = instances::record_play(&instance.id, started.elapsed()) {
                 eprintln!("Play time not saved: {e}");
             }
@@ -1374,7 +1379,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             }
         }
         Cmd::AgentConfig { test: true, .. } => {
-            let tools = horizon_launcher::agents::self_test(backend::exe_path())?;
+            let tools = crate::agents::self_test(backend::exe_path())?;
             if as_json {
                 json(serde_json::json!({ "answered": true, "tools": tools }));
             } else {
@@ -1382,7 +1387,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             }
         }
         Cmd::AgentConfig { client, .. } => {
-            use horizon_launcher::agents;
+            use crate::agents;
             let exe = backend::exe_path();
             if as_json {
                 let mut all = agents::json(exe);
@@ -1420,7 +1425,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 let value = value.ok_or("settings KEY VALUE: the value is missing")?;
                 set_setting(&mut settings, &key, &value)?;
                 settings.save();
-                horizon_launcher::proxy::announce(settings.proxy.clone());
+                crate::proxy::announce(settings.proxy.clone());
             }
             let all = settings_json(&settings);
             if as_json {
@@ -1450,7 +1455,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             }
         }
         Cmd::ShareLog { instance } => {
-            use horizon_launcher::game_log;
+            use crate::game_log;
             let i = match instance {
                 Some(name) => instances::find(&name)?,
                 None => instances::selected(),
@@ -1477,7 +1482,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             let (id, token) = shared
                 .split_once(':')
                 .ok_or("Give the \"<id>:<token>\" share-log printed.")?;
-            horizon_launcher::game_log::unshare(&horizon_launcher::game_log::Shared {
+            crate::game_log::unshare(&crate::game_log::Shared {
                 url: String::new(),
                 id: id.into(),
                 token: token.into(),
@@ -1499,10 +1504,10 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             settings.desktop_entry = Some(!remove);
             settings.save();
             if remove {
-                horizon_launcher::desktop::remove()?;
+                crate::desktop::remove()?;
                 println!("Removed Horizon from the applications menu.");
             } else {
-                horizon_launcher::desktop::install(backend::exe_path())?;
+                crate::desktop::install(backend::exe_path())?;
                 println!("Horizon is in the applications menu.");
             }
         }
@@ -1537,7 +1542,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
 }
 
 fn java(action: JavaCmd, as_json: bool) -> Result<(), String> {
-    use horizon_launcher::java;
+    use crate::java;
     match action {
         JavaCmd::List => {
             let mut all = java::mojang_runtimes(&java::runtimes_dir());
@@ -1574,7 +1579,7 @@ fn java(action: JavaCmd, as_json: bool) -> Result<(), String> {
 }
 
 fn rust(action: RustCmd, as_json: bool) -> Result<(), String> {
-    use horizon_launcher::rust_toolchain as rust;
+    use crate::rust_toolchain as rust;
     match action {
         RustCmd::Status => {
             let installed = rust::installed();
@@ -1773,7 +1778,7 @@ fn account_command(action: AccountCmd, as_json: bool) -> Result<(), String> {
             no_skin,
             no_cape,
         } => {
-            use horizon_launcher::skins::{self, Model};
+            use crate::skins::{self, Model};
             let name = accounts
                 .offline
                 .iter()
@@ -1821,7 +1826,7 @@ fn account_command(action: AccountCmd, as_json: bool) -> Result<(), String> {
             }
         }
         AccountCmd::ForgetOffline { name } => {
-            accounts.remove_offline(&name, &horizon_launcher::skins::dir())?;
+            accounts.remove_offline(&name, &crate::skins::dir())?;
             accounts.save()?;
             println!("Forgot the offline name {name}.");
         }
@@ -1831,7 +1836,7 @@ fn account_command(action: AccountCmd, as_json: bool) -> Result<(), String> {
 
 /// `data`: the same consent as Settings → Data collection.
 fn data(action: DataCmd, as_json: bool) -> Result<(), String> {
-    use horizon_launcher::telemetry;
+    use crate::telemetry;
     let review = |item: &horizon_telemetry::Item, yes: bool| -> Result<bool, String> {
         println!(
             "{}",
@@ -1905,7 +1910,7 @@ fn data(action: DataCmd, as_json: bool) -> Result<(), String> {
 }
 
 fn servers(action: ServersCmd, as_json: bool) -> Result<(), String> {
-    use horizon_launcher::servers::{self, NewServer, World};
+    use crate::servers::{self, NewServer, World};
     let find = |which: &str| {
         servers::list()
             .into_iter()
@@ -2064,8 +2069,8 @@ fn github_native(
 }
 
 fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
-    use horizon_launcher::browser::{horizon, installed, java_instance, Kind, Query, SourceId};
-    use horizon_launcher::modpacks;
+    use crate::browser::{horizon, installed, java_instance, Kind, Query, SourceId};
+    use crate::modpacks;
     // What the browser installs goes into an instance's game folder; Java mods' checks are kept
     // in the default one, shared by all.
     let instance = match &action {
@@ -2116,7 +2121,7 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
                     "Nothing installed from the browser yet: horizon-launcher mods search <text>"
                 );
             }
-            for o in horizon_launcher::github_mods::origins(&home)
+            for o in crate::github_mods::origins(&home)
                 .iter()
                 .filter(|_| !as_json && java.is_none())
             {
@@ -2191,7 +2196,7 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
                 }).collect());
             } else {
                 if datapack && !found.is_empty() {
-                    println!("{}\n", horizon_launcher::browser::DATAPACK_SUPPORT);
+                    println!("{}\n", crate::browser::DATAPACK_SUPPORT);
                 }
                 for p in &found {
                     let support = p.support();
@@ -2235,7 +2240,7 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
             if p.kind != Kind::Mod {
                 return Err(format!("{} isn't a Java mod.", p.title));
             }
-            let (version, c) = horizon_launcher::browser::java::check_project(
+            let (version, c) = crate::browser::java::check_project(
                 &home,
                 &*source,
                 &p,
@@ -2275,7 +2280,7 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
             let source = source.get()?;
             let p = source.project(&project)?;
             if let Some(world) = world {
-                let world = horizon_launcher::worlds::find(&home, &world)?;
+                let world = crate::worlds::find(&home, &world)?;
                 let done = installed::install_datapack(
                     &*source,
                     &p,
@@ -2380,7 +2385,7 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
                 });
             }
             for e in chosen {
-                let Some(source) = horizon_launcher::browser::source(e.source) else {
+                let Some(source) = crate::browser::source(e.source) else {
                     println!("{}: {} isn't available here.", e.title, e.source.label());
                     continue;
                 };
@@ -2501,7 +2506,7 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
                     return Err(format!("{} was taken down: {}", e.title, r.reason));
                 }
             }
-            horizon_launcher::browser::java::set_enabled(&home, id, on)?;
+            crate::browser::java::set_enabled(&home, id, on)?;
             println!("{} is {}.", e.title, if on { "on" } else { "off" });
         }
     }
@@ -2510,7 +2515,7 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
 
 /// The other launchers' instances in `folder`, else in their default folders.
 fn other_instances(folder: Option<&Path>) -> Result<Vec<other_launchers::Found>, String> {
-    use horizon_launcher::sources::{Folders, Os};
+    use crate::sources::{Folders, Os};
     Ok(match folder {
         Some(dir) if !dir.is_dir() => return Err(format!("{} isn't a folder.", dir.display())),
         Some(dir) => other_launchers::in_folder(dir, None),
@@ -2541,7 +2546,7 @@ fn other_json(f: &other_launchers::Found) -> serde_json::Value {
 /// Runs the instance's post-exit command in this terminal, if it has one, and waits for it.
 fn after_exit(instance: &instances::Instance, vars: &[(&'static str, std::ffi::OsString)]) {
     let Some(mut cmd) =
-        horizon_launcher::launch::after_exit(&instance.launch, &instance.home, vars)
+        crate::launch::after_exit(&instance.launch, &instance.home, vars)
     else {
         return;
     };
@@ -2641,7 +2646,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             loader_version,
             ..
         } => {
-            let versions = horizon_launcher::minecraft_versions::load()?;
+            let versions = crate::minecraft_versions::load()?;
             let id = &versions.find(&version)?.id;
             // The loader first: a version it doesn't have makes no instance.
             let loader = loader
@@ -2687,7 +2692,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             })?)
         }
         InstanceCmd::Versions { snapshots, old } => {
-            let versions = horizon_launcher::minecraft_versions::load()?;
+            let versions = crate::minecraft_versions::load()?;
             let shown: Vec<_> = versions.of(snapshots, old).collect();
             if as_json {
                 json(serde_json::json!(shown));
@@ -2762,7 +2767,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             dedicated_gpu,
             post_exit,
         } => {
-            use horizon_launcher::launch;
+            use crate::launch;
             let env = env.as_deref().map(launch::parse_env).transpose()?;
             let [gamemode, mangohud, dedicated_gpu] =
                 [gamemode, mangohud, dedicated_gpu].map(|v| v.as_deref().map(on_off));
@@ -2849,7 +2854,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             }
         }
         InstanceCmd::Shortcut { instance, remove } => {
-            use horizon_launcher::shortcut;
+            use crate::shortcut;
             let i = match instance {
                 Some(name) => instances::find(&name)?,
                 None => instances::selected(),
@@ -2888,6 +2893,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
         }
         InstanceCmd::CopyFrom {
             name,
+            no_mods,
             folder,
             new_name,
             minecraft,
@@ -2913,19 +2919,16 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
                 f,
                 new_name.as_deref().unwrap_or(&f.name),
                 minecraft.as_deref(),
+                !no_mods,
             )?;
-            let unsupported = other_launchers::loader(f).is_none();
-            if let Some(l) = f.loader.as_ref().filter(|_| unsupported && !as_json) {
-                println!(
-                    "{} {} isn't installed for it yet: its mods are copied and wait for it.",
-                    l.name, l.version
-                );
+            if no_mods && !as_json {
+                println!("Its mods were left behind (their loader isn't one this one installs).");
             }
             changed(made);
         }
         InstanceCmd::Import { file, instance } => {
-            use horizon_launcher::import::{self, Dropped};
-            use horizon_launcher::modpacks;
+            use crate::import::{self, Dropped};
+            use crate::modpacks;
             match import::what(&file)? {
                 Dropped::Instance => {
                     let i = import::import_instance(&file, &|line, _| eprintln!("{line}"))?;
@@ -2934,6 +2937,19 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
                     } else {
                         println!(
                             "Made the instance {} in {}: horizon-launcher instance select \"{}\"",
+                            i.name,
+                            i.home.display(),
+                            i.name
+                        );
+                    }
+                }
+                Dropped::JavaModpack => {
+                    let i = import::import_java_instance(&file, &|line, _| eprintln!("{line}"))?;
+                    if as_json {
+                        json(value(&i, false));
+                    } else {
+                        println!(
+                            "Made the Java instance {} in {}: horizon-launcher instance select \"{}\"",
                             i.name,
                             i.home.display(),
                             i.name
@@ -2953,7 +2969,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
                         Some(name) => instances::find(&name)?,
                         None => instances::selected(),
                     };
-                    let p = horizon_launcher::packs::add(&i.home, &file)?;
+                    let p = crate::packs::add(&i.home, &file)?;
                     println!(
                         "Added {} to {}: turn it on with horizon-launcher packs on",
                         p.title, i.name
@@ -2974,7 +2990,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             world,
             out,
         } => {
-            use horizon_launcher::export::{self, Format};
+            use crate::export::{self, Format};
             let i = match instance {
                 Some(name) => instances::find(&name)?,
                 None => instances::selected(),
@@ -2985,7 +3001,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             };
             let worlds = world
                 .iter()
-                .map(|w| horizon_launcher::worlds::find(&i.home, w).map(|w| w.folder))
+                .map(|w| crate::worlds::find(&i.home, w).map(|w| w.folder))
                 .collect::<Result<Vec<_>, _>>()?;
             let linked = match format {
                 Format::Mrpack => export::linkable(&i.home, &export::from_modrinth),
@@ -3024,7 +3040,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
 }
 
 fn game_packs(action: PacksCmd, as_json: bool) -> Result<(), String> {
-    use horizon_launcher::packs::{self, Kind};
+    use crate::packs::{self, Kind};
     let home = |instance: Option<String>| -> Result<PathBuf, String> {
         Ok(match instance {
             Some(name) => instances::find(&name)?.home,
@@ -3096,11 +3112,11 @@ fn game_packs(action: PacksCmd, as_json: bool) -> Result<(), String> {
 
 fn set_pack(
     home: &std::path::Path,
-    kind: horizon_launcher::packs::Kind,
+    kind: crate::packs::Kind,
     query: &str,
     on: bool,
 ) -> Result<(), String> {
-    use horizon_launcher::packs;
+    use crate::packs;
     let pack = packs::find(home, kind, query)?;
     packs::set_enabled(home, &pack, on)?;
     println!("{} is {}.", pack.title, if on { "on" } else { "off" });
@@ -3108,7 +3124,7 @@ fn set_pack(
 }
 
 fn screenshots(action: ScreenshotsCmd, as_json: bool) -> Result<(), String> {
-    use horizon_launcher::screenshots;
+    use crate::screenshots;
     let home = |instance: Option<String>| -> Result<PathBuf, String> {
         Ok(match instance {
             Some(name) => instances::find(&name)?.home,
@@ -3200,8 +3216,8 @@ fn multiplayer(action: MultiplayerCmd, as_json: bool) -> Result<(), String> {
 }
 
 fn worlds(action: WorldsCmd, as_json: bool) -> Result<(), String> {
-    use horizon_launcher::datapacks;
-    use horizon_launcher::worlds::{self, World};
+    use crate::datapacks;
+    use crate::worlds::{self, World};
     let home = |instance: Option<String>| -> Result<PathBuf, String> {
         Ok(match instance {
             Some(name) => instances::find(&name)?.home,
@@ -3303,8 +3319,8 @@ fn worlds(action: WorldsCmd, as_json: bool) -> Result<(), String> {
 }
 
 fn modpack(action: ModpackCmd, as_json: bool) -> Result<(), String> {
-    use horizon_launcher::browser::horizon;
-    use horizon_launcher::modpacks::{self, Imported};
+    use crate::browser::horizon;
+    use crate::modpacks::{self, Imported};
     use horizon_port_pack::report::Status;
     let log = &|line: String| eprintln!("{line}");
     let work = |pack: &str| {

@@ -1,5 +1,7 @@
 //! The launcher's core, shared by the GUI, the CLI and the MCP server.
 pub mod account;
+pub mod cli;
+pub mod cli_tools;
 pub mod agents;
 pub mod backend;
 pub mod browser;
@@ -15,17 +17,20 @@ pub mod heads;
 pub mod i18n;
 pub mod import;
 pub mod instances;
+pub mod game_tools;
 pub mod java;
 pub mod java_launch;
 pub mod launch;
 pub mod loaders;
 pub mod minecraft_versions;
 pub mod modpacks;
+pub mod mcp;
 pub mod mojang;
 pub mod native_mods;
 pub mod nightly;
 pub mod other_launchers;
 pub mod packs;
+pub mod perf;
 pub mod process;
 pub mod proxy;
 pub mod rust_toolchain;
