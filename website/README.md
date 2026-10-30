@@ -22,7 +22,7 @@ obsidian.goattech.us). Custom domain `launcher.goattech.us` is attached to the
 project, with a proxied CNAME `launcher.goattech.us` ->
 `goattech-launcher.pages.dev` in the goattech.us zone.
 
-Redeploy after edits (needs a Cloudflare API token with Pages edit on the
+Redeploy after edits - the .assetsignore in this folder keeps this README and other docs out of the upload, and 404.html is served with a real 404 status for unmatched paths (keep it). Needs a Cloudflare API token with Pages edit on the
 account - use the one in the vault, never commit it):
 
     export CLOUDFLARE_API_TOKEN=...   # from vault, do not hardcode
