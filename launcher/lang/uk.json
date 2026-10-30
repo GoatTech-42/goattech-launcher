@@ -241,5 +241,6 @@
   "Playing next": "Наступний запуск",
   "Own runtime, mods and saves - nothing mixes with your other instances.": "Власне середовище, моди й збереження - нічого не змішується з вашими іншими збірками.",
   "{n} mods": "Модів: {n}",
-  "{n} playing now": "Зараз грають: {n}"
+  "{n} playing now": "Зараз грають: {n}",
+  "Jump back in": "Повернутись до гри"
 }

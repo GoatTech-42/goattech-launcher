@@ -241,5 +241,6 @@
   "Playing next": "Spielt als Nächstes",
   "Own runtime, mods and saves - nothing mixes with your other instances.": "Eigene Laufzeit, eigene Mods, eigene Spielstände - nichts vermischt sich mit deinen anderen Instanzen.",
   "{n} mods": "{n} Mods",
-  "{n} playing now": "{n} spielen gerade"
+  "{n} playing now": "{n} spielen gerade",
+  "Jump back in": "Weiter spielen"
 }

@@ -2697,7 +2697,8 @@ impl Launcher {
                     // Notes and friends are Horizon's.
                     .children(java.is_none().then(|| self.home_card(&tag, cx))),
             );
-        let mut page = div().flex().flex_col().gap(px(28.)).child(banner);
+        let sections = self.home_sections(cx);
+        let mut page = div().flex().flex_col().gap(px(28.)).child(banner).child(sections);
         if let Some(e) = self.prepare_error.clone() {
             page = page.child(notice(e, &t));
         }
