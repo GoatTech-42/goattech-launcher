@@ -103,7 +103,16 @@ impl Theme {
             WindowAppearance::Light | WindowAppearance::VibrantLight
         );
         let dark = pinned_dark(choice).unwrap_or(system_dark);
-        let night = if dark { night::NIGHT } else { night::DAWN };
+        // GoatTech: the Mono accent takes the true-neutral night with it.
+        let night = if dark {
+            if matches!(accent, Accent::Mono) {
+                night::NIGHT_MONO
+            } else {
+                night::NIGHT
+            }
+        } else {
+            night::DAWN
+        };
         Self::from(accent.apply(night.blocks()), night)
     }
 

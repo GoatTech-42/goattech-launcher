@@ -96,6 +96,34 @@ pub const NIGHT: Night = Night {
     dark: true,
 };
 
+/// GoatTech: the night look in true neutrals - no hue anywhere. The sky is a grey night
+/// (stars and the moon carry it), plates are the concept's surfaces (#0a0a0a ground,
+/// #131313 surface, #1b1b1b raised), and the one main action is white on black. Status
+/// reads by lightness, not colour: danger brightest, success dimmest; the mod browser's
+/// dots already say Works/Partly/Doesn't by shape. Chosen when the accent is Mono.
+pub const NIGHT_MONO: Night = Night {
+    sky: [0x030303, 0x070707, 0x0b0b0b, 0x111111, 0x1a1a1a, 0x242424],
+    page: 0x0a0a0a,
+    side: 0x0d0d0d,
+    card: 0x131313,
+    card_alpha: 0.84,
+    card_hi: 0x1b1b1b,
+    card_hi_alpha: 0.90,
+    stroke: 0xffffff,
+    stroke_alpha: 0.09,
+    rule_alpha: 0.07,
+    ink: 0xffffff,
+    ink_soft: 0xb4b4b4,
+    muted: 0x8f8f8f,
+    accent: 0xffffff,
+    accent_hi: 0xffffff,
+    on_accent: 0x000000,
+    success: 0x737373,
+    warn: 0xa3a3a3,
+    danger: 0xffffff,
+    dark: true,
+};
+
 /// The light appearance: the same sky at dawn, pale blue to peach, with the night's violet.
 pub const DAWN: Night = Night {
     sky: [0xc9d3f2, 0xdcd8f3, 0xead5ec, 0xf5d3d8, 0xf9d6bd, 0xfbe4c6],
