@@ -90,31 +90,6 @@ pub fn row(id: impl Into<SharedString>, selected_now: bool, t: &Theme) -> Statef
     keyboard(track_hover(d, id), t)
 }
 
-/// A row's two lines: the name, and its state after a small square in `state`'s colour when it
-/// has one ("Ready · 26.3" in green, "Needs preparing" in amber).
-pub fn row_text(name: impl Into<SharedString>, sub: String, state: Option<Hsla>, t: &Theme) -> Div {
-    let n = t.night;
-    div()
-        .relative()
-        .flex()
-        .flex_col()
-        .min_w_0()
-        .child(
-            text(night::UI, c(n.ink))
-                .font_weight(FontWeight::SEMIBOLD)
-                .truncate()
-                .child(name.into()),
-        )
-        .child(
-            div()
-                .flex()
-                .items_center()
-                .gap(px(6.))
-                .min_w_0()
-                .children(state.map(|s| div().flex_none().size(px(6.)).bg(s)))
-                .child(text(night::CAPTION, c(n.muted)).truncate().child(sub)),
-        )
-}
 
 /// A heading over a group of rows ("Instances", a group's name, "Servers"), with room for a
 /// button on its right.

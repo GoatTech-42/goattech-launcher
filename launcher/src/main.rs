@@ -75,6 +75,7 @@ use theme::Theme;
 #[derive(Clone, Copy, PartialEq)]
 enum Page {
     Play,
+    Instances,
     Versions,
     /// Mods, resource packs and modpacks (imported ones and the browser's).
     Mods,
@@ -91,6 +92,7 @@ impl Page {
     /// dialog open on Modded; `edit-instance`: the selected one's Edit dialog; `worlds`, `packs`...: Home on that tab, `HomeTab::from_env`).
     fn from_env() -> Page {
         match std::env::var("HORIZON_LAUNCHER_PAGE").as_deref() {
+            Ok("instances") => Page::Instances,
             Ok("mods" | "modpacks" | "shaders" | "datapacks") => Page::Mods,
             Ok("servers") => Page::Servers,
             Ok("versions") => Page::Versions,
@@ -101,8 +103,9 @@ impl Page {
     }
 
     /// Every page, with its name and icon: the sidebar's nav shows them all.
-    const ALL: [(Page, &'static str, &'static str); 6] = [
+    const ALL: [(Page, &'static str, &'static str); 7] = [
         (Page::Play, "Home", "home"),
+        (Page::Instances, "Instances", "box"),
         (Page::Mods, "Mods", "package"),
         (Page::Servers, "Servers", "server"),
         (Page::Versions, "Versions", "archive"),
@@ -1959,7 +1962,6 @@ impl Launcher {
         let t = self.theme;
         let n = t.night;
         self.load_packs();
-        let heading = |label: String| shell::heading(label, &t);
         // The pages' nav under the wordmark (the concept shell has no top bar).
         let mut nav = div().flex().flex_none().flex_col().gap(px(2.)).mt(px(4.));
         for (page, label, icon) in Page::ALL {
@@ -1967,61 +1969,6 @@ impl Launcher {
                 shell::nav_item(format!("nav-{label}"), icon, tr(label).to_string(), self.page == page, &t)
                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                         this.go(page);
-                        cx.notify();
-                    })),
-            );
-        }
-        let add = shell::icon_button("add-instance", "plus", 24., false, &t).on_click(cx.listener(
-            |this, _: &ClickEvent, _, cx| {
-                this.open_instance_dialog(None);
-                cx.notify();
-            },
-        ));
-        let items = self.instance_items(heading, cx);
-        let mut rows = items.len();
-        let list = div()
-            .flex()
-            .flex_col()
-            .gap(px(2.))
-            .child(heading(tr("INSTANCES").into()).child(add))
-            .children(items);
-        let servers: Vec<_> = self
-            .servers
-            .sidebar_list()
-            .map(<[_]>::to_vec)
-            .unwrap_or_else(|| self.side_servers.clone());
-        let mut list = list;
-        if !servers.is_empty() {
-            list = list.child(heading(tr("SERVERS").into()));
-        }
-        rows += servers.len();
-        let headings = 1 + usize::from(!servers.is_empty());
-        for e in servers {
-            let up = self.servers.is_up(&e.dir);
-            let open = self.page == Page::Servers && self.servers.open.as_ref() == Some(&e.dir);
-            let dir = e.dir.clone();
-            list = list.child(
-                shell::row(format!("side-server-{}", e.dir.display()), open, &t)
-                    .child(
-                        div()
-                            .relative()
-                            .flex()
-                            .flex_none()
-                            .items_center()
-                            .justify_center()
-                            .size(px(36.))
-                            .bg(plate::alpha(n.card_hi, n.card_hi_alpha))
-                            .child(blocks::icon("server", 18., shell::c(n.ink_soft))),
-                    )
-                    .child(shell::row_text(
-                        e.name.clone(),
-                        tr(if up { "Running" } else { "Stopped" }).into(),
-                        Some(shell::c(if up { n.success } else { n.muted })),
-                        &t,
-                    ))
-                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                        this.open_server(dir.clone());
-                        this.go(Page::Servers);
                         cx.notify();
                     })),
             );
@@ -2099,8 +2046,7 @@ impl Launcher {
         if self.page != Page::Servers && !self.settings.partner_hidden {
             let free = f32::from(window.viewport_size().height)
                 - theme::TOPBAR
-                - 40. * headings as f32
-                - 52. * rows as f32
+                - 36. * Page::ALL.len() as f32
                 - 110.;
             let mut side = div().relative().mb(px(8.)).child(partner::card(
                 "partner-side",
@@ -2259,7 +2205,6 @@ impl Launcher {
             .overflow_y_scroll()
             .children(brand)
             .child(nav)
-            .child(list)
             .child(foot)
     }
 
@@ -3977,6 +3922,7 @@ impl Render for Launcher {
         let size = window.viewport_size();
         let content = match self.page {
             Page::Play => self.play_page(cx),
+            Page::Instances => self.instances_page(cx),
             Page::Versions => self.versions_page(cx),
             Page::Mods => self.mods_page(cx),
             Page::Servers => self.servers_page(cx),

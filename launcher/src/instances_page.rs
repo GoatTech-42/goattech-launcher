@@ -176,77 +176,225 @@ impl Launcher {
         blocks::slot(None, &instance.name, size, &t).into_any_element()
     }
 
-    /// The sidebar's instances: those without a group, then each group under its name.
-    pub(super) fn instance_items(
-        &mut self,
-        heading: impl Fn(String) -> Div,
-        cx: &mut Context<Self>,
-    ) -> Vec<AnyElement> {
+    /// The Instances page (concept): Rust and Java side by side, each instance a card - its
+    /// icon, what it plays, when it was played, Open and its own Play. New instance opens the
+    /// dialog the sidebar's `+` did. Card banner art joins with per-instance banners (#8).
+    pub(super) fn instances_page(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
-        let selected = self.selected_instance().map(|i| i.id.clone());
-        let on_packs = self.page == Page::Mods && self.mods.on_modpacks();
-        let mut out = Vec::new();
-        let mut group = None;
+        let n = t.night;
+        let (mut rust, mut java): (Vec<AnyElement>, Vec<AnyElement>) = (Vec::new(), Vec::new());
         for i in self.instances.list.clone() {
-            if i.group != group {
-                group = i.group.clone();
-                if let Some(g) = &group {
-                    out.push(heading(g.to_uppercase()).into_any_element());
+            if !matches!(i.kind, InstanceKind::Default | InstanceKind::Own) {
+                continue;
+            }
+            let card = self.instance_card(&i, cx);
+            if i.java.is_some() {
+                java.push(card);
+            } else {
+                rust.push(card);
+            }
+        }
+        let section = |title: &str, note: Option<&'static str>, cards: Vec<AnyElement>| {
+            div()
+                .flex()
+                .flex_col()
+                .mt(px(26.))
+                .child(
+                    div()
+                        .flex()
+                        .items_baseline()
+                        .justify_between()
+                        .child(
+                            shell::text(theme::night::CAPTION, shell::c(n.muted))
+                                .child(tr(title).to_string()),
+                        )
+                        .children(note.map(|s| {
+                            shell::text(theme::night::CAPTION, shell::c(n.muted))
+                                .font_family(theme::MONO)
+                                .text_size(px(11.))
+                                .child(tr(s).to_string())
+                        })),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .flex_wrap()
+                        .gap(px(16.))
+                        .mt(px(10.))
+                        .children(cards),
+                )
+        };
+        div()
+            .flex()
+            .flex_col()
+            .child(
+                div()
+                    .flex()
+                    .items_end()
+                    .justify_between()
+                    .child(page_header(
+                        "Instances",
+                        "Rust and Java live side by side. Each instance keeps its own version, runtime, mods, configs and saves.",
+                        &t,
+                    ))
+                    .child(
+                        button("new-instance", "New instance", Kind::Primary, &t).on_click(
+                            cx.listener(|this, _: &ClickEvent, _, cx| {
+                                this.open_instance_dialog(None);
+                                cx.notify();
+                            }),
+                        ),
+                    ),
+            )
+            .child(section("Rust", None, rust))
+            .child(section(
+                "Java",
+                Some("Software is chosen inside each Java instance - vanilla, Fabric or Quilt."),
+                java,
+            ))
+    }
+
+    /// One instance's card on the Instances page.
+    fn instance_card(&mut self, i: &Instance, cx: &mut Context<Self>) -> AnyElement {
+        let t = self.theme;
+        let n = t.night;
+        let icon = self.instance_icon(i, 40.);
+        let mut chips: Vec<Div> = Vec::new();
+        match &i.java {
+            Some(j) => {
+                chips.push(shell::chip_tag("Java", &t));
+                chips.push(shell::chip_tag(
+                    match &j.loader {
+                        Some(l) => l.kind.name().to_string(),
+                        None => tr("Vanilla").to_string(),
+                    },
+                    &t,
+                ));
+                chips.push(shell::chip_tag(j.minecraft.clone(), &t));
+            }
+            None => {
+                chips.push(shell::chip_tag("Horizon engine", &t));
+                if let Some(tag) = self.version_of(i) {
+                    chips.push(shell::chip_tag(
+                        horizon_launcher::nightly::label(tag)
+                            .unwrap_or_else(|| tag.trim_start_matches('v').to_string()),
+                        &t,
+                    ));
                 }
             }
-            let tag = self.version_of(&i).cloned();
-            let prepared = tag.as_deref().is_some_and(backend::is_prepared);
-            let (open, sub) = match i.kind {
-                InstanceKind::Default | InstanceKind::Own => (
-                    self.page == Page::Play && selected.as_ref() == Some(&i.id),
-                    match (&i.java, &tag, &i.version) {
-                        (Some(java), _, _) => java_line(java),
-                        (None, None, Some(own)) => {
-                            trf("{version} is not installed", &[("version", own)])
-                        }
-                        (None, None, None) => tr("No version installed").into(),
-                        (None, Some(_), _) if !prepared => tr("Needs preparing").into(),
-                        (None, Some(tag), Some(_)) => format!("{} · {tag}", tr("Ready")),
-                        (None, Some(_), None) => tr("Ready").into(),
-                    },
-                ),
-                InstanceKind::Port => {
-                    let slug = &i.id["port:".len()..];
-                    let summary = self.packs.iter().find(|p| p.slug == slug);
-                    (
-                        on_packs && self.pack_open.as_deref() == Some(slug),
-                        summary.map_or_else(|| tr("Modpack").into(), |p| p.summary()),
-                    )
-                }
-                InstanceKind::Pack => (false, tr("From Horizon's registry").into()),
-            };
-            // Java instances have nothing of Horizon's to prepare: no state square.
-            let state = (matches!(i.kind, InstanceKind::Default | InstanceKind::Own)
-                && i.java.is_none())
-            .then_some(if prepared { t.success } else { t.warn });
-            let icon = self.instance_icon(&i, 36.);
-            let clicked = i.clone();
-            out.push(
-                shell::row(format!("side-instance-{}", i.id), open, &t)
-                    .child(div().relative().child(icon))
-                    .child(shell::row_text(i.name.clone(), sub, state, &t))
-                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                        match clicked.kind {
-                            InstanceKind::Default | InstanceKind::Own => {
-                                this.select_instance(&clicked);
-                                this.go(Page::Play);
-                            }
-                            InstanceKind::Port => {
-                                this.show_modpack(Some(clicked.id["port:".len()..].into()))
-                            }
-                            InstanceKind::Pack => this.show_modpack(None),
-                        }
-                        cx.notify();
-                    }))
-                    .into_any_element(),
-            );
         }
-        out
+        let ready = i.java.is_some()
+            || self
+                .version_of(i)
+                .map(String::as_str)
+                .is_some_and(backend::is_prepared);
+        let open = i.clone();
+        let play = i.clone();
+        let card = i.clone();
+        let id = i.id.clone();
+        crate::plate::plate(&n)
+            .id(SharedString::from(format!("instance-card-{id}")))
+            .flex()
+            .flex_col()
+            .w(px(296.))
+            .overflow_hidden()
+            .cursor_pointer()
+            // The banner's place: the instance's icon over a raised strip until per-instance
+            // banner art exists (UI-MAP #8) - no fake art.
+            .child(
+                div()
+                    .relative()
+                    .h(px(64.))
+                    .bg(plate::alpha(n.card_hi, n.card_hi_alpha))
+                    .child(
+                        div()
+                            .absolute()
+                            .left(px(12.))
+                            .bottom(px(-16.))
+                            .child(div().relative().child(icon)),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(10.))
+                    .pt(px(24.))
+                    .px(px(16.))
+                    .pb(px(16.))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .child(
+                                shell::text(theme::night::UI, shell::c(n.ink))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .truncate()
+                                    .child(i.name.clone()),
+                            )
+                            .child(
+                                shell::action(
+                                    SharedString::from(format!("card-open-{id}")),
+                                    shell::Action::Quiet,
+                                    &t,
+                                )
+                                .h(px(30.))
+                                .child(shell::label(tr("Open").to_string()))
+                                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                                    this.select_instance(&open);
+                                    this.go(Page::Play);
+                                    cx.notify();
+                                })),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .gap(px(6.))
+                            .children(chips),
+                    )
+                    .child(
+                        shell::text(theme::night::CAPTION, shell::c(n.muted))
+                            .font_family(theme::MONO)
+                            .text_size(px(11.))
+                            .child(played_line(i)),
+                    )
+                    .child(
+                        shell::action(
+                            SharedString::from(format!("card-play-{id}")),
+                            shell::Action::Raised,
+                            &t,
+                        )
+                        .w_full()
+                        .child(
+                            div()
+                                .relative()
+                                .child(blocks::icon("play", 14., shell::c(n.ink))),
+                        )
+                        .child(shell::label(tr("Play").to_string()))
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            this.select_instance(&play);
+                            match play_press(ready, this.owner, false) {
+                                PlayPress::Nothing => {}
+                                PlayPress::Play => this.play(),
+                                PlayPress::PrepareThenPlay => {
+                                    this.play_when_prepared = this.selected().cloned();
+                                    this.prepare(backend::MinecraftFrom::Install);
+                                }
+                            }
+                            this.go(Page::Play);
+                            cx.notify();
+                        })),
+                    ),
+            )
+            .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                this.select_instance(&card);
+                this.go(Page::Play);
+                cx.notify();
+            }))
+            .into_any_element()
     }
 
     /// Opens the dialog for a new instance, or for changing `editing`.
@@ -860,14 +1008,6 @@ pub(super) fn played_line(instance: &Instance) -> String {
             ],
         ),
         None => tr("Not played yet").into(),
-    }
-}
-
-/// A Java instance's line in the sidebar: "Java 1.21.4", and its loader ("· Fabric 0.16.9").
-fn java_line(j: &instances::JavaGame) -> String {
-    match &j.loader {
-        Some(l) => format!("Java {} · {} {}", j.minecraft, l.kind.name(), l.version),
-        None => format!("Java {}", j.minecraft),
     }
 }
 

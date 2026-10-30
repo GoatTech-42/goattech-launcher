@@ -130,10 +130,6 @@ impl Mods {
         }
     }
 
-    /// Whether the Modpacks tab is open (the sidebar marks the pack shown there).
-    pub(super) fn on_modpacks(&self) -> bool {
-        self.kind == PackKind::Modpack
-    }
 
     pub(super) fn new(cx: &mut App) -> Self {
         let (tx, rx) = channel();
