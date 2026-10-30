@@ -242,5 +242,8 @@
   "Own runtime, mods and saves - nothing mixes with your other instances.": "Своя среда, моды и сохранения - ничего не смешивается с другими вашими сборками.",
   "{n} mods": "Модов: {n}",
   "{n} playing now": "Сейчас играют: {n}",
-  "Jump back in": "Продолжить игру"
+  "Jump back in": "Продолжить игру",
+  "What's new": "Что нового",
+  "All patch notes": "Все примечания к выпускам",
+  "A stand-in plays for now - sign in with your Microsoft account to play as yourself.": "Пока играет заместитель - войдите через учётную запись Microsoft, чтобы играть как вы сами."
 }

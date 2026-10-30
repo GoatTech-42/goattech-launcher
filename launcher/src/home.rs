@@ -321,33 +321,62 @@ impl Launcher {
             }))
     }
 
+    /// The concept Home's "you" card, while nobody plays as a Microsoft account: a preview
+    /// stands in until sign-in. A signed-in player already has the sidebar's account card.
+    pub(super) fn you_card(&self, cx: &mut Context<Self>) -> Option<Div> {
+        if matches!(self.accounts.player(), account::Player::Microsoft(_)) {
+            return None;
+        }
+        let t = self.theme;
+        let n = t.night;
+        Some(
+            crate::plate::plate(&n)
+                .flex()
+                .flex_none()
+                .flex_col()
+                .items_center()
+                .gap(px(10.))
+                .p(px(18.))
+                .w(px(300.))
+                .child(
+                    shell::text(night::CAPTION, c(n.muted))
+                        .relative()
+                        .w_full()
+                        .child(tr("You").to_string()),
+                )
+                .child(
+                    div()
+                        .relative()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .size(px(56.))
+                        .rounded(px(8.))
+                        .bg(alpha(n.card_hi, n.card_hi_alpha))
+                        .child(blocks::icon("user", 24., c(n.muted))),
+                )
+                .child(
+                    shell::text(night::CAPTION, c(n.muted)).relative().child(
+                        tr("A stand-in plays for now - sign in with your Microsoft account to play as yourself.")
+                            .to_string(),
+                    ),
+                )
+                .child(
+                    microsoft::sign_in_button("home-sign-in", &t).on_click(cx.listener(
+                        |this, _: &ClickEvent, _, cx| {
+                            this.sign_in_to_play();
+                            cx.notify();
+                        },
+                    )),
+                ),
+        )
+    }
+
     /// Below the banner (concept Home): "What's new" - the three newest releases - and "Jump
     /// back in" - the most recently played other instances, each with its own Play.
     pub(super) fn home_sections(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let n = t.night;
-        let section = |title: &str, all_id: &'static str, all: &str, page: Page| {
-            div()
-                .flex()
-                .items_center()
-                .justify_between()
-                .mb(px(8.))
-                .child(
-                    shell::text(night::UI, c(n.ink))
-                        .text_size(px(16.))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .child(tr(title).to_string()),
-                )
-                .child(
-                    action(all_id, Action::Quiet, &t)
-                        .h(px(30.))
-                        .child(label(tr(all).to_string()))
-                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                            this.go(page);
-                            cx.notify();
-                        })),
-                )
-        };
         let dot = || div().flex_none().size(px(6.)).rounded_full().bg(c(n.muted));
         // What's new: the engine's releases, newest first, a line each. The fork has no release
         // feed of its own yet; when it ships one, this lists launcher notes instead.
@@ -503,13 +532,38 @@ impl Launcher {
         }
         // A section shows only when it has rows; "All instances" joins when the Instances page
         // does (UI-MAP #3) - the sidebar already lists them all.
-        let mut out = div().flex().flex_col().gap(px(24.)).mt(px(28.));
+        let you = self.you_card(cx);
+        if !has_news && !has_back && you.is_none() {
+            return div();
+        }
+        let mut out = div().flex().flex_col().gap(px(24.));
         if has_news {
             out = out.child(
                 div()
                     .flex()
                     .flex_col()
-                    .child(section("What's new", "all-notes", "All patch notes", Page::Notes))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .mb(px(8.))
+                            .child(
+                                shell::text(night::UI, c(n.ink))
+                                    .text_size(px(16.))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .child(tr("What's new").to_string()),
+                            )
+                            .child(
+                                action("all-notes", Action::Quiet, &t)
+                                    .h(px(30.))
+                                    .child(label(tr("All patch notes").to_string()))
+                                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                                        this.go(Page::Notes);
+                                        cx.notify();
+                                    })),
+                            ),
+                    )
                     .child(news),
             );
         }
@@ -528,7 +582,11 @@ impl Launcher {
                     .child(back),
             );
         }
-        out
+        let mut row = div().flex().items_start().gap(px(24.)).mt(px(28.));
+        if has_news || has_back {
+            row = row.child(out.flex_1().min_w_0());
+        }
+        row.children(you)
     }
 
     /// The card beside the hero, for a Horizon version: a line from a release's notes, and

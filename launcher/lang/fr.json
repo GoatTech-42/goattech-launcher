@@ -242,5 +242,8 @@
   "Own runtime, mods and saves - nothing mixes with your other instances.": "Exécution, mods et sauvegardes dédiés : rien ne se mélange avec vos autres instances.",
   "{n} mods": "{n} mods",
   "{n} playing now": "{n} en jeu",
-  "Jump back in": "Reprendre la partie"
+  "Jump back in": "Reprendre la partie",
+  "What's new": "Nouveautés",
+  "All patch notes": "Toutes les notes de version",
+  "A stand-in plays for now - sign in with your Microsoft account to play as yourself.": "Un remplaçant joue pour l'instant - connectez-vous avec votre compte Microsoft pour jouer en tant que vous-même."
 }
