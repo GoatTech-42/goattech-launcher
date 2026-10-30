@@ -247,5 +247,6 @@
   "Rust": "Rust",
   "Java": "Java",
   "Software is chosen inside each Java instance - vanilla, Fabric or Quilt.": "Програму обирають всередині кожної Java-збірки - ванілла, Fabric або Quilt.",
-  "Rust and Java live side by side. Each instance keeps its own version, runtime, mods, configs and saves.": "Rust і Java існують поруч. Кожна збірка зберігає власну версію, середовище, моди, налаштування й збереження."
+  "Rust and Java live side by side. Each instance keeps its own version, runtime, mods, configs and saves.": "Rust і Java існують поруч. Кожна збірка зберігає власну версію, середовище, моди, налаштування й збереження.",
+  "Not supported yet - tracked upstream.": "Ще не підтримується - відстежується в апстримі."
 }
