@@ -7,9 +7,9 @@ use crate::shell::{action, c, label, Action};
 use theme::night;
 
 impl Launcher {
-    /// The focal point: what will start and its state, the instance's name, when it was played,
-    /// and an update when one waits. No `tag`: a Java instance's Minecraft (`game` then names its
-    /// loader too).
+    /// The focal point (concept Home): a card naming what plays next - its name, fact chips
+    /// (kind, loader, Minecraft, mods), its state - with Play at its foot. No `tag`: a Java
+    /// instance's Minecraft (`game` then names its loader too).
     pub(super) fn hero(
         &mut self,
         tag: &str,
@@ -19,35 +19,66 @@ impl Launcher {
     ) -> Div {
         let t = self.theme;
         let n = t.night;
-        let icon = self
-            .selected_instance()
-            .cloned()
-            .map(|i| self.instance_icon(&i, 56.));
-        let instance = self.selected_instance();
-        let name = instance.map_or(
-            if tag.is_empty() {
-                "Minecraft"
-            } else {
-                "Horizon"
-            },
-            |i| i.name.as_str(),
-        );
-        let mut what = vec![format!("Minecraft: Java Edition {game}")];
-        if !tag.is_empty() {
-            what.push(format!(
-                "Horizon {}",
-                horizon_launcher::nightly::label(tag)
-                    .unwrap_or_else(|| tag.trim_start_matches('v').to_string())
+        let instance = self.selected_instance().cloned();
+        let icon = instance.clone().map(|i| self.instance_icon(&i, 56.));
+        let name = instance
+            .as_ref()
+            .map_or(
+                if tag.is_empty() { "Minecraft" } else { "Horizon" },
+                |i| i.name.as_str(),
+            )
+            .to_string();
+        let java = instance.as_ref().and_then(|i| i.java.as_ref()).cloned();
+        // Fact chips: kind, loader, Minecraft, mods. Real values only - a chip is absent, never
+        // a placeholder, while its fact is unread.
+        let mut chips: Vec<Div> = Vec::new();
+        match &java {
+            Some(j) => {
+                chips.push(shell::chip_tag("Java", &t));
+                if let Some(l) = &j.loader {
+                    chips.push(shell::chip_tag(
+                        format!("{} {}", l.kind.name(), l.version),
+                        &t,
+                    ));
+                }
+                chips.push(shell::chip_tag(format!("Minecraft {}", j.minecraft), &t));
+            }
+            None if !tag.is_empty() => {
+                chips.push(shell::chip_tag("Horizon engine", &t));
+                chips.push(shell::chip_tag(
+                    format!(
+                        "Horizon {}",
+                        horizon_launcher::nightly::label(tag)
+                            .unwrap_or_else(|| tag.trim_start_matches('v').to_string())
+                    ),
+                    &t,
+                ));
+                chips.push(shell::chip_tag(format!("Minecraft {game}"), &t));
+            }
+            None => {}
+        }
+        if let Some(mods) = self.instance_mods_count(cx) {
+            chips.push(shell::chip_tag(
+                trf("{n} mods", &[("n", &mods.to_string())]),
+                &t,
             ));
         }
-        what.push(tr(if prepared { "Ready" } else { "Needs preparing" }).to_string());
         if let Some(playing) = self.playing {
-            what.push(format!("{} playing now", thousands(playing)));
+            chips.push(shell::chip_tag(
+                trf("{n} playing now", &[("n", &thousands(playing))]),
+                &t,
+            ));
         }
-        let state = div()
+        // The state is a word next to its square - never the square's colour alone.
+        let status = div()
             .flex()
+            .flex_none()
             .items_center()
-            .gap(px(8.))
+            .gap(px(6.))
+            .h(px(22.))
+            .px(px(9.))
+            .rounded(px(11.))
+            .bg(alpha(n.card_hi, n.card_hi_alpha))
             .child(
                 div()
                     .flex_none()
@@ -55,19 +86,25 @@ impl Launcher {
                     .bg(if prepared { t.success } else { t.warn }),
             )
             .child(
-                shell::text(night::CAPTION, c(n.ink_soft))
-                    .font_weight(FontWeight::MEDIUM)
-                    .child(what.join(" · ")),
+                shell::text(night::CAPTION, c(n.muted))
+                    .child(tr(if prepared { "Ready" } else { "Needs preparing" }).to_string()),
             );
-        // Never squeezed by the rows below: the ping notice can make it tall.
-        let mut hero = div()
+        let ready = prepared || java.is_some();
+        let mut hero = crate::plate::plate(&n)
             .flex()
             .flex_none()
             .flex_col()
-            .gap(px(10.))
-            .child(state)
+            .gap(px(12.))
+            .p(px(28.))
+            .w_full()
+            .child(
+                shell::text(night::CAPTION, c(n.muted))
+                    .relative()
+                    .child(tr("Playing next").to_string()),
+            )
             .child(
                 div()
+                    .relative()
                     .flex()
                     .items_center()
                     .gap(px(16.))
@@ -76,11 +113,42 @@ impl Launcher {
                         shell::text(night::DISPLAY, c(n.ink))
                             .min_w_0()
                             .truncate()
-                            .child(name.to_string()),
+                            .child(name),
                     ),
             )
+            .child(
+                div()
+                    .relative()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap(px(8.))
+                    .child(status)
+                    .children(chips),
+            )
+            .child(
+                div()
+                    .relative()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .justify_between()
+                    .gap(px(16.))
+                    .pt(px(12.))
+                    .child(
+                        shell::text(night::CAPTION, c(n.muted))
+                            .max_w(px(420.))
+                            .child(
+                                tr("Own runtime, mods and saves - nothing mixes with your other instances.")
+                                    .to_string(),
+                            ),
+                    )
+                    .child(self.play_action(ready, cx)),
+            )
             .children(instance.map(|i| {
-                shell::text(night::UI, c(n.ink_soft)).child(instances_page::played_line(i))
+                shell::text(night::UI, c(n.ink_soft))
+                    .relative()
+                    .child(instances_page::played_line(&i))
             }));
         // A Java instance (no Horizon tag) isn't offered Horizon's updates.
         if let Some(release) = self.updates.horizon.as_ref().filter(|_| !tag.is_empty()) {
@@ -156,9 +224,9 @@ impl Launcher {
         hero
     }
 
-    /// Play, then what else the instance offers: its version (Horizon), its mods, its folder.
+    /// Play itself, the hero card's big button: while it prepares, the busy state and Cancel.
     /// `ready`: prepared, or a Java instance (its game comes with Play).
-    pub(super) fn home_actions(&self, ready: bool, java: bool, cx: &mut Context<Self>) -> Div {
+    pub(super) fn play_action(&self, ready: bool, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let running = self.client.is_some() || self.starting_client.is_some();
         if self.preparing {
@@ -219,13 +287,19 @@ impl Launcher {
                 }))
             }
         }
+        div().flex().relative().items_center().child(play)
+    }
+
+    /// What else the instance offers, under the hero card while it is not preparing: its
+    /// version (Horizon), its mods, its folder.
+    pub(super) fn home_actions(&self, java: bool, cx: &mut Context<Self>) -> Div {
+        let t = self.theme;
         let folder = self.selected_instance().map(|i| i.home.clone());
         div()
             .flex()
             .flex_wrap()
             .items_center()
             .gap(px(10.))
-            .child(play)
             // Horizon's versions don't apply to a Java instance.
             .children((!java).then(|| self.picker(cx)))
             .child(

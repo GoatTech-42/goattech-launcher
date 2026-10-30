@@ -237,5 +237,9 @@
   "{source} · needed by another mod": "{source} · нужен другому моду",
   "Local file · {file}": "Локальный файл · {file}",
   "Update {version}": "Обновить до {version}",
-  "Choose image…": "Выбрать изображение…"
+  "Choose image…": "Выбрать изображение…",
+  "Playing next": "Следующий запуск",
+  "Own runtime, mods and saves - nothing mixes with your other instances.": "Своя среда, моды и сохранения - ничего не смешивается с другими вашими сборками.",
+  "{n} mods": "Модов: {n}",
+  "{n} playing now": "Сейчас играют: {n}"
 }

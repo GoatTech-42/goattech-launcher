@@ -2442,7 +2442,8 @@ impl Launcher {
             }
             None => self.hero(&tag, &version, prepared, cx),
         };
-        let actions = self.home_actions(prepared || java.is_some(), java.is_some(), cx);
+        // The buttons under the hero card; while it prepares, its busy Play owns the moment.
+        let actions = (!self.preparing).then(|| self.home_actions(java.is_some(), cx));
         let left = self.download_left();
         let steps = self.preparing.then(|| self.steps(&version, left));
 
@@ -2688,7 +2689,7 @@ impl Launcher {
                             .flex_col()
                             .gap(px(28.))
                             .child(hero)
-                            .child(actions)
+                            .children(actions)
                             // The preparation's steps right under Play, where the player looks
                             // after pressing it, not below the fold (#666).
                             .children(steps),

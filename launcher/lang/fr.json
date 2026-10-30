@@ -237,5 +237,9 @@
   "{source} · needed by another mod": "{source} · requis par un autre mod",
   "Local file · {file}": "Fichier local · {file}",
   "Update {version}": "Mettre à jour : {version}",
-  "Choose image…": "Choisir une image…"
+  "Choose image…": "Choisir une image…",
+  "Playing next": "Prochain lancement",
+  "Own runtime, mods and saves - nothing mixes with your other instances.": "Exécution, mods et sauvegardes dédiés : rien ne se mélange avec vos autres instances.",
+  "{n} mods": "{n} mods",
+  "{n} playing now": "{n} en jeu"
 }

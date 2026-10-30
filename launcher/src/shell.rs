@@ -204,6 +204,20 @@ pub fn nav_item(
     )
 }
 
+/// A small fact chip on a card (concept Home): raised ground, pill, an 11px muted label.
+pub fn chip_tag(label: impl Into<SharedString>, t: &Theme) -> Div {
+    let n = t.night;
+    div()
+        .flex()
+        .flex_none()
+        .items_center()
+        .h(px(22.))
+        .px(px(9.))
+        .rounded(px(11.))
+        .bg(alpha(n.card_hi, n.card_hi_alpha))
+        .child(text(night::CAPTION, c(n.muted)).child(label.into()))
+}
+
 /// A square button with one icon (Settings, the sidebar's `+`), cut in one step.
 pub fn icon_button(
     id: impl Into<SharedString>,
