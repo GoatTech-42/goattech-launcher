@@ -100,8 +100,7 @@ impl Page {
         }
     }
 
-    /// Every page, with its name and icon: the top bar shows all but Settings, which has its
-    /// own button.
+    /// Every page, with its name and icon: the sidebar's nav shows them all.
     const ALL: [(Page, &'static str, &'static str); 6] = [
         (Page::Play, "Home", "home"),
         (Page::Mods, "Mods", "package"),
@@ -1953,124 +1952,25 @@ fn megabytes(bytes: u64) -> String {
 // ----- Pages -------------------------------------------------------------------------------------
 
 impl Launcher {
-    /// The top bar: the mark and name over the sidebar (in the title bar on Windows and Linux
-    /// client-side decorations), the pages with their icons, then the account and Settings.
-    /// The top bar over the pages: their tabs, then the account chip and Settings. No plate: the
-    /// sky shows through, under a 1 px rule.
-    fn topbar(&mut self, cx: &mut Context<Self>) -> Div {
-        let t = self.theme;
-        let n = t.night;
-        let mut nav = div().flex().flex_none().items_center().gap(px(4.));
-        for (page, label, _) in Page::ALL {
-            if page == Page::Settings {
-                continue;
-            }
-            nav = nav.child(
-                shell::tab(format!("nav-{label}"), tr(label), self.page == page, &t).on_click(
-                    cx.listener(move |this, _: &ClickEvent, _, cx| {
-                        this.go(page);
-                        cx.notify();
-                    }),
-                ),
-            );
-        }
-        // Only a signed-in account says "Microsoft account"; otherwise an offline name, or the
-        // one the game made up. A signed-in one shows its face (its UUID's default skin).
-        let (name, how) = self.who_plays();
-        let face = match self.accounts.player() {
-            account::Player::Microsoft(_) => self.accounts.selected().map(|a| a.uuid.clone()),
-            _ => None,
-        };
-        let picture = match face {
-            Some(uuid) => self.head(&uuid, 28.).into_any_element(),
-            None => div()
-                .flex()
-                .items_center()
-                .justify_center()
-                .size(px(28.))
-                .bg(plate::alpha(n.card_hi, n.card_hi_alpha))
-                .child(blocks::icon("user", 16., shell::c(n.muted)))
-                .into_any_element(),
-        };
-        let account = shell::chip("account", &t)
-            .max_w(px(200.))
-            .child(div().relative().child(picture))
-            .child(
-                div()
-                    .relative()
-                    .flex()
-                    .flex_col()
-                    .flex_1()
-                    .min_w_0()
-                    .overflow_hidden()
-                    .child(
-                        shell::text(theme::night::UI, shell::c(n.ink))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .line_height(px(16.))
-                            .truncate()
-                            .child(name),
-                    )
-                    .child(
-                        shell::text(theme::night::CAPTION, shell::c(n.muted))
-                            .truncate()
-                            .child(how),
-                    ),
-            )
-            .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
-                if this.closed_by_this_press(event) {
-                    return;
-                }
-                this.account_menu = !this.account_menu;
-                if this.account_menu {
-                    // Who can play may have changed elsewhere since the window opened.
-                    this.accounts = Accounts::load();
-                }
-                cx.notify();
-            }));
-        let account = div()
-            .relative()
-            .child(account)
-            .children(self.account_menu(cx));
-        let settings = shell::icon_button(
-            "nav-Settings",
-            "sliders",
-            40.,
-            self.page == Page::Settings,
-            &t,
-        )
-        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-            this.go(Page::Settings);
-            cx.notify();
-        }));
-        div()
-            .flex()
-            .flex_none()
-            .items_center()
-            .h(px(theme::TOPBAR))
-            .pl(px(theme::PAGE_GUTTER - 14.))
-            .pr(px(12.))
-            .border_b_1()
-            .border_color(plate::alpha(n.stroke, n.rule_alpha))
-            .child(nav)
-            .child(
-                div()
-                    .ml_auto()
-                    .flex()
-                    .flex_none()
-                    .items_center()
-                    .gap(px(8.))
-                    .child(account)
-                    .child(settings),
-            )
-    }
-
-    /// The sidebar, from the top of the window: the wordmark, Horizon and the imported modpacks,
-    /// the player's servers, then the launcher's own update, the community links and its version.
+    /// The sidebar, from the top of the window (concept shell): the wordmark, the pages' nav,
+    /// the instances and the player's servers, then the launcher's own update, the community
+    /// links, the account card and its version.
     fn sidebar(&mut self, window: &Window, cx: &mut Context<Self>) -> Stateful<Div> {
         let t = self.theme;
         let n = t.night;
         self.load_packs();
         let heading = |label: String| shell::heading(label, &t);
+        // The pages' nav under the wordmark (the concept shell has no top bar).
+        let mut nav = div().flex().flex_none().flex_col().gap(px(2.)).mt(px(4.));
+        for (page, label, icon) in Page::ALL {
+            nav = nav.child(
+                shell::nav_item(format!("nav-{label}"), icon, tr(label).to_string(), self.page == page, &t)
+                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        this.go(page);
+                        cx.notify();
+                    })),
+            );
+        }
         let add = shell::icon_button("add-instance", "plus", 24., false, &t).on_click(cx.listener(
             |this, _: &ClickEvent, _, cx| {
                 this.open_instance_dialog(None);
@@ -2254,6 +2154,63 @@ impl Launcher {
                 self.links.website.clone(),
             ));
         }
+        // Only a signed-in account says "Microsoft account"; otherwise an offline name, or the
+        // one the game made up. A signed-in one shows its face (its UUID's default skin).
+        let (name, how) = self.who_plays();
+        let face = match self.accounts.player() {
+            account::Player::Microsoft(_) => self.accounts.selected().map(|a| a.uuid.clone()),
+            _ => None,
+        };
+        let picture = match face {
+            Some(uuid) => self.head(&uuid, 28.).into_any_element(),
+            None => div()
+                .flex()
+                .items_center()
+                .justify_center()
+                .size(px(28.))
+                .bg(plate::alpha(n.card_hi, n.card_hi_alpha))
+                .child(blocks::icon("user", 16., shell::c(n.muted)))
+                .into_any_element(),
+        };
+        let account = shell::chip("account", &t)
+            .child(div().relative().child(picture))
+            .child(
+                div()
+                    .relative()
+                    .flex()
+                    .flex_col()
+                    .flex_1()
+                    .min_w_0()
+                    .overflow_hidden()
+                    .child(
+                        shell::text(theme::night::UI, shell::c(n.ink))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .line_height(px(16.))
+                            .truncate()
+                            .child(name),
+                    )
+                    .child(
+                        shell::text(theme::night::CAPTION, shell::c(n.muted))
+                            .truncate()
+                            .child(how),
+                    ),
+            )
+            .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
+                if this.closed_by_this_press(event) {
+                    return;
+                }
+                this.account_menu = !this.account_menu;
+                if this.account_menu {
+                    // Who can play may have changed elsewhere since the window opened.
+                    this.accounts = Accounts::load();
+                }
+                cx.notify();
+            }));
+        let account = div()
+            .relative()
+            .child(account)
+            .children(self.account_menu(cx));
+        foot = foot.child(account);
         foot = foot.child(
             shell::text(theme::night::CAPTION, shell::c(n.muted))
                 .id("launcher-version")
@@ -2265,20 +2222,29 @@ impl Launcher {
                     cx.notify();
                 })),
         );
-        // Custom title bars carry the mark and name already.
+        // Custom title bars carry the mark and name already. The concept wordmark: the name in
+        // the display face over a small "launcher".
         let brand = (!titlebar::draws_brand(window)).then(|| {
             div()
                 .flex()
                 .flex_none()
-                .items_center()
-                .gap(px(10.))
+                .flex_col()
+                .justify_center()
                 .h(px(theme::TOPBAR))
                 .px(px(8.))
-                .child(mark(24., &t))
                 .child(
                     shell::text(theme::night::TITLE, shell::c(n.ink))
                         .font_family(theme::DISPLAY_FONT)
-                        .child("GoatTech"),
+                        .font_weight(FontWeight::BOLD)
+                        .text_size(px(21.))
+                        .line_height(px(23.))
+                        .child("goattech"),
+                )
+                .child(
+                    shell::text(theme::night::CAPTION, shell::c(n.muted))
+                        .text_size(px(11.))
+                        .line_height(px(14.))
+                        .child("launcher"),
                 )
         });
         shell::sidebar_plate(&t)
@@ -2292,6 +2258,7 @@ impl Launcher {
             .pb(px(12.))
             .overflow_y_scroll()
             .children(brand)
+            .child(nav)
             .child(list)
             .child(foot)
     }
@@ -4042,7 +4009,6 @@ impl Render for Launcher {
         if let Some(next) = next {
             self.wake_sky(next, cx);
         }
-        let topbar = self.topbar(cx);
         let sidebar = self.sidebar(window, cx);
         let mut root = div()
             .id("root")
@@ -4090,7 +4056,6 @@ impl Render for Launcher {
                             .flex_col()
                             .flex_1()
                             .min_w_0()
-                            .child(topbar)
                             .child(
                                 self.content_scroll
                                     .wrap(
@@ -4153,7 +4118,7 @@ impl Render for Launcher {
                 .line_height(px(theme::WORDMARK.px * 0.5))
                 .font_weight(FontWeight::BOLD)
                 .text_color(t.ink)
-                .children("HORIZON".chars().enumerate().map(|(i, c)| {
+                .children("GOATTECH".chars().enumerate().map(|(i, c)| {
                     let at = held - i as f32 * theme::STAGGER.as_secs_f32() * 1.5;
                     let p = ease_out_cubic(at / theme::ENTER.as_secs_f32());
                     div()

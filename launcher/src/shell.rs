@@ -163,6 +163,47 @@ pub fn tab(id: impl Into<SharedString>, label: &str, active: bool, t: &Theme) ->
     )
 }
 
+/// A page in the sidebar's nav (concept shell): its icon and name, 34 high. The current page
+/// sits on a plate in full ink; the rest stay in the faint step until hovered.
+pub fn nav_item(
+    id: impl Into<SharedString>,
+    icon: &'static str,
+    label: String,
+    active: bool,
+    t: &Theme,
+) -> Stateful<Div> {
+    let id = id.into();
+    let n = t.night;
+    let color = c(if active { n.ink } else { n.muted });
+    let d = div()
+        .id(id.clone())
+        .relative()
+        .flex()
+        .items_center()
+        .gap(px(10.))
+        .h(px(34.))
+        .px(px(10.))
+        .cursor_pointer();
+    let d = if active {
+        d.child(selected(1, t))
+    } else {
+        d.child(hovered(&id, 1, t))
+    };
+    keyboard(
+        track_hover(
+            d.child(
+                div()
+                    .relative()
+                    .flex_none()
+                    .child(crate::blocks::icon(icon, 16., color)),
+            )
+            .child(text(night::UI, color).relative().child(label)),
+            id,
+        ),
+        t,
+    )
+}
+
 /// A square button with one icon (Settings, the sidebar's `+`), cut in one step.
 pub fn icon_button(
     id: impl Into<SharedString>,

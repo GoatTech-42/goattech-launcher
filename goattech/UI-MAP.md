@@ -1,6 +1,6 @@
 # GoatTech UI implementation map (concept source -> GPUI)
 
-Concept reference: 8 screens (approved design direction 2026-10-30;
+Concept reference: 8 screens (design direction from the 2026-10-30 concept pass;
 not final-approved UI - he may steer). Generic "Nightfall" player fixture only.
 
 ## What already exists in-tree (do not rebuild)

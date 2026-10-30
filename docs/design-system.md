@@ -118,8 +118,8 @@ Geist (400, 500, 600) and Geist Mono (400), bundled under the SIL Open Font Lice
   written in mono beside the label, not on the track.
 - **Segmented control / tabs**: a `plate_soft` pill; the selected segment is an `ink` pill with
   `page` text that slides over `move`.
-- **Navigation**: text only. Launcher: a top bar with the mark and "Horizon" on the left and
-  the pages on the right, `label` size, `muted`, the current one `ink` on a soft pill. Game
+- **Navigation**: text only. GoatTech Launcher: a column in the sidebar under the wordmark,
+  icon and `label`, `muted`, the current one `ink` on a soft pill. Game
   menus keep their sidebar layout (it suits a controller), but as a plain column of text items
   under the mark, with no panel tint and no border: the current one `ink` on a soft pill that
   slides to it.
@@ -135,9 +135,9 @@ Geist (400, 500, 600) and Geist Mono (400), bundled under the SIL Open Font Lice
 ## Surfaces
 
 - **Launcher** (`launcher/`): moving to the Night look below, screen by screen; screens not rebuilt
-  yet draw the Blocks parts in the night's colours (`Night::blocks`). A top bar (wordmark, the pages as
-  tabs, the account chip, Settings), a sidebar (the instances, the hosted servers, the launcher's
-  own version and channel at its foot), and the page over a stone texture. Home opens on a pixel
+  yet draw the Blocks parts in the night's colours (`Night::blocks`). A sidebar (the wordmark,
+  the pages' nav, the instances, the hosted servers, the account card and the launcher's own
+  version at its foot), and the page over a stone texture. Home opens on a pixel
   landscape banner with the hero, the version picker and Play; Mods holds the mod, resource pack
   and modpack tabs; Versions and Patch notes are lists of panels; Settings is
   grouped panels of rows. Dark by default, Light or System in Settings (Appearance).
@@ -248,10 +248,11 @@ Light); `tokens.css` carries them as `--night-*`. The game's menus don't use it.
 - The specimen (`HORIZON_LAUNCHER_PAGE=specimen horizon-launcher`) draws the type and colours in the
   launcher itself.
 - **The frame** (`launcher/src/shell.rs`): the sidebar is one plate from the window's top to its
-  bottom (the wordmark, instances by group, servers, the launcher's version); the top bar over the
-  pages has no plate, only a rule. A selected row or tab sits on `card_hi` cut in steps (two for
-  rows, one for tabs and icon buttons); a hovered one gets the same shape at half its opacity,
-  eased in. A row's second line is its state, after a small square in the state's colour.
+  bottom (the wordmark, the pages' nav, instances by group, servers, the account card, the
+  launcher's version); there is no top bar. A selected row, nav item or tab sits on `card_hi`
+  cut in steps (two for rows, one for nav items, tabs and icon buttons); a hovered one gets the
+  same shape at half its opacity, eased in. A row's second line is its state, after a small
+  square in the state's colour, with the state also in words.
 - **Home** (`launcher/src/home.rs`): the selected instance's name in the display cut over the bare
   sky, a caption above it naming what it plays and its state (the same square), and when it was
   played below. Play is the main action (`night::PLAY` tall, cut in one step); the version picker
