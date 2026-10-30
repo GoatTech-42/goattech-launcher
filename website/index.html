@@ -63,7 +63,8 @@ html.no-js .rv{opacity:1;transform:none}
 .shoot{animation:shoot 11s linear var(--dl) infinite}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 .player{cursor:pointer;animation:bob 5s ease-in-out infinite}
-.hero-inner{position:relative;z-index:4;padding:0 0 9vh}
+.hero-inner{position:relative;z-index:4;padding:0 0 max(9vh,104px);pointer-events:none}
+.hero-inner a{pointer-events:auto}
 .kicker{display:inline-flex;align-items:center;gap:8px;height:26px;padding:0 12px;border-radius:999px;
   background:#131313cc;box-shadow:inset 0 0 0 1px var(--line);color:var(--muted);font-family:var(--mono);font-size:12px;backdrop-filter:blur(4px)}
 .dot{width:7px;height:7px;border-radius:99px;background:#fff;flex:none}
@@ -84,7 +85,7 @@ h1 .thin{color:var(--faint)}
   color:#fff;opacity:.03;white-space:nowrap;user-select:none;pointer-events:none}
 .hero::after{content:'';position:absolute;inset:0;z-index:2;pointer-events:none;
   background:linear-gradient(#0a0a0a00 42%,#0a0a0a99 72%,#0a0a0a 96%)}
-.scrollhint{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:4;color:var(--dim);font-family:var(--mono);font-size:11px;letter-spacing:.18em}
+.scrollhint{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:4;pointer-events:none;color:var(--dim);font-family:var(--mono);font-size:11px;letter-spacing:.18em}
 
 /* section chrome */
 .sec{padding:120px 0 40px}
@@ -161,15 +162,16 @@ footer{margin-top:140px;border-top:1px solid var(--line-soft);padding:34px 0 44p
 .goat{animation:gophop 7.5s ease-in-out infinite}
 @keyframes gophop{0%,88%,100%{transform:translateY(0)}92%{transform:translateY(-5px)}95%{transform:translateY(1px)}}
 .pmodel,.p-shadow{overflow:visible}
-.p-head,.p-body,.p-armR,.p-armL,.p-legR,.p-legL{transform-box:fill-box}
-.p-head{transform-origin:50% 100%;animation:headlook 11s ease-in-out infinite}
+.p-head,.p-body,.p-armR,.p-armL,.p-legR,.p-legL{transform-box:view-box}
+.p-head{transform-origin:8px 8px;animation:headlook 11s ease-in-out infinite}
 @keyframes headlook{0%,82%,100%{transform:rotate(0)}88%{transform:rotate(6deg)}94%{transform:rotate(-3deg)}}
-.p-body{transform-origin:50% 100%;animation:bodysway 5.2s ease-in-out infinite alternate}
+.p-body{transform-origin:8px 20px;animation:bodysway 5.2s ease-in-out infinite alternate}
 @keyframes bodysway{from{transform:rotate(-0.7deg)}to{transform:rotate(0.7deg)}}
-.p-armR{transform-origin:50% 6%;animation:armsway 5.2s ease-in-out infinite alternate}
-.p-armL{transform-origin:50% 6%;animation:armsway 5.2s ease-in-out infinite alternate-reverse}
+.p-armR{transform-origin:2px 9px;animation:armsway 5.2s ease-in-out infinite alternate}
+.p-armL{transform-origin:14px 9px;animation:armsway 5.2s ease-in-out infinite alternate-reverse}
 @keyframes armsway{from{transform:rotate(-2.6deg)}to{transform:rotate(2.6deg)}}
-.p-legR,.p-legL{transform-origin:50% 0;transition:transform .18s var(--ease)}
+.p-legR{transform-origin:6px 20px}.p-legL{transform-origin:10px 20px}
+.p-legR,.p-legL{transition:transform .18s var(--ease)}
 .player.jump .p-legR{transform:rotate(14deg)}
 .player.jump .p-legL{transform:rotate(-10deg)}
 .p-shadow{transform-box:fill-box;transform-origin:center;transition:transform .3s var(--ease)}
@@ -508,7 +510,7 @@ if(skyEl){
     '<div class="layer" data-p="0.26" style="position:absolute;inset:0;--d:0.26;--pd:0.26">'+svgLayer(ridge(mulberry32(19),W,H,0.85,0.05,'#121212',6,frontH)+fireflies(frontH,W,H)+(W<700?'':playerInScene(frontH,W,H,3.6)),W,H)+'</div>';
   if(!reduce){
     skyEl.insertAdjacentHTML('beforeend',
-      '<svg id="meteors" style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 '+W+' 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">'+
+      '<svg id="meteors" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 '+W+' 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">'+
       '<rect class="shoot" style="--dl:2s" x="'+(W*0.81)+'" y="90" width="70" height="2" fill="#fff" opacity="0"/>'+
       '<rect class="shoot" style="--dl:7.5s" x="'+(W*0.61)+'" y="150" width="46" height="2" fill="#fff" opacity="0"/>'+
       '</svg>');
