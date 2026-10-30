@@ -47,3 +47,7 @@ not final-approved UI - he may steer). Generic "Nightfall" player fixture only.
   the CLI). Pixel verification lands on the first full-build machine.
 - No invented parity/QA metrics, mod stats, or tested-version claims anywhere.
 - Lunar/NoRisk inspire layout only: no copied brand, names, art, or code.
+
+## Status semantics rule
+
+Never let color (or lightness) alone carry status. NIGHT_MONO encodes ok/warn/error by lightness, so every status surface must also show an explicit word or icon: list rows keep their icon shapes; page rebuilds keep status text ("Installed", "Error") next to any indicator. Contrast is against the background, never the only difference between two statuses.
