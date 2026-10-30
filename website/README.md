@@ -49,3 +49,22 @@ output dir is this folder.
   LICENSE, upstream horizon, and goattech.us.
 - Keep the fork credit to horizon (MIT) and the goattech.us attribution in the
   footer.
+
+## Motion + player model (2026-10-30 update)
+
+- The hero is one continuous night scene: twinkling stars, drifting blocky
+  clouds, meteor bursts, snow-capped spruces, the goat, fireflies, and the
+  player - all layered so scroll and pointer move the world with depth, and the
+  moon sets as you scroll away. Keep new effects inside this scene language;
+  don't bolt on unrelated ones.
+- The player is the owner's actual Minecraft skin (the owner's Mojang profile),
+  embedded as a data URI and assembled part-by-part from the 64x64 skin texture
+  (front view, with overlay layers). He idles (breathing, arm sway, head look),
+  and jumps when clicked. The same skin appears in the home concept's "you"
+  card. If his skin changes, re-pull from the Mojang session server for UUID
+  profile and swap the data URI + the concept render. The UUID is recorded in the lead's notes, not here.
+- prefers-reduced-motion gets a calm page (no drift, bob, showers, or reveals
+  beyond simple fades); touch devices skip pointer parallax, tilt and magnetic
+  buttons; the player and scroll hint are hidden on small screens.
+- Gallery: idle drift (pauses on hover/drag), drag-to-scroll and tilt on
+  desktop.
