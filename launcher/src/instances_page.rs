@@ -74,10 +74,12 @@ pub(super) struct Instances {
 impl Launcher {
     pub(super) fn reload_instances(&mut self) {
         self.instances.list = instances::list();
-        // A picture may have come or gone with the change.
+        // A picture or banner may have come or gone with the change.
         self.instances
             .icons
-            .retain(|(key, _), _| !key.starts_with("picture:"));
+            .retain(|(key, _), _| {
+                !key.starts_with("picture:") && !key.starts_with("banner:")
+            });
     }
 
     /// The instance Play starts.

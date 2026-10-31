@@ -27,8 +27,8 @@ pub const FILES: [&str; 8] = [
     "horizon-mods.txt",
     "servers.dat",
     // The instance's own art, when it has any: its picture and banner ride the export and the
-    // import's whitelist keeps them, so a shared instance looks like itself. Harmless overrides
-    // for other launchers reading the .mrpack: stray files, never behavior.
+    // import's whitelist keeps them, so a shared instance looks like itself. Under overrides/
+    // they are inert extra files to a .mrpack reader that does not look for them.
     crate::instances::PICTURE,
     crate::instances::BANNER,
 ];

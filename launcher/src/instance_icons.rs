@@ -29,7 +29,26 @@ impl Launcher {
     ) -> Option<Arc<RenderImage>> {
         let file = instance.home.join(instances::PICTURE);
         let key = format!("picture:{}", instance.id);
-        self.icon_image(key, size, true, || std::fs::read(file).ok())
+        // A shared/imported instance's icon.png never went through the picker: capped read,
+        // then fitted's bounded decode.
+        self.icon_image(key, size, true, || {
+            images::read_capped(&file, MAX_PICTURE_FILE)
+        })
+    }
+
+    /// The instance's chosen banner, drawn `width` points wide, when it has a readable one;
+    /// None keeps the card's strip fallback. A shared/imported banner.png is as untrusted as an
+    /// icon: capped read, bounded decode.
+    pub(super) fn instance_banner(
+        &mut self,
+        instance: &Instance,
+        width: f32,
+    ) -> Option<Arc<RenderImage>> {
+        let file = instance.home.join(instances::BANNER);
+        let key = format!("banner:{}", instance.id);
+        self.icon_image(key, width, true, || {
+            images::read_capped(&file, MAX_PICTURE_FILE)
+        })
     }
 
     /// What an instance shows when nothing was chosen for it.

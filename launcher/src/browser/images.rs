@@ -265,6 +265,20 @@ pub fn fit_png(bytes: Vec<u8>, side: u32, max_side: u32, max_alloc: u64) -> Opti
     Some(png)
 }
 
+/// An image file's bytes, never more than `limit`: the read itself is bounded, so the file
+/// growing between any size check and the read cannot make this return more; over the limit is
+/// no image at all (None). Untrusted files only ever reach [`fit_png`]'s decode limits after
+/// this gate.
+pub fn read_capped(path: &Path, limit: u64) -> Option<Vec<u8>> {
+    let mut file = fs::File::open(path).ok()?;
+    let mut bytes = Vec::new();
+    file.by_ref()
+        .take(limit + 1)
+        .read_to_end(&mut bytes)
+        .ok()?;
+    (bytes.len() as u64 <= limit).then_some(bytes)
+}
+
 /// Vanilla Minecraft's mark: a grass block drawn from the player's own prepared game files
 /// (`<resources>/assets/minecraft/textures/block/`), never shipped. Kept beside the cache.
 pub fn grass_block(home: &Path, resources: &Path) -> Option<PathBuf> {
@@ -357,6 +371,25 @@ fn draw_block(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_read_over_the_cap_is_no_image_and_growth_cannot_past_it() {
+        let dir = std::env::temp_dir().join(format!(
+            "horizon-launcher-read-capped-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("image.png");
+        fs::write(&file, vec![7u8; 100]).unwrap();
+        // Under and at the cap: the bytes, whole.
+        assert_eq!(read_capped(&file, 100).unwrap().len(), 100);
+        assert_eq!(read_capped(&file, 1000).unwrap().len(), 100);
+        // Over the cap, even by one: nothing, and the read never holds more than cap + 1.
+        assert!(read_capped(&file, 99).is_none());
+        assert!(read_capped(&file, 0).is_none());
+        assert!(read_capped(&dir.join("missing.png"), 100).is_none());
+        fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn a_jar_names_its_icon() {
