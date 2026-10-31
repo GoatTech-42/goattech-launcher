@@ -4,6 +4,7 @@
 use super::*;
 use gpui::RenderImage;
 use horizon_launcher::instances::{self, Icon, Instance, Kind as InstanceKind};
+use horizon_launcher::{other_launchers, sources};
 use servers_page::Field;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -71,6 +72,13 @@ pub(super) struct Instances {
     pub(super) icons: HashMap<(String, u32), Option<Arc<RenderImage>>>,
     /// Mojang's versions, for a new Java instance.
     pub(super) versions: new_instance::VersionList,
+    /// Other launchers' instances from the last Find here: each with why its mods can't come
+    /// along when they can't (`other_launchers::mods_blocked`). None until Find runs.
+    others: Option<Vec<(other_launchers::Found, Option<String>)>>,
+    /// A scan or import for that section is running.
+    others_busy: bool,
+    /// Why the last import from another launcher failed.
+    others_error: Option<String>,
 }
 
 impl Launcher {
@@ -183,6 +191,199 @@ impl Launcher {
     /// The Instances page (concept): Rust and Java side by side, each instance a card - its
     /// icon, what it plays, when it was played, Open and its own Play. New instance opens the
     /// dialog the sidebar's `+` did. Card banner art joins with per-instance banners (#8).
+    /// Finds the instances other launchers on this computer already have
+    /// (`other_launchers::scan`: their usual folders, nothing written), with why each one's
+    /// mods can't come along. On a background thread.
+    fn scan_other_launchers(&mut self, cx: &mut Context<Self>) {
+        if self.instances.others_busy {
+            return;
+        }
+        self.instances.others_busy = true;
+        self.instances.others_error = None;
+        cx.notify();
+        let task = cx.background_executor().spawn(async move {
+            match sources::Folders::current() {
+                Some(folders) => other_launchers::scan(sources::Os::current(), &folders)
+                    .into_iter()
+                    .map(|f| {
+                        let blocked = other_launchers::mods_blocked(&f);
+                        (f, blocked)
+                    })
+                    .collect(),
+                None => Vec::new(),
+            }
+        });
+        cx.spawn(async move |this, cx| {
+            let found = task.await;
+            let _ = this.update(cx, |this, cx| {
+                this.instances.others = Some(found);
+                this.instances.others_busy = false;
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// Imports one of them on a background thread: a copy under its name (never overwrites - a
+    /// name already taken fails and says so), its loader when Horizon installs it, and its mods
+    /// when they can load (`other_launchers::import` refuses them otherwise; the row offered
+    /// "Import without mods" then).
+    fn import_other_launcher(&mut self, found: other_launchers::Found, cx: &mut Context<Self>) {
+        if self.instances.others_busy {
+            return;
+        }
+        self.instances.others_busy = true;
+        self.instances.others_error = None;
+        cx.notify();
+        let task = cx.background_executor().spawn(async move {
+            let with_mods = other_launchers::mods_blocked(&found).is_none();
+            let name = found.name.clone();
+            let imported = other_launchers::import(&found, &name, None, with_mods)?;
+            Ok::<_, String>((imported, found.game))
+        });
+        cx.spawn(async move |this, cx| {
+            let result = task.await;
+            let _ = this.update(cx, |this, cx| {
+                this.instances.others_busy = false;
+                match result {
+                    Ok((instance, game)) => {
+                        if let Some(found) = &mut this.instances.others {
+                            found.retain(|(f, _)| f.game != game);
+                        }
+                        this.reload_instances();
+                        this.select_instance(&instance);
+                        this.go(Page::Play);
+                    }
+                    Err(e) => this.instances.others_error = Some(e),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// The "From other launchers" section (#7): Find scans once, on demand; each row says what
+    /// the instance plays and imports a copy of it. Mods come along only when Horizon installs
+    /// their loader - the row shows why not and offers "Import without mods" otherwise, and a
+    /// version the launcher doesn't record leaves the row without an import to run.
+    fn other_launchers_section(&mut self, cx: &mut Context<Self>) -> Div {
+        let t = self.theme;
+        let n = t.night;
+        let busy = self.instances.others_busy;
+        let mut rows: Vec<AnyElement> = Vec::new();
+        match &self.instances.others {
+            None => rows.push(
+                shell::text(theme::night::CAPTION, shell::c(n.muted))
+                    .child(
+                        "Find the instances other launchers on this computer already have."
+                            .to_string(),
+                    )
+                    .into_any_element(),
+            ),
+            Some(found) if found.is_empty() => rows.push(
+                shell::text(theme::night::CAPTION, shell::c(n.muted))
+                    .child("No other launchers' instances found.".to_string())
+                    .into_any_element(),
+            ),
+            Some(found) => {
+                for (i, (f, blocked)) in found.iter().enumerate() {
+                    let plays = match (&f.minecraft, &f.loader) {
+                        (None, _) => {
+                            "its launcher doesn't record its Minecraft version".to_string()
+                        }
+                        (Some(v), Some(l)) => {
+                            format!("Minecraft {v} with {} {}", l.name, l.version)
+                        }
+                        (Some(v), None) => format!("Minecraft {v}"),
+                    };
+                    let mut text_col = div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(2.))
+                        .child(
+                            shell::text(theme::night::CAPTION, shell::c(n.ink))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(format!("{} - {}", f.name, f.launcher)),
+                        )
+                        .child(
+                            shell::text(theme::night::CAPTION, shell::c(n.muted)).child(plays),
+                        );
+                    if let Some(why) = blocked {
+                        text_col = text_col.child(
+                            shell::text(theme::night::CAPTION, shell::c(n.muted))
+                                .child(why.clone()),
+                        );
+                    }
+                    let label = if blocked.is_some() {
+                        "Import without mods"
+                    } else {
+                        "Import"
+                    };
+                    let mut b = button(format!("import-other-{i}"), label, Kind::Secondary, &t);
+                    if !busy && f.minecraft.is_some() {
+                        let f = f.clone();
+                        b = b.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            this.import_other_launcher(f.clone(), cx);
+                        }));
+                    } else {
+                        b = b.opacity(0.5);
+                    }
+                    rows.push(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .gap(px(16.))
+                            .p(px(12.))
+                            .border_2()
+                            .border_color(t.outline)
+                            .child(text_col)
+                            .child(b)
+                            .into_any_element(),
+                    );
+                }
+            }
+        }
+        let mut find = button("find-other-launchers", "Find", Kind::Secondary, &t);
+        if busy {
+            find = find.opacity(0.5);
+        } else {
+            find = find.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                this.scan_other_launchers(cx);
+            }));
+        }
+        let mut footer = div().flex().items_center().gap(px(12.)).mt(px(10.)).child(find);
+        if let Some(e) = &self.instances.others_error {
+            footer = footer
+                .child(shell::text(theme::night::CAPTION, shell::c(n.muted)).child(e.clone()));
+        }
+        div()
+            .flex()
+            .flex_col()
+            .mt(px(26.))
+            .child(
+                div()
+                    .flex()
+                    .items_baseline()
+                    .justify_between()
+                    .child(
+                        shell::text(theme::night::CAPTION, shell::c(n.muted))
+                            .child("From other launchers".to_string()),
+                    )
+                    .child(
+                        shell::text(theme::night::CAPTION, shell::c(n.muted))
+                            .font_family(theme::MONO)
+                            .text_size(px(11.))
+                            .child(
+                                "import a copy - the other launcher's instance stays as it is"
+                                    .to_string(),
+                            ),
+                    ),
+            )
+            .child(div().flex().flex_col().gap(px(10.)).mt(px(10.)).children(rows))
+            .child(footer)
+    }
+
     pub(super) fn instances_page(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let n = t.night;
@@ -256,6 +457,7 @@ impl Launcher {
                 Some("Software is chosen inside each Java instance - vanilla, Fabric or Quilt."),
                 java,
             ))
+            .child(self.other_launchers_section(cx))
     }
 
     /// One instance's card on the Instances page.
