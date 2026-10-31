@@ -114,7 +114,6 @@
   "Open logs folder": "Открыть папку журналов",
   "Report on Discord": "Сообщить в Discord",
   "Dismiss": "Закрыть",
-  "HIDE": "СКРЫТЬ",
   "Sponsor": "Поддержать",
   "Website": "Сайт",
   "Ready": "Готово",
@@ -460,7 +459,6 @@
   "Playing next": "Следующий запуск",
   "Own runtime, mods and saves - nothing mixes with your other instances.": "Своя среда, моды и сохранения - ничего не смешивается с другими вашими сборками.",
   "{n} mods": "Модов: {n}",
-  "{n} playing now": "Сейчас играют: {n}",
   "Jump back in": "Продолжить игру",
   "What's new": "Что нового",
   "All patch notes": "Все примечания к выпускам",
@@ -477,5 +475,7 @@
   "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match. {downloaded} downloaded · {installed} on this computer.": "Каждый экземпляр Java получает среду выполнения, которая нужна его версии: скачивается один раз и используется повторно при совпадении версий. Скачано: {downloaded} · на этом компьютере: {installed}.",
   "Each Java instance gets the runtime its version needs. None downloaded yet - Mojang's is downloaded when an instance needs it.": "Каждый экземпляр Java получает среду выполнения, которая нужна его версии. Пока ничего не скачано: среда Mojang скачивается, когда она нужна экземпляру.",
   "A fork of Horizon (MIT) - upstream attribution kept. Made by goattech · goattech.us.": "Форк Horizon (MIT): указание авторства оригинала сохранено. Made by goattech · goattech.us.",
-  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Каждый экземпляр Java получает среду выполнения, которая нужна его версии: скачивается один раз и используется повторно при совпадении версий."
+  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Каждый экземпляр Java получает среду выполнения, которая нужна его версии: скачивается один раз и используется повторно при совпадении версий.",
+  "{n} playing Horizon now": "Сейчас играют: {n}",
+  "Preview player": "Preview player"
 }

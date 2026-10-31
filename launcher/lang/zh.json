@@ -113,7 +113,6 @@
   "Open logs folder": "打开日志文件夹",
   "Report on Discord": "在 Discord 上报告",
   "Dismiss": "关闭",
-  "HIDE": "隐藏",
   "Website": "网站",
   "Ready": "就绪",
   "Needs preparing": "需要准备",
@@ -460,7 +459,6 @@
   "Playing next": "接下来游玩",
   "Own runtime, mods and saves - nothing mixes with your other instances.": "独立的运行时、模组和存档，不会与其他实例混淆。",
   "{n} mods": "{n} 个模组",
-  "{n} playing now": "{n} 人正在游玩",
   "Jump back in": "继续游戏",
   "What's new": "最新动态",
   "All patch notes": "所有更新日志",
@@ -477,5 +475,7 @@
   "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match. {downloaded} downloaded · {installed} on this computer.": "每个 Java 实例获得其版本所需的运行时,下载一次,版本相同时重复使用。已下载 {downloaded} 个 · 此电脑上有 {installed} 个。",
   "Each Java instance gets the runtime its version needs. None downloaded yet - Mojang's is downloaded when an instance needs it.": "每个 Java 实例获得其版本所需的运行时。尚未下载 - 实例需要时会下载 Mojang 的运行时。",
   "A fork of Horizon (MIT) - upstream attribution kept. Made by goattech · goattech.us.": "Horizon (MIT) 的分支 - 保留上游署名。Made by goattech · goattech.us。",
-  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "每个 Java 实例获得其版本所需的运行时,下载一次,版本相同时重复使用。"
+  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "每个 Java 实例获得其版本所需的运行时,下载一次,版本相同时重复使用。",
+  "{n} playing Horizon now": "{n} 人正在游玩",
+  "Preview player": "Preview player"
 }

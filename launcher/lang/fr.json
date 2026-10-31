@@ -114,7 +114,6 @@
   "Open logs folder": "Ouvrir le dossier des journaux",
   "Report on Discord": "Signaler sur Discord",
   "Dismiss": "Fermer",
-  "HIDE": "MASQUER",
   "Sponsor": "Soutenir",
   "Website": "Site web",
   "Ready": "Prêt",
@@ -460,7 +459,6 @@
   "Playing next": "Prochain lancement",
   "Own runtime, mods and saves - nothing mixes with your other instances.": "Exécution, mods et sauvegardes dédiés : rien ne se mélange avec vos autres instances.",
   "{n} mods": "{n} mods",
-  "{n} playing now": "{n} en jeu",
   "Jump back in": "Reprendre la partie",
   "What's new": "Nouveautés",
   "All patch notes": "Toutes les notes de version",
@@ -477,5 +475,7 @@
   "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match. {downloaded} downloaded · {installed} on this computer.": "Chaque instance Java obtient le runtime dont sa version a besoin, téléchargé une fois et réutilisé lorsque les versions correspondent. {downloaded} téléchargés · {installed} sur cet ordinateur.",
   "Each Java instance gets the runtime its version needs. None downloaded yet - Mojang's is downloaded when an instance needs it.": "Chaque instance Java obtient le runtime dont sa version a besoin. Aucun téléchargé pour l'instant : celui de Mojang est téléchargé quand une instance en a besoin.",
   "A fork of Horizon (MIT) - upstream attribution kept. Made by goattech · goattech.us.": "Un fork de Horizon (MIT) - l'attribution d'origine est conservée. Made by goattech · goattech.us.",
-  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Chaque instance Java obtient le runtime dont sa version a besoin, téléchargé une fois et réutilisé lorsque les versions correspondent."
+  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Chaque instance Java obtient le runtime dont sa version a besoin, téléchargé une fois et réutilisé lorsque les versions correspondent.",
+  "{n} playing Horizon now": "{n} en jeu",
+  "Preview player": "Preview player"
 }

@@ -114,7 +114,6 @@
   "Open logs folder": "Abrir carpeta de registros",
   "Report on Discord": "Reportar en Discord",
   "Dismiss": "Descartar",
-  "HIDE": "OCULTAR",
   "Sponsor": "Patrocinar",
   "Website": "Sitio web",
   "Ready": "Listo",
@@ -460,7 +459,6 @@
   "Playing next": "Jugando a continuación",
   "Own runtime, mods and saves - nothing mixes with your other instances.": "Ejecución, mods y partidas propios: nada se mezcla con tus otras instancias.",
   "{n} mods": "{n} mods",
-  "{n} playing now": "{n} jugando ahora",
   "Jump back in": "Volver a jugar",
   "What's new": "Novedades",
   "All patch notes": "Todas las notas",
@@ -477,5 +475,7 @@
   "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match. {downloaded} downloaded · {installed} on this computer.": "Cada instancia de Java obtiene el entorno que su versión necesita, descargado una vez y reutilizado cuando las versiones coinciden. {downloaded} descargados · {installed} en este ordenador.",
   "Each Java instance gets the runtime its version needs. None downloaded yet - Mojang's is downloaded when an instance needs it.": "Cada instancia de Java obtiene el entorno que su versión necesita. Ninguno descargado aún: el de Mojang se descarga cuando una instancia lo necesita.",
   "A fork of Horizon (MIT) - upstream attribution kept. Made by goattech · goattech.us.": "Un fork de Horizon (MIT): se mantiene la atribución original. Made by goattech · goattech.us.",
-  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Cada instancia de Java obtiene el entorno que su versión necesita, descargado una vez y reutilizado cuando las versiones coinciden."
+  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Cada instancia de Java obtiene el entorno que su versión necesita, descargado una vez y reutilizado cuando las versiones coinciden.",
+  "{n} playing Horizon now": "{n} jugando ahora",
+  "Preview player": "Preview player"
 }

@@ -5,6 +5,7 @@
 
 mod agents_page;
 mod art;
+mod player_model;
 mod blocks;
 mod collection;
 mod console;
@@ -342,6 +343,8 @@ struct Launcher {
     sky_wake: Option<(Instant, gpui::Task<()>)>,
     /// The window's scale, as of its last frame, for art drawn outside `render`'s reach.
     scale: f32,
+    /// The home stage's baked 3D fixture player, at the scale it was baked for.
+    home_model: Option<(f32, std::sync::Arc<gpui::RenderImage>)>,
 }
 
 impl Launcher {
@@ -452,6 +455,7 @@ impl Launcher {
             account_menu: false,
             menu_closed_at: None,
             skin: None,
+            home_model: None,
             background_error: None,
             java_runtimes: None,
             java_runtimes_busy: false,
@@ -2046,51 +2050,8 @@ impl Launcher {
             }
             _ => {}
         }
-        // Sculk's card above the links: seen without scrolling, on every page but Servers, which shows
-        // its wide banner. Tall where the sidebar has the height for it besides the wordmark, its rows
-        // (52 high each, under headings of 40) and the links, compact otherwise. After a while on
-        // screen a "Hide" beside its label puts it away for good.
-        if self.page != Page::Servers && !self.settings.partner_hidden {
-            let free = f32::from(window.viewport_size().height)
-                - theme::TOPBAR
-                - 36. * Page::ALL.len() as f32
-                - 110.;
-            let mut side = div().relative().mb(px(8.)).child(partner::card(
-                "partner-side",
-                theme::SIDEBAR - 20.,
-                free < partner::TALL_HEIGHT,
-                &t,
-            ));
-            if self.settings.partner_seen_secs >= partner::SEEN_BEFORE_HIDE {
-                let hide = div()
-                    .id("partner-hide")
-                    .absolute()
-                    .top(px(0.))
-                    .right(px(0.))
-                    .cursor_pointer()
-                    .child(
-                        text(theme::MICRO)
-                            .text_color(t.muted)
-                            .hover(move |s| s.text_color(t.ink))
-                            .child(tr("HIDE")),
-                    )
-                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                        this.settings.partner_hidden = true;
-                        this.settings.save();
-                        cx.notify();
-                    }));
-                side = side.child(keyboard(hide, &t));
-            }
-            foot = foot.child(side);
-        }
-        if !self.links.sponsor.is_empty() {
-            foot = foot.child(link(
-                "sponsor",
-                tr("Sponsor"),
-                "heart",
-                self.links.sponsor.clone(),
-            ));
-        }
+        // GoatTech is ad-free (Luke, 2026-10-31): no partner card in the sidebar. The
+        // partner module and its assets stay for attribution; nothing of it renders.
         if !self.links.discord.is_empty() {
             foot = foot.child(link(
                 "discord",

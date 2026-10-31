@@ -106,7 +106,6 @@
   "Open logs folder": "Otwórz folder dzienników",
   "Report on Discord": "Zgłoś na Discordzie",
   "Dismiss": "Zamknij",
-  "HIDE": "UKRYJ",
   "Sponsor": "Wesprzyj",
   "Website": "Strona internetowa",
   "Ready": "Gotowe",
@@ -460,7 +459,6 @@
   "Playing next": "Następne do gry",
   "Own runtime, mods and saves - nothing mixes with your other instances.": "Własne środowisko, mody i zapisy - nic nie miesza się z twoimi pozostałymi instancjami.",
   "{n} mods": "Mody: {n}",
-  "{n} playing now": "Gra teraz: {n}",
   "Jump back in": "Wróć do gry",
   "What's new": "Co nowego",
   "All patch notes": "Wszystkie informacje o wersji",
@@ -477,5 +475,7 @@
   "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match. {downloaded} downloaded · {installed} on this computer.": "Każda instancja Javy otrzymuje środowisko wykonawcze, którego potrzebuje jej wersja - pobierane raz i używane ponownie, gdy wersje się zgadzają. Pobrane: {downloaded} · na tym komputerze: {installed}.",
   "Each Java instance gets the runtime its version needs. None downloaded yet - Mojang's is downloaded when an instance needs it.": "Każda instancja Javy otrzymuje środowisko wykonawcze, którego potrzebuje jej wersja. Nie pobrano jeszcze żadnego - środowisko Mojanga jest pobierane, gdy instancja go potrzebuje.",
   "A fork of Horizon (MIT) - upstream attribution kept. Made by goattech · goattech.us.": "Fork Horizona (MIT) - oryginalne autorstwo zachowane. Made by goattech · goattech.us.",
-  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Każda instancja Javy otrzymuje środowisko wykonawcze, którego potrzebuje jej wersja - pobierane raz i używane ponownie, gdy wersje się zgadzają."
+  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Każda instancja Javy otrzymuje środowisko wykonawcze, którego potrzebuje jej wersja - pobierane raz i używane ponownie, gdy wersje się zgadzają.",
+  "{n} playing Horizon now": "Gra teraz: {n}",
+  "Preview player": "Preview player"
 }

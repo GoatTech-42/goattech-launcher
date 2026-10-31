@@ -37,14 +37,15 @@ pub mod fonts {
         include_bytes!("../fonts/BricolageGrotesqueDisplay-Bold.ttf");
 }
 
-/// The launcher's pixel icons: Pixelarticons (MIT, `icons/pixel/LICENSE-pixelarticons.txt`), 24
-/// unit SVGs filled with `currentColor`, by name (`"home"`, `"play"`…).
+/// The launcher's icons: Lucide (ISC, `icons/lucide/LICENSE-lucide.txt`), 24-unit stroke SVGs
+/// in `currentColor`, by name (`"home"`, `"play"`…). GoatTech ad-free redesign (Luke,
+/// 2026-10-31): a licensed set replaces the pixel icons; Pixelarticons stay for credit.
 pub mod icons {
     macro_rules! icons {
         ($($name:literal),* $(,)?) => {
             /// Every icon, `(name, svg)`.
             pub const ALL: &[(&str, &[u8])] = &[
-                $(($name, include_bytes!(concat!("../icons/pixel/", $name, ".svg")))),*
+                $(($name, include_bytes!(concat!("../icons/lucide/", $name, ".svg")))),*
             ];
         };
     }
@@ -78,7 +79,6 @@ pub mod icons {
         "search",
         "server",
         "sliders",
-        // Not Pixelarticons': drawn for Horizon's ratings, in the same 2-unit grid.
         "star",
         "terminal",
         "trash",

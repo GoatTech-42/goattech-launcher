@@ -114,7 +114,6 @@
   "Open logs folder": "Protokollordner öffnen",
   "Report on Discord": "Auf Discord melden",
   "Dismiss": "Schließen",
-  "HIDE": "AUSBLENDEN",
   "Sponsor": "Unterstützen",
   "Website": "Webseite",
   "Ready": "Bereit",
@@ -460,7 +459,6 @@
   "Playing next": "Spielt als Nächstes",
   "Own runtime, mods and saves - nothing mixes with your other instances.": "Eigene Laufzeit, eigene Mods, eigene Spielstände - nichts vermischt sich mit deinen anderen Instanzen.",
   "{n} mods": "{n} Mods",
-  "{n} playing now": "{n} spielen gerade",
   "Jump back in": "Weiter spielen",
   "What's new": "Neuigkeiten",
   "All patch notes": "Alle Patchnotes",
@@ -477,5 +475,7 @@
   "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match. {downloaded} downloaded · {installed} on this computer.": "Jede Java-Instanz bekommt die Runtime, die ihre Version braucht - einmal heruntergeladen und wiederverwendet, wo die Versionen passen. {downloaded} heruntergeladen · {installed} auf diesem Computer.",
   "Each Java instance gets the runtime its version needs. None downloaded yet - Mojang's is downloaded when an instance needs it.": "Jede Java-Instanz bekommt die Runtime, die ihre Version braucht. Noch keine heruntergeladen - Mojangs wird heruntergeladen, wenn eine Instanz sie braucht.",
   "A fork of Horizon (MIT) - upstream attribution kept. Made by goattech · goattech.us.": "Ein Fork von Horizon (MIT) - die Namensnennung des Originals bleibt erhalten. Made by goattech · goattech.us.",
-  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Jede Java-Instanz bekommt die Runtime, die ihre Version braucht - einmal heruntergeladen und wiederverwendet, wo die Versionen passen."
+  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Jede Java-Instanz bekommt die Runtime, die ihre Version braucht - einmal heruntergeladen und wiederverwendet, wo die Versionen passen.",
+  "{n} playing Horizon now": "{n} spielen gerade",
+  "Preview player": "Preview player"
 }

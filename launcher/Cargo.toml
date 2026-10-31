@@ -79,5 +79,12 @@ winresource = "0.1"
 proc-macro2 = "1"
 syn = "2"
 
+[patch.crates-io]
+gpui = { path = "../third_party/gpui" }
+
 [profile.release]
 strip = true
+
+[profile.dev.package.horizon-launcher]
+debug = 1
+codegen-units = 256

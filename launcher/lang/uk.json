@@ -114,7 +114,6 @@
   "Open logs folder": "Відкрити теку журналів",
   "Report on Discord": "Повідомити в Discord",
   "Dismiss": "Закрити",
-  "HIDE": "ПРИХОВАТИ",
   "Sponsor": "Спонсор",
   "Website": "Вебсайт",
   "Ready": "Готово",
@@ -460,7 +459,6 @@
   "Playing next": "Наступний запуск",
   "Own runtime, mods and saves - nothing mixes with your other instances.": "Власне середовище, моди й збереження - нічого не змішується з вашими іншими збірками.",
   "{n} mods": "Модів: {n}",
-  "{n} playing now": "Зараз грають: {n}",
   "Jump back in": "Повернутись до гри",
   "What's new": "Що нового",
   "All patch notes": "Усі примітки до випусків",
@@ -477,5 +475,7 @@
   "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match. {downloaded} downloaded · {installed} on this computer.": "Кожен екземпляр Java отримує середовище виконання, яке потрібне його версії: завантажується один раз і використовується повторно, коли версії збігаються. Завантажено: {downloaded} · на цьому комп'ютері: {installed}.",
   "Each Java instance gets the runtime its version needs. None downloaded yet - Mojang's is downloaded when an instance needs it.": "Кожен екземпляр Java отримує середовище виконання, яке потрібне його версії. Поки нічого не завантажено: середовище Mojang завантажується, коли воно потрібне екземпляру.",
   "A fork of Horizon (MIT) - upstream attribution kept. Made by goattech · goattech.us.": "Форк Horizon (MIT): зазначення авторства оригіналу збережено. Made by goattech · goattech.us.",
-  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Кожен екземпляр Java отримує середовище виконання, яке потрібне його версії: завантажується один раз і використовується повторно, коли версії збігаються."
+  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Кожен екземпляр Java отримує середовище виконання, яке потрібне його версії: завантажується один раз і використовується повторно, коли версії збігаються.",
+  "{n} playing Horizon now": "Зараз грають: {n}",
+  "Preview player": "Preview player"
 }

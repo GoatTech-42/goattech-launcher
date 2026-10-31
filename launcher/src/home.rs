@@ -66,7 +66,7 @@ impl Launcher {
         }
         if let Some(playing) = self.playing {
             chips.push(shell::chip_tag(
-                trf("{n} playing now", &[("n", &thousands(playing))]),
+                trf("{n} playing Horizon now", &[("n", &thousands(playing))]),
                 &t,
             ));
         }
@@ -127,6 +127,7 @@ impl Launcher {
                     .child(status)
                     .children(chips),
             )
+            .child(self.home_stage())
             .child(
                 div()
                     .relative()
@@ -223,6 +224,60 @@ impl Launcher {
             );
         }
         hero
+    }
+
+    /// The home stage's center (concept Home): the player model, 3D-projected from its skin,
+    /// under its pixel nametag. A labelled fixture skin until the signed-in player's own skin
+    /// renders here.
+    pub(super) fn home_stage(&mut self) -> Div {
+        let t = self.theme;
+        let n = t.night;
+        let scale = self.scale;
+        let current = match &self.home_model {
+            Some((s, i)) if *s == scale => Some(i.clone()),
+            _ => None,
+        };
+        let baked = match current {
+            Some(i) => Some(i),
+            None => {
+                let b = player_model::fixture().map(|png| {
+                    art::bake(
+                        &player_model::render(&png, -0.5),
+                        player_model::W,
+                        player_model::H,
+                        5.,
+                        scale,
+                    )
+                });
+                if let Some(i) = &b {
+                    self.home_model = Some((scale, i.clone()));
+                }
+                b
+            }
+        };
+        let mut stage = div()
+            .relative()
+            .flex()
+            .flex_none()
+            .flex_col()
+            .items_center()
+            .gap(px(4.))
+            .pt(px(8.))
+            .child(
+                shell::text(night::CAPTION, c(n.ink))
+                    .font_family(theme::PIXEL)
+                    .child("PLAYER"),
+            );
+        if let Some(i) = baked {
+            stage = stage.child(
+                gpui::img(i)
+                    .w(px(player_model::W as f32 * 5.))
+                    .h(px(player_model::H as f32 * 5.)),
+            );
+        }
+        stage.child(
+            shell::text(night::CAPTION, c(n.muted)).child(tr("Preview player").to_string()),
+        )
     }
 
     /// Play itself, the hero card's big button: while it prepares, the busy state and Cancel.
