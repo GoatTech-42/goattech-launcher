@@ -248,5 +248,6 @@
   "Java": "Java",
   "Software is chosen inside each Java instance - vanilla, Fabric or Quilt.": "在每个 Java 实例内选择软件——原版、Fabric 或 Quilt。",
   "Rust and Java live side by side. Each instance keeps its own version, runtime, mods, configs and saves.": "Rust 与 Java 并存。每个实例都保留自己的版本、运行时、模组、配置和存档。",
-  "Not supported yet - tracked upstream.": "尚不支持——正在跟踪上游进展。"
+  "Not supported yet - tracked upstream.": "尚不支持——正在跟踪上游进展。",
+  "Remove": "移除"
 }

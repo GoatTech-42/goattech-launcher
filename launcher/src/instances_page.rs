@@ -51,6 +51,8 @@ pub(super) struct InstanceDialog {
     icon: Option<Icon>,
     /// A picture chosen since it opened (None in it: the instance's is removed on Save).
     pub(super) picture: Option<Option<instance_icons::Chosen>>,
+    /// A banner chosen since it opened; same shape as `picture`.
+    pub(super) banner: Option<Option<instance_icons::Chosen>>,
     pub(super) error: Option<String>,
     busy: bool,
     /// Horizon, or the Java game it plays.
@@ -426,6 +428,7 @@ impl Launcher {
         self.instances.dialog = Some(InstanceDialog {
             icon: editing.as_ref().and_then(|i| i.icon.clone()),
             picture: None,
+            banner: None,
             editing: editing.map(|i| i.id),
             copy: false,
             error: None,
@@ -459,6 +462,10 @@ impl Launcher {
             .picture
             .as_ref()
             .map(|p| p.as_ref().map(|c| c.png.clone()));
+        let banner = d
+            .banner
+            .as_ref()
+            .map(|b| b.as_ref().map(|c| c.png.clone()));
         let editing = d.editing.clone();
         let copy = selected.filter(|_| d.copy);
         // A new Java instance: what it plays, and its name when none is typed.
@@ -526,6 +533,13 @@ impl Launcher {
                     &horizon_launcher::desktop_seams::to_trash,
                 )?;
             }
+            if let Some(png) = banner {
+                instances::set_banner(
+                    &instance.home,
+                    png.as_deref(),
+                    &horizon_launcher::desktop_seams::to_trash,
+                )?;
+            }
             Ok(instance)
         });
         cx.spawn(async move |this, cx| {
@@ -561,6 +575,10 @@ impl Launcher {
             .picture
             .as_ref()
             .map(|p| p.as_ref().map(|c| c.preview.clone()));
+        let chosen_banner = d
+            .banner
+            .as_ref()
+            .map(|b| b.as_ref().map(|c| c.preview.clone()));
         let (editing, copy, icon, error, busy, kind) = (
             d.editing.is_some(),
             d.copy,
@@ -790,6 +808,54 @@ impl Launcher {
                 .gap(px(10.))
                 .children(rows)
                 .child(div().flex().child(choose))
+                .into_any_element(),
+        ));
+        // The banner it will show: one just chosen, else its own unless that is being removed.
+        let banner_now = match &chosen_banner {
+            Some(chosen) => chosen.clone(),
+            None => instance
+                .as_ref()
+                .and_then(|i| self.instance_banner(i, 160.)),
+        };
+        let choose_banner = shell::action("instance-banner", shell::Action::Quiet, &t)
+            .child(shell::label(tr("Choose image…").to_string()))
+            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                this.choose_instance_banner(cx);
+            }));
+        let remove_banner = banner_now.is_some().then(|| {
+            shell::action("instance-banner-remove", shell::Action::Quiet, &t)
+                .child(shell::label(tr("Remove").to_string()))
+                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                    if let Some(d) = &mut this.instances.dialog {
+                        d.banner = Some(None);
+                    }
+                    cx.notify();
+                }))
+        });
+        body = body.child(row(
+            "Banner",
+            div()
+                .flex()
+                .items_center()
+                .gap(px(10.))
+                .child(
+                    div()
+                        .id("instance-banner-preview")
+                        .w(px(160.))
+                        .h(px(40.))
+                        .overflow_hidden()
+                        .bg(plate::alpha(n.card_hi, n.card_hi_alpha))
+                        .when_some(banner_now, |strip, image| {
+                            strip.child(
+                                gpui::img(image)
+                                    .w(px(160.))
+                                    .h(px(40.))
+                                    .object_fit(gpui::ObjectFit::Cover),
+                            )
+                        }),
+                )
+                .child(choose_banner)
+                .children(remove_banner)
                 .into_any_element(),
         ));
         if self.selected().is_none_or(|t| !backend::is_prepared(t)) {
