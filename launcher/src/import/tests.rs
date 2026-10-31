@@ -148,6 +148,8 @@ fn an_export_comes_back_as_an_instance_and_nothing_escapes_its_folder() {
     );
     put(&home.join("saves/Base/region/r.0.0.mca"), b"region");
     put(&home.join("saves/Base/level.dat"), b"not nbt");
+    put(&home.join("icon.png"), b"the picture");
+    put(&home.join("banner.png"), b"the banner");
     let made = dir.join("instances");
     for format in [Format::Mrpack, Format::Zip] {
         let out = dir.join(format!("Shared.{}", format.extension()));
@@ -158,6 +160,8 @@ fn an_export_comes_back_as_an_instance_and_nothing_escapes_its_folder() {
             "resourcepacks/Glass.zip",
             "horizon-mods/coords/horizon-mod.toml",
             "saves/Base/region/r.0.0.mca",
+            "icon.png",
+            "banner.png",
         ] {
             assert_eq!(
                 fs::read(i.home.join(f)).unwrap(),

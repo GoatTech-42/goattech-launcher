@@ -19,13 +19,18 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 /// The game folder's own files that are the instance's settings.
-pub const FILES: [&str; 6] = [
+pub const FILES: [&str; 8] = [
     "options.txt",
     "horizon-graphics.txt",
     "horizon-extras.txt",
     "horizon-controller.txt",
     "horizon-mods.txt",
     "servers.dat",
+    // The instance's own art, when it has any: its picture and banner ride the export and the
+    // import's whitelist keeps them, so a shared instance looks like itself. Harmless overrides
+    // for other launchers reading the .mrpack: stray files, never behavior.
+    crate::instances::PICTURE,
+    crate::instances::BANNER,
 ];
 /// Its folders of packs, mods and their settings.
 pub const FOLDERS: [&str; 4] = ["resourcepacks", "shaderpacks", "horizon-mods", "config"];
