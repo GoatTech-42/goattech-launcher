@@ -261,6 +261,7 @@ impl Launcher {
         let t = self.theme;
         let n = t.night;
         let icon = self.instance_icon(i, 40.);
+        let banner = self.instance_banner(i, 296.);
         let mut chips: Vec<Div> = Vec::new();
         match &i.java {
             Some(j) => {
@@ -301,13 +302,22 @@ impl Launcher {
             .w(px(296.))
             .overflow_hidden()
             .cursor_pointer()
-            // The banner's place: the instance's icon over a raised strip until per-instance
-            // banner art exists (UI-MAP #8) - no fake art.
+            // The banner's place: the instance's own banner.png when it has a readable one
+            // (cover-cropped to the strip); the raised strip carries the icon either way.
             .child(
                 div()
                     .relative()
                     .h(px(64.))
+                    .overflow_hidden()
                     .bg(plate::alpha(n.card_hi, n.card_hi_alpha))
+                    .when_some(banner, |strip, image| {
+                        strip.child(
+                            gpui::img(image)
+                                .w(px(296.))
+                                .h(px(64.))
+                                .object_fit(gpui::ObjectFit::Cover),
+                        )
+                    })
                     .child(
                         div()
                             .absolute()
