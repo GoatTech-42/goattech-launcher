@@ -146,7 +146,7 @@
   "Ready in under a minute": "Prêt en moins d'une minute",
   "Get my server": "Obtenir mon serveur",
   "15% off": "-15 %",
-  "Not prepared. Horizon needs the files of your own Minecraft {version}.": "Pas préparé. GoatTech Launcher a besoin des fichiers de votre propre Minecraft {version}.",
+  "Not prepared. Horizon needs the files of your own Minecraft {version}.": "Pas préparé. Horizon a besoin des fichiers de votre propre Minecraft {version}.",
   "Prepared for Minecraft {version}": "Préparé pour Minecraft {version}",
   "Prepared for Minecraft {version}, without its sounds: the game will be silent. Prepare again to copy them from your Minecraft install.": "Préparé pour Minecraft {version}, sans ses sons : le jeu sera muet. Préparez à nouveau pour les copier depuis votre installation de Minecraft.",
   "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.": "Cette version du launcher n'a pas de connexion Microsoft (HORIZON_MSA_CLIENT_ID) : elle ne peut pas lancer le jeu.",
