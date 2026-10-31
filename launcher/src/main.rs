@@ -3079,7 +3079,7 @@ impl Launcher {
                             n + 11,
                             tr("Applications menu"),
                             Some(plain(if self.settings.desktop_entry() {
-                                "Horizon and its icon are in your desktop's menu."
+                                "GoatTech Launcher and its icon are in your desktop's menu."
                             } else {
                                 "Not in your desktop's menu."
                             })),
@@ -3458,7 +3458,7 @@ impl Launcher {
             Some(SignInState::Done(Ok(a))) => div().child(format!("Signed in as {}.", a.name)),
             Some(SignInState::Done(Err(e))) => div().text_color(t.danger).child(e.clone()),
             None if self.accounts.accounts.is_empty() => div().child(tr(
-                "Horizon needs a Microsoft account that owns Minecraft: Java Edition, like other launchers. It also plays online servers with your name and skin.",
+                "GoatTech Launcher needs a Microsoft account that owns Minecraft: Java Edition, like other launchers. It also plays online servers with your name and skin.",
             )),
             None => div().child(tr("Add another account.")),
         };
@@ -4269,8 +4269,8 @@ fn key_bindings() -> Vec<KeyBinding> {
 fn menus() -> Vec<Menu> {
     vec![
         Menu {
-            name: "Horizon Launcher".into(),
-            items: vec![MenuItem::action("Quit Horizon Launcher", Quit)],
+            name: "GoatTech Launcher".into(),
+            items: vec![MenuItem::action("Quit GoatTech Launcher", Quit)],
         },
         Menu {
             name: "Window".into(),
@@ -4445,10 +4445,10 @@ mod tests {
     #[test]
     fn the_app_menu_has_quit() {
         let menus = super::menus();
-        assert_eq!(menus[0].name, "Horizon Launcher");
+        assert_eq!(menus[0].name, "GoatTech Launcher");
         assert!(matches!(
             &menus[0].items[0],
-            gpui::MenuItem::Action { name, .. } if name == "Quit Horizon Launcher"
+            gpui::MenuItem::Action { name, .. } if name == "Quit GoatTech Launcher"
         ));
     }
 

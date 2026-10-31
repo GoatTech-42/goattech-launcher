@@ -76,7 +76,7 @@ impl Launcher {
                     .child(tr("Sign in to play").to_string()),
             )
             .child(line(
-                "Horizon needs a Microsoft account that owns Minecraft: Java Edition, like other launchers.",
+                "GoatTech Launcher needs a Microsoft account that owns Minecraft: Java Edition, like other launchers.",
                 n.ink_soft,
             ))
             .child(line(
