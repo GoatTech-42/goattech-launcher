@@ -1,0 +1,12 @@
+GoatTech upstream merge receipt 2026-10-30
+base (last reviewed before): 98b6a442c
+upstream tip reviewed+merged: 082054175 (106 commits)
+merge commit (goattech/main): 22f4ae048
+tracking-doc update commit: 9c5d04079
+pushed: c09100b9e..9c5d04079 goattech/main (2026-10-30 ~17:47 PDT)
+gates on merged tree:
+  launcher lib tests: 322 passed, 0 failed, 3 ignored
+  cargo check (bin): green 17:46 PDT
+  gt-cli smoke (goattech/proof-m1.sh): NOT RUN - needs target/debug/horizon-launcher, which has not linked (resource limit, see below)
+gui bin status: deps+codegen complete (512 object files, stable); rust-lld link exceeds sandbox limits (2GB RAM, ~780MB available; ~490MB debug binary; 110s per-call cap kills each link attempt)
+scope review: 0 of 106 commits touched launcher/, lang/, crates/horizon-theme/, workspace Cargo.toml, goattech/, website/; merge-tree dry run 0 conflict markers
