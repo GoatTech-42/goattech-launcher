@@ -987,7 +987,28 @@ impl Launcher {
         if self.mods.kind == PackKind::DataPack {
             return Some(self.mods_world_picker(&instance.name.clone(), cx));
         }
-        if self.instances.list.len() < 2 || self.mods.kind == PackKind::Modpack {
+        if self.mods.kind == PackKind::Modpack {
+            return None;
+        }
+        // A Java instance's results are filtered to its version and loader: the filter is
+        // named on the page (concept: "into: nightfall · fabric · 1.21.3"), even for the only
+        // instance - a filter you can't see is a silent one.
+        if let Some(target) = self.mods.java_for(self.mods.kind) {
+            let plays = match &target.loader {
+                Some(l) => format!("{l} {}", target.minecraft),
+                None => format!("vanilla {}", target.minecraft),
+            };
+            let line = if self.instances.list.len() < 2 {
+                format!("Installs into {} ({plays}).", instance.name)
+            } else {
+                format!(
+                    "Installs into {} ({plays}): pick another instance on the left.",
+                    instance.name
+                )
+            };
+            return Some(text(theme::CAPTION).text_color(self.theme.muted).child(line));
+        }
+        if self.instances.list.len() < 2 {
             return None;
         }
         Some(
