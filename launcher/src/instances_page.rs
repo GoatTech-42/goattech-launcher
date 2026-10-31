@@ -421,9 +421,20 @@ impl Launcher {
             .as_ref()
             .and_then(|i| instances::memory_mb(&i.id))
             .map_or(String::new(), |m| m.to_string());
+        let java_home = editing
+            .as_ref()
+            .and_then(|i| i.java.as_ref())
+            .and_then(|j| j.home.as_ref())
+            .map_or(String::new(), |h| h.display().to_string());
+        let jvm_args = editing
+            .as_ref()
+            .and_then(|i| i.java.as_ref())
+            .map_or(String::new(), |j| j.jvm_args.clone());
         self.servers.text(Field::InstanceName).set(name);
         self.servers.text(Field::InstanceGroup).set(group);
         self.servers.text(Field::InstanceMemory).set(memory);
+        self.servers.text(Field::InstanceJavaHome).set(java_home);
+        self.servers.text(Field::InstanceJvmArgs).set(jvm_args);
         self.servers.focus_soon = Some(Field::InstanceName);
         self.instances.dialog = Some(InstanceDialog {
             icon: editing.as_ref().and_then(|i| i.icon.clone()),
@@ -454,6 +465,12 @@ impl Launcher {
         let name = self.servers.value(Field::InstanceName).trim().to_string();
         let group = Some(self.servers.value(Field::InstanceGroup).to_string());
         let memory_raw = self.servers.value(Field::InstanceMemory).trim().to_string();
+        let java_home_raw = self
+            .servers
+            .value(Field::InstanceJavaHome)
+            .trim()
+            .to_string();
+        let jvm_args_raw = self.servers.value(Field::InstanceJvmArgs).trim().to_string();
         let Some(d) = self.instances.dialog.as_mut().filter(|d| !d.busy) else {
             return;
         };
@@ -510,6 +527,22 @@ impl Launcher {
         } else {
             None
         };
+        // A Java home, when typed, must be a folder that is there; empty: the automatic pick.
+        let java_home = if editing.is_some() && !java_home_raw.is_empty() {
+            let path = std::path::PathBuf::from(&java_home_raw);
+            if path.is_dir() {
+                Some(Some(path))
+            } else {
+                d.error = Some(format!("{java_home_raw} is not a folder that is there."));
+                return;
+            }
+        } else if editing.is_some() {
+            Some(None)
+        } else {
+            None
+        };
+        // Arguments apply to the instance being changed; a new one starts without its own.
+        let editing_needs_args = editing.is_some();
         d.busy = true;
         d.error = None;
         let task = cx.background_executor().spawn(async move {
@@ -524,6 +557,12 @@ impl Launcher {
                 m.icon = icon;
                 if let Some(j) = &mut m.java {
                     j.memory_mb = memory;
+                    if let Some(home) = &java_home {
+                        j.home = home.clone();
+                    }
+                    if editing_needs_args {
+                        j.jvm_args = jvm_args_raw;
+                    }
                 }
             })?;
             if let Some(png) = picture {
@@ -682,6 +721,19 @@ impl Launcher {
                 "The most the game may use (-Xmx). Empty uses the default ({} MiB).",
                 instances::DEFAULT_MEMORY_MB
             )));
+            body = body.child(row(
+                "Java home",
+                self.field(Field::InstanceJavaHome, "Automatic pick", 400., cx)
+                    .into_any_element(),
+            ));
+            body = body.child(text(theme::CAPTION).text_color(t.muted).child(
+                "The Java that runs it. Empty: the launcher picks one for its Minecraft.".to_string(),
+            ));
+            body = body.child(row(
+                "JVM arguments",
+                self.field(Field::InstanceJvmArgs, "None", 400., cx)
+                    .into_any_element(),
+            ));
         }
         if let Some(game) = &editing_game {
             // What it plays, read-only here: changing them is a new instance, not an edit.

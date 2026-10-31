@@ -38,6 +38,9 @@ pub(super) enum Field {
     InstanceGroup,
     /// Its Memory (MiB), only when editing (`instances_page.rs`).
     InstanceMemory,
+    /// Its Java home and JVM arguments, only when editing a Java one (`instances_page.rs`).
+    InstanceJavaHome,
+    InstanceJvmArgs,
     /// Its search in Mojang's versions (`new_instance.rs`).
     InstanceVersion,
     /// Home's Mods tab's filter (`instance_mods.rs`).
@@ -1004,6 +1007,8 @@ impl Launcher {
             Field::InstanceName
             | Field::InstanceGroup
             | Field::InstanceMemory
+            | Field::InstanceJavaHome
+            | Field::InstanceJvmArgs
             | Field::InstanceVersion
             | Field::InstanceModsFilter
             | Field::ConsoleSearch
