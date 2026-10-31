@@ -35,7 +35,7 @@ use horizon_protocol::{
         Empty,
         play::{self, Clientbound as C, Serverbound as S},
     },
-    registry::{Builtin, DimensionType, Dynamic, ceil_log2},
+    registry::{Builtin, DimensionType, Dynamic, SyncedNames, ceil_log2},
     secure_chat::Signature,
     text::{Language, plain},
 };
@@ -53,7 +53,7 @@ use std::{
 use winit::{event::MouseButton, keyboard::KeyCode};
 
 /// A text component the server sent, for the HUD.
-fn remote_text(tag: &Tag) -> horizon_client::text::Text {
+pub(super) fn remote_text(tag: &Tag) -> horizon_client::text::Text {
     use horizon_client::scoreboard::{comp_text, tag_to_json};
     comp_text(&tag_to_json(tag))
 }
@@ -169,6 +169,9 @@ pub(super) struct Remote {
     /// the first teleport, which takes them then.
     abilities: Option<play::PlayerAbilities>,
     loaded_sent: bool,
+    /// `ClientPacketListener.levelLoadTracker`: the loading screen after a login
+    /// or respawn, until the player's section is shown.
+    pub(super) level_load: horizon_client::level_loading::LevelLoadTracker,
     /// The ClientInformation last sent (`Options.broadcastOptions` sends it
     /// again when a view distance, Chat, skin or Main Hand option changes).
     sent_info: horizon_protocol::packets::configuration::ClientInformation,
@@ -245,6 +248,10 @@ pub(super) struct Remote {
     /// The player's own shared flag 5 (`Entity.isInvisible`) as the server
     /// last set it.
     pub(super) own_invisible: bool,
+    /// `LivingEntity.DATA_ARROW_COUNT_ID` and `DATA_STINGER_COUNT_ID` of the
+    /// own player, as the server synced them.
+    pub(super) own_arrows: i32,
+    pub(super) own_stingers: i32,
     /// The local player's profile UUID (always in the level).
     profile: u128,
     /// The local player's profile name: its score holder and team member.
@@ -561,6 +568,7 @@ impl Game<'_> {
             carried: None,
             abilities: None,
             loaded_sent: false,
+            level_load: horizon_client::level_loading::LevelLoadTracker::new(0),
             sent_info: info,
             predictions: HashMap::new(),
             menu: None,
@@ -595,6 +603,8 @@ impl Game<'_> {
             level_player_textures: HashMap::new(),
             glowing: Default::default(),
             own_invisible: false,
+            own_arrows: 0,
+            own_stingers: 0,
             profile: 0,
             profile_name: String::new(),
             destroying: None,
@@ -831,6 +841,16 @@ impl Game<'_> {
             },
             s,
         )
+    }
+    /// `HashedStack.create` with the connection's registries (the client's
+    /// `decoratedHashOpsGenerator`).
+    fn hashed_stack(&self, s: &Option<ItemStack>) -> Option<Hashed> {
+        let r = self.remote.as_ref()?;
+        let names = SyncedNames {
+            builtin: &r.builtin,
+            dynamic: &r.registries,
+        };
+        self.to_network(s).map(|s| Hashed::create(&s, &names))
     }
     /// A line in the connection's chat, with its styles, click and hover
     /// events (ChatComponent.addMessage). The lines the Chat option hides
@@ -1071,7 +1091,9 @@ impl Game<'_> {
         });
         if loaded && self.remote.as_ref().is_some_and(|r| !r.loaded_sent) {
             self.send(S::PlayerLoaded(Empty));
-            self.remote.as_mut().unwrap().loaded_sent = true;
+            let r = self.remote.as_mut().unwrap();
+            r.loaded_sent = true;
+            r.level_load.finish();
         }
         Ok(())
     }
@@ -1333,7 +1355,12 @@ impl Game<'_> {
         }
     }
     /// Switch to a (possibly new) dimension: a fresh client level.
-    fn enter_remote_dimension(&mut self, spawn: &play::SpawnInfo, keep_world: bool) {
+    fn enter_remote_dimension(
+        &mut self,
+        spawn: &play::SpawnInfo,
+        keep_world: bool,
+        reason: horizon_client::level_loading::Reason,
+    ) {
         // The replacement player starts with its inventory menu, even if the
         // server switched levels without closing the previous container.
         self.remote_close_local();
@@ -1361,6 +1388,14 @@ impl Game<'_> {
         r.game_mode = spawn.game_type;
         r.flat = spawn.flat;
         r.loaded_sent = false;
+        // A replacement LevelLoadingScreen starts its bar from nothing (the
+        // first one carries on from the server's start).
+        if self.player.is_some() {
+            self.loading_progress = 0.0;
+        }
+        // startWaitingForNewLevel: `LevelLoadTracker.startClientLoad` and the
+        // `LevelLoadingScreen`.
+        r.level_load.start_client_load(client_millis(), reason);
         // A replacement LocalPlayer has a fresh sendPosition baseline.
         r.position_sender = Default::default();
         r.predictions.clear();
@@ -2188,7 +2223,12 @@ impl Game<'_> {
                 }
                 self.streaming.radius =
                     self.settings.render_distance.min(p.chunk_radius + 1).max(2);
-                self.enter_remote_dimension(&p.spawn, false);
+                // handleLogin: startWaitingForNewLevel(.., Reason.OTHER).
+                self.enter_remote_dimension(
+                    &p.spawn,
+                    false,
+                    horizon_client::level_loading::Reason::Other,
+                );
                 let info = self
                     .settings
                     .client_information(client_view_distance(self.settings.render_distance));
@@ -2214,7 +2254,17 @@ impl Game<'_> {
                     }
                 }
                 let dimension_changed = self.dim != Dim::from_id(&p.spawn.dimension);
-                self.enter_remote_dimension(&p.spawn, true);
+                let died = self.screen == Screen::Dead
+                    || self
+                        .player
+                        .as_ref()
+                        .is_some_and(|m| m.health.health() <= 0.0);
+                let reason = horizon_client::level_loading::reason_for_respawn(
+                    died,
+                    &p.spawn.dimension,
+                    self.dim.id(),
+                );
+                self.enter_remote_dimension(&p.spawn, true, reason);
                 if dimension_changed {
                     let (music, _) = self.situational_music();
                     self.music.stop_playing(music.as_ref(), &mut self.audio);
@@ -2244,6 +2294,8 @@ impl Game<'_> {
                 self.snap_player_model_pitch();
             }
             C::PlayerLookAt(p) => self.remote_look_at(&p),
+            // ClientCommonPacketListenerImpl.handlePostEffects.
+            C::PostEffects(p) => self.post_effects = p.effects,
             C::SetCamera(p) => self.remote_set_camera(p.camera_id),
             C::LevelChunkWithLight(p) => self.remote_chunk(&p, None),
             C::LightUpdate(p) => self.remote_light_update(&p),
@@ -2265,6 +2317,7 @@ impl Game<'_> {
                 }));
             }
             C::BlockUpdate(p) => self.server_block(p.pos, p.state),
+            C::AddTransientBlock(p) => self.add_transient_block(p.pos, p.state),
             // ClientPacketListener.handleBlockDestruction: another player's crack.
             C::BlockDestruction(p) => {
                 self.destroy_block_progress(p.id, p.pos, i32::from(p.progress));
@@ -2477,18 +2530,25 @@ impl Game<'_> {
             // the rope.
             C::SetEntityLink(p) => {
                 let me = self.remote.as_ref().map(|r| r.entity_id);
+                use horizon_client::mobs::leash::Holder;
+                let holder = match p.dest {
+                    0 => None,
+                    d if Some(d) == me => Some(Holder::Player),
+                    d => match self.remote_knots.get(&(d as u32)) {
+                        Some(&block) => Some(Holder::Knot(block)),
+                        // Not a known knot yet: kept by id until the knot
+                        // arrives (game/remote_objects.rs).
+                        None if self.boats.iter().any(|b| b.id == d as u32) => {
+                            Some(Holder::Boat(d as u32))
+                        }
+                        None => Some(Holder::Mob(d as u32)),
+                    },
+                };
                 if let Some(m) = self.mobs.iter_mut().find(|m| m.id == p.source as u32) {
-                    use horizon_client::mobs::leash::Holder;
-                    m.extra.leash = match p.dest {
-                        0 => None,
-                        d if Some(d) == me => Some(Holder::Player),
-                        d => match self.remote_knots.get(&(d as u32)) {
-                            Some(&block) => Some(Holder::Knot(block)),
-                            // Not a known knot yet: kept by id until the knot
-                            // arrives (game/remote_objects.rs).
-                            None => Some(Holder::Mob(d as u32)),
-                        },
-                    };
+                    m.extra.leash = holder;
+                } else if let Some(b) = self.boats.iter_mut().find(|b| b.id == p.source as u32) {
+                    // A leashed boat or raft (AbstractBoat is Leashable).
+                    b.leash = holder;
                 }
             }
             C::MoveVehicle(p) => self.remote_move_vehicle(p.position, p.yaw),
@@ -2633,6 +2693,17 @@ impl Game<'_> {
                             (1, Value::Int(air)) => {
                                 if let Some(pl) = self.player.as_mut() {
                                     pl.air = *air;
+                                }
+                            }
+                            // LivingEntity.DATA_ARROW_COUNT_ID and DATA_STINGER_COUNT_ID.
+                            (12, Value::Int(count)) => {
+                                if let Some(r) = self.remote.as_mut() {
+                                    r.own_arrows = *count;
+                                }
+                            }
+                            (13, Value::Int(count)) => {
+                                if let Some(r) = self.remote.as_mut() {
+                                    r.own_stingers = *count;
                                 }
                             }
                             (17, Value::Float(amount)) => {
@@ -3134,6 +3205,12 @@ impl Game<'_> {
                 }
             }
             C::GameEvent(p) => match p.event {
+                // LEVEL_CHUNKS_LOAD_START: the server has begun sending the level.
+                13 => {
+                    if let Some(r) = self.remote.as_mut() {
+                        r.level_load.loading_packets_received();
+                    }
+                }
                 // GUARDIAN_ELDER_EFFECT: the apparition, and the curse sound
                 // unless the elder guardian is silent.
                 10 => {
@@ -3343,6 +3420,10 @@ impl Game<'_> {
                 } else {
                     self.cooldowns.add(group, p.duration);
                 }
+            }
+            // ClientPacketListener.handleTestInstanceBlockStatus.
+            C::TestInstanceBlockStatus(p) => {
+                self.block_editor_status(remote_text(&p.status), p.size);
             }
             C::SystemChat(p) => {
                 // The component as sent, translated in the client's own
@@ -3612,6 +3693,8 @@ impl Game<'_> {
             // ClientCommonPacketListenerImpl.handleShowDialog / handleClearDialog.
             C::ShowDialog(p) => self.show_play_dialog(&p.dialog),
             C::ClearDialog(_) => self.clear_dialog(),
+            // ClientPacketListener.handleLowDiskSpaceWarning.
+            C::LowDiskSpaceWarning(_) => horizon_client::chunk_io::report_low_disk_space(),
             C::ClearTitles(p) => {
                 self.titles.clear();
                 if p.value {
@@ -4328,6 +4411,56 @@ impl Game<'_> {
         Ok(())
     }
 
+    /// `ClientPacketListener.tick`'s `LevelLoadTracker.tickClientLoad`: the
+    /// player's section is shown once its column is lit; when the level is
+    /// ready the loading screen closes and the server hears `PlayerLoaded`
+    /// (`notifyPlayerLoaded`).
+    fn tick_client_load(&mut self) {
+        let Some(player) = self.player.as_ref() else {
+            return;
+        };
+        if !self
+            .remote
+            .as_ref()
+            .is_some_and(|r| r.level_load.is_active())
+        {
+            return;
+        }
+        // `LevelRenderer`'s playerCompiledSectionCallback: the section holding
+        // the camera is there (the column is lit, as meshing needs).
+        let (cx, cz) = (
+            (player.position.x.floor() as i32) >> 4,
+            (player.position.z.floor() as i32) >> 4,
+        );
+        let section_ready = self.streaming.is_lit(cx, cz);
+        let camera_y = (player.position.y + f64::from(self.eye)).floor() as i32;
+        let shape = self.world.shape;
+        let check = horizon_client::level_loading::PlayerCheck {
+            outside_build_height: camera_y < shape.min_y || camera_y >= shape.min_y + shape.height,
+            spectator: player.spectator,
+            alive: player.health.health() > 0.0,
+        };
+        let now = client_millis();
+        // LevelLoadingScreen.tick.
+        self.tick_load_progress();
+        let Some(r) = self.remote.as_mut() else {
+            return;
+        };
+        if section_ready && r.level_load.wants_player_section() {
+            r.level_load.player_section_ready();
+        }
+        r.level_load.tick_client_load(now, check);
+        if !r.level_load.is_level_ready(now) {
+            return;
+        }
+        r.level_load.finish();
+        if !r.loaded_sent {
+            r.loaded_sent = true;
+            self.send(S::PlayerLoaded(Empty));
+        }
+        self.capture_loaded_world();
+    }
+
     /// One client tick while connected (Minecraft.tick with a ClientLevel).
     pub(super) fn tick_remote(&mut self) -> Result<()> {
         self.tick_remote_level()?;
@@ -4430,6 +4563,7 @@ impl Game<'_> {
         // Gui.tick: the titles, the action bar and the held item's name.
         self.tick_hud();
         self.tick_subtitles();
+        self.tick_client_load();
         let entity_collisions = self.player_entity_collisions();
         let pushed = self.remote_pushes();
         let sprint_window = self.settings.sprint_window;
@@ -4452,19 +4586,16 @@ impl Game<'_> {
             }
             return Ok(());
         }
-        if self.remote.as_ref().is_some_and(|r| !r.loaded_sent) {
-            // ClientPacketListener: the level around the player is ready.
-            self.send(S::PlayerLoaded(Empty));
-            if let Some(r) = self.remote.as_mut() {
-                r.loaded_sent = true;
-            }
-            self.capture_loaded_world();
-        }
         let stick = self.pad_move();
         if self.player.is_none() {
             return Ok(());
         }
-        let playing = self.screen == Screen::Playing;
+        // The LevelLoadingScreen takes the input until the level is ready.
+        let loading = self
+            .remote
+            .as_ref()
+            .is_some_and(|r| r.level_load.is_active());
+        let playing = self.screen == Screen::Playing && !loading;
         let held = |k| playing && self.keys.contains(&k);
         let mut keys = Keys {
             forward: held(KeyCode::KeyW),
@@ -4937,10 +5068,18 @@ impl Game<'_> {
         let stepped = &mut r.stepped;
         let head_lerps = &mut r.head_lerps;
         let players = &r.level_players;
+        let tab_players = &r.tab_players;
         let mut using = Vec::new();
         let mut mob_fx = Vec::new();
         for (m, rain) in self.mobs.iter_mut().zip(rain) {
             let player = players.contains_key(&(m.id as i32));
+            if player {
+                // AvatarRenderer.extractRenderState: isSpectator, from the player list.
+                m.extra.spectator = players
+                    .get(&(m.id as i32))
+                    .and_then(|uuid| tab_players.get(uuid))
+                    .is_some_and(|t| t.game_mode == SPECTATOR);
+            }
             if (!running && !player) || driven == Some(m.id) {
                 continue;
             }
@@ -5638,6 +5777,12 @@ impl Game<'_> {
             }));
             if passes {
                 return false;
+            }
+            // MinecartCommandBlock.interact on the client: the editor opens.
+            if self.carts.iter().any(|c| {
+                c.id as i32 == hit.id && c.kind == super::minecarts::CartKind::CommandBlock
+            }) {
+                self.open_cart_command_block(hit.id as u32);
             }
             if response.unwrap_or(true) {
                 self.swing_arm();
@@ -7032,7 +7177,7 @@ impl Game<'_> {
     }
     fn send_clicks(&mut self, container: i32, clicks: Vec<Predicted>) {
         let state = self.remote.as_ref().map_or(0, |r| r.state_id);
-        let hashed = |g: &Self, s: &Option<ItemStack>| g.to_network(s).map(|s| Hashed::of(&s));
+        let hashed = |g: &Self, s: &Option<ItemStack>| g.hashed_stack(s);
         for (slot, button, input, changed, carried) in clicks {
             let changed = changed.iter().map(|(i, s)| (*i, hashed(self, s))).collect();
             let carried = hashed(self, &carried);
@@ -7079,7 +7224,7 @@ impl Game<'_> {
             }
             self.swing_arm();
         }
-        let carried = self.to_network(&self.carried).map(|s| Hashed::of(&s));
+        let carried = self.hashed_stack(&self.carried);
         let state = self.remote.as_ref().map_or(0, |r| r.state_id);
         self.send(S::ContainerClick(play::ContainerClick {
             container,
@@ -7395,15 +7540,25 @@ impl Game<'_> {
     /// Connecting / loading screens; true when it covered the frame.
     pub(super) fn remote_overlay(&self, batch: &mut HudBatch) -> bool {
         let Some(r) = &self.remote else { return false };
-        if self.player.is_some() {
+        let loading = r.level_load.is_active();
+        if self.player.is_some() && !loading {
             return false;
         }
         let atlas = &self.gui.atlas;
         let (w, h) = (batch.width, batch.height);
-        if r.joined {
-            // LevelLoadingScreen: the world's terrain comes in.
-            horizon_client::ui::menu_background(batch, atlas, 0.0, 0.0, w, h, false);
-            horizon_client::level_loading::draw(batch, atlas, None, None);
+        if r.joined || loading {
+            // LevelLoadingScreen: the world's terrain comes in. A server's
+            // chunk status view and progress are the integrated server's alone
+            // (`LevelLoadTracker.statusView`, `hasProgress`).
+            self.draw_level_loading_background(batch, r.level_load.reason);
+            match self.integrated.as_ref().map(|i| i.load_view()) {
+                Some(view) => {
+                    let status = |x: i32, z: i32| view.status(x, z);
+                    let progress = view.has_progress().then_some(self.loading_progress);
+                    horizon_client::level_loading::draw(batch, atlas, Some(&status), progress);
+                }
+                None => horizon_client::level_loading::draw(batch, atlas, None, None),
+            }
             return true;
         }
         let cancel = self.connect_cancel((w, h)).is_some();
@@ -7414,7 +7569,15 @@ impl Game<'_> {
     /// Connected or connecting with no player yet: `ConnectScreen`, then
     /// `LevelLoadingScreen`, over the panorama with its blur.
     pub(super) fn remote_loading(&self) -> bool {
-        self.remote.is_some() && self.player.is_none()
+        use horizon_client::level_loading::Reason;
+        self.remote.as_ref().is_some_and(|r| {
+            if r.level_load.is_active() {
+                // The portal screens have no panorama, so no blur.
+                r.level_load.reason == Reason::Other
+            } else {
+                self.player.is_none()
+            }
+        })
     }
     /// `ConnectScreen`'s Cancel: a server's (single player's server isn't
     /// joined through `ConnectScreen`), until the login is done.
@@ -8074,6 +8237,15 @@ fn snapshot_value(s: &play::AttributeSnapshot) -> f64 {
         value *= 1.0 + amount;
     }
     value
+}
+
+/// `Util.getMillis` for the level load tracker's timeouts.
+fn client_millis() -> u64 {
+    static ORIGIN: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+    ORIGIN
+        .get_or_init(std::time::Instant::now)
+        .elapsed()
+        .as_millis() as u64
 }
 
 #[cfg(test)]

@@ -4,7 +4,7 @@ use crate::{
     buf::{
         Bool, Byte, BytesN, ChunkPos, Codec, Double, Float, Ident, Int, List, Long, LpVec3, Nbt,
         Opt, OptVarInt, Pos, Reader, SectionPos, Short, Str, StrN, UByte, Uuid, VarInt, VarLong,
-        Vec3d, Writer,
+        VarVec3i, Vec3d, Writer,
     },
     chunk::{ChunkData, LightData},
     entity_data::{EntityData, Particle, Value},
@@ -75,6 +75,9 @@ packet!(BlockChangedAck { sequence: i32 => VarInt });
 packet!(BlockDestruction { id: i32 => VarInt, pos: [i32; 3] => Pos, progress: u8 => UByte });
 packet!(BlockEntityData { pos: [i32; 3] => Pos, kind: i32 => VarInt, tag: Tag => Nbt });
 packet!(BlockUpdate { pos: [i32; 3] => Pos, state: i32 => VarInt });
+// ClientboundAddTransientBlockPacket: a block the client shows for a moment
+// while its section mesh catches up (a falling block that landed).
+packet!(AddTransientBlock { pos: [i32; 3] => Pos, state: i32 => VarInt });
 packet!(ChangeDifficulty { difficulty: i32 => VarInt, locked: bool => Bool });
 // ResourceKey<GameRule<?>> is an identifier, followed by its string value.
 packet!(GameRuleEntry { name: String => Ident, value: String => Str });
@@ -785,6 +788,11 @@ packet!(
         target: [f64; 3] => Vec3d,
         entity: Option<LookAtEntity> => Opt<LookAtEntity>,
     }
+);
+packet!(
+    /// ClientboundPostEffectsPacket: the `post_effect` chains (ids) the player's
+    /// screen runs, in order (`ServerPlayer.postEffects`).
+    PostEffects { effects: Vec<String> => List<Ident> }
 );
 packet!(PlayerRotation { yaw: f32 => Float, relative_yaw: bool => Bool, pitch: f32 => Float, relative_pitch: bool => Bool });
 packet!(RemoveEntities { ids: Vec<i32> => List<VarInt> });
@@ -1889,6 +1897,7 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     ChunkBatchFinished(ChunkBatchFinished) = CHUNK_BATCH_FINISHED,
     ChunkBatchStart(Empty) = CHUNK_BATCH_START,
     ClearTitles(Bool1) = CLEAR_TITLES,
+    LowDiskSpaceWarning(Empty) = LOW_DISK_SPACE_WARNING,
     Commands(Commands) = COMMANDS,
     RecipeBookAdd(super::recipes::RecipeBookAdd) = RECIPE_BOOK_ADD,
     RecipeBookRemove(super::recipes::RecipeBookRemove) = RECIPE_BOOK_REMOVE,
@@ -1938,6 +1947,7 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     PlayerLookAt(PlayerLookAt) = PLAYER_LOOK_AT,
     PlayerPosition(PlayerPosition) = PLAYER_POSITION,
     PlayerRotation(PlayerRotation) = PLAYER_ROTATION,
+    PostEffects(PostEffects) = POST_EFFECTS,
     RemoveEntities(RemoveEntities) = REMOVE_ENTITIES,
     RemoveMobEffect(RemoveMobEffect) = REMOVE_MOB_EFFECT,
     ResetScore(ResetScore) = RESET_SCORE,
@@ -1992,6 +2002,7 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     TagQuery(TagQuery) = TAG_QUERY,
     TakeItemEntity(TakeItemEntity) = TAKE_ITEM_ENTITY,
     TeleportEntity(TeleportEntity) = TELEPORT_ENTITY,
+    TestInstanceBlockStatus(TestInstanceBlockStatus) = TEST_INSTANCE_BLOCK_STATUS,
     TickingState(TickingState) = TICKING_STATE,
     TickingStep(TickingStep) = TICKING_STEP,
     Transfer(Transfer) = TRANSFER,
@@ -1999,6 +2010,7 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     UpdateAttributes(UpdateAttributes) = UPDATE_ATTRIBUTES,
     LevelParticles(LevelParticles) = LEVEL_PARTICLES,
     Explode(Explode) = EXPLODE,
+    AddTransientBlock(AddTransientBlock) = ADD_TRANSIENT_BLOCK,
     UpdateMobEffect(UpdateMobEffect) = UPDATE_MOB_EFFECT,
     UpdateTags(UpdateTags) = UPDATE_TAGS,
     TrackedWaypoint(TrackedWaypoint) = WAYPOINT,
@@ -2275,6 +2287,33 @@ packet!(
     }
 );
 packet!(
+    /// ServerboundSetTestBlockPacket: the test block's edit screen; `mode` is
+    /// a `TestBlockMode` id.
+    SetTestBlock { pos: [i32; 3] => Pos, mode: i32 => VarInt, message: String => Str }
+);
+packet!(
+    /// `TestInstanceBlockEntity.Data.STREAM_CODEC`: the test, size, rotation
+    /// (ordinal), ignore-entities flag, status (index) and error message.
+    TestInstanceData {
+        test: Option<String> => Opt<Ident>,
+        size: [i32; 3] => VarVec3i,
+        rotation: i32 => VarInt,
+        ignore_entities: bool => Bool,
+        status: i32 => VarInt,
+        error_message: Option<Tag> => Opt<Nbt>
+    }
+);
+packet!(
+    /// ServerboundTestInstanceBlockActionPacket: `action` is the `Action` id
+    /// (INIT 0, QUERY 1, SET 2, RESET 3, SAVE 4, EXPORT 5, RUN 6).
+    TestInstanceBlockAction { pos: [i32; 3] => Pos, action: i32 => VarInt, data: TestInstanceData => TestInstanceData }
+);
+packet!(
+    /// ClientboundTestInstanceBlockStatus: the test's description and, for a
+    /// query, the size of its structure.
+    TestInstanceBlockStatus { status: Tag => Nbt, size: Option<[i32; 3]> => Opt<VarVec3i> }
+);
+packet!(
     /// ServerboundJigsawGeneratePacket: the jigsaw block's Generate button.
     JigsawGenerate { pos: [i32; 3] => Pos, levels: i32 => VarInt, keep_jigsaws: bool => Bool }
 );
@@ -2283,6 +2322,11 @@ packet!(
     /// mode (`CommandBlockEntity.Mode` ordinal) and the track output (1),
     /// conditional (2) and automatic (4) flags.
     SetCommandBlock { pos: [i32; 3] => Pos, command: String => Str, mode: i32 => VarInt, flags: i8 => Byte }
+);
+packet!(
+    /// ServerboundSetCommandMinecartPacket: the command minecart's entity id,
+    /// its command and whether it tracks output.
+    SetCommandMinecart { entity: i32 => VarInt, command: String => Str, track_output: bool => Bool }
 );
 /// ServerboundSetStructureBlockPacket: the structure block's edit screen.
 /// `update_type` and `mode` are `StructureBlockEntity.UpdateType` and
@@ -2558,8 +2602,11 @@ packet_enum!(Serverbound, crate::ids::play::serverbound {
     SetBeacon(SetBeacon) = SET_BEACON,
     SetCarriedItem(SetCarriedItem) = SET_CARRIED_ITEM,
     SetCommandBlock(SetCommandBlock) = SET_COMMAND_BLOCK,
+    SetCommandMinecart(SetCommandMinecart) = SET_COMMAND_MINECART,
     SetCreativeModeSlot(SetCreativeModeSlot) = SET_CREATIVE_MODE_SLOT,
     SetJigsawBlock(SetJigsawBlock) = SET_JIGSAW_BLOCK,
+    SetTestBlock(SetTestBlock) = SET_TEST_BLOCK,
+    TestInstanceBlockAction(TestInstanceBlockAction) = TEST_INSTANCE_BLOCK_ACTION,
     SetStructureBlock(SetStructureBlock) = SET_STRUCTURE_BLOCK,
     SignUpdate(SignUpdate) = SIGN_UPDATE,
     UseItem(UseItem) = USE_ITEM,
@@ -2741,6 +2788,7 @@ mod tests {
     fn clientbound_round_trips() {
         let packets = vec![
             Clientbound::BundleDelimiter(Empty),
+            Clientbound::LowDiskSpaceWarning(Empty),
             Clientbound::PongResponse(crate::packets::status::Ping { time: 1_234_567 }),
             Clientbound::SetBorderCenter(SetBorderCenter { x: 1.5, z: -2.0 }),
             Clientbound::SetBorderLerpSize(SetBorderLerpSize {
@@ -2811,6 +2859,10 @@ mod tests {
                 data: 0,
             }),
             Clientbound::BlockUpdate(BlockUpdate {
+                pos: [-5, -60, 7],
+                state: 1,
+            }),
+            Clientbound::AddTransientBlock(AddTransientBlock {
                 pos: [-5, -60, 7],
                 state: 1,
             }),
@@ -3419,6 +3471,25 @@ mod tests {
         }
     }
 
+    #[test]
+    fn post_effects_round_trips() {
+        let p = PostEffects {
+            effects: vec!["minecraft:invert".into(), "pack:glow".into()],
+        };
+        let bytes = Clientbound::PostEffects(p.clone()).encode();
+        assert_eq!(
+            Clientbound::decode(crate::ids::play::clientbound::POST_EFFECTS, &bytes[1..]).unwrap(),
+            Clientbound::PostEffects(p)
+        );
+        // The empty list the server sends on join.
+        assert_eq!(
+            Clientbound::decode(crate::ids::play::clientbound::POST_EFFECTS, &[0]).unwrap(),
+            Clientbound::PostEffects(PostEffects {
+                effects: Vec::new()
+            })
+        );
+    }
+
     /// ClientboundChunksBiomesPacket is read, not passed through as an
     /// unknown packet: one column (1, -2) with two bytes of biomes.
     #[test]
@@ -3670,6 +3741,27 @@ mod tests {
     }
 
     #[test]
+    fn set_command_minecart_writes_entity_command_then_track_output() {
+        let packet = SetCommandMinecart {
+            entity: 300,
+            command: "say hi".into(),
+            track_output: true,
+        };
+        round_trip(
+            Serverbound::SetCommandMinecart(packet.clone()),
+            Serverbound::encode,
+            Serverbound::decode,
+        );
+        // ServerboundSetCommandMinecartPacket.write: VarInt, UTF, boolean.
+        let mut w = Writer::new();
+        SetCommandMinecart::write(&packet, &mut w);
+        assert_eq!(
+            w.data,
+            [0xAC, 0x02, 6, b's', b'a', b'y', b' ', b'h', b'i', 1]
+        );
+    }
+
+    #[test]
     fn set_structure_block_round_trips_and_clamps_like_vanilla() {
         let packet = SetStructureBlock {
             pos: [-3, 70, 12],
@@ -3710,6 +3802,57 @@ mod tests {
         assert_eq!(read.offset, [-48, 48, 0]);
         assert_eq!(read.size, [0, 48, 7]);
         assert_eq!(read.integrity, 1.0);
+    }
+
+    #[test]
+    fn test_instance_packets_round_trip() {
+        let data = TestInstanceData {
+            test: Some("minecraft:always_pass".into()),
+            size: [3, 4, 5],
+            rotation: 2,
+            ignore_entities: true,
+            status: 1,
+            error_message: Some(Tag::String("bad".into())),
+        };
+        round_trip(
+            Serverbound::TestInstanceBlockAction(TestInstanceBlockAction {
+                pos: [1, 2, 3],
+                action: 6,
+                data: data.clone(),
+            }),
+            Serverbound::encode,
+            Serverbound::decode,
+        );
+        let empty = TestInstanceData {
+            test: None,
+            error_message: None,
+            ..data
+        };
+        let mut w = Writer::new();
+        TestInstanceData::write(&empty, &mut w);
+        // Absent test, three sizes, rotation, flag, status, absent error.
+        assert_eq!(w.data, [0, 3, 4, 5, 2, 1, 1, 0]);
+        round_trip(
+            Clientbound::TestInstanceBlockStatus(TestInstanceBlockStatus {
+                status: Tag::String("ok".into()),
+                size: Some([1, 2, 3]),
+            }),
+            Clientbound::encode,
+            Clientbound::decode,
+        );
+    }
+
+    #[test]
+    fn set_test_block_round_trips() {
+        round_trip(
+            Serverbound::SetTestBlock(SetTestBlock {
+                pos: [1, 2, 3],
+                mode: 3,
+                message: "passed".into(),
+            }),
+            Serverbound::encode,
+            Serverbound::decode,
+        );
     }
 
     #[test]
