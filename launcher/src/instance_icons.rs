@@ -179,11 +179,9 @@ impl Launcher {
             let made = cx
                 .background_executor()
                 .spawn(async move {
-                    let too_big = std::fs::metadata(&path).map_err(|e| e.to_string())?.len()
-                        > MAX_PICTURE_FILE;
-                    let bytes = (!too_big)
-                        .then(|| std::fs::read(&path).ok())
-                        .flatten()
+                    // read_capped, not metadata-then-read: a file growing after a size check
+                    // still cannot allocate past the cap.
+                    let bytes = images::read_capped(&path, MAX_PICTURE_FILE)
                         .ok_or_else(|| format!("{}: too big, or unreadable", path.display()))?;
                     let png = instances::picture(bytes)?;
                     let preview = fitted(png.clone(), 28., scale).ok_or("Not a picture")?;
@@ -226,11 +224,9 @@ impl Launcher {
             let made = cx
                 .background_executor()
                 .spawn(async move {
-                    let too_big = std::fs::metadata(&path).map_err(|e| e.to_string())?.len()
-                        > MAX_PICTURE_FILE;
-                    let bytes = (!too_big)
-                        .then(|| std::fs::read(&path).ok())
-                        .flatten()
+                    // read_capped, not metadata-then-read: a file growing after a size check
+                    // still cannot allocate past the cap.
+                    let bytes = images::read_capped(&path, MAX_PICTURE_FILE)
                         .ok_or_else(|| format!("{}: too big, or unreadable", path.display()))?;
                     let png = instances::banner(bytes)?;
                     let preview = fitted(png.clone(), 160., scale).ok_or("Not a picture")?;
