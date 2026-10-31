@@ -172,7 +172,12 @@ pub fn nav_item(
                     .flex_none()
                     .child(crate::blocks::icon(icon, 16., color)),
             )
-            .child(text(night::UI, color).relative().child(label)),
+            .child(
+                text(night::UI, color)
+                    .font_family(crate::theme::PIXEL)
+                    .relative()
+                    .child(label),
+            ),
             id,
         ),
         t,
@@ -296,6 +301,7 @@ pub fn action(id: impl Into<SharedString>, kind: Action, t: &Theme) -> Stateful<
         Action::Main => d
             .h(px(night::PLAY))
             .px(px(28.))
+            .font_family(theme::PIXEL)
             .text_size(px(night::TITLE.px))
             .font_weight(FontWeight::BOLD)
             .text_color(c(n.on_accent))

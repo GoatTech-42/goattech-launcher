@@ -13,9 +13,9 @@ pub use tokens::{Step, CAPTION, DISPLAY, HEADING, LABEL, MICRO, TITLE, UI, WORDM
 pub const FONT: &str = night::FONT;
 pub const DISPLAY_FONT: &str = night::DISPLAY_FONT;
 pub const MONO: &str = tokens::MONO;
-/// What the Blocks parts set in their pixel face (headings, navigation, buttons) until their
-/// screens are rebuilt: the night's UI family.
-pub const PIXEL: &str = night::FONT;
+/// The pixel face for headings, navigation and buttons (the concept's look): Pixelify Sans,
+/// bundled and registered in `main`.
+pub const PIXEL: &str = tokens::PIXEL;
 
 pub use tokens::{BLOCK_BEVEL as BEVEL, BLOCK_LIP as LIP};
 /// Shapes and controls, shared with the game's menus and the website.

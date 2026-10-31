@@ -316,14 +316,14 @@ impl Launcher {
                 }));
         }
         let mut play = action("play", Action::Main, &t)
-            .min_w(px(180.))
+            .min_w(px(320.))
             .child(
                 div()
                     .relative()
                     .child(blocks::icon("play", 20., c(t.night.on_accent))),
             )
             .child(label(
-                tr(if running { "Running" } else { "Play" }).to_string(),
+                tr(if running { "Running" } else { "LAUNCH" }).to_string(),
             ));
         match play_press(ready, self.owner, self.preparing || running) {
             PlayPress::Nothing => play = disabled(play),

@@ -69,7 +69,7 @@ pub(super) struct Instances {
     confirm_delete: Option<String>,
     delete_error: Option<String>,
     /// Textures, pictures and marks as images, by name and size in device pixels.
-    pub(super) icons: HashMap<(String, u32), Option<Arc<RenderImage>>>,
+    pub(super) icons: HashMap<(String, u32, bool), Option<Arc<RenderImage>>>,
     /// Mojang's versions, for a new Java instance.
     pub(super) versions: new_instance::VersionList,
     /// Other launchers' instances from the last Find here: each with why its mods can't come
@@ -87,7 +87,7 @@ impl Launcher {
         // A picture or banner may have come or gone with the change.
         self.instances
             .icons
-            .retain(|(key, _), _| {
+            .retain(|(key, _, _), _| {
                 !key.starts_with("picture:") && !key.starts_with("banner:")
             });
     }
@@ -134,7 +134,7 @@ impl Launcher {
         let scale = self.scale;
         self.instances
             .icons
-            .entry((name.to_string(), (size * scale) as u32))
+            .entry((name.to_string(), (size * scale) as u32, false))
             .or_insert_with(|| {
                 let path = Icon::Texture(name.into()).texture(&backend::resources(&tag))?;
                 let png = image::open(path).ok()?.to_rgba8();

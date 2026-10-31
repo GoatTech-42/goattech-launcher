@@ -174,6 +174,17 @@ const NIGHT_ART: Colors = Colors {
     star: 0xf4f2ff,
 };
 
+/// GoatTech: the night art in true neutrals - a white moon, grey clouds, white stars.
+const NIGHT_ART_MONO: Colors = Colors {
+    sun: [0xffffff, 0xe6e6e6, 0xc4c4c4],
+    far: 0x1a1a1f,
+    near: 0x0a0a0d,
+    cloud: [0x1d1d23, 0x32323a, 0x4d4d57],
+    lit: [0x3c3c46, 0x6b6b76, 0xdcdce0],
+    shade: 0x121218,
+    star: 0xf4f4f6,
+};
+
 const DAWN_ART: Colors = Colors {
     sun: [0xfffbea, 0xffeac2, 0xffd3a1],
     far: 0xbaa8de,
@@ -183,6 +194,14 @@ const DAWN_ART: Colors = Colors {
     shade: 0xd9cbe8,
     star: 0xffffff,
 };
+
+fn art(n: &Night) -> &'static Colors {
+    if n.dark {
+        if n.mono { &NIGHT_ART_MONO } else { &NIGHT_ART }
+    } else {
+        &DAWN_ART
+    }
+}
 
 /// The stars' brightness steps and each group's period: a group steps through the levels in
 /// turn, so a star brightens and dims without a frame for every shade in between.
@@ -252,7 +271,7 @@ struct Layers {
 
 #[derive(Default)]
 pub struct Sky {
-    baked: Option<((bool, u32), Layers)>,
+    baked: Option<(((bool, bool), u32), Layers)>,
     /// Images replaced by a new appearance or scale, still in the window's sprite atlas.
     replaced: Vec<Arc<RenderImage>>,
     clock: Clock,
@@ -282,9 +301,9 @@ impl Sky {
         };
         self.clock.set(run, now);
         let t = self.clock.at(now).as_secs_f32();
-        let layers = self.layers(n.dark, scale);
+        let layers = self.layers(n.dark, n.mono, scale);
         let snap = |v: f32| (v * scale).round() / scale;
-        let art = if n.dark { &NIGHT_ART } else { &DAWN_ART };
+        let art = art(n);
 
         let mut sky = div()
             .absolute()
@@ -395,10 +414,14 @@ impl Sky {
         (sky, next)
     }
 
-    fn layers(&mut self, dark: bool, scale: f32) -> &Layers {
-        let key = (dark, (scale * 100.).round() as u32);
+    fn layers(&mut self, dark: bool, mono: bool, scale: f32) -> &Layers {
+        let key = ((dark, mono), (scale * 100.).round() as u32);
         if !matches!(&self.baked, Some((k, _)) if *k == key) {
-            let art = if dark { &NIGHT_ART } else { &DAWN_ART };
+            let art = if dark {
+                if mono { &NIGHT_ART_MONO } else { &NIGHT_ART }
+            } else {
+                &DAWN_ART
+            };
             let layers = Layers {
                 clouds: std::array::from_fn(|i| {
                     let l = &CLOUDS[i];

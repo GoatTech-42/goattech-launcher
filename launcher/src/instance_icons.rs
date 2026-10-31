@@ -33,7 +33,7 @@ impl Launcher {
         // then fitted's bounded decode.
         self.icon_image(key, size, true, || {
             images::read_capped(&file, MAX_PICTURE_FILE)
-        })
+        }, false)
     }
 
     /// The instance's chosen banner, drawn `width` points wide, when it has a readable one;
@@ -48,7 +48,7 @@ impl Launcher {
         let key = format!("banner:{}", instance.id);
         self.icon_image(key, width, true, || {
             images::read_capped(&file, MAX_PICTURE_FILE)
-        })
+        }, false)
     }
 
     /// What an instance shows when nothing was chosen for it.
@@ -76,10 +76,10 @@ impl Launcher {
             let grass = self.vanilla_icon()?;
             return self.icon_image("mark:grass".into(), size, false, || {
                 std::fs::read(grass).ok()
-            });
+            }, false);
         }
         let horizon = || Some(horizon_theme::ICON_PNG.to_vec());
-        self.icon_image("mark:horizon".into(), size, false, horizon)
+        self.icon_image("mark:horizon".into(), size, false, horizon, self.theme.night.mono)
     }
 
     /// A mod loader's logo by its id (`fabric`, `quilt`, `forge`, `neoforge`): None while a
@@ -88,12 +88,12 @@ impl Launcher {
         let bundled = |png: &'static [u8]| move || Some(png.to_vec());
         let key = format!("mark:{loader}");
         match loader {
-            "quilt" => self.icon_image(key, size, false, bundled(QUILT)),
-            "neoforge" => self.icon_image(key, size, false, bundled(NEOFORGE)),
+            "quilt" => self.icon_image(key, size, false, bundled(QUILT), false),
+            "neoforge" => self.icon_image(key, size, false, bundled(NEOFORGE), false),
             "fabric" | "forge" => {
                 let url = if loader == "fabric" { FABRIC } else { FORGE };
                 let file = self.mods_image(url, images::ICON)?;
-                self.icon_image(key, size, false, || std::fs::read(file).ok())
+                self.icon_image(key, size, false, || std::fs::read(file).ok(), false)
             }
             _ => None,
         }
@@ -108,12 +108,13 @@ impl Launcher {
         size: f32,
         remember_missing: bool,
         bytes: impl FnOnce() -> Option<Vec<u8>>,
+        mono: bool,
     ) -> Option<Arc<RenderImage>> {
-        let key = (key, (size * self.scale) as u32);
+        let key = (key, (size * self.scale) as u32, mono);
         if let Some(image) = self.instances.icons.get(&key) {
             return image.clone();
         }
-        let image = bytes().and_then(|b| fitted(b, size, self.scale));
+        let image = bytes().and_then(|b| fitted(b, size, self.scale, mono));
         if image.is_some() || remember_missing {
             self.instances.icons.insert(key, image.clone());
         }
@@ -123,12 +124,24 @@ impl Launcher {
 
 /// An image file's bytes drawn at most `size` points square: scaled down smoothly when larger,
 /// up by whole device pixels when smaller, so pixel-art logos stay sharp.
-fn fitted(bytes: Vec<u8>, size: f32, scale: f32) -> Option<Arc<RenderImage>> {
+fn fitted(bytes: Vec<u8>, size: f32, scale: f32, mono: bool) -> Option<Arc<RenderImage>> {
     let side = (size * scale).round().max(1.) as u32;
     let png = images::fit_png(bytes, side, 4096, 64 << 20)?;
     let image = image::load_from_memory(&png).ok()?.to_rgba8();
     let (w, h) = (image.width() as usize, image.height() as usize);
-    let texels: Vec<[u8; 4]> = image.pixels().map(|p| p.0).collect();
+    let texels: Vec<[u8; 4]> = image
+        .pixels()
+        .map(|p| {
+            if mono {
+                // GoatTech: the true-neutral night keeps Horizon's own mark hue-free.
+                let [r, g, b, a] = p.0;
+                let y = (0.299 * r as f32 + 0.587 * g as f32 + 0.114 * b as f32).round() as u8;
+                [y, y, y, a]
+            } else {
+                p.0
+            }
+        })
+        .collect();
     let whole = (side as usize / w.max(h)).max(1) as f32;
     Some(art::bake(&texels, w, h, whole / scale, scale))
 }
@@ -184,7 +197,7 @@ impl Launcher {
                     let bytes = images::read_capped(&path, MAX_PICTURE_FILE)
                         .ok_or_else(|| format!("{}: too big, or unreadable", path.display()))?;
                     let png = instances::picture(bytes)?;
-                    let preview = fitted(png.clone(), 28., scale).ok_or("Not a picture")?;
+                    let preview = fitted(png.clone(), 28., scale, false).ok_or("Not a picture")?;
                     Ok::<_, String>(Chosen { png, preview })
                 })
                 .await;
@@ -229,7 +242,7 @@ impl Launcher {
                     let bytes = images::read_capped(&path, MAX_PICTURE_FILE)
                         .ok_or_else(|| format!("{}: too big, or unreadable", path.display()))?;
                     let png = instances::banner(bytes)?;
-                    let preview = fitted(png.clone(), 160., scale).ok_or("Not a picture")?;
+                    let preview = fitted(png.clone(), 160., scale, false).ok_or("Not a picture")?;
                     Ok::<_, String>(Chosen { png, preview })
                 })
                 .await;

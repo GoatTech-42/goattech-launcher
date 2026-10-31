@@ -4260,6 +4260,9 @@ fn main() {
                     Cow::Borrowed(horizon_theme::fonts::BRICOLAGE_SEMIBOLD),
                     Cow::Borrowed(horizon_theme::fonts::BRICOLAGE_BOLD),
                     Cow::Borrowed(horizon_theme::fonts::BRICOLAGE_DISPLAY_BOLD),
+                    Cow::Borrowed(horizon_theme::fonts::PIXEL_MEDIUM),
+                    Cow::Borrowed(horizon_theme::fonts::PIXEL_SEMIBOLD),
+                    Cow::Borrowed(horizon_theme::fonts::PIXEL_BOLD),
                 ])
                 .expect("bundled fonts");
             cx.bind_keys(key_bindings());

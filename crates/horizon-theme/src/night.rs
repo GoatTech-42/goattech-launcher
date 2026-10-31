@@ -71,6 +71,8 @@ pub struct Night {
     pub warn: u32,
     pub danger: u32,
     pub dark: bool,
+    /// GoatTech: true-neutral art (no hue) - the sky's sun, clouds and stars stay grey.
+    pub mono: bool,
 }
 
 pub const NIGHT: Night = Night {
@@ -94,6 +96,7 @@ pub const NIGHT: Night = Night {
     warn: 0xf5b45a,
     danger: 0xff8a78,
     dark: true,
+    mono: false,
 };
 
 /// GoatTech: the night look in true neutrals - no hue anywhere. The sky is a grey night
@@ -122,6 +125,7 @@ pub const NIGHT_MONO: Night = Night {
     warn: 0xa3a3a3,
     danger: 0xffffff,
     dark: true,
+    mono: true,
 };
 
 /// The light appearance: the same sky at dawn, pale blue to peach, with the night's violet.
@@ -146,6 +150,7 @@ pub const DAWN: Night = Night {
     warn: 0x7a4f00,
     danger: 0xa3301d,
     dark: false,
+    mono: false,
 };
 
 /// `top` at `alpha` over `under`, as the GPU blends them.
