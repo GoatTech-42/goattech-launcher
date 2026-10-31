@@ -1,31 +1,32 @@
 # Upstream tracking (horizon-rust/horizon)
 
-Last reviewed upstream main: 94b3b4aca (2026-10-30, reviewed + merged here).
-Batch reviewed: 570 commits since 082054175; 20 touched launcher/. Landings that
-matter to GoatTech: the Mods page hides sources and tabs that are not usable yet
-(0416fe600), then keeps the Resource packs tab on Modrinth (4cf3a14ba) and uses
-imported packs in profiles (574c60055); a bad pack never blocks import or launch,
-with a hard-link fallback for downloads (b49925118). Mods browser, Modpacks tab,
-AI agent and Data collection settings, and the Servers dashboard are localized
-(0b912926a, 5b492b240, 44d3e49db, 0c5074bba); the language row is a dropdown
-(56402b95f). New servers check Minecraft accounts by default; --check-accounts
-stays as a hidden no-op for old scripts (b636b37e9, 6f654f918). Native builds:
-offline split-pin mods, no console window on Windows, an up-front statement of
-what a Linux native build lacks (9bb2c8818, 4ecf52119, adf54b0c6). Engine fixes
-with no launcher surface: wire values, protocol-incompatible marking, chat
-"Not Secure" bar, open_url (d331af996, 9e6453c45, db2c7b799, 43f142115).
-Cargo.toml: comment-only.
+Last reviewed upstream main: 36f4bc00d (2026-10-31, reviewed + merged here).
+Batch reviewed: 66 commits since 94b3b4aca; 6 launcher files. Landings that
+matter to GoatTech: native rebuilds now stay on the Horizon the instance plays
+and inside its instance (647ec89bf: new base_for/--update, toolchain commands
+scrub RUSTFLAGS and CARGO_* so a player's ~/.cargo/config.toml can't change the
+flags, prune keeps the three newest builds), native builds use the fast profile
+at low OS priority and keep copied-program permissions (abeb5845d), macOS on
+Intel gets x86_64 builds (1102fa42d, backend.rs +146). Engine: anticheat
+prediction feature set (vanilla client on a jittery connection never flagged),
+perf parallelization (preload world at launch, server-thread overlap, parallel
+world/core-resource loads, adaptive view distance), gameplay parity fixes
+(candle snuff, villager age boundary, merchant space reselect, wind-burst armor
+stand, knowledge-book unlock), saved chunks past view distance. No manifest or
+lang changes; no security- or compatibility-critical fix in the batch.
 
-Merge notes: conflicts in README.md (kept the GoatTech fork README),
-launcher/src/main.rs (kept both the "instances" and "resourcepacks" route arms),
-and all 7 lang files, resolved key-by-key against the merge base: upstream-owned
-strings follow upstream, GoatTech strings (brand, Java runtimes row, About
-attribution, mods filter line, import section) kept, keys the merged code no
-longer asks for pruned. Gates on the merged tree: cargo check green; 329/329
-launcher lib tests; 44/44 launcher bin tests; goattech/proof-m1.sh green
-(version catalog, vanilla + Fabric instance create, real Modrinth ViaFabricPlus
-download with SHA-512 match, instance isolation). GUI still unverified (no
-working display route), so nothing here is a pixel claim.
+Merge notes: conflicts in README.md (kept the GoatTech fork README) and one
+cli.rs hunk (native-build execute block: our side was the old logic with our
+crate:: import convention, upstream rewrote the logic; took upstream's version
+verbatim - bare native_mods:: paths resolve through our auto-merged
+`use crate::native_mods;`). backend.rs and main.rs auto-merged. Gates on the
+merged tree: cargo check green; 336/336 launcher lib tests (+7 upstream);
+44/44 launcher bin tests; goattech/proof-m1.sh green (version catalog, vanilla
++ Fabric instance create, real Modrinth ViaFabricPlus download with SHA-512
+match, instance isolation). GUI still unverified (no display route), so nothing
+here is a pixel claim.
+
+Previous batch: 94b3b4aca (2026-10-30, 570 commits, merge c272edd0e).
 
 Practice: review each new upstream commit/merged PR, integrate what survives review
 with the lib test suite + gt-cli live proof green, keep GoatTech behavior intact
