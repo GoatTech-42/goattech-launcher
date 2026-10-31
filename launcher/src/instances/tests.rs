@@ -423,3 +423,31 @@ fn a_picture_is_kept_small_and_goes_to_the_trash() {
     assert!(picture(b"not an image".to_vec()).is_err());
     fs::remove_dir_all(&root).unwrap();
 }
+
+/// A chosen banner is kept scaled to 512 pixels wide in the instance's folder; removing it
+/// moves it to the trash; a file that isn't an image is refused.
+#[test]
+fn a_banner_is_kept_small_and_goes_to_the_trash() {
+    let root = scratch("banner");
+    let (home, trash) = (root.join("home"), root.join("trash"));
+    let mut photo = Vec::new();
+    image::RgbaImage::from_pixel(1200, 400, image::Rgba([30, 30, 34, 255]))
+        .write_to(
+            &mut std::io::Cursor::new(&mut photo),
+            image::ImageFormat::Png,
+        )
+        .unwrap();
+    let png = banner(photo).unwrap();
+    let to_trash = |p: &Path| crate::desktop_seams::to_folder(p, &trash);
+    set_banner(&home, Some(&png), &to_trash).unwrap();
+    let kept = image::open(home.join(BANNER)).unwrap();
+    // 1200x400 fit to 512 wide: the image crate's aspect-preserving resize rounds up.
+    assert_eq!((kept.width(), kept.height()), (512, 171));
+    set_banner(&home, None, &to_trash).unwrap();
+    assert!(!home.join(BANNER).exists());
+    assert!(trash.join(BANNER).is_file());
+    // Nothing to remove is fine.
+    set_banner(&home, None, &to_trash).unwrap();
+    assert!(banner(b"not an image".to_vec()).is_err());
+    fs::remove_dir_all(&root).unwrap();
+}

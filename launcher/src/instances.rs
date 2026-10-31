@@ -92,6 +92,40 @@ pub fn picture(bytes: Vec<u8>) -> Result<Vec<u8>, String> {
     })
 }
 
+pub const BANNER: &str = "banner.png";
+/// How many pixels wide a banner is kept at: twice the widest a card strip is drawn.
+pub const BANNER_WIDTH: u32 = 512;
+
+/// Any image file's `bytes` as a banner: PNG, scaled down to fit [`BANNER_WIDTH`]. The strip's
+/// crop is the pages' business; the file keeps the picture's own shape.
+pub fn banner(bytes: Vec<u8>) -> Result<Vec<u8>, String> {
+    crate::browser::images::fit_png(bytes, BANNER_WIDTH, 8192, 256 << 20).ok_or_else(|| {
+        "That file isn't a picture the launcher can read (PNG, JPEG, GIF, WebP).".into()
+    })
+}
+
+/// Keeps `png` (made by [`banner`]) as the banner of the instance playing in `home`, or, with
+/// None, gives its banner to `to_trash`. Same part-file write as [`set_picture`]: a half-written
+/// banner never shows.
+pub fn set_banner(
+    home: &Path,
+    png: Option<&[u8]>,
+    to_trash: &dyn Fn(&Path) -> Result<(), String>,
+) -> Result<(), String> {
+    let target = home.join(BANNER);
+    let Some(png) = png else {
+        return if target.is_file() {
+            to_trash(&target)
+        } else {
+            Ok(())
+        };
+    };
+    fs::create_dir_all(home).map_err(|e| format!("{}: {e}", home.display()))?;
+    let part = home.join("banner.png.part");
+    fs::write(&part, png).map_err(|e| format!("{}: {e}", part.display()))?;
+    fs::rename(&part, &target).map_err(|e| format!("{}: {e}", target.display()))
+}
+
 /// Keeps `png` (made by [`picture`]) as the picture of the instance playing in `home`, or, with
 /// None, gives its picture to `to_trash`.
 pub fn set_picture(
