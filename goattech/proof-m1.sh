@@ -27,11 +27,15 @@ $BIN mods install viafabricplus --instance "GT Fabric"
 
 echo "== instance isolation check =="
 $BIN instance list
-test ! -e "$SCRATCH/game/instances/gt-vanilla/mods" || \
-  find "$SCRATCH" -name 'viafabricplus*.jar' -path '*gt-fabric*' | grep -q .
+FAB_JAR="$(find "$SCRATCH/game/instances/gt-fabric/mods" -iname 'viafabricplus*.jar' | head -1)"
+test -n "$FAB_JAR" || { echo "FAIL: ViaFabricPlus jar missing from gt-fabric/mods"; exit 1; }
+if find "$SCRATCH/game/instances/gt-vanilla" -iname 'viafabricplus*.jar' | grep -q .; then
+  echo "FAIL: ViaFabricPlus jar leaked into gt-vanilla"; exit 1
+fi
+echo "isolation OK: $FAB_JAR (gt-vanilla clean)"
 
 echo "== assemble launch command (download version json + libraries + runtime, no assets) =="
 $BIN instance launch "GT Fabric" --dry-run 2>/dev/null || \
   echo "NOTE: no --dry-run flag; use: $BIN instance launch \"GT Fabric\" and expect auth prompt"
 
-echo "MILESTONE-1 PROOF OK (scratch $SCRATCH kept for inspection)"
+echo "MILESTONE-1 PROOF OK - scope: version catalog, Java instance create (vanilla + Fabric), Modrinth install with CLI checksum, instance isolation. Launch/auth/game start NOT covered; integration gate stays open. (scratch $SCRATCH kept)"
