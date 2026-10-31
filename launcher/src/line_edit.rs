@@ -505,10 +505,10 @@ pub(super) fn content(
     focused: bool,
     whole: bool,
     mask: bool,
-    placeholder: &'static str,
+    placeholder: impl Into<SharedString>,
 ) -> Div {
     if edit.text.is_empty() && !focused {
-        return div().text_color(t.muted).child(placeholder);
+        return div().text_color(t.muted).child(placeholder.into());
     }
     let (before, selected, after, caret_first) = edit.view(whole);
     let text = |s: String| {

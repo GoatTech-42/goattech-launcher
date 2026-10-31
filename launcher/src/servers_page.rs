@@ -882,7 +882,7 @@ impl Launcher {
     pub(super) fn field(
         &mut self,
         f: Field,
-        placeholder: &'static str,
+        placeholder: impl Into<SharedString>,
         width: f32,
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
@@ -919,7 +919,7 @@ impl Launcher {
                 focused,
                 selected,
                 f == Field::Token,
-                placeholder,
+                placeholder.into(),
             ))
             .on_click(cx.listener(move |this, ev: &ClickEvent, window, cx| {
                 // A click puts the caret in: the suggestion is no longer selected.

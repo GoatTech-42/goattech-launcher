@@ -558,10 +558,11 @@ impl Launcher {
             d.java.kind,
         );
         let java = !editing && kind != new_instance::NewKind::Horizon;
-        let editing_java = editing_id
+        let editing_game = editing_id
             .as_ref()
             .and_then(|id| self.instances.list.iter().find(|i| &i.id == id))
-            .is_some_and(|i| i.java.is_some());
+            .and_then(|i| i.java.clone());
+        let editing_java = editing_game.is_some();
         let n = t.night;
         let from = self
             .selected_instance()
@@ -639,13 +640,39 @@ impl Launcher {
         if editing_java {
             body = body.child(row(
                 "Memory (MiB)",
-                self.field(Field::InstanceMemory, "4096", 400., cx)
-                    .into_any_element(),
+                self.field(
+                    Field::InstanceMemory,
+                    instances::DEFAULT_MEMORY_MB.to_string(),
+                    400.,
+                    cx,
+                )
+                .into_any_element(),
             ));
             body = body.child(text(theme::CAPTION).text_color(t.muted).child(format!(
                 "The most the game may use (-Xmx). Empty uses the default ({} MiB).",
                 instances::DEFAULT_MEMORY_MB
             )));
+        }
+        if let Some(game) = &editing_game {
+            // What it plays, read-only here: changing them is a new instance, not an edit.
+            body = body.child(row(
+                "Minecraft",
+                text(theme::CAPTION)
+                    .text_color(t.muted)
+                    .child(game.minecraft.clone())
+                    .into_any_element(),
+            ));
+            body = body.child(row(
+                "Loader",
+                text(theme::CAPTION)
+                    .text_color(t.muted)
+                    .child(
+                        game.loader
+                            .as_ref()
+                            .map_or("Vanilla".to_string(), |l| l.kind.name().to_string()),
+                    )
+                    .into_any_element(),
+            ));
         }
         let mut tiles: Vec<AnyElement> = Vec::new();
         let tile = |id: String, chosen: bool| {
