@@ -13,10 +13,10 @@ export HORIZON_LAUNCHER_HOME="$SCRATCH/launcher" HORIZON_HOME="$SCRATCH/game" \
 echo "scratch: $SCRATCH"
 
 echo "== java version catalog =="
-$BIN minecraft-versions | head -5
+$BIN instance versions | head -5
 
 echo "== create Vanilla Java instance (latest release) =="
-LATEST="$($BIN minecraft-versions --json | python3 -c 'import json,sys; print(json.load(sys.stdin)[0])')"
+LATEST="$($BIN instance versions --json | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["id"])')"
 $BIN instance create "GT Vanilla" --minecraft "$LATEST"
 
 echo "== create Modded Fabric instance (latest release, newest Fabric loader) =="
@@ -27,7 +27,7 @@ $BIN mods install viafabricplus --instance "GT Fabric"
 
 echo "== instance isolation check =="
 $BIN instance list
-test ! -e "$SCRATCH/data/horizon-launcher/instances/gt-vanilla/mods" || \
+test ! -e "$SCRATCH/game/instances/gt-vanilla/mods" || \
   find "$SCRATCH" -name 'viafabricplus*.jar' -path '*gt-fabric*' | grep -q .
 
 echo "== assemble launch command (download version json + libraries + runtime, no assets) =="
