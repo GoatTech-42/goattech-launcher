@@ -249,5 +249,10 @@
   "Software is chosen inside each Java instance - vanilla, Fabric or Quilt.": "在每个 Java 实例内选择软件——原版、Fabric 或 Quilt。",
   "Rust and Java live side by side. Each instance keeps its own version, runtime, mods, configs and saves.": "Rust 与 Java 并存。每个实例都保留自己的版本、运行时、模组、配置和存档。",
   "Not supported yet - tracked upstream.": "尚不支持——正在跟踪上游进展。",
-  "Remove": "移除"
+  "Remove": "移除",
+  "Java runtimes": "Java 运行时",
+  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match. {downloaded} downloaded · {installed} on this computer.": "每个 Java 实例获得其版本所需的运行时,下载一次,版本相同时重复使用。已下载 {downloaded} 个 · 此电脑上有 {installed} 个。",
+  "Each Java instance gets the runtime its version needs. None downloaded yet - Mojang's is downloaded when an instance needs it.": "每个 Java 实例获得其版本所需的运行时。尚未下载 - 实例需要时会下载 Mojang 的运行时。",
+  "A fork of Horizon (MIT) - upstream attribution kept. Made by goattech · goattech.us.": "Horizon (MIT) 的分支 - 保留上游署名。Made by goattech · goattech.us。",
+  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "每个 Java 实例获得其版本所需的运行时,下载一次,版本相同时重复使用。"
 }

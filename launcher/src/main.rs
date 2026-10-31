@@ -61,6 +61,7 @@ use horizon_launcher::account::{self, Accounts, SignIn, SignInState};
 use horizon_launcher::backend::{self, Job, Msg, Release, Running, Settings, Updates};
 use horizon_launcher::i18n::{self, tr, trf};
 use horizon_launcher::instances;
+use horizon_launcher::java;
 use horizon_launcher::native_mods;
 use horizon_launcher::telemetry;
 use scrollbar::Scrollbar;
@@ -207,6 +208,11 @@ struct Launcher {
     skin: Option<skin_page::SkinPanel>,
     /// Why the last picture for Home's background was refused.
     background_error: Option<String>,
+    /// Settings' Java runtimes row: (downloaded by the launcher, installed on this computer),
+    /// counted on a thread; None until the count answers and again each time Settings opens.
+    java_runtimes: Option<(usize, usize)>,
+    /// That count is running.
+    java_runtimes_busy: bool,
     settings: Settings,
     /// The Discord, sponsor and website links: built in until links.json on main has been read.
     links: backend::Links,
@@ -444,6 +450,8 @@ impl Launcher {
             menu_closed_at: None,
             skin: None,
             background_error: None,
+            java_runtimes: None,
+            java_runtimes_busy: false,
             args_input: line_edit::LineEdit::new(settings.game_args.clone(), 1024, 38),
             args_focused: false,
             args_focus: cx.focus_handle(),
@@ -573,6 +581,9 @@ impl Launcher {
         // changed the accounts: read them again (small files, once a switch).
         self.offline_name = offline_name();
         self.accounts = Accounts::load();
+        // Settings' Java runtimes row counts again when the page opens (a launch may have
+        // downloaded one since).
+        self.java_runtimes = None;
         if page != self.page {
             self.page = page;
             self.switches += 1;
@@ -2772,6 +2783,39 @@ impl Launcher {
 
     fn settings_page(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
+        // The runtimes count walks folders, so it runs on a thread and the row shows the
+        // sentence alone until it answers.
+        if self.java_runtimes.is_none() && !self.java_runtimes_busy {
+            self.java_runtimes_busy = true;
+            let task = cx.background_executor().spawn(async move {
+                let downloaded = java::mojang_runtimes(&java::runtimes_dir()).len();
+                let here = java::installed().len();
+                (downloaded, here)
+            });
+            cx.spawn(async move |this, cx| {
+                let counted = task.await;
+                let _ = this.update(cx, |this, cx| {
+                    this.java_runtimes = Some(counted);
+                    this.java_runtimes_busy = false;
+                    cx.notify();
+                });
+            })
+            .detach();
+        }
+        let runtimes = match self.java_runtimes {
+            Some((0, 0)) => tr(
+                "Each Java instance gets the runtime its version needs. None downloaded yet - Mojang's is downloaded when an instance needs it.",
+            )
+            .to_string(),
+            Some((d, h)) => trf(
+                "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match. {downloaded} downloaded · {installed} on this computer.",
+                &[("downloaded", &d.to_string()), ("installed", &h.to_string())],
+            ),
+            None => tr(
+                "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.",
+            )
+            .to_string(),
+        };
         let toggle = switch("auto-install", self.settings.auto_install(), &t).on_click(
             cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.settings.install_new_versions = Some(!this.settings.auto_install());
@@ -2977,6 +3021,13 @@ impl Launcher {
                     .child(group("Game", "gamepad"))
                     .child(self.game_args_row(n + 5, cx))
                     .child(self.native_mods_row(n + 5, cx))
+                    .child(index_row(
+                        n + 5,
+                        tr("Java runtimes"),
+                        Some(plain(&runtimes)),
+                        None,
+                        &t,
+                    ))
                     .child(group("AI", "terminal"))
                     .child(self.no_ai_row(n + 6, cx))
                     .child(group("About", "info-box"))
@@ -3012,6 +3063,15 @@ impl Launcher {
                                 })
                                 .into_any_element(),
                         ),
+                        &t,
+                    ))
+                    .child(index_row(
+                        n + 10,
+                        "GoatTech Launcher",
+                        Some(plain(
+                            "A fork of Horizon (MIT) - upstream attribution kept. Made by goattech · goattech.us.",
+                        )),
+                        None,
                         &t,
                     ))
                     .when(cfg!(target_os = "linux"), |d| {

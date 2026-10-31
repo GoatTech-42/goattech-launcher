@@ -249,5 +249,10 @@
   "Software is chosen inside each Java instance - vanilla, Fabric or Quilt.": "Oprogramowanie wybiera się wewnątrz każdej instancji Java - vanilla, Fabric lub Quilt.",
   "Rust and Java live side by side. Each instance keeps its own version, runtime, mods, configs and saves.": "Rust i Java istnieją obok siebie. Każda instancja zachowuje własną wersję, środowisko, mody, konfiguracje i zapisy.",
   "Not supported yet - tracked upstream.": "Jeszcze nieobsługiwane - śledzone upstream.",
-  "Remove": "Usuń"
+  "Remove": "Usuń",
+  "Java runtimes": "Środowiska wykonawcze Java",
+  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match. {downloaded} downloaded · {installed} on this computer.": "Każda instancja Javy otrzymuje środowisko wykonawcze, którego potrzebuje jej wersja - pobierane raz i używane ponownie, gdy wersje się zgadzają. Pobrane: {downloaded} · na tym komputerze: {installed}.",
+  "Each Java instance gets the runtime its version needs. None downloaded yet - Mojang's is downloaded when an instance needs it.": "Każda instancja Javy otrzymuje środowisko wykonawcze, którego potrzebuje jej wersja. Nie pobrano jeszcze żadnego - środowisko Mojanga jest pobierane, gdy instancja go potrzebuje.",
+  "A fork of Horizon (MIT) - upstream attribution kept. Made by goattech · goattech.us.": "Fork Horizona (MIT) - oryginalne autorstwo zachowane. Made by goattech · goattech.us.",
+  "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Każda instancja Javy otrzymuje środowisko wykonawcze, którego potrzebuje jej wersja - pobierane raz i używane ponownie, gdy wersje się zgadzają."
 }
