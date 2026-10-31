@@ -36,6 +36,8 @@ pub(super) enum Field {
     /// The instance dialog's (`instances_page.rs`).
     InstanceName,
     InstanceGroup,
+    /// Its Memory (MiB), only when editing (`instances_page.rs`).
+    InstanceMemory,
     /// Its search in Mojang's versions (`new_instance.rs`).
     InstanceVersion,
     /// Home's Mods tab's filter (`instance_mods.rs`).
@@ -1001,6 +1003,7 @@ impl Launcher {
             Field::Email => self.invite_friend(),
             Field::InstanceName
             | Field::InstanceGroup
+            | Field::InstanceMemory
             | Field::InstanceVersion
             | Field::InstanceModsFilter
             | Field::ConsoleSearch

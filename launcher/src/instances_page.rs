@@ -403,8 +403,13 @@ impl Launcher {
             .as_ref()
             .map(|i| (i.name.clone(), i.group.clone().unwrap_or_default()))
             .unwrap_or_default();
+        let memory = editing
+            .as_ref()
+            .and_then(|i| instances::memory_mb(&i.id))
+            .map_or(String::new(), |m| m.to_string());
         self.servers.text(Field::InstanceName).set(name);
         self.servers.text(Field::InstanceGroup).set(group);
+        self.servers.text(Field::InstanceMemory).set(memory);
         self.servers.focus_soon = Some(Field::InstanceName);
         self.instances.dialog = Some(InstanceDialog {
             icon: editing.as_ref().and_then(|i| i.icon.clone()),
@@ -433,6 +438,7 @@ impl Launcher {
         let selected = self.selected_instance().map(|i| i.id.clone());
         let name = self.servers.value(Field::InstanceName).trim().to_string();
         let group = Some(self.servers.value(Field::InstanceGroup).to_string());
+        let memory_raw = self.servers.value(Field::InstanceMemory).trim().to_string();
         let Some(d) = self.instances.dialog.as_mut().filter(|d| !d.busy) else {
             return;
         };
@@ -470,6 +476,21 @@ impl Launcher {
             }
             _ => (None, name),
         };
+        // Memory is an edit-dialog row: empty keeps the default; otherwise a sane -Xmx range.
+        let memory = if editing.is_some() && !memory_raw.is_empty() {
+            match memory_raw.parse::<u32>() {
+                Ok(m) if (512..=65536).contains(&m) => Some(m),
+                _ => {
+                    d.error = Some(format!(
+                        "Memory is 512 to 65536 MiB, or empty for the default ({} MiB).",
+                        instances::DEFAULT_MEMORY_MB
+                    ));
+                    return;
+                }
+            }
+        } else {
+            None
+        };
         d.busy = true;
         d.error = None;
         let task = cx.background_executor().spawn(async move {
@@ -482,6 +503,9 @@ impl Launcher {
                 m.name = Some(name);
                 m.group = group;
                 m.icon = icon;
+                if let Some(j) = &mut m.java {
+                    j.memory_mb = memory;
+                }
             })?;
             if let Some(png) = picture {
                 instances::set_picture(
@@ -534,6 +558,10 @@ impl Launcher {
             d.java.kind,
         );
         let java = !editing && kind != new_instance::NewKind::Horizon;
+        let editing_java = editing_id
+            .as_ref()
+            .and_then(|id| self.instances.list.iter().find(|i| &i.id == id))
+            .is_some_and(|i| i.java.is_some());
         let n = t.night;
         let from = self
             .selected_instance()
@@ -608,6 +636,17 @@ impl Launcher {
             self.field(Field::InstanceGroup, "No group", 400., cx)
                 .into_any_element(),
         ));
+        if editing_java {
+            body = body.child(row(
+                "Memory (MiB)",
+                self.field(Field::InstanceMemory, "4096", 400., cx)
+                    .into_any_element(),
+            ));
+            body = body.child(text(theme::CAPTION).text_color(t.muted).child(format!(
+                "The most the game may use (-Xmx). Empty uses the default ({} MiB).",
+                instances::DEFAULT_MEMORY_MB
+            )));
+        }
         let mut tiles: Vec<AnyElement> = Vec::new();
         let tile = |id: String, chosen: bool| {
             div()

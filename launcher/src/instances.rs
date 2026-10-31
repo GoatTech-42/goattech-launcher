@@ -572,6 +572,20 @@ fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+/// A Java instance's `-Xmx` choice in MiB, if it set one (`JavaGame::memory_mb`);
+/// None: [`DEFAULT_MEMORY_MB`] when the game starts. Horizon instances have no such choice.
+pub fn memory_mb(query: &str) -> Option<u32> {
+    let data = backend::data_dir();
+    let all = list_in(&backend::game_home(), &data);
+    let instance = find_in(&all, query).ok()?;
+    Store::load(&data)
+        .instances
+        .get(&instance.id)?
+        .java
+        .as_ref()?
+        .memory_mb
+}
+
 /// Changes what the player chose about an instance: its name, icon or group. No folder moves.
 pub fn edit(query: &str, change: impl FnOnce(&mut Meta)) -> Result<Instance, String> {
     edit_in(&backend::game_home(), &backend::data_dir(), query, change)
