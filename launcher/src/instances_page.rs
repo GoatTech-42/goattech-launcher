@@ -226,9 +226,16 @@ impl Launcher {
 
     /// Imports one of them on a background thread: a copy under its name (never overwrites - a
     /// name already taken fails and says so), its loader when Horizon installs it, and its mods
-    /// when they can load (`other_launchers::import` refuses them otherwise; the row offered
-    /// "Import without mods" then).
-    fn import_other_launcher(&mut self, found: other_launchers::Found, cx: &mut Context<Self>) {
+    /// exactly as the row said when it was clicked: `blocked` is the scan's reason its mods
+    /// can't come along, the same decision the button's label showed. The folder may have
+    /// changed since the scan: `other_launchers::import` checks again then and fails visibly,
+    /// never silently turning Import into Import without mods.
+    fn import_other_launcher(
+        &mut self,
+        found: other_launchers::Found,
+        blocked: Option<String>,
+        cx: &mut Context<Self>,
+    ) {
         if self.instances.others_busy {
             return;
         }
@@ -236,7 +243,7 @@ impl Launcher {
         self.instances.others_error = None;
         cx.notify();
         let task = cx.background_executor().spawn(async move {
-            let with_mods = other_launchers::mods_blocked(&found).is_none();
+            let with_mods = blocked.is_none();
             let name = found.name.clone();
             let imported = other_launchers::import(&found, &name, None, with_mods)?;
             Ok::<_, String>((imported, found.game))
@@ -322,8 +329,9 @@ impl Launcher {
                     let mut b = button(format!("import-other-{i}"), label, Kind::Secondary, &t);
                     if !busy && f.minecraft.is_some() {
                         let f = f.clone();
+                        let blocked = blocked.clone();
                         b = b.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                            this.import_other_launcher(f.clone(), cx);
+                            this.import_other_launcher(f.clone(), blocked.clone(), cx);
                         }));
                     } else {
                         b = b.opacity(0.5);
