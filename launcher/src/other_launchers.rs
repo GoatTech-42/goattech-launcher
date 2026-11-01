@@ -554,12 +554,14 @@ pub fn import(
     let loader = loader(found);
     let notes = found.notes.clone();
     if loader.is_some() || notes.is_some() {
-        instances::edit(&instance.id, |m| {
+        // edit returns the instance as written, so the caller (and --json) never sees the
+        // pre-edit snapshot.
+        return instances::edit(&instance.id, |m| {
             if let Some(l) = loader {
                 m.java.get_or_insert_with(Default::default).loader = Some(l);
             }
             m.notes = notes;
-        })?;
+        });
     }
     Ok(instance)
 }
