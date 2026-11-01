@@ -53,6 +53,7 @@ fn prism_and_multimc_instances() {
                     name: "fabric",
                     version: "0.16.9".into()
                 }),
+                notes: None,
                 game: fabric.join("minecraft"),
                 icon: None,
                 shared: false,
@@ -65,6 +66,7 @@ fn prism_and_multimc_instances() {
                     name: "forge",
                     version: "14.23.5.2860".into()
                 }),
+                notes: None,
                 game: old.join(".minecraft"),
                 icon: None,
                 shared: false,
@@ -158,6 +160,7 @@ fn copies_an_instance_but_only_what_a_shared_folder_holds_for_one() {
         name: "x".into(),
         minecraft: Some("1.21.1".into()),
         loader: None,
+        notes: None,
         game: game.clone(),
         icon: None,
         shared: false,
@@ -270,6 +273,7 @@ fn a_linked_file_or_folder_is_not_copied() {
         name: "Linked".into(),
         minecraft: None,
         loader: None,
+        notes: None,
         game,
         icon: None,
         shared: false,
@@ -318,6 +322,7 @@ fn mods_that_could_never_load_are_refused_or_left_behind_never_silent() {
         name: "x".into(),
         minecraft: Some("1.21.1".into()),
         loader: None,
+        notes: None,
         game: game.clone(),
         icon: None,
         shared: false,
@@ -457,4 +462,56 @@ fn prism_icons_carry() {
         assert!(root.join("imported-two/options.txt").is_file());
     }
 
+    #[test]
+fn prism_notes_carry_to_the_imported_instance() {
+    let root = scratch("prism-notes");
+    let pack = root.join("instances/Noted");
+    // Qt's INI writer escapes a newline as \n and a backslash as \\.
+    write(
+        &pack.join("instance.cfg"),
+        "[General]\nname=Noted\niconKey=default\nnotes=first line\\nsecond C:\\\\path\\\\x\n",
+    );
+    write(
+        &pack.join("mmc-pack.json"),
+        &json!({"components": [{"uid": "net.minecraft", "version": "1.21.1"}]}).to_string(),
+    );
+    write(&pack.join("minecraft/options.txt"), "opts");
+
+    let found = prism_instances(&root, "Prism Launcher");
+    assert_eq!(found.len(), 1);
+    assert_eq!(
+        found[0].notes.as_deref(),
+        Some("first line\nsecond C:\\path\\x")
+    );
+
+    let made = import(&found[0], "noted-copy", Some("1.21.1"), false).unwrap();
+    let listed = crate::instances::list();
+    let again = listed.iter().find(|i| i.id == made.id).unwrap();
+    assert_eq!(again.notes.as_deref(), Some("first line\nsecond C:\\path\\x"));
+    let _ = crate::instances::delete(&made.id);
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn import_without_notes_leaves_them_unset() {
+    let root = scratch("no-notes");
+    let game = root.join("game");
+    write(&game.join("options.txt"), "opts");
+    let base = Found {
+        launcher: "Prism Launcher",
+        name: "x".into(),
+        minecraft: Some("1.21.1".into()),
+        loader: None,
+        notes: None,
+        icon: None,
+        game: game.clone(),
+        shared: false,
+    };
+    let made = import(&base, "noteless-copy", Some("1.21.1"), false).unwrap();
+    let listed = crate::instances::list();
+    let again = listed.iter().find(|i| i.id == made.id).unwrap();
+    assert_eq!(again.notes, None);
+    let _ = crate::instances::delete(&made.id);
+    let _ = fs::remove_dir_all(&root);
+}
 }
