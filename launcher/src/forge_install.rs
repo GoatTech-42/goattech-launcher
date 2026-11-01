@@ -27,8 +27,9 @@ pub fn install(
         .kind
         .maven()
         .ok_or_else(|| format!("{name} has no installer"))?;
-    // The installer's `install_profile.json` layout exists from Minecraft 1.13 on; older Forge
-    // installers predate it and would only fail deep in the zip read (goattech/FORGE-NEOFORGE.md).
+    // The `install_profile.json` layout this install drives landed with Minecraft 1.13;
+    // older Forge installers carry the old format and would only fail deep in the zip read
+    // (goattech/FORGE-NEOFORGE.md).
     // Name the cutoff up front instead. Unknown version shapes (snapshots) pass through to the
     // installer's own Minecraft check below.
     if matches!(minecraft_minor(minecraft), Some(minor) if minor < 13) {
