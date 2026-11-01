@@ -1,0 +1,74 @@
+name: qual shot 3
+# One-off: build goattech/main at the pinned commit and keep clean screenshots (Home, Instances)
+# using the launcher's own frame readback probe that is already in that commit
+# (third_party/gpui blade_renderer.rs, GOATTECH_SHOT: copies the rendered frame texture to a
+# local file; no network, no other data). The window's Vulkan output does not reach an X
+# screenshot, which is why the first attempt (xwd) was blank. No source patch: the built bytes
+# are exactly the pinned commit. No secrets, no publishing. Runs only on a push to the one
+# branch named below. The only artifact is the PNGs (1 day).
+on:
+  push:
+    branches: [qual-shot3-82627645a]
+
+permissions:
+  contents: read
+
+env:
+  HORIZON_TELEMETRY_URL: "off"
+  CARGO_TERM_COLOR: never
+  PINNED: 82627645a9f335444352ae56fda6a97c2a5630bb
+
+jobs:
+  shot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: The build is the pinned commit plus this one workflow file
+        run: |
+          test "$(git rev-parse HEAD^)" = "$PINNED"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/qual-shot3.yml"
+      - name: Libraries and a virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev patchelf xvfb imagemagick mesa-vulkan-drivers
+      - name: Build the launcher
+        working-directory: launcher
+        run: cargo build --locked
+      - name: Run it and read back frames
+        run: |
+          mkdir -p shots empty-home xdg
+          Xvfb :99 -screen 0 1440x900x24 &
+          sleep 3
+          for page in play instances; do
+            for at in 120 400; do
+              rm -f "frame.ppm"
+              DISPLAY=:99 XDG_RUNTIME_DIR="$PWD/xdg" HORIZON_LAUNCHER_HOME="$PWD/empty-home" HORIZON_NO_KEYCHAIN=1 HORIZON_LAUNCHER_NO_SELF_UPDATE=1 \
+                VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json HORIZON_LAUNCHER_PAGE="$page" \
+                GOATTECH_SHOT="$PWD/frame.ppm" GOATTECH_SHOT_AT="$at" \
+                timeout 90 launcher/target/debug/horizon-launcher > "run-$page-$at.log" 2>&1 || true
+              if [ -s frame.ppm ]; then
+                convert frame.ppm "shots/$page-$at.png"
+                echo "$page@$at: $(identify -format '%wx%h' "shots/$page-$at.png"), $(identify -format %k "shots/$page-$at.png") colours"
+              else
+                echo "$page@$at: no frame"; tail -n 5 "run-$page-$at.log"
+              fi
+            done
+          done
+          ls shots
+          for page in play instances; do
+            ok=0
+            for f in shots/$page-*.png; do
+              [ -f "$f" ] && [ "$(identify -format %k "$f")" -gt 50 ] && ok=1 || true
+            done
+            test "$ok" = 1
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shots
+          path: shots/*.png
+          retention-days: 1
+          if-no-files-found: error
