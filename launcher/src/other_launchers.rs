@@ -52,6 +52,9 @@ pub struct Found {
     /// launcher keeps it where Horizon doesn't read.
     pub minecraft: Option<String>,
     pub loader: Option<Loader>,
+    /// The player's own notes about it, when the launcher keeps them (Prism/MultiMC's
+    /// instance.cfg `notes`).
+    pub notes: Option<String>,
     /// Its game folder: saves, mods, packs, options.
     pub game: PathBuf,
     /// Its icon file, when the launcher keeps one for the instance (Prism/MultiMC):
@@ -151,10 +154,37 @@ pub fn prism_instance(dir: &Path, launcher: &'static str) -> Option<Found> {
         name,
         minecraft: Some(minecraft),
         loader,
+        notes: cfg.as_deref().and_then(|t| ini_value(t, "notes")).map(|n| qt_unescape(&n)),
         icon: prism_icon(dir, cfg.as_deref()),
         game,
         shared: false,
     })
+}
+
+/// Qt's INI writer (Prism/MultiMC's instance.cfg) escapes a backslash as `\\` and a newline
+/// as `\n`; anything else stays as written. Unescaped in ONE pass, left to right: two global
+/// replaces are not order-safe - stored `C:\\new` (a real Windows path in notes) would lose
+/// the second backslash and its `n` to a phantom newline (review 15:09).
+fn qt_unescape(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    let mut chars = value.chars();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+        match chars.next() {
+            Some('n') => out.push('\n'),
+            Some('\\') => out.push('\\'),
+            // Not one of Qt's two escapes: kept literally.
+            Some(other) => {
+                out.push('\\');
+                out.push(other);
+            }
+            None => out.push('\\'),
+        }
+    }
+    out
 }
 
 /// A Prism/MultiMC instance's icon file: its own `icon.png`, else the `iconKey` of its
@@ -273,6 +303,7 @@ pub fn official_profiles(root: &Path) -> Vec<Found> {
                 name,
                 minecraft: Some(minecraft),
                 loader,
+                notes: None,
                 icon: None,
                 shared: game.as_ref().is_none_or(|g| g == root),
                 game: game.unwrap_or_else(|| root.to_path_buf()),
@@ -301,6 +332,7 @@ fn game_folders(dir: &Path, launcher: &'static str) -> Vec<Found> {
                 name: game.file_name()?.to_string_lossy().into_owned(),
                 minecraft: None,
                 loader: None,
+                notes: None,
                 icon: None,
                 game,
                 shared: false,
@@ -569,12 +601,19 @@ pub fn import(
         let _ = instances::delete(&instance.id);
         return Err(format!("Could not copy {}: {e}", found.game.display()));
     }
-    match loader(found) {
-        Some(l) => instances::edit(&instance.id, |m| {
-            m.java.get_or_insert_with(Default::default).loader = Some(l)
-        }),
-        None => Ok(instance),
+    let loader = loader(found);
+    let notes = found.notes.clone();
+    if loader.is_some() || notes.is_some() {
+        // edit returns the instance as written, so the caller (and --json) never sees the
+        // pre-edit snapshot.
+        return instances::edit(&instance.id, |m| {
+            if let Some(l) = loader {
+                m.java.get_or_insert_with(Default::default).loader = Some(l);
+            }
+            m.notes = notes;
+        });
     }
+    Ok(instance)
 }
 
 #[cfg(test)]
