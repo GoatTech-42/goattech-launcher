@@ -179,8 +179,9 @@ const NIGHT_ART_MONO: Colors = Colors {
     sun: [0xffffff, 0xe6e6e6, 0xc4c4c4],
     far: 0x1a1a1f,
     near: 0x0a0a0d,
-    cloud: [0x1d1d23, 0x32323a, 0x4d4d57],
-    lit: [0x3c3c46, 0x6b6b76, 0xdcdce0],
+    // Dim enough that a band drifting behind the stage or a dimmed control stays backdrop.
+    cloud: [0x15151a, 0x24242a, 0x34343b],
+    lit: [0x2e2e36, 0x4c4c55, 0x9a9aa2],
     shade: 0x121218,
     star: 0xf4f4f6,
 };
@@ -342,7 +343,8 @@ impl Sky {
             }
             sky = sky.child(group);
         }
-        for (layer, image) in CLOUDS.iter().zip(&layers.clouds) {
+        // The mono night keeps a clean backdrop: stars only, no drifting bands.
+        for (layer, image) in CLOUDS.iter().zip(&layers.clouds).filter(|_| !n.mono) {
             let strip = layer.period as f32 * TEXEL;
             let shift = (t * layer.speed).floor() * TEXEL % strip;
             let top = snap(h * layer.top);
@@ -361,6 +363,7 @@ impl Sky {
         }
         let foot = h;
         let sun_w = (SUN_RADIUS * 2) as f32 * LAND;
+        if !n.mono {
         sky = sky.child(
             img(layers.sun.clone())
                 .absolute()
@@ -369,6 +372,8 @@ impl Sky {
                 .w(px(sun_w))
                 .h(px(SUN_RADIUS as f32 * LAND)),
         );
+        }
+        if !n.mono {
         for (line, image, lift) in [(&FAR, &layers.far, 2.), (&NEAR, &layers.near, 0.)] {
             let period = line.runs.iter().map(|r| r.0).sum::<usize>() as f32 * LAND;
             let top = foot - (line.rows as f32 + lift) * LAND;
@@ -398,6 +403,7 @@ impl Sky {
             }
         }
 
+        }
         let next = self.clock.running.is_some().then(|| {
             let clouds = CLOUDS.iter().map(|l| until_next(t * l.speed) / l.speed);
             let stars = STAR_PERIODS.iter().enumerate().map(|(g, p)| {

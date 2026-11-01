@@ -64,13 +64,13 @@ impl Launcher {
             .flex_none()
             .flex_col()
             .items_center()
-            .gap(px(10.))
+            .gap(px(8.))
             .w_full()
             .child(
                 shell::text(night::DISPLAY, c(n.ink))
                     .font_family(theme::PIXEL)
-                    .text_size(px(30.))
-                    .line_height(px(34.))
+                    .text_size(px(26.))
+                    .line_height(px(30.))
                     .child(name.clone()),
             )
             .child(self.home_stage())
@@ -111,11 +111,7 @@ impl Launcher {
                             .to_string(),
                     ),
             )
-            .children(instance.map(|i| {
-                shell::text(night::UI, c(n.ink_soft))
-                    .relative()
-                    .child(instances_page::played_line(&i))
-            }));
+;
         // A Java instance (no Horizon tag) isn't offered Horizon's updates.
         if let Some(release) = self.updates.horizon.as_ref().filter(|_| !tag.is_empty()) {
             let installing = self.installing.as_ref().filter(|(t, _)| *t == release.tag);
@@ -432,7 +428,7 @@ impl Launcher {
                         &player_model::render(&png, -0.5),
                         player_model::W,
                         player_model::H,
-                        5.,
+                        6.,
                         scale,
                     )
                 });
@@ -459,8 +455,8 @@ impl Launcher {
         if let Some(i) = baked {
             stage = stage.child(
                 gpui::img(i)
-                    .w(px(player_model::W as f32 * 5.))
-                    .h(px(player_model::H as f32 * 5.)),
+                    .w(px(player_model::W as f32 * 6.))
+                    .h(px(player_model::H as f32 * 6.)),
             );
         }
         stage.child(
@@ -534,10 +530,20 @@ impl Launcher {
             }
         }
         // The concept's split Play: LAUNCH with its attached chevron opening the version menu.
+        // Both sit on a solid dark lip: the sky never shows through a dimmed button, and the
+        // control wears the concept's chunky base.
         let mut split = div()
             .relative()
             .flex()
             .items_center()
+            .child(
+                crate::plate::cut(night::PIXEL_CORNER, 1, Some(alpha(t.night.page, 1.)), None)
+                    .absolute()
+                    .left_0()
+                    .right_0()
+                    .top(px(3.))
+                    .bottom(px(-3.)),
+            )
             .child(play)
             .child(
                 keyboard(
