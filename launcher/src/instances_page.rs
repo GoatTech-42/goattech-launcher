@@ -967,6 +967,21 @@ impl Launcher {
                     )
                     .into_any_element(),
             ));
+            // Carried notes, read-only: where it came from wrote them, editing them here is not
+            // part of the import-carry scope.
+            let notes = editing_id
+                .as_ref()
+                .and_then(|id| self.instances.list.iter().find(|i| &i.id == id))
+                .and_then(|i| i.notes.clone());
+            if let Some(notes) = notes {
+                body = body.child(row(
+                    "Notes",
+                    text(theme::CAPTION)
+                        .text_color(t.muted)
+                        .child(notes)
+                        .into_any_element(),
+                ));
+            }
         }
         let mut tiles: Vec<AnyElement> = Vec::new();
         let tile = |id: String, chosen: bool| {

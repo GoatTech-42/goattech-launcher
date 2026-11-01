@@ -173,6 +173,10 @@ pub struct Meta {
     pub icon: Option<Icon>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
+    /// Free text the player keeps with it (an imported instance keeps the notes its old
+    /// launcher held). None: none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
     /// The Horizon version this instance plays, kept when newer ones are installed. None: the
     /// launcher's own version, which follows updates.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -273,6 +277,8 @@ pub struct Instance {
     pub home: PathBuf,
     pub icon: Option<Icon>,
     pub group: Option<String>,
+    /// The player's own text about it (`Meta::notes`), if any.
+    pub notes: Option<String>,
     /// Its pinned Horizon version, if any (`Meta::version`).
     pub version: Option<String>,
     pub played: Duration,
@@ -374,6 +380,7 @@ fn list_in(game_home: &Path, data: &Path) -> Vec<Instance> {
                 name: meta.name.unwrap_or(name),
                 icon: meta.icon,
                 group: meta.group,
+                notes: meta.notes,
                 version: meta.version,
                 played: Duration::from_secs(meta.played_secs),
                 last_played: meta

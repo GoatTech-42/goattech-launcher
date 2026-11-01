@@ -52,6 +52,9 @@ pub struct Found {
     /// launcher keeps it where Horizon doesn't read.
     pub minecraft: Option<String>,
     pub loader: Option<Loader>,
+    /// The player's own notes about it, when the launcher keeps them (Prism/MultiMC's
+    /// instance.cfg `notes`).
+    pub notes: Option<String>,
     /// Its game folder: saves, mods, packs, options.
     pub game: PathBuf,
     /// The game folder is the launcher's own (the official launcher's default): only what an
@@ -137,9 +140,10 @@ pub fn prism_instance(dir: &Path, launcher: &'static str) -> Option<Found> {
         .find(|g| g.is_dir())
         .unwrap_or_else(|| dir.join("minecraft"));
     let folder = dir.file_name()?.to_string_lossy().into_owned();
-    let name = fs::read_to_string(dir.join("instance.cfg"))
-        .ok()
-        .and_then(|t| ini_value(&t, "name"))
+    let cfg = fs::read_to_string(dir.join("instance.cfg")).ok();
+    let name = cfg
+        .as_deref()
+        .and_then(|t| ini_value(t, "name"))
         .filter(|n| !n.is_empty())
         .unwrap_or(folder);
     Some(Found {
@@ -147,6 +151,12 @@ pub fn prism_instance(dir: &Path, launcher: &'static str) -> Option<Found> {
         name,
         minecraft: Some(minecraft),
         loader,
+        notes: cfg.as_deref().and_then(|t| ini_value(t, "notes")).map(|n| {
+            // shortcut: only `\n` and `\\` are unescaped, the two escapes Qt's INI writer
+            // (Prism/MultiMC) puts in a multi-line value; upgrade to a full unescape if a
+            // real instance.cfg ever shows another one.
+            n.replace("\\n", "\n").replace("\\\\", "\\")
+        }),
         game,
         shared: false,
     })
@@ -236,6 +246,7 @@ pub fn official_profiles(root: &Path) -> Vec<Found> {
                 name,
                 minecraft: Some(minecraft),
                 loader,
+                notes: None,
                 shared: game.as_ref().is_none_or(|g| g == root),
                 game: game.unwrap_or_else(|| root.to_path_buf()),
             })
@@ -263,6 +274,7 @@ fn game_folders(dir: &Path, launcher: &'static str) -> Vec<Found> {
                 name: game.file_name()?.to_string_lossy().into_owned(),
                 minecraft: None,
                 loader: None,
+                notes: None,
                 game,
                 shared: false,
             };
@@ -518,12 +530,17 @@ pub fn import(
         let _ = instances::delete(&instance.id);
         return Err(format!("Could not copy {}: {e}", found.game.display()));
     }
-    match loader(found) {
-        Some(l) => instances::edit(&instance.id, |m| {
-            m.java.get_or_insert_with(Default::default).loader = Some(l)
-        }),
-        None => Ok(instance),
+    let loader = loader(found);
+    let notes = found.notes.clone();
+    if loader.is_some() || notes.is_some() {
+        instances::edit(&instance.id, |m| {
+            if let Some(l) = loader {
+                m.java.get_or_insert_with(Default::default).loader = Some(l);
+            }
+            m.notes = notes;
+        })?;
     }
+    Ok(instance)
 }
 
 #[cfg(test)]
