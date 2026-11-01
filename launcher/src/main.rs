@@ -106,7 +106,7 @@ impl Page {
 
     /// Every page, with its name and icon: the sidebar's nav shows them all.
     const ALL: [(Page, &'static str, &'static str); 7] = [
-        (Page::Play, "Play", "home"),
+        (Page::Play, "Play", "play"),
         (Page::Instances, "Instances", "box"),
         (Page::Mods, "Mods", "package"),
         (Page::Servers, "Servers", "server"),
@@ -1978,22 +1978,30 @@ impl Launcher {
                 })),
             );
         }
-        let link = |id: &'static str, icon: &'static str, url: String| {
+        let link = |id: &'static str, icon: &'static str, label: &'static str, url: String| {
             let id = SharedString::from(id);
             track_hover(
                 div()
                     .id(id.clone())
                     .relative()
                     .flex()
+                    .flex_col()
                     .items_center()
                     .justify_center()
-                    .size(px(32.))
+                    .gap(px(2.))
+                    .w(px(48.))
+                    .py(px(4.))
                     .cursor_pointer()
                     .child(hover_layer(&id, shell::c(n.card_hi).opacity(0.5), 0., 0.))
                     .child(
                         div()
                             .relative()
                             .child(blocks::icon(icon, 16., shell::c(n.muted))),
+                    )
+                    .child(
+                        shell::text(theme::night::CAPTION, shell::c(n.muted))
+                            .text_size(px(8.))
+                            .child(label),
                     )
                     .on_click(move |_, _, cx| cx.open_url(&url)),
                 id,
@@ -2060,10 +2068,10 @@ impl Launcher {
         // GoatTech is ad-free (Luke, 2026-10-31): no partner card in the sidebar. The
         // partner module and its assets stay for attribution; nothing of it renders.
         if !self.links.discord.is_empty() {
-            foot = foot.child(link("discord", "message", self.links.discord.clone()));
+            foot = foot.child(link("discord", "message", "DISCORD", self.links.discord.clone()));
         }
         if !self.links.website.is_empty() {
-            foot = foot.child(link("website", "globe", self.links.website.clone()));
+            foot = foot.child(link("website", "globe", "SITE", self.links.website.clone()));
         }
         // Only a signed-in account says "Microsoft account"; otherwise an offline name, or the
         // one the game made up. A signed-in one shows its face (its UUID's default skin).
@@ -2085,13 +2093,23 @@ impl Launcher {
         };
         // The rail carries only the face; the name and its `how` are the menu's header.
         let (name, how) = (name, how);
-        let _ = (&name, &how);
+        let _ = &how;
         let account = div()
             .id("account")
             .relative()
             .flex_none()
+            .flex_col()
+            .items_center()
+            .gap(px(2.))
             .cursor_pointer()
             .child(div().relative().child(picture))
+            .child(
+                shell::text(theme::night::CAPTION, shell::c(n.muted))
+                    .text_size(px(8.))
+                    .max_w(px(56.))
+                    .truncate()
+                    .child(name.to_uppercase()),
+            )
             .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
                 if this.closed_by_this_press(event) {
                     return;

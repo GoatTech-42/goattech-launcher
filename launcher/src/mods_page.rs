@@ -235,26 +235,44 @@ fn count(n: u64) -> String {
     }
 }
 
-/// A registry project's rating: five pixel stars, the mean's nearest whole number of them lit, the
+/// A registry project's rating: five stars, each lit up to the mean's fraction, the
 /// mean and how many; None while the ratings aren't known.
 pub(super) fn stars(id: &str, t: &theme::Theme) -> Option<Div> {
     let row = div().flex().items_center().gap(px(2.));
     Some(match horizon::rating(id)? {
         None => row.text_color(t.muted).child(tr("No ratings yet")),
         Some(r) => {
-            let lit = r.average.round() as usize;
-            row.children((0..5).map(|i| {
-                blocks::icon(
-                    "star",
-                    12.,
-                    if i < lit {
-                        t.warn
-                    } else {
-                        t.muted.opacity(0.6)
-                    },
-                )
-            }))
-            .child(div().ml(px(4.)).child(format!(
+            // Partial stars: the lit part is clipped to the mean's fraction, so a 4.7
+            // reads differently from a 5.0 without relying on colour alone.
+            let mut stars_row = div().flex().items_center().gap(px(2.));
+            for i in 0..5 {
+                let frac = (r.average - i as f32).clamp(0., 1.);
+                stars_row = stars_row.child(
+                    div()
+                        .relative()
+                        .flex_none()
+                        .size(px(12.))
+                        .child(blocks::icon("star", 12., t.muted.opacity(0.6)))
+                        .when(frac > 0., |d| {
+                            d.child(
+                                div()
+                                    .absolute()
+                                    .left_0()
+                                    .top_0()
+                                    .h_full()
+                                    .w(px(12. * frac))
+                                    .overflow_hidden()
+                                    .child(
+                                        div()
+                                            .flex_none()
+                                            .w(px(12.))
+                                            .child(blocks::icon("star", 12., t.warn)),
+                                    ),
+                            )
+                        }),
+                );
+            }
+            stars_row.child(div().ml(px(4.)).child(format!(
                 "{:.1} ({})",
                 r.average,
                 count(r.count)
@@ -998,7 +1016,7 @@ impl Launcher {
                 format!("Installs into {} ({plays}).", instance.name)
             } else {
                 format!(
-                    "Installs into {} ({plays}): pick another instance on the left.",
+                    "Installs into {} ({plays}): switch it on the Play page.",
                     instance.name
                 )
             };
@@ -1008,7 +1026,7 @@ impl Launcher {
             return None;
         }
         Some(text(theme::CAPTION).text_color(self.theme.muted).child(trf(
-            "Installs into {instance}: pick another instance on the left.",
+            "Installs into {instance}: switch it on the Play page.",
             &[("instance", &instance.name)],
         )))
     }

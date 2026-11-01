@@ -142,7 +142,8 @@ impl Launcher {
         }
         // Players who answered the first-run question before the ping existed read about it
         // once here.
-        if !self.settings.ping_notice_seen && !self.collection.consent.needs_asking() {
+        // Hidden while the sign-in modal is up: it would cover the notice's Got it.
+        if !self.settings.ping_notice_seen && !self.collection.consent.needs_asking() && !self.asking_owner() {
             hero = hero.child(
                 crate::plate::plate(&n)
                     .flex()
