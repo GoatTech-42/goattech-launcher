@@ -3054,6 +3054,9 @@ pub struct Settings {
     /// Off by default, so the opening animation shows unless the player turns it off.
     #[serde(default)]
     pub skip_opening: bool,
+    /// On: page changes, switches and moving bars hold still. Unset means full motion.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reduce_motion: Option<bool>,
     /// Linux: whether the launcher keeps its entry in the applications menu (`desktop`). Unset
     /// means yes; removing the entry stores `false`, so it doesn't come back on the next start.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3116,6 +3119,11 @@ pub struct Settings {
 impl Settings {
     pub fn load() -> Self {
         Self::parse(&fs::read_to_string(data_dir().join("settings.json")).unwrap_or_default())
+    }
+
+    /// Motion the player asked to hold still (Settings > Launcher > Reduce motion).
+    pub fn reduce_motion(&self) -> bool {
+        self.reduce_motion.unwrap_or(false)
     }
     pub fn parse(text: &str) -> Self {
         let Ok(mut value) = serde_json::from_str::<serde_json::Value>(text) else {
@@ -3212,6 +3220,14 @@ mod tests {
     /// The launcher downloads Mojang's game files (client jar, libraries, assets) only for an
     /// account the services said owns the game: never without one, and never past the gate by
     /// the developer option (`Settings::dev_offline`), whose pass has no owner.
+    /// Reduce motion is off unless the player turns it on, and the file's value parses.
+    #[test]
+    fn reduce_motion_is_off_unless_chosen() {
+        assert!(!Settings::default().reduce_motion());
+        assert!(!Settings::parse("{}").reduce_motion());
+        assert!(Settings::parse("{\"reduce_motion\":true}").reduce_motion());
+    }
+
     #[test]
     fn mojang_downloads_only_for_an_owner() {
         let dir = std::env::temp_dir().join(format!("horizon-owner-only-{}", std::process::id()));

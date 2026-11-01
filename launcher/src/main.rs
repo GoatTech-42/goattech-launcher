@@ -161,6 +161,17 @@ enum Load<T> {
 
 const LOG_LINES: usize = 2000;
 
+/// Settings > Reduce motion, cached: the render path cannot read settings.json every frame.
+static REDUCE_MOTION: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+fn reduce_motion() -> bool {
+    REDUCE_MOTION.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+fn set_reduce_motion(on: bool) {
+    REDUCE_MOTION.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
 struct Launcher {
     theme: Theme,
     page: Page,
@@ -391,6 +402,7 @@ impl Launcher {
         .detach();
         let mut settings = Settings::load();
         i18n::set(settings.language());
+        set_reduce_motion(settings.reduce_motion());
         if settings.minecraft_dir.is_none() {
             settings.minecraft_dir = backend::default_minecraft_dir();
         }
@@ -1425,14 +1437,18 @@ fn hover_fade(
     };
     let ease = || Animation::new(theme::QUICK).with_easing(ease_out_quint());
     if let Some((_, at)) = state.on.as_ref().filter(|(h, _)| h == id) {
-        return layer()
-            .with_animation(key("in", *at), ease(), paint)
-            .into_any_element();
+        let shown = layer();
+        return match reduce_motion() {
+            true => shown.into_any_element(),
+            false => shown
+                .with_animation(key("in", *at), ease(), paint)
+                .into_any_element(),
+        };
     }
     if let Some((_, at)) = state
         .off
         .as_ref()
-        .filter(|(h, at)| h == id && at.elapsed() < theme::QUICK)
+        .filter(|(h, at)| h == id && at.elapsed() < theme::QUICK && !reduce_motion())
     {
         return layer()
             .with_animation(key("out", *at), ease(), move |d, t| paint(d, 1. - t))
@@ -1630,7 +1646,32 @@ fn sync_system_clipboard(text: String) {
 fn switch(id: impl Into<SharedString>, on: bool, t: &Theme) -> Stateful<Div> {
     let t = *t;
     let id: SharedString = id.into();
-    let knob = if on { t.on_face } else { t.muted };
+    let face = if on { t.on_face } else { t.muted };
+    let knob = div()
+        .absolute()
+        .top(px(2.))
+        .size(px(16.))
+        .bg(face)
+        .child(
+            div()
+                .absolute()
+                .bottom_0()
+                .left_0()
+                .right_0()
+                .h(px(2.))
+                .bg(if on { t.face_lip } else { t.lip }),
+        );
+    // The knob slides where the switch flips, and holds still under Reduce motion.
+    let knob = match reduce_motion() {
+        true => knob.left(px(if on { 22. } else { 2. })).into_any_element(),
+        false => knob
+            .with_animation(
+                ElementId::named_usize(id.clone(), on as usize),
+                Animation::new(theme::MOVE).with_easing(ease_out_quint()),
+                move |d, p| d.left(px(if on { 2. + 20. * p } else { 22. - 20. * p })),
+            )
+            .into_any_element(),
+    };
     keyboard(div().id(id.clone()), &t)
         .relative()
         .flex_none()
@@ -1640,27 +1681,7 @@ fn switch(id: impl Into<SharedString>, on: bool, t: &Theme) -> Stateful<Div> {
         .border_color(t.outline)
         .cursor_pointer()
         .bg(if on { t.face } else { t.well })
-        .child(
-            div()
-                .absolute()
-                .top(px(2.))
-                .size(px(16.))
-                .bg(knob)
-                .child(
-                    div()
-                        .absolute()
-                        .bottom_0()
-                        .left_0()
-                        .right_0()
-                        .h(px(2.))
-                        .bg(if on { t.face_lip } else { t.lip }),
-                )
-                .with_animation(
-                    ElementId::named_usize(id, on as usize),
-                    Animation::new(theme::MOVE).with_easing(ease_out_quint()),
-                    move |d, p| d.left(px(if on { 2. + 20. * p } else { 22. - 20. * p })),
-                ),
-        )
+        .child(knob)
 }
 
 /// A section's title inside a page: a pixel icon in the accent and the name in the pixel face.
@@ -2807,6 +2828,15 @@ impl Launcher {
                 cx.notify();
             },
         ));
+        let reduce = switch("reduce-motion", self.settings.reduce_motion(), &t).on_click(
+            cx.listener(|this, _: &ClickEvent, _, cx| {
+                let on = !this.settings.reduce_motion();
+                this.settings.reduce_motion = Some(on);
+                this.settings.save();
+                set_reduce_motion(on);
+                cx.notify();
+            }),
+        );
         // Linux: the launcher's entry in the applications menu (`horizon_launcher::desktop`).
         let menu_entry = switch("desktop-entry", self.settings.desktop_entry(), &t).on_click(
             cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -2981,6 +3011,13 @@ impl Launcher {
                         tr("Show the opening"),
                         Some(plain("The wordmark, while the release list loads.")),
                         Some(opening.into_any_element()),
+                        &t,
+                    ))
+                    .child(index_row(
+                        n + 3,
+                        tr("Reduce motion"),
+                        Some(plain("Page changes, switches and moving bars hold still.")),
+                        Some(reduce.into_any_element()),
                         &t,
                     ))
                     .child(group("Network", "globe"))
@@ -3905,12 +3942,17 @@ fn progress_bar(fraction: Option<(f32, f32)>, t: &Theme) -> Div {
     match fraction {
         Some((from, to)) => {
             let (from, to) = (from.clamp(0.02, 1.), to.clamp(0.02, 1.));
-            track.child(bar.left_0().with_animation(
-                ElementId::named_usize("bar", (to * 1000.) as usize),
-                Animation::new(theme::MOVE).with_easing(ease_out_quint()),
-                move |d, p| d.w(relative(from + (to - from) * p)),
-            ))
+            if reduce_motion() {
+                track.child(bar.left_0().w(relative(to)))
+            } else {
+                track.child(bar.left_0().with_animation(
+                    ElementId::named_usize("bar", (to * 1000.) as usize),
+                    Animation::new(theme::MOVE).with_easing(ease_out_quint()),
+                    move |d, p| d.w(relative(from + (to - from) * p)),
+                ))
+            }
         }
+        None if reduce_motion() => track.child(bar.left_0().w(relative(0.3))),
         None => track.child(
             bar.w(relative(0.3)).with_animation(
                 "shuttle",
@@ -3963,12 +4005,17 @@ impl Render for Launcher {
             .w_full()
             // Let the page shrink inside the padded flex row so long notices can wrap.
             .min_w_0()
-            .child(content)
-            .with_animation(
-                ElementId::named_usize("page", self.switches),
-                Animation::new(theme::ENTER).with_easing(ease_out_quint()),
-                |d, p| d.opacity(p).top(px(theme::RISE * (1. - p))),
-            );
+            .child(content);
+        let content = match reduce_motion() {
+            true => content.into_any_element(),
+            false => content
+                .with_animation(
+                    ElementId::named_usize("page", self.switches),
+                    Animation::new(theme::ENTER).with_easing(ease_out_quint()),
+                    |d, p| d.opacity(p).top(px(theme::RISE * (1. - p))),
+                )
+                .into_any_element(),
+        };
         let (reveal, held) = self.opening_phase(window);
         let ui = ease_out_cubic((reveal - 0.3) / 0.7);
         if self.opening.is_none() && window.focused(cx).is_none() {

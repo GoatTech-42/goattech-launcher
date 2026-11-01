@@ -305,6 +305,8 @@ impl Launcher {
                     };
                     let mut text_col = div()
                         .flex()
+                        .flex_1()
+                        .min_w_0()
                         .flex_col()
                         .gap(px(2.))
                         .child(
@@ -346,7 +348,7 @@ impl Launcher {
                             .border_2()
                             .border_color(t.outline)
                             .child(text_col)
-                            .child(b)
+                            .child(b.flex_none())
                             .into_any_element(),
                     );
                 }
