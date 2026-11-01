@@ -380,6 +380,18 @@ fn mods_that_could_never_load_are_refused_or_left_behind_never_silent() {
 }
 
 #[test]
+fn qt_unescape_matches_the_writers_output() {
+    // Qt's writer on real values (the two-pass replace corrupted the first two, review 15:09):
+    assert_eq!(qt_unescape("C:\\\\new"), "C:\\new"); // a Windows path, as instance.cfg stores it
+    assert_eq!(qt_unescape("one\\ntwo"), "one\ntwo"); // a multi-line note
+    assert_eq!(qt_unescape("back\\\\slash"), "back\\slash");
+    assert_eq!(qt_unescape("\\\\n"), "\\n"); // a literal backslash then n
+    assert_eq!(qt_unescape("say \\t hi"), "say \\t hi"); // not an escape: kept
+    assert_eq!(qt_unescape("ends\\\\"), "ends\\");
+    assert_eq!(qt_unescape("plain"), "plain");
+}
+
+#[test]
 fn prism_notes_carry_to_the_imported_instance() {
     let root = scratch("prism-notes");
     let pack = root.join("instances/Noted");

@@ -151,15 +151,36 @@ pub fn prism_instance(dir: &Path, launcher: &'static str) -> Option<Found> {
         name,
         minecraft: Some(minecraft),
         loader,
-        notes: cfg.as_deref().and_then(|t| ini_value(t, "notes")).map(|n| {
-            // shortcut: only `\n` and `\\` are unescaped, the two escapes Qt's INI writer
-            // (Prism/MultiMC) puts in a multi-line value; upgrade to a full unescape if a
-            // real instance.cfg ever shows another one.
-            n.replace("\\n", "\n").replace("\\\\", "\\")
-        }),
+        notes: cfg.as_deref().and_then(|t| ini_value(t, "notes")).map(|n| qt_unescape(&n)),
         game,
         shared: false,
     })
+}
+
+/// Qt's INI writer (Prism/MultiMC's instance.cfg) escapes a backslash as `\\` and a newline
+/// as `\n`; anything else stays as written. Unescaped in ONE pass, left to right: two global
+/// replaces are not order-safe - stored `C:\\new` (a real Windows path in notes) would lose
+/// the second backslash and its `n` to a phantom newline (review 15:09).
+fn qt_unescape(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    let mut chars = value.chars();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+        match chars.next() {
+            Some('n') => out.push('\n'),
+            Some('\\') => out.push('\\'),
+            // Not one of Qt's two escapes: kept literally.
+            Some(other) => {
+                out.push('\\');
+                out.push(other);
+            }
+            None => out.push('\\'),
+        }
+    }
+    out
 }
 
 /// Every instance in a Prism or MultiMC folder (its root, or its `instances/` itself).
