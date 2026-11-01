@@ -1,10 +1,14 @@
 # Forge / NeoForge support plan
 
-Status: **plan, not started**. Today `loaders::Kind` is `Fabric | Quilt` only
-(`launcher/src/loaders.rs`). Imported Forge/NeoForge instances are listed but
-blocked with an explicit reason (never silently imported without mods), and
-new Java instances can pick Fabric or Quilt only. Luke's "import everything"
-scope does not accept dropping Forge/NeoForge mods, so this is owed work.
+Status: **implemented, verified, gated off**. `loaders::Kind` covers all four
+loaders; Forge and NeoForge install through the official-installer driver in
+`launcher/src/forge_install.rs` (route A below, chosen and built). The
+`Kind::installable()` gate still returns true for Fabric and Quilt only:
+new Java instances show Forge/NeoForge as "Not supported yet" cards, and
+imports of Forge/NeoForge instances keep their explicit block (never silently
+imported without mods). The flip is release-gate work, not done here. The
+"import everything" scope does not accept dropping Forge/NeoForge mods, so
+the flip remains owed work.
 
 ## Grounded installer behavior (checked 2026-10-31)
 
@@ -63,23 +67,38 @@ already manage runtimes (`crate::java`), so Java at install time is not a
 new dependency. One install runs once per (loader, version); the result
 is cached like the Fabric/Quilt profiles are.
 
-## Integration points
+## Verification (2026-11-01, goattech/main 45d60125f)
 
-- `loaders::Kind`: add `Forge` and `NeoForge`; `id()` returns `forge` /
-  `neoforge` (Modrinth's names, so the mod browser keeps filtering
-  correctly); `meta()` replaced by a per-kind version listing (Maven
-  metadata for these two).
-- `loaders::install` (`src/loaders.rs:175`): for Forge/NeoForge, download
-  the installer jar with `fetch_checked`, prepare the scratch dir under
-  `minecraft/`, run the installer with a picked Java home, then hand the
-  produced version id to the existing `java_launch::resolve` merge. The
-  `.downloaded` marker pattern (`backend::java_game`) caches the result.
-- `new_instance`: offer all four loaders for Java instances.
-- `other_launchers.rs`: replace the Forge/NeoForge block with real import
-  once launch works; keep the explicit unsupported reason until then.
-  `--no-mods` stays an explicit user choice, never the default.
-- Offline: an installed Forge/NeoForge instance must start offline like
-  Fabric/Quilt (everything already on disk after the one install).
+The ignored end-to-end tests in `launcher/src/loaders/tests.rs` were run for
+real on Linux against the official installers and Mojang's services:
+
+- `neoforge_installs_for_real`: installed NeoForge 21.1.265 for Minecraft
+  1.21.1 (79 libraries); produced profile, on-disk libraries, `classpath()`
+  and `java_launch::resolve` against the staged vanilla version all checked.
+- `forge_installs_for_real`: installed Forge 1.21.1-52.1.20 for Minecraft
+  1.21.1 (61 libraries); same checks.
+
+Both passed. This is the "installer driver is verified" precondition the
+`installable()` doc comment names; the flip itself (plus the new-instance
+cards and the import block lifting) stays gated until release sign-off.
+
+## Integration points (current state)
+
+- `loaders::Kind`: done - `Forge` / `NeoForge` with Modrinth ids and Maven
+  coordinates; `meta()` is `None` for both, version listing comes from Maven
+  metadata.
+- `loaders::install`: done - Forge/NeoForge route to `forge_install::install`,
+  which downloads the installer jar, prepares the scratch dir, picks or
+  downloads the Java the version needs, runs `--install-client`, and returns
+  the produced version id for the existing `java_launch::resolve` merge.
+  `backend::java_game`'s `.downloaded` marker caches the result; the next
+  start is offline, as for Fabric/Quilt.
+- `new_instance`: not done (gated) - Forge/NeoForge render as disabled
+  "Not supported yet" cards.
+- `other_launchers.rs`: not done (gated) - Forge/NeoForge imports keep the
+  explicit unsupported block; `--no-mods` stays an explicit user choice.
+- Offline start after install: covered by the same profile/library cache as
+  Fabric/Quilt.
 
 ## Risks / open questions
 
@@ -88,7 +107,8 @@ is cached like the Fabric/Quilt profiles are.
   clear error, not a hang.
 - NeoForge legacy vs current Maven split (version string shape decides).
 - Forge's installer for old Minecraft versions (pre-1.13) predates
-  `install_profile.json`; decide a cutoff (suggest: support 1.13+ only,
-  say so in the UI) before implementing.
-- Processor outputs land in the shared `libraries/`; verify isolation
-  per instance vs shared cache (Fabric/Quilt share today; same model).
+  `install_profile.json`; resolved: the cutoff is 1.13, named up front by
+  `forge_install::install` before any download.
+- Processor outputs land in the shared `libraries/`; resolved: the shared
+  model stands, as for Fabric/Quilt, and the for-real installs verified the
+  jars land where `classpath()` looks.
