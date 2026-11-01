@@ -588,3 +588,35 @@ fn a_forge_instance_carries_its_loader_and_mods() {
     let _ = crate::instances::delete(&made.id);
     let _ = fs::remove_dir_all(&root);
 }
+
+#[test]
+fn a_legacy_neoforge_instance_carries_its_loader_and_mods() {
+    let root = scratch("neoforge-legacy-import");
+    let pack = root.join("instances/NeoPack");
+    write(
+        &pack.join("mmc-pack.json"),
+        &json!({"components": [{"uid": "net.minecraft", "version": "1.20.1"},
+            {"uid": "net.neoforged", "version": "47.1.106"}]}).to_string(),
+    );
+    write(&pack.join("minecraft/options.txt"), "opts");
+    write(&pack.join("minecraft/mods/a.jar"), "jar");
+
+    let found = prism_instances(&root, "Prism Launcher");
+    assert_eq!(found.len(), 1);
+    assert_eq!(mods_blocked(&found[0]), None);
+
+    let made = import(&found[0], "neo-copy", None, true).unwrap();
+    let listed = crate::instances::list();
+    let again = listed.iter().find(|i| i.id == made.id).unwrap();
+    // 1.20.1 NeoForge lives on the legacy artifact, Minecraft-prefixed like a Forge build.
+    assert_eq!(
+        again.java.as_ref().unwrap().loader,
+        Some(crate::loaders::Loader {
+            kind: crate::loaders::Kind::NeoForge,
+            version: "1.20.1-47.1.106".into()
+        })
+    );
+    assert!(made.home.join("mods/a.jar").is_file());
+    let _ = crate::instances::delete(&made.id);
+    let _ = fs::remove_dir_all(&root);
+}

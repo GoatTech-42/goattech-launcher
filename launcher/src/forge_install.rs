@@ -25,7 +25,7 @@ pub fn install(
     let name = loader.kind.name();
     let (base, coordinates) = loader
         .kind
-        .maven()
+        .maven_for(minecraft)
         .ok_or_else(|| format!("{name} has no installer"))?;
     // The `install_profile.json` layout this install drives landed with Minecraft 1.13;
     // older Forge installers carry the old format and would only fail deep in the zip read

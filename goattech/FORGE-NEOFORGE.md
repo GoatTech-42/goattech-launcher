@@ -75,8 +75,11 @@ real on Linux against the official installers and Mojang's services:
   and `java_launch::resolve` against the staged vanilla version all checked.
 - `forge_installs_for_real`: installed Forge 1.21.1-52.1.20 for Minecraft
   1.21.1 (61 libraries); same checks.
+- `legacy_neoforge_installs_for_real`: installed NeoForge 1.20.1-47.1.106 -
+  the legacy `net.neoforged:forge` artifact - for Minecraft 1.20.1 (83
+  libraries, Java 17); same checks.
 
-Both passed. This is the "installer driver is verified" precondition the
+All passed. This is the "installer driver is verified" precondition the
 `installable()` doc comment names; the flip itself (plus the new-instance
 cards and the import block lifting) stays gated until release sign-off.
 
@@ -106,7 +109,10 @@ cards and the import block lifting) stays gated until release sign-off.
 - Processor runtime and failure surface: first install downloads + runs
   several JVM tools; needs progress reporting on the install bar and a
   clear error, not a hang.
-- NeoForge legacy vs current Maven split (version string shape decides).
+- NeoForge legacy vs current Maven split; resolved: 1.20.1 builds come from
+  the legacy `net.neoforged:forge` artifact, Minecraft-prefixed like Forge's
+  (`neoforge_legacy`, `maven_for`, `maven_version`); 1.20.2+ uses the
+  `neoforge` artifact unprefixed.
 - Forge's installer for old Minecraft versions (pre-1.13) predates
   `install_profile.json`; resolved: the cutoff is 1.13, named up front by
   `forge_install::install` before any download.

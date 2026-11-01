@@ -70,13 +70,23 @@ impl Kind {
         }
     }
 
-    /// Its Maven repository and `group/artifact` path (Forge, NeoForge: installer jars).
+    /// Whether its profile comes from an installer jar's Maven artifact (Forge, NeoForge).
     pub(crate) fn maven(self) -> Option<(&'static str, &'static str)> {
         match self {
             Kind::Forge => Some(("https://maven.minecraftforge.net", "net/minecraftforge/forge")),
             Kind::NeoForge => Some(("https://maven.neoforged.net/releases", "net/neoforged/neoforge")),
             _ => None,
         }
+    }
+
+    /// Its Maven repository and `group/artifact` path for `minecraft`: NeoForge's 1.20.1
+    /// builds are its only ones on the legacy `net.neoforged:forge` artifact
+    /// (`neoforge_legacy`); every other Minecraft version uses the artifact `maven` names.
+    pub(crate) fn maven_for(self, minecraft: &str) -> Option<(&'static str, &'static str)> {
+        if matches!(self, Kind::NeoForge) && neoforge_legacy(minecraft) {
+            return Some(("https://maven.neoforged.net/releases", "net/neoforged/forge"));
+        }
+        self.maven()
     }
 
     /// The id its profile has: `fabric-loader-0.16.9-1.21.4`, or for a Forge-family loader the
@@ -287,9 +297,32 @@ pub fn install(
     Ok(id)
 }
 
+/// NeoForge's 1.20.1 builds are its only ones on the legacy `net.neoforged:forge` artifact,
+/// named with their Minecraft prefix (`1.20.1-47.1.106`) as Forge's are; from Minecraft 1.20.2
+/// the `neoforge` artifact carries unprefixed versions (`21.1.94`). (Checked against the live
+/// Maven metadata of both artifacts, 2026-11-01.)
+fn neoforge_legacy(minecraft: &str) -> bool {
+    minecraft == "1.20.1"
+}
+
+/// The Maven version a launcher record names: Maven names Forge and legacy NeoForge builds
+/// with their Minecraft prefix (`1.20.1-47.3.0`, `1.20.1-47.1.106`), while launcher records
+/// keep the bare build (`47.3.0`). Modern NeoForge (`21.1.94`) already matches its Maven names.
+pub fn maven_version(kind: Kind, minecraft: &str, recorded: &str) -> String {
+    let prefixed = matches!(kind, Kind::Forge)
+        || (matches!(kind, Kind::NeoForge) && neoforge_legacy(minecraft));
+    let prefix = format!("{minecraft}-");
+    if prefixed && !recorded.starts_with(&prefix) {
+        format!("{prefix}{recorded}")
+    } else {
+        recorded.to_string()
+    }
+}
+
 /// The prefix NeoForge versions carry for a Minecraft version: `1.21.1` plays NeoForge
 /// `21.1.*` (the Minecraft version without its leading `1.` and patch); a year-named Minecraft
-/// (`26.3`) plays `26.3.*`.
+/// (`26.3`) plays `26.3.*`. Legacy 1.20.1 builds are prefixed by the Minecraft version itself
+/// (`parse_maven_versions`).
 fn neoforge_prefix(minecraft: &str) -> Result<String, String> {
     let stripped = minecraft.strip_prefix("1.").unwrap_or(minecraft);
     let mut parts = stripped.split('.');
@@ -306,10 +339,12 @@ fn neoforge_prefix(minecraft: &str) -> Result<String, String> {
 /// A Forge-family loader's versions for `minecraft`, from its Maven metadata: the `<version>`
 /// entries under this Minecraft version's prefix, newest first. Forge names them
 /// `<minecraft>-<build>` (`1.21.1-52.1.20`, a tagged build like `-prune` is not stable);
-/// NeoForge `<prefix><build>` with betas carrying a `-` (`21.1.94-beta`).
+/// NeoForge `<prefix><build>` with betas carrying a `-` (`21.1.94-beta`), except its legacy
+/// 1.20.1 builds, named like Forge's (`neoforge_legacy`).
 pub fn parse_maven_versions(kind: Kind, text: &str, minecraft: &str) -> Result<Vec<Listed>, String> {
     let prefix = match kind {
         Kind::Forge => format!("{minecraft}-"),
+        Kind::NeoForge if neoforge_legacy(minecraft) => format!("{minecraft}-"),
         Kind::NeoForge => neoforge_prefix(minecraft)?,
         _ => return Err(format!("{} versions come from its service", kind.name())),
     };
@@ -341,7 +376,7 @@ pub fn parse_maven_versions(kind: Kind, text: &str, minecraft: &str) -> Result<V
 /// `kind`'s Forge-family versions for `minecraft`, fetched from its Maven metadata.
 fn maven_versions(kind: Kind, minecraft: &str, fetch: &Fetch) -> Result<Vec<Listed>, String> {
     let (base, path) = kind
-        .maven()
+        .maven_for(minecraft)
         .ok_or_else(|| format!("{} has no Maven repository", kind.name()))?;
     let body = fetch(&format!("{base}/{path}/maven-metadata.xml"))?;
     parse_maven_versions(kind, &String::from_utf8_lossy(&body), minecraft)
@@ -383,6 +418,60 @@ mod maven_tests {
         );
         assert!(listed[0].stable && listed[1].stable && listed[2].stable);
         assert!(!listed[3].stable, "a tagged build is not stable");
+    }
+
+    const NEO_LEGACY_META: &str = r#"<?xml version="1.0"?>
+<metadata><groupId>net.neoforged</groupId><artifactId>forge</artifactId>
+<versioning><latest>1.20.1-47.1.106</latest>
+<versions>
+<version>1.20.1-47.1.103</version>
+<version>1.20.1-47.1.104</version>
+<version>1.20.1-47.1.105</version>
+<version>1.20.1-47.1.106</version>
+<version>1.20.1-47.1.99</version>
+</versions></versioning></metadata>"#;
+
+    #[test]
+    fn legacy_neoforge_versions_are_minecraft_prefixed() {
+        let listed = parse_maven_versions(Kind::NeoForge, NEO_LEGACY_META, "1.20.1").unwrap();
+        let versions: Vec<&str> = listed.iter().map(|l| l.version.as_str()).collect();
+        assert_eq!(
+            versions,
+            vec![
+                "1.20.1-47.1.106",
+                "1.20.1-47.1.105",
+                "1.20.1-47.1.104",
+                "1.20.1-47.1.103",
+                "1.20.1-47.1.99"
+            ]
+        );
+        assert!(listed.iter().all(|l| l.stable));
+        assert_eq!(pick(Kind::NeoForge, &listed, None).unwrap(), "1.20.1-47.1.106");
+    }
+
+    #[test]
+    fn maven_version_names_a_recorded_build() {
+        // Forge builds are always Minecraft-prefixed in Maven.
+        assert_eq!(
+            maven_version(Kind::Forge, "1.20.1", "47.2.0"),
+            "1.20.1-47.2.0"
+        );
+        assert_eq!(
+            maven_version(Kind::Forge, "1.20.1", "1.20.1-47.2.0"),
+            "1.20.1-47.2.0"
+        );
+        // Legacy NeoForge (1.20.1) is too; modern NeoForge already matches Maven.
+        assert_eq!(
+            maven_version(Kind::NeoForge, "1.20.1", "47.1.106"),
+            "1.20.1-47.1.106"
+        );
+        assert_eq!(
+            maven_version(Kind::NeoForge, "1.20.1", "1.20.1-47.1.106"),
+            "1.20.1-47.1.106"
+        );
+        assert_eq!(maven_version(Kind::NeoForge, "1.21.1", "21.1.94"), "21.1.94");
+        // Fabric and Quilt versions come from their own services, untouched.
+        assert_eq!(maven_version(Kind::Fabric, "1.21.1", "0.16.9"), "0.16.9");
     }
 
     #[test]

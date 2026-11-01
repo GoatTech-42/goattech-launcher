@@ -630,13 +630,9 @@ pub fn import(
         return Err(format!("Could not copy {}: {e}", found.game.display()));
     }
     let loader = loader(found).map(|mut l| {
-        // Maven names a Forge build with its Minecraft prefix (`1.20.1-47.3.0`); launcher
-        // records keep the bare build (`47.3.0`). Name the installer the driver downloads.
-        // NeoForge builds already match its Maven names.
-        if l.kind == crate::loaders::Kind::Forge && !l.version.starts_with(&format!("{minecraft}-"))
-        {
-            l.version = format!("{minecraft}-{}", l.version);
-        }
+        // Name the build the way its Maven artifact does, so the installer download resolves
+        // (`loaders::maven_version`).
+        l.version = crate::loaders::maven_version(l.kind, minecraft, &l.version);
         l
     });
     let notes = found.notes.clone();
