@@ -1,0 +1,39 @@
+name: qual vk diag
+# One-off diagnostic, no build and no artifacts: which software Vulkan driver files and devices
+# exist on ubuntu-latest after installing mesa-vulkan-drivers. Runs only on a push to the one
+# branch named below.
+on:
+  push:
+    branches: [qual-vk-diag]
+
+permissions:
+  contents: read
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Image
+        run: |
+          grep -E '^(PRETTY_NAME|VERSION_ID)=' /etc/os-release
+          echo "ImageVersion=$ImageVersion"
+      - name: Install
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan1 mesa-vulkan-drivers vulkan-tools xvfb
+      - name: ICD files
+        run: |
+          ls -la /usr/share/vulkan/icd.d/ /etc/vulkan/icd.d/ 2>&1 || true
+          dpkg -L mesa-vulkan-drivers | grep -iE 'icd|lvp' || true
+          dpkg -s mesa-vulkan-drivers | grep -E '^Version'
+      - name: Devices per ICD file
+        run: |
+          Xvfb :99 -screen 0 1280x720x24 &
+          sleep 2
+          for f in /usr/share/vulkan/icd.d/*lvp*.json; do
+            echo "== $f"
+            DISPLAY=:99 VK_ICD_FILENAMES="$f" vulkaninfo --summary 2>&1 | grep -E 'deviceName|deviceType|driverName|Instance Version' | head -8 || true
+          done
+          echo "== default (no VK_ICD_FILENAMES)"
+          DISPLAY=:99 vulkaninfo --summary 2>&1 | grep -E 'deviceName|deviceType|GPU[0-9]' | head -8 || true
