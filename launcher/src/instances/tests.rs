@@ -451,3 +451,16 @@ fn a_banner_is_kept_small_and_goes_to_the_trash() {
     assert!(banner(b"not an image".to_vec()).is_err());
     fs::remove_dir_all(&root).unwrap();
 }
+
+#[test]
+fn meta_without_notes_reads_as_none_and_notes_roundtrip() {
+    // Old metadata (written before notes existed) must read as no notes, not fail.
+    let old: Meta = serde_json::from_str(r#"{"name": "Old", "group": "g"}"#).unwrap();
+    assert_eq!(old.notes, None);
+    let with: Meta = serde_json::from_str(r#"{"notes": "seed 42, village north"}"#).unwrap();
+    assert_eq!(with.notes.as_deref(), Some("seed 42, village north"));
+    let saved = serde_json::to_value(&with).unwrap();
+    assert_eq!(saved["notes"], "seed 42, village north");
+    // None stays out of the file.
+    assert!(serde_json::to_value(&old).unwrap().get("notes").is_none());
+}
