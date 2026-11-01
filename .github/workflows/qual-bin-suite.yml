@@ -5,7 +5,7 @@ name: qual bin suite
 # no pull_request.
 on:
   push:
-    branches: [qual-bin-suite-5fe01c426]
+    branches: [qual-icon-notes-combined]
 
 permissions:
   contents: read
