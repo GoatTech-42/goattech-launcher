@@ -514,7 +514,7 @@ pub fn fullscreen_request(
     }
 }
 
-/// Horizon's icon for the window's title bar and the task bar (X11 and Windows; Wayland takes
+/// The GoatTech icon for the window's title bar and the task bar (X11 and Windows; Wayland takes
 /// it from the `horizon.desktop` entry, macOS from the app bundle). `None` if it can't be read.
 pub fn icon() -> Option<winit::window::Icon> {
     let mut decoder = png::Decoder::new(std::io::Cursor::new(horizon_theme::WINDOW_ICON_PNG));
