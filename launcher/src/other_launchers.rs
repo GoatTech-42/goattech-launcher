@@ -446,8 +446,11 @@ fn copy_dir_no_links(from: &Path, to: &Path) -> std::io::Result<()> {
 /// The loader `found` runs, when Horizon installs it (Fabric, Quilt): at the same version.
 pub fn loader(found: &Found) -> Option<loaders::Loader> {
     let l = found.loader.as_ref()?;
-    Some(loaders::Loader {
-        kind: loaders::Kind::parse(l.name).ok()?,
+    let kind = loaders::Kind::parse(l.name).ok()?;
+    // Forge and NeoForge are known but not installed yet (`Kind::installable`): the import
+    // keeps its explicit block rather than carrying a loader Play could not start.
+    kind.installable().then(|| loaders::Loader {
+        kind,
         version: l.version.clone(),
     })
 }
@@ -474,7 +477,7 @@ pub fn mods_blocked(found: &Found) -> Option<String> {
         return None;
     }
     match &found.loader {
-        Some(l) if crate::loaders::Kind::parse(l.name).is_ok() => None,
+        Some(l) if crate::loaders::Kind::parse(l.name).is_ok_and(|k| k.installable()) => None,
         Some(l) => Some(format!(
             "{}'s {jars} mod(s) need {} {}, which this launcher doesn't install (Fabric and              Quilt only): without {} they never load.",
             found.name, l.name, l.version, l.name

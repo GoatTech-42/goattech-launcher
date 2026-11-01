@@ -51,7 +51,11 @@ fn versions_name_the_stable_ones() {
         "quilt-loader-0.19.2-1.21.4"
     );
     assert_eq!(Kind::parse(" Fabric ").unwrap(), Kind::Fabric);
-    assert!(Kind::parse("forge").is_err());
+    assert_eq!(Kind::parse("forge").unwrap(), Kind::Forge);
+    assert_eq!(Kind::parse("neoforge").unwrap(), Kind::NeoForge);
+    // Known, but not installed until the installer driver is verified.
+    assert!(!Kind::Forge.installable());
+    assert!(Kind::Fabric.installable());
 }
 
 #[test]

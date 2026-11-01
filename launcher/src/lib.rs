@@ -21,6 +21,7 @@ pub mod game_tools;
 pub mod java;
 pub mod java_launch;
 pub mod launch;
+pub mod forge_install;
 pub mod loaders;
 pub mod minecraft_versions;
 pub mod modpacks;

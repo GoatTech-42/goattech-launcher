@@ -3,7 +3,6 @@
 //! what's new and joining a friend.
 use super::*;
 use crate::plate::alpha;
-use horizon_launcher::instances::{Instance, Kind as InstanceKind};
 use crate::shell::{action, c, label, Action};
 use theme::night;
 
@@ -651,7 +650,7 @@ impl Launcher {
 
     /// What else the instance offers, under the hero card while it is not preparing: its
     /// version (Horizon), its mods, its folder.
-    pub(super) fn home_actions(&self, java: bool, cx: &mut Context<Self>) -> Div {
+    pub(super) fn home_actions(&self, _java: bool, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let folder = self.selected_instance().map(|i| i.home.clone());
         div()
