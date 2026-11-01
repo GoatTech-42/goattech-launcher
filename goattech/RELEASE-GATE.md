@@ -3,10 +3,12 @@
 "Goattech launcher has to be the best and reviewed as over a 9/10 by an
 independent unbiased review agent before any version publishes."
 
-The quote above is the requirement, in Luke's words. Everything below it
-is the review method built on it, not his words; the concrete criterion
-list and its weights are not user-approved yet and must be fixed with
-him before any review runs.
+The quote above is the whole requirement, in Luke's words (iMessage
+phonemsg-01M683H44R6CJ0D8Q0VNSF974E, 2026-10-30 21:29:48 PDT, his
+verified phone). Everything below it is the review method built on it,
+not his words. He did not ask to pre-approve criteria: the independent
+reviewer owns the criteria and the score, fixed and published with the
+verdict, never adjusted to make a release fit.
 
 ## What is gated
 
@@ -23,7 +25,7 @@ review protocol. This gate adds to that protocol; it does not replace it.
   interaction pixel-verified in a real run. Source, diffs, check and test
   output alone cannot earn the score; a build whose GUI is unverified
   cannot receive or pass a product review.
-- Fixed, transparent criteria, published before the review runs, with the
+- Fixed, transparent criteria, set by the reviewer and published with the
   review's evidence (captures, runs, flows exercised) attached to its
   verdict. The bar is not adjusted to make a release fit.
 
@@ -35,8 +37,8 @@ the built app, and returns a scored verdict with its evidence.
 
 ## Current status
 
-GUI qualification is blocked (no verified presentation route), so no
-product score is possible today and NO version may publish. The order is:
-working-app qualification -> independent review scoring over 9/10 ->
-Luke's publication decision. The launcher updater only ever sees a
-release after this gate has passed.
+A verified presentation route exists (the Xvfb capture recipe in
+goattech/REVIEW-PACKET.md), so a product review can run. The order is:
+independent review scoring over 9/10 on the actual running app -> Luke's
+publication decision. The launcher updater only ever sees a release
+after this gate has passed.
