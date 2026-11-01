@@ -54,6 +54,7 @@ fn prism_and_multimc_instances() {
                     version: "0.16.9".into()
                 }),
                 game: fabric.join("minecraft"),
+                icon: None,
                 shared: false,
             },
             Found {
@@ -65,6 +66,7 @@ fn prism_and_multimc_instances() {
                     version: "14.23.5.2860".into()
                 }),
                 game: old.join(".minecraft"),
+                icon: None,
                 shared: false,
             },
         ]
@@ -157,6 +159,7 @@ fn copies_an_instance_but_only_what_a_shared_folder_holds_for_one() {
         minecraft: Some("1.21.1".into()),
         loader: None,
         game: game.clone(),
+        icon: None,
         shared: false,
     };
     let listed = |dir: &Path| {
@@ -268,6 +271,7 @@ fn a_linked_file_or_folder_is_not_copied() {
         minecraft: None,
         loader: None,
         game,
+        icon: None,
         shared: false,
     };
     let to = root.join("copy");
@@ -315,6 +319,7 @@ fn mods_that_could_never_load_are_refused_or_left_behind_never_silent() {
         minecraft: Some("1.21.1".into()),
         loader: None,
         game: game.clone(),
+        icon: None,
         shared: false,
     };
 
@@ -436,4 +441,34 @@ fn atlauncher_loader_types_match_whatever_the_case() {
     }
     assert!(atlauncher_loader(&json!({"loaderVersion": {"type": "Forge"}})).is_none());
     assert!(atlauncher_loader(&json!({})).is_none());
+}
+#[test]
+fn prism_icons_carry() {
+    let root = scratch("prism-icons");
+    let pack = root.join("instances/Pack");
+    write(&pack.join("instance.cfg"), "[General]\nname=Pack\niconKey=custom\n");
+    write(
+        &pack.join("mmc-pack.json"),
+        &json!({"components": [{"uid": "net.minecraft", "version": "1.21.1"}]}).to_string(),
+    );
+    write(&pack.join("minecraft/saves/x/level.dat"), "dat");
+    write(&root.join("icons/custom.png"), "icon");
+    // Its own icon.png wins over the iconKey.
+    let own = root.join("instances/Own");
+    write(&own.join("instance.cfg"), "[General]\nname=Own\niconKey=custom\n");
+    write(
+        &own.join("mmc-pack.json"),
+        &json!({"components": [{"uid": "net.minecraft", "version": "1.21.1"}]}).to_string(),
+    );
+    write(&own.join("minecraft/options.txt"), "opts");
+    write(&own.join("icon.png"), "own");
+
+    let found = prism_instances(&root, "Prism Launcher");
+    assert_eq!(found[1].icon, Some(root.join("icons/custom.png")));
+    assert_eq!(found[0].icon, Some(own.join("icon.png")));
+
+    let to = root.join("imported");
+    copy_game(&found[1], &to).unwrap();
+    assert_eq!(fs::read(to.join("icon.png")).unwrap(), b"icon");
+    assert!(to.join("saves/x/level.dat").is_file());
 }

@@ -66,6 +66,9 @@ pub struct Found {
     pub loader: Option<Loader>,
     /// Its game folder: saves, mods, packs, options.
     pub game: PathBuf,
+    /// Its icon file, when the launcher keeps one for the instance (Prism/MultiMC):
+    /// [`copy_game`] puts it at the new home's `icon.png`, which its card then shows.
+    pub icon: Option<PathBuf>,
     /// The game folder is the launcher's own (the official launcher's default): only what an
     /// instance holds is copied, not the launcher's versions, libraries and assets.
     pub shared: bool,
@@ -149,10 +152,11 @@ pub fn prism_instance(dir: &Path, launcher: &'static str) -> Option<Found> {
         .map(|g| dir.join(g))
         .find(|g| g.is_dir())
         .unwrap_or_else(|| dir.join("minecraft"));
+    let cfg = fs::read_to_string(dir.join("instance.cfg")).ok();
     let folder = dir.file_name()?.to_string_lossy().into_owned();
-    let name = fs::read_to_string(dir.join("instance.cfg"))
-        .ok()
-        .and_then(|t| ini_value(&t, "name"))
+    let name = cfg
+        .as_deref()
+        .and_then(|t| ini_value(t, "name"))
         .filter(|n| !n.is_empty())
         .unwrap_or(folder);
     Some(Found {
@@ -160,9 +164,31 @@ pub fn prism_instance(dir: &Path, launcher: &'static str) -> Option<Found> {
         name,
         minecraft: Some(minecraft),
         loader,
+        icon: prism_icon(dir, cfg.as_deref()),
         game,
         shared: false,
     })
+}
+
+/// A Prism/MultiMC instance's icon file: its own `icon.png`, else the `iconKey` of its
+/// instance.cfg looked up in the launcher's shared `icons/` folder (beside `instances/`),
+/// else none (its card falls back to its mark, like any instance without a picture).
+fn prism_icon(dir: &Path, cfg: Option<&str>) -> Option<PathBuf> {
+    let own = dir.join("icon.png");
+    if own.is_file() {
+        return Some(own);
+    }
+    let key = cfg.and_then(|t| ini_value(t, "iconKey"))?;
+    let instances = dir.parent()?;
+    let root = if instances.file_name()? == "instances" {
+        instances.parent()?
+    } else {
+        instances
+    };
+    ["png", "jpg", "jpeg"]
+        .iter()
+        .map(|ext| root.join("icons").join(format!("{key}.{ext}")))
+        .find(|i| i.is_file())
 }
 
 /// Every instance in a Prism or MultiMC folder (its root, or its `instances/` itself).
@@ -249,6 +275,7 @@ pub fn official_profiles(root: &Path) -> Vec<Found> {
                 name,
                 minecraft: Some(minecraft),
                 loader,
+                icon: None,
                 shared: game.as_ref().is_none_or(|g| g == root),
                 game: game.unwrap_or_else(|| root.to_path_buf()),
             })
@@ -276,6 +303,7 @@ fn game_folders(dir: &Path, launcher: &'static str) -> Vec<Found> {
                 name: game.file_name()?.to_string_lossy().into_owned(),
                 minecraft: None,
                 loader: None,
+                icon: None,
                 game,
                 shared: false,
             };
@@ -362,6 +390,7 @@ pub fn atlauncher_instance(dir: &Path) -> Option<Found> {
         name,
         minecraft: Some(minecraft.to_string()),
         loader: atlauncher_loader(launcher),
+        icon: None,
         game: dir.to_path_buf(),
         shared: false,
     })
@@ -509,6 +538,13 @@ pub fn copy_game_skipping(found: &Found, to: &Path, skip_mods: bool) -> std::io:
             copy_dir_no_links(&entry.path(), &to.join(name.as_ref()))?;
         } else {
             fs::copy(entry.path(), to.join(name.as_ref()))?;
+        }
+    }
+    // The instance's icon from its launcher's folder; a link is never followed (the same
+    // reason the game folder's links stay behind).
+    if let Some(icon) = &found.icon {
+        if icon.symlink_metadata()?.is_file() && !icon.symlink_metadata()?.file_type().is_symlink() {
+            fs::copy(icon, to.join(crate::instances::PICTURE))?;
         }
     }
     Ok(())
