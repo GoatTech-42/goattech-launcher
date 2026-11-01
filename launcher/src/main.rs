@@ -2630,15 +2630,13 @@ impl Launcher {
             );
         let topbar = self.home_topbar(cx);
         let next = self.playing_next(cx);
-        let sections = self.home_sections(cx);
         let mut page = div()
             .flex()
             .flex_col()
             .gap(px(16.))
             .child(topbar)
             .child(banner)
-            .child(next)
-            .child(sections);
+            .child(next);
         if let Some(e) = self.prepare_error.clone() {
             page = page.child(notice(e, &t));
         }
