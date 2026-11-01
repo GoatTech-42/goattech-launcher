@@ -476,5 +476,6 @@
     "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Каждый экземпляр Java получает среду выполнения, которая нужна его версии: скачивается один раз и используется повторно при совпадении версий.",
     "{n} playing Horizon now": "Сейчас играют: {n}",
     "Preview player": "Preview player",
-    "Ready to launch": "Готово к запуску"
+    "Ready to launch": "Готово к запуску",
+    "Playing next": "Далее в очереди"
 }

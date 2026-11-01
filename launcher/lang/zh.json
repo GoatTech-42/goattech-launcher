@@ -476,5 +476,6 @@
     "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "每个 Java 实例获得其版本所需的运行时,下载一次,版本相同时重复使用。",
     "{n} playing Horizon now": "{n} 人正在游玩",
     "Preview player": "Preview player",
-    "Ready to launch": "就绪，可以启动"
+    "Ready to launch": "就绪，可以启动",
+    "Playing next": "接下来玩"
 }

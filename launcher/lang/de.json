@@ -476,5 +476,6 @@
     "Each Java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Jede Java-Instanz bekommt die Runtime, die ihre Version braucht - einmal heruntergeladen und wiederverwendet, wo die Versionen passen.",
     "{n} playing Horizon now": "{n} spielen gerade",
     "Preview player": "Preview player",
-    "Ready to launch": "Bereit zum Start"
+    "Ready to launch": "Bereit zum Start",
+    "Playing next": "Spielt als Nächstes"
 }

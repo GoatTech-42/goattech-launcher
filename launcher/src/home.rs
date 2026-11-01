@@ -64,7 +64,7 @@ impl Launcher {
             .flex_none()
             .flex_col()
             .items_center()
-            .gap(px(14.))
+            .gap(px(10.))
             .w_full()
             .child(
                 shell::text(night::DISPLAY, c(n.ink))
@@ -105,7 +105,7 @@ impl Launcher {
                     .bg(alpha(n.card, 0.6))
                     .px(px(10.))
                     .py(px(4.))
-                    .max_w(px(420.))
+                    .max_w(px(560.))
                     .child(
                         tr("Own runtime, mods and saves - nothing mixes with your other instances.")
                             .to_string(),
@@ -188,6 +188,229 @@ impl Launcher {
             );
         }
         hero
+    }
+
+
+    /// Home's top bar (the concept): the wordmark and version at the left, New instance and the
+    /// account at the right.
+    pub(super) fn home_topbar(&mut self, cx: &mut Context<Self>) -> Div {
+        let t = self.theme;
+        let n = t.night;
+        let (name, how) = self.who_plays();
+        let face = match self.accounts.player() {
+            account::Player::Microsoft(_) => self.accounts.selected().map(|a| a.uuid.clone()),
+            _ => None,
+        };
+        let picture = match face {
+            Some(uuid) => self.head(&uuid, 28.).into_any_element(),
+            None => div()
+                .flex()
+                .items_center()
+                .justify_center()
+                .size(px(28.))
+                .bg(alpha(n.card_hi, n.card_hi_alpha))
+                .child(blocks::icon("user", 16., c(n.muted)))
+                .into_any_element(),
+        };
+        let account = div()
+            .id("topbar-account")
+            .relative()
+            .flex()
+            .items_center()
+            .gap(px(10.))
+            .h(px(40.))
+            .px(px(10.))
+            .bg(alpha(n.card, n.card_alpha))
+            .border_1()
+            .border_color(alpha(n.stroke, n.stroke_alpha))
+            .cursor_pointer()
+            .child(div().relative().child(picture))
+            .child(
+                div()
+                    .relative()
+                    .flex()
+                    .flex_col()
+                    .child(
+                        shell::text(night::UI, c(n.ink))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .line_height(px(16.))
+                            .child(name),
+                    )
+                    .child(
+                        shell::text(night::CAPTION, c(n.muted))
+                            .line_height(px(13.))
+                            .child(how),
+                    ),
+            )
+            .child(
+                div()
+                    .relative()
+                    .child(blocks::icon("chevron-down", 16., c(n.muted))),
+            )
+            .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
+                if this.closed_by_this_press(event) {
+                    return;
+                }
+                this.account_menu = !this.account_menu;
+                if this.account_menu {
+                    // Who can play may have changed elsewhere since the window opened.
+                    this.accounts = Accounts::load();
+                }
+                cx.notify();
+            }));
+        let account = div()
+            .relative()
+            .child(account)
+            .children(self.account_menu(cx));
+        div()
+            .flex()
+            .flex_none()
+            .items_center()
+            .justify_between()
+            .child(
+                div()
+                    .flex()
+                    .items_baseline()
+                    .gap(px(10.))
+                    .child(
+                        shell::text(night::TITLE, c(n.ink))
+                            .font_family(theme::PIXEL)
+                            .text_size(px(20.))
+                            .child("goattech"),
+                    )
+                    .child(
+                        shell::text(night::CAPTION, c(n.muted))
+                            .font_family(theme::MONO)
+                            .child(backend::VERSION),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(10.))
+                    .child(
+                        shell::action("topbar-new-instance", shell::Action::Raised, &t)
+                            .child(
+                                div()
+                                    .relative()
+                                    .child(blocks::icon("plus", 16., c(n.ink))),
+                            )
+                            .child(shell::label(tr("New instance").to_string()))
+                            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                                this.pick_kind(new_instance::NewKind::Modded, cx);
+                                cx.notify();
+                            })),
+                    )
+                    .child(account),
+            )
+    }
+
+    /// The concept's bottom row: every instance as a square card that selects it, then a dashed
+    /// New instance card.
+    pub(super) fn playing_next(&mut self, cx: &mut Context<Self>) -> Div {
+        let t = self.theme;
+        let n = t.night;
+        if self.instances.list.len() < 2 {
+            return div();
+        }
+        let selected_id = self.selected_instance().map(|i| i.id.clone());
+        let mut row = div().flex().flex_wrap().gap(px(12.));
+        for instance in self.instances.list.clone() {
+            let active = selected_id.as_ref() == Some(&instance.id);
+            let icon = self.instance_icon(&instance, 40.);
+            let sub = match self.version_of(&instance) {
+                Some(tag) => horizon_launcher::nightly::label(tag)
+                    .unwrap_or_else(|| tag.trim_start_matches('v').to_string()),
+                None => instance
+                    .java
+                    .as_ref()
+                    .map(|j| format!("Minecraft {}", j.minecraft))
+                    .unwrap_or_default(),
+            };
+            let clicked = instance.clone();
+            row = row.child(
+                div()
+                    .id(SharedString::from(format!("next-{}", instance.id)))
+                    .relative()
+                    .flex()
+                    .flex_none()
+                    .flex_col()
+                    .items_center()
+                    .justify_center()
+                    .gap(px(6.))
+                    .size(px(112.))
+                    .bg(alpha(n.card, n.card_alpha))
+                    .border_1()
+                    .border_color(if active {
+                        alpha(n.ink, 0.9)
+                    } else {
+                        alpha(n.stroke, n.stroke_alpha)
+                    })
+                    .when(active, |d| d.border_b_4().border_color(c(n.muted)))
+                    .cursor_pointer()
+                    .child(div().relative().flex_none().child(icon))
+                    .child(
+                        shell::text(night::CAPTION, c(n.ink))
+                            .max_w(px(96.))
+                            .truncate()
+                            .child(instance.name.clone()),
+                    )
+                    .child(
+                        shell::text(night::CAPTION, c(n.muted))
+                            .text_size(px(10.))
+                            .max_w(px(96.))
+                            .truncate()
+                            .child(sub),
+                    )
+                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        this.select_instance(&clicked);
+                        cx.notify();
+                    })),
+            );
+        }
+        row = row.child(
+            div()
+                .id("next-new-instance")
+                .relative()
+                .flex()
+                .flex_none()
+                .flex_col()
+                .items_center()
+                .justify_center()
+                .gap(px(6.))
+                .size(px(112.))
+                .border_1()
+                .border_dashed()
+                .border_color(alpha(n.stroke, n.stroke_alpha * 2.))
+                .cursor_pointer()
+                .child(
+                    div()
+                        .relative()
+                        .child(blocks::icon("plus", 20., c(n.muted))),
+                )
+                .child(
+                    shell::text(night::CAPTION, c(n.muted))
+                        .text_size(px(10.))
+                        .child(tr("New instance").to_string().to_uppercase()),
+                )
+                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                    this.pick_kind(new_instance::NewKind::Modded, cx);
+                    cx.notify();
+                })),
+        );
+        div()
+            .flex()
+            .flex_none()
+            .flex_col()
+            .gap(px(10.))
+            .child(
+                shell::text(night::CAPTION, c(n.muted))
+                    .font_family(theme::PIXEL)
+                    .text_size(px(10.))
+                    .child(tr("Playing next").to_string().to_uppercase()),
+            )
+            .child(row)
     }
 
     /// The home stage's center (concept Home): the player model, 3D-projected from its skin,

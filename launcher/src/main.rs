@@ -2378,7 +2378,6 @@ impl Launcher {
             None => self.hero(&tag, &version, prepared, cx),
         };
         // The buttons under the hero card; while it prepares, its busy Play owns the moment.
-        let actions = (!self.preparing).then(|| self.home_actions(java.is_some(), cx));
         let left = self.download_left();
         let steps = self.preparing.then(|| self.steps(&version, left));
 
@@ -2603,11 +2602,11 @@ impl Launcher {
             .flex()
             .flex_col()
             .justify_end()
-            .min_h(px(340.))
+            .min_h(px(200.))
             .mx(px(-theme::PAGE_GUTTER))
             .px(px(theme::PAGE_GUTTER))
-            .pb(px(28.))
-            .gap(px(24.))
+            .pb(px(16.))
+            .gap(px(16.))
             .overflow_hidden()
             .children(picture.into_iter().flatten())
             .child(
@@ -2624,14 +2623,22 @@ impl Launcher {
                             .flex_col()
                             .gap(px(28.))
                             .child(hero)
-                            .children(actions)
                             // The preparation's steps right under Play, where the player looks
                             // after pressing it, not below the fold (#666).
                             .children(steps),
                     )
             );
+        let topbar = self.home_topbar(cx);
+        let next = self.playing_next(cx);
         let sections = self.home_sections(cx);
-        let mut page = div().flex().flex_col().gap(px(28.)).child(banner).child(sections);
+        let mut page = div()
+            .flex()
+            .flex_col()
+            .gap(px(16.))
+            .child(topbar)
+            .child(banner)
+            .child(next)
+            .child(sections);
         if let Some(e) = self.prepare_error.clone() {
             page = page.child(notice(e, &t));
         }
