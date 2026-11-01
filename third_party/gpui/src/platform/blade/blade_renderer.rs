@@ -643,12 +643,18 @@ impl BladeRenderer {
     }
 
     pub fn draw(&mut self, scene: &Scene) {
-        // GOATTECH DEV PROBE (not for release): GOATTECH_SHOT=/path.ppm dumps frame 2's
-        // rendered pixels to a file, bypassing the (failing) swapchain present path.
+        // GOATTECH DEV PROBE (not for release): GOATTECH_SHOT=/path.ppm dumps the rendered
+        // pixels of frame GOATTECH_SHOT_AT (default 2; boot frames animate before the window's
+        // real UI exists, so captures point it past the splash) to a file, bypassing the
+        // (failing) swapchain present path.
         if let Ok(path) = std::env::var("GOATTECH_SHOT") {
             static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
             let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            if n == 1 {
+            let at: u32 = std::env::var("GOATTECH_SHOT_AT")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(2);
+            if n + 1 == at {
                 self.goattech_dump = Some((path, 0u32));
             }
         }

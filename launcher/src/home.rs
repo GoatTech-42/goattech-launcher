@@ -21,7 +21,6 @@ impl Launcher {
         let t = self.theme;
         let n = t.night;
         let instance = self.selected_instance().cloned();
-        let icon = instance.clone().map(|i| self.instance_icon(&i, 56.));
         let name = instance
             .as_ref()
             .map_or(
@@ -30,122 +29,87 @@ impl Launcher {
             )
             .to_string();
         let java = instance.as_ref().and_then(|i| i.java.as_ref()).cloned();
-        // Fact chips: kind, loader, Minecraft, mods. Real values only - a chip is absent, never
-        // a placeholder, while its fact is unread.
-        let mut chips: Vec<Div> = Vec::new();
+        // The subtitle's facts: kind, loader, Minecraft, mods. Real values only - a fact is
+        // absent, never a placeholder, while it is unread.
+        let mut facts: Vec<String> = Vec::new();
         match &java {
             Some(j) => {
-                chips.push(shell::chip_tag("Java", &t));
+                facts.push("Java".to_string());
                 if let Some(l) = &j.loader {
-                    chips.push(shell::chip_tag(
-                        format!("{} {}", l.kind.name(), l.version),
-                        &t,
-                    ));
+                    facts.push(format!("{} {}", l.kind.name(), l.version));
                 }
-                chips.push(shell::chip_tag(format!("Minecraft {}", j.minecraft), &t));
+                facts.push(format!("Minecraft {}", j.minecraft));
             }
             None if !tag.is_empty() => {
-                chips.push(shell::chip_tag("Horizon engine", &t));
-                chips.push(shell::chip_tag(
+                facts.push(
                     format!(
                         "Horizon {}",
                         horizon_launcher::nightly::label(tag)
                             .unwrap_or_else(|| tag.trim_start_matches('v').to_string())
                     ),
-                    &t,
-                ));
-                chips.push(shell::chip_tag(format!("Minecraft {game}"), &t));
+                );
+                facts.push(format!("Minecraft {game}"));
             }
             None => {}
         }
         if let Some(mods) = self.instance_mods_count(cx) {
-            chips.push(shell::chip_tag(
-                trf("{n} mods", &[("n", &mods.to_string())]),
-                &t,
-            ));
+            facts.push(trf("{n} mods", &[("n", &mods.to_string())]));
         }
-        if let Some(playing) = self.playing {
-            chips.push(shell::chip_tag(
-                trf("{n} playing Horizon now", &[("n", &thousands(playing))]),
-                &t,
-            ));
-        }
-        // The state is a word next to its square - never the square's colour alone.
-        let status = div()
-            .flex()
-            .flex_none()
-            .items_center()
-            .gap(px(6.))
-            .h(px(22.))
-            .px(px(9.))
-            .rounded(px(11.))
-            .bg(alpha(n.card_hi, n.card_hi_alpha))
-            .child(
-                div()
-                    .flex_none()
-                    .size(px(6.))
-                    .bg(if prepared { t.success } else { t.warn }),
-            )
-            .child(
-                shell::text(night::CAPTION, c(n.muted))
-                    .child(tr(if prepared { "Ready" } else { "Needs preparing" }).to_string()),
-            );
         let ready = prepared || java.is_some();
-        let mut hero = crate::plate::plate(&n)
+        // The concept Home: everything centered over the open sky - the instance's name, the
+        // player stage, the split Play, its state as a word, then the fact chips.
+        let mut hero = div()
+            .relative()
             .flex()
             .flex_none()
             .flex_col()
-            .gap(px(12.))
-            .p(px(28.))
+            .items_center()
+            .gap(px(14.))
             .w_full()
             .child(
-                shell::text(night::CAPTION, c(n.muted))
-                    .relative()
-                    .child(tr("Playing next").to_string()),
+                shell::text(night::DISPLAY, c(n.ink))
+                    .font_family(theme::PIXEL)
+                    .text_size(px(30.))
+                    .line_height(px(34.))
+                    .child(name.clone()),
             )
+            .child(self.home_stage())
+            .child(self.play_action(ready, cx))
             .child(
-                div()
-                    .relative()
-                    .flex()
-                    .items_center()
-                    .gap(px(16.))
-                    .children(icon)
+                shell::text(night::CAPTION, if prepared { t.success } else { t.warn })
+                    .font_family(theme::PIXEL)
+                    .text_size(px(10.))
                     .child(
-                        shell::text(night::DISPLAY, c(n.ink))
-                            .min_w_0()
-                            .truncate()
-                            .child(name),
+                        tr(if prepared {
+                            "Ready to launch"
+                        } else {
+                            "Needs preparing"
+                        })
+                        .to_string()
+                        .to_uppercase(),
                     ),
             )
             .child(
-                div()
+                shell::text(night::UI, c(n.ink_soft))
                     .relative()
-                    .flex()
-                    .flex_wrap()
-                    .items_center()
-                    .gap(px(8.))
-                    .child(status)
-                    .children(chips),
+                    .child(facts.join("  ·  ")),
             )
-            .child(self.home_stage())
-            .child(
-                div()
+            .children(self.playing.map(|playing| {
+                shell::text(night::CAPTION, c(n.muted))
                     .relative()
-                    .flex()
-                    .flex_wrap()
-                    .items_center()
-                    .justify_between()
-                    .gap(px(16.))
-                    .pt(px(12.))
+                    .child(trf("{n} playing Horizon now", &[("n", &thousands(playing))]))
+            }))
+            // Words sit on a plate where the sky would cross them (docs/design-system.md).
+            .child(
+                shell::text(night::CAPTION, c(n.muted))
+                    .bg(alpha(n.card, 0.6))
+                    .px(px(10.))
+                    .py(px(4.))
+                    .max_w(px(420.))
                     .child(
-                        shell::text(night::CAPTION, c(n.muted))
-                            .max_w(px(420.))
-                            .child(
-                                tr("Own runtime, mods and saves - nothing mixes with your other instances.")
-                                    .to_string(),
-                            ),
-                    )
-                    .child(self.play_action(ready, cx)),
+                        tr("Own runtime, mods and saves - nothing mixes with your other instances.")
+                            .to_string(),
+                    ),
             )
             .children(instance.map(|i| {
                 shell::text(night::UI, c(n.ink_soft))
@@ -255,6 +219,7 @@ impl Launcher {
                 b
             }
         };
+        let (who, _) = self.who_plays();
         let mut stage = div()
             .relative()
             .flex()
@@ -266,7 +231,7 @@ impl Launcher {
             .child(
                 shell::text(night::CAPTION, c(n.ink))
                     .font_family(theme::PIXEL)
-                    .child("PLAYER"),
+                    .child(who.to_uppercase()),
             );
         if let Some(i) = baked {
             stage = stage.child(
@@ -315,6 +280,8 @@ impl Launcher {
                         })
                 }));
         }
+        let press = play_press(ready, self.owner, self.preparing || running);
+        let live = !matches!(press, PlayPress::Nothing);
         let mut play = action("play", Action::Main, &t)
             .min_w(px(320.))
             .child(
@@ -325,7 +292,7 @@ impl Launcher {
             .child(label(
                 tr(if running { "Running" } else { "LAUNCH" }).to_string(),
             ));
-        match play_press(ready, self.owner, self.preparing || running) {
+        match press {
             PlayPress::Nothing => play = disabled(play),
             PlayPress::Play => {
                 play = play.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -343,7 +310,61 @@ impl Launcher {
                 }))
             }
         }
-        div().flex().relative().items_center().child(play)
+        // The concept's split Play: LAUNCH with its attached chevron opening the version menu.
+        let mut split = div()
+            .relative()
+            .flex()
+            .items_center()
+            .child(play)
+            .child(
+                keyboard(
+                    track_hover(
+                        div()
+                            .id("play-versions")
+                            .relative()
+                            .flex()
+                            .flex_none()
+                            .items_center()
+                            .justify_center()
+                            .h(px(night::PLAY))
+                            .w(px(56.))
+                            .ml(px(3.))
+                            .opacity(if live { 1. } else { 0.45 })
+                            .cursor_pointer()
+                            .child(
+                                crate::plate::cut(
+                                    night::PIXEL_CORNER,
+                                    1,
+                                    Some(alpha(t.night.accent, 1.)),
+                                    None,
+                                )
+                                .absolute()
+                                .top_0()
+                                .left_0()
+                                .size_full(),
+                            )
+                            .child(
+                                div().relative().child(blocks::icon(
+                                    "chevron-down",
+                                    20.,
+                                    c(t.night.on_accent),
+                                )),
+                            )
+                            .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
+                                if !this.closed_by_this_press(event) {
+                                    this.picker_open = !this.picker_open;
+                                }
+                                cx.notify();
+                            })),
+                        SharedString::from("play-versions"),
+                    ),
+                    &t,
+                ),
+            );
+        if let Some(menu) = self.picker_menu(cx) {
+            split = split.child(menu);
+        }
+        div().flex().relative().items_center().child(split)
     }
 
     /// What else the instance offers, under the hero card while it is not preparing: its
@@ -356,8 +377,6 @@ impl Launcher {
             .flex_wrap()
             .items_center()
             .gap(px(10.))
-            // Horizon's versions don't apply to a Java instance.
-            .children((!java).then(|| self.picker(cx)))
             .child(
                 action("home-mods", Action::Quiet, &t)
                     .child(label(tr("Mods").to_string()))

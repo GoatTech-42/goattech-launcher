@@ -28,7 +28,7 @@ pub const RADIUS_PLATE: f32 = 0.;
 pub const CONTROL: f32 = 34.;
 /// The top bar, and the sidebar of instances and servers.
 pub const TOPBAR: f32 = 56.;
-pub const SIDEBAR: f32 = 232.;
+pub const SIDEBAR: f32 = 76.;
 pub const PAGE_GUTTER: f32 = 32.;
 
 /// Motion: short and eased out, never bouncy.

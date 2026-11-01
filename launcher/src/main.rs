@@ -106,7 +106,7 @@ impl Page {
 
     /// Every page, with its name and icon: the sidebar's nav shows them all.
     const ALL: [(Page, &'static str, &'static str); 7] = [
-        (Page::Play, "Home", "home"),
+        (Page::Play, "Play", "home"),
         (Page::Instances, "Instances", "box"),
         (Page::Mods, "Mods", "package"),
         (Page::Servers, "Servers", "server"),
@@ -1974,17 +1974,33 @@ impl Launcher {
         let n = t.night;
         self.load_packs();
         // The pages' nav under the wordmark (the concept shell has no top bar).
-        let mut nav = div().flex().flex_none().flex_col().gap(px(2.)).mt(px(4.));
+        // The slim icon rail: every page but Settings up top, Settings pinned at the foot.
+        let mut nav = div()
+            .flex()
+            .flex_none()
+            .flex_col()
+            .items_center()
+            .gap(px(4.))
+            .mt(px(4.));
         for (page, label, icon) in Page::ALL {
+            if page == Page::Settings {
+                continue;
+            }
             nav = nav.child(
-                shell::nav_item(format!("nav-{label}"), icon, tr(label).to_string(), self.page == page, &t)
-                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                        this.go(page);
-                        cx.notify();
-                    })),
+                shell::rail_item(
+                    format!("nav-{label}"),
+                    icon,
+                    tr(label).to_string().to_uppercase(),
+                    self.page == page,
+                    &t,
+                )
+                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                    this.go(page);
+                    cx.notify();
+                })),
             );
         }
-        let link = |id: &'static str, label: &'static str, icon: &'static str, url: String| {
+        let link = |id: &'static str, icon: &'static str, url: String| {
             let id = SharedString::from(id);
             track_hover(
                 div()
@@ -1992,9 +2008,8 @@ impl Launcher {
                     .relative()
                     .flex()
                     .items_center()
-                    .gap(px(10.))
-                    .h(px(32.))
-                    .px(px(8.))
+                    .justify_center()
+                    .size(px(32.))
                     .cursor_pointer()
                     .child(hover_layer(&id, shell::c(n.card_hi).opacity(0.5), 0., 0.))
                     .child(
@@ -2002,16 +2017,30 @@ impl Launcher {
                             .relative()
                             .child(blocks::icon(icon, 16., shell::c(n.muted))),
                     )
-                    .child(
-                        shell::text(theme::night::UI, shell::c(n.ink_soft))
-                            .relative()
-                            .child(label),
-                    )
                     .on_click(move |_, _, cx| cx.open_url(&url)),
                 id,
             )
         };
-        let mut foot = div().mt_auto().flex().flex_col().gap(px(2.)).pt(px(12.));
+        let mut foot = div()
+            .mt_auto()
+            .flex()
+            .flex_col()
+            .items_center()
+            .gap(px(6.))
+            .pt(px(12.));
+        foot = foot.child(
+            shell::rail_item(
+                "nav-Settings",
+                "sliders",
+                tr("Settings").to_string().to_uppercase(),
+                self.page == Page::Settings,
+                &t,
+            )
+            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                this.go(Page::Settings);
+                cx.notify();
+            })),
+        );
         let update = |line: String| {
             plate::plate(&n)
                 .flex()
@@ -2053,20 +2082,10 @@ impl Launcher {
         // GoatTech is ad-free (Luke, 2026-10-31): no partner card in the sidebar. The
         // partner module and its assets stay for attribution; nothing of it renders.
         if !self.links.discord.is_empty() {
-            foot = foot.child(link(
-                "discord",
-                "Discord",
-                "message",
-                self.links.discord.clone(),
-            ));
+            foot = foot.child(link("discord", "message", self.links.discord.clone()));
         }
         if !self.links.website.is_empty() {
-            foot = foot.child(link(
-                "website",
-                tr("Website"),
-                "globe",
-                self.links.website.clone(),
-            ));
+            foot = foot.child(link("website", "globe", self.links.website.clone()));
         }
         // Only a signed-in account says "Microsoft account"; otherwise an offline name, or the
         // one the game made up. A signed-in one shows its face (its UUID's default skin).
@@ -2086,29 +2105,15 @@ impl Launcher {
                 .child(blocks::icon("user", 16., shell::c(n.muted)))
                 .into_any_element(),
         };
-        let account = shell::chip("account", &t)
+        // The rail carries only the face; the name and its `how` are the menu's header.
+        let (name, how) = (name, how);
+        let _ = (&name, &how);
+        let account = div()
+            .id("account")
+            .relative()
+            .flex_none()
+            .cursor_pointer()
             .child(div().relative().child(picture))
-            .child(
-                div()
-                    .relative()
-                    .flex()
-                    .flex_col()
-                    .flex_1()
-                    .min_w_0()
-                    .overflow_hidden()
-                    .child(
-                        shell::text(theme::night::UI, shell::c(n.ink))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .line_height(px(16.))
-                            .truncate()
-                            .child(name),
-                    )
-                    .child(
-                        shell::text(theme::night::CAPTION, shell::c(n.muted))
-                            .truncate()
-                            .child(how),
-                    ),
-            )
             .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
                 if this.closed_by_this_press(event) {
                     return;
@@ -2128,9 +2133,9 @@ impl Launcher {
         foot = foot.child(
             shell::text(theme::night::CAPTION, shell::c(n.muted))
                 .id("launcher-version")
-                .px(px(8.))
-                .pt(px(6.))
-                .child(format!("Launcher {}", backend::VERSION))
+                .text_size(px(9.))
+                .pt(px(2.))
+                .child(backend::VERSION)
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.version_clicked();
                     cx.notify();
@@ -2138,27 +2143,32 @@ impl Launcher {
         );
         // Custom title bars carry the mark and name already. The concept wordmark: the name in
         // the display face over a small "launcher".
+        // The concept rail's white square mark (a placeholder "G" until the real logo lands:
+        // todo-01M69KCZGBBKGXWB9EQSTY2N24).
         let brand = (!titlebar::draws_brand(window)).then(|| {
             div()
                 .flex()
                 .flex_none()
-                .flex_col()
+                .items_center()
                 .justify_center()
                 .h(px(theme::TOPBAR))
-                .px(px(8.))
                 .child(
-                    shell::text(theme::night::TITLE, shell::c(n.ink))
-                        .font_family(theme::DISPLAY_FONT)
-                        .font_weight(FontWeight::BOLD)
-                        .text_size(px(21.))
-                        .line_height(px(23.))
-                        .child("goattech"),
-                )
-                .child(
-                    shell::text(theme::night::CAPTION, shell::c(n.muted))
-                        .text_size(px(11.))
-                        .line_height(px(14.))
-                        .child("launcher"),
+                    div()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .size(px(40.))
+                        .bg(shell::c(n.ink))
+                        .border_b_4()
+                        .border_color(shell::c(n.muted))
+                        .child(
+                            shell::text(theme::night::TITLE, shell::c(n.page))
+                                .font_family(theme::PIXEL)
+                                .font_weight(FontWeight::BOLD)
+                                .text_size(px(24.))
+                                .line_height(px(26.))
+                                .child("G"),
+                        ),
                 )
         });
         shell::sidebar_plate(&t)
@@ -2168,7 +2178,7 @@ impl Launcher {
             .flex_none()
             .w(px(theme::SIDEBAR))
             .h_full()
-            .px(px(10.))
+            .px(px(6.))
             .pb(px(12.))
             .overflow_y_scroll()
             .children(brand)
@@ -2226,7 +2236,20 @@ impl Launcher {
                     cx.notify();
                 })),
         );
-        if self.picker_open {
+        if let Some(menu) = self.picker_menu(cx) {
+            wrap = wrap.child(menu);
+        }
+        wrap
+    }
+
+    /// The version menu, anchored by its caller (the picker's button, Play's chevron).
+    fn picker_menu(&self, cx: &mut Context<Self>) -> Option<gpui::Deferred> {
+        let t = self.theme;
+        let n = t.night;
+        if !self.picker_open {
+            return None;
+        }
+        {
             let mut menu = div()
                 .absolute()
                 .top(px(theme::night::PLAY + 6.))
@@ -2304,9 +2327,8 @@ impl Launcher {
                         cx.notify();
                     })),
             );
-            wrap = wrap.child(gpui::deferred(menu).with_priority(1));
+            return Some(gpui::deferred(menu).with_priority(1));
         }
-        wrap
     }
 
     fn play_page(&mut self, cx: &mut Context<Self>) -> Div {
@@ -2607,8 +2629,6 @@ impl Launcher {
                             // after pressing it, not below the fold (#666).
                             .children(steps),
                     )
-                    // Notes and friends are Horizon's.
-                    .children(java.is_none().then(|| self.home_card(&tag, cx))),
             );
         let sections = self.home_sections(cx);
         let mut page = div().flex().flex_col().gap(px(28.)).child(banner).child(sections);

@@ -184,6 +184,58 @@ pub fn nav_item(
     )
 }
 
+
+/// A stop on the slim icon rail (the concept's NoRisk-style rail): the icon over its pixel
+/// label in a square; the active page is a white square with a chunky bottom lip.
+pub fn rail_item(
+    id: impl Into<SharedString>,
+    icon: &'static str,
+    label: String,
+    active: bool,
+    t: &Theme,
+) -> Stateful<Div> {
+    let id = id.into();
+    let n = t.night;
+    let fg = if active { n.page } else { n.muted };
+    let mut d = div()
+        .id(id.clone())
+        .relative()
+        .flex()
+        .flex_none()
+        .flex_col()
+        .items_center()
+        .justify_center()
+        .gap(px(3.))
+        .w(px(64.))
+        .h(px(52.))
+        .cursor_pointer();
+    if active {
+        d = d.bg(c(n.ink)).border_b_4().border_color(c(n.muted));
+    } else {
+        d = d.child(hovered(&id, 1, t));
+    }
+    keyboard(
+        track_hover(
+            d.child(
+                div()
+                    .relative()
+                    .flex_none()
+                    .child(crate::blocks::icon(icon, 20., c(fg))),
+            )
+            .child(
+                text(night::CAPTION, c(fg))
+                    .font_family(crate::theme::PIXEL)
+                    .text_size(px(9.))
+                    .line_height(px(11.))
+                    .relative()
+                    .child(label),
+            ),
+            id,
+        ),
+        t,
+    )
+}
+
 /// A small fact chip on a card (concept Home): raised ground, pill, an 11px muted label.
 pub fn chip_tag(label: impl Into<SharedString>, t: &Theme) -> Div {
     let n = t.night;
