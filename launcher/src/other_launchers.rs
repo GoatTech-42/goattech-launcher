@@ -166,6 +166,17 @@ fn prism_icon(dir: &Path, cfg: Option<&str>) -> Option<PathBuf> {
         return Some(own);
     }
     let key = cfg.and_then(|t| ini_value(t, "iconKey"))?;
+    // iconKeys are plain names ("steelfeathers"). A path-like one (`../`, an absolute
+    // Windows key) would escape `icons/`, and an import only ever reads inside the folder
+    // it was given - reject it rather than follow it.
+    if key.is_empty()
+        || key.contains("..")
+        || !key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, ' ' | '_' | '+' | '.' | '-'))
+    {
+        return None;
+    }
     let instances = dir.parent()?;
     let root = if instances.file_name()? == "instances" {
         instances.parent()?
@@ -449,10 +460,15 @@ pub fn copy_game_skipping(found: &Found, to: &Path, skip_mods: bool) -> std::io:
         }
     }
     // The instance's icon from its launcher's folder; a link is never followed (the same
-    // reason the game folder's links stay behind).
+    // reason the game folder's links stay behind). It is cosmetic: a missing or unreadable
+    // one skips quietly, it never fails the import.
     if let Some(icon) = &found.icon {
-        if icon.symlink_metadata()?.is_file() && !icon.symlink_metadata()?.file_type().is_symlink() {
-            fs::copy(icon, to.join(crate::instances::PICTURE))?;
+        let carried = icon
+            .symlink_metadata()
+            .map(|meta| meta.is_file() && !meta.file_type().is_symlink())
+            .unwrap_or(false);
+        if carried {
+            let _ = fs::copy(icon, to.join(crate::instances::PICTURE));
         }
     }
     Ok(())
