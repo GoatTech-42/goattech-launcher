@@ -1,14 +1,12 @@
 # Forge / NeoForge support plan
 
-Status: **implemented, verified, gated off**. `loaders::Kind` covers all four
+Status: **implemented and verified**. `loaders::Kind` covers all four
 loaders; Forge and NeoForge install through the official-installer driver in
-`launcher/src/forge_install.rs` (route A below, chosen and built). The
-`Kind::installable()` gate still returns true for Fabric and Quilt only:
-new Java instances show Forge/NeoForge as "Not supported yet" cards, and
-imports of Forge/NeoForge instances keep their explicit block (never silently
-imported without mods). The flip is release-gate work, not done here. The
-"import everything" scope does not accept dropping Forge/NeoForge mods, so
-the flip remains owed work.
+`launcher/src/forge_install.rs` (route A below, chosen and built), for
+Minecraft 1.13 and newer. New Java instances offer all four loaders, and
+Forge/NeoForge imports carry their loader and mods. What a working install
+does not prove is a signed-in game launch: that check waits on Mojang's
+approval of the launcher's app registration, as does every launch.
 
 ## Grounded installer behavior (checked 2026-10-31)
 
@@ -93,10 +91,13 @@ cards and the import block lifting) stays gated until release sign-off.
   the produced version id for the existing `java_launch::resolve` merge.
   `backend::java_game`'s `.downloaded` marker caches the result; the next
   start is offline, as for Fabric/Quilt.
-- `new_instance`: not done (gated) - Forge/NeoForge render as disabled
-  "Not supported yet" cards.
-- `other_launchers.rs`: not done (gated) - Forge/NeoForge imports keep the
-  explicit unsupported block; `--no-mods` stays an explicit user choice.
+- `new_instance`: done - all four loaders are real cards (Forge/NeoForge
+  render without a service logo, as only Fabric and Quilt have one).
+- `other_launchers.rs`: done - Forge/NeoForge imports carry their loader and
+  mods; the recorded bare Forge build is named with its Minecraft prefix for
+  the Maven installer download. A Forge/NeoForge whose Minecraft predates the
+  1.13 layout keeps the explicit block, and `--no-mods` stays an explicit
+  user choice.
 - Offline start after install: covered by the same profile/library cache as
   Fabric/Quilt.
 

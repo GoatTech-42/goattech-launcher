@@ -526,13 +526,24 @@ fn copy_dir_no_links(from: &Path, to: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// The loader `found` runs, when Horizon installs it (Fabric, Quilt): at the same version.
+/// The loader `found` runs, when this launcher installs it: at the same version. A Forge or
+/// NeoForge whose Minecraft predates the installer driver's 1.13 layout stays blocked
+/// (`forge_install::supports`), as Play could never start it.
 pub fn loader(found: &Found) -> Option<loaders::Loader> {
     let l = found.loader.as_ref()?;
     let kind = loaders::Kind::parse(l.name).ok()?;
-    // Forge and NeoForge are known but not installed yet (`Kind::installable`): the import
-    // keeps its explicit block rather than carrying a loader Play could not start.
-    kind.installable().then(|| loaders::Loader {
+    if !kind.installable() {
+        return None;
+    }
+    if kind.maven().is_some()
+        && found
+            .minecraft
+            .as_deref()
+            .is_some_and(|m| !crate::forge_install::supports(m))
+    {
+        return None;
+    }
+    Some(loaders::Loader {
         kind,
         version: l.version.clone(),
     })
@@ -551,23 +562,40 @@ fn mod_jars(found: &Found) -> usize {
 }
 
 /// Why `found`'s mods would never load in a copy, when they would not: the loader they need is
-/// one this launcher doesn't install (Forge, NeoForge), or none is recorded at all. Vanilla
-/// Minecraft ignores everything in `mods/`, so copying the jars without saying so would look
-/// like the mods came along when they did not.
+/// one this launcher doesn't install, or a Forge/NeoForge whose Minecraft predates the
+/// installer driver's 1.13 layout, or none is recorded at all. Vanilla Minecraft ignores
+/// everything in `mods/`, so copying the jars without saying so would look like the mods came
+/// along when they did not.
 pub fn mods_blocked(found: &Found) -> Option<String> {
     let jars = mod_jars(found);
     if jars == 0 {
         return None;
     }
-    match &found.loader {
-        Some(l) if crate::loaders::Kind::parse(l.name).is_ok_and(|k| k.installable()) => None,
-        Some(l) => Some(format!(
-            "{}'s {jars} mod(s) need {} {}, which this launcher doesn't install (Fabric and              Quilt only): without {} they never load.",
-            found.name, l.name, l.version, l.name
-        )),
-        None => Some(format!(
-            "{} comes with {jars} mod(s), but {} records no mod loader for it: plain Minecraft              doesn't load mods, and which loader they need is unknown.",
+    let Some(l) = found.loader.as_ref() else {
+        return Some(format!(
+            "{} comes with {jars} mod(s), but {} records no mod loader for it: plain Minecraft doesn't load mods, and which loader they need is unknown.",
             found.name, found.launcher
+        ));
+    };
+    match crate::loaders::Kind::parse(l.name) {
+        Ok(k) if k.installable() => {
+            if k.maven().is_some()
+                && found
+                    .minecraft
+                    .as_deref()
+                    .is_some_and(|m| !crate::forge_install::supports(m))
+            {
+                Some(format!(
+                    "{}'s {jars} mod(s) need {} {}, but {} before 1.13 predates the install layout this launcher drives: without {} they never load.",
+                    found.name, l.name, l.version, k.name(), l.name
+                ))
+            } else {
+                None
+            }
+        }
+        _ => Some(format!(
+            "{}'s {jars} mod(s) need {} {}, which this launcher doesn't install: without {} they never load.",
+            found.name, l.name, l.version, l.name
         )),
     }
 }
@@ -601,7 +629,16 @@ pub fn import(
         let _ = instances::delete(&instance.id);
         return Err(format!("Could not copy {}: {e}", found.game.display()));
     }
-    let loader = loader(found);
+    let loader = loader(found).map(|mut l| {
+        // Maven names a Forge build with its Minecraft prefix (`1.20.1-47.3.0`); launcher
+        // records keep the bare build (`47.3.0`). Name the installer the driver downloads.
+        // NeoForge builds already match its Maven names.
+        if l.kind == crate::loaders::Kind::Forge && !l.version.starts_with(&format!("{minecraft}-"))
+        {
+            l.version = format!("{minecraft}-{}", l.version);
+        }
+        l
+    });
     let notes = found.notes.clone();
     if loader.is_some() || notes.is_some() {
         // edit returns the instance as written, so the caller (and --json) never sees the

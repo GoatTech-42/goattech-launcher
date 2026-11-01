@@ -32,7 +32,7 @@ pub fn install(
     // (goattech/FORGE-NEOFORGE.md).
     // Name the cutoff up front instead. Unknown version shapes (snapshots) pass through to the
     // installer's own Minecraft check below.
-    if matches!(minecraft_minor(minecraft), Some(minor) if minor < 13) {
+    if !supports(minecraft) {
         return Err(format!(
             "{name} needs Minecraft 1.13 or newer: older installers predate the layout this install drives"
         ));
@@ -119,6 +119,13 @@ pub fn install(
 }
 
 /// The minor in `1.<minor>...`, when `minecraft` is a release-style version id.
+/// Whether this driver can install for `minecraft`: the `install_profile.json` layout it
+/// drives landed with Minecraft 1.13. Unknown version shapes (snapshots) pass through to the
+/// installer's own Minecraft check, as `install` does.
+pub fn supports(minecraft: &str) -> bool {
+    !matches!(minecraft_minor(minecraft), Some(minor) if minor < 13)
+}
+
 fn minecraft_minor(minecraft: &str) -> Option<u64> {
     let mut parts = minecraft.split('.');
     if parts.next()? != "1" {

@@ -43,11 +43,11 @@ impl Kind {
         }
     }
 
-    /// Whether the launcher installs it today: Fabric and Quilt. Forge and NeoForge's
-    /// installer driver (`crate::forge_install`) is verified before this flips
-    /// (goattech/FORGE-NEOFORGE.md); until then imports keep their explicit block.
+    /// Whether the launcher installs it today: all four. Forge and NeoForge go through the
+    /// verified installer driver (`crate::forge_install`, goattech/FORGE-NEOFORGE.md), which
+    /// covers Minecraft 1.13+ (`forge_install::supports`).
     pub fn installable(self) -> bool {
-        matches!(self, Kind::Fabric | Kind::Quilt)
+        true
     }
 
     /// As Modrinth and the instance's settings name it: `fabric`, `quilt`.

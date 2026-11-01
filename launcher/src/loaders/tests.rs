@@ -54,8 +54,10 @@ fn versions_name_the_stable_ones() {
     assert_eq!(Kind::parse("forge").unwrap(), Kind::Forge);
     assert_eq!(Kind::parse("neoforge").unwrap(), Kind::NeoForge);
     // Known, but not installed until the installer driver is verified.
-    assert!(!Kind::Forge.installable());
+    assert!(Kind::Forge.installable());
+    assert!(Kind::NeoForge.installable());
     assert!(Kind::Fabric.installable());
+    assert!(Kind::Quilt.installable());
 }
 
 #[test]
