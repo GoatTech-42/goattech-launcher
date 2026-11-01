@@ -137,7 +137,7 @@ impl Launcher {
         let said = if custom {
             tr("Your picture, behind Home, cropped to fill it.")
         } else {
-            tr("Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.")
+            tr("GoatTech's landscape. Pick a PNG, JPEG or WebP picture of your own.")
         };
         let detail = div().flex().flex_col().child(said.to_string()).children(
             self.background_error

@@ -688,7 +688,7 @@ impl Launcher {
         let plays = self.version_of(&instance).cloned();
         let base = native_mods::base_for(plays.as_deref(), &self.installed, false);
         let Some(base) = base else {
-            self.native_error = Some(tr("Install Horizon first.").into());
+            self.native_error = Some(tr("Install GoatTech first.").into());
             return;
         };
         let folder = match self.native_mods_to_build() {
@@ -2477,7 +2477,7 @@ impl Launcher {
             || {
                 div()
                     .child(if owner {
-                        tr("None needed: Horizon downloads Minecraft from Mojang for your account.")
+                        tr("None needed: GoatTech downloads Minecraft from Mojang for your account.")
                     } else {
                         tr("Not found. Choose the folder where your launcher keeps Minecraft.")
                     })
@@ -2656,7 +2656,7 @@ impl Launcher {
         page
     }
 
-    /// "Horizon crashed": the report and the logs, and where to report it.
+    /// "GoatTech crashed": the report and the logs, and where to report it.
     fn crash_notice(&self, crash: Crash, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let mut actions = div().flex().flex_wrap().gap(px(8.)).mt(px(8.));
@@ -2732,7 +2732,7 @@ impl Launcher {
             .child(
                 text(theme::HEADING)
                     .text_color(t.ink)
-                    .child(tr("Horizon crashed")),
+                    .child(tr("GoatTech crashed")),
             );
         if !crash.summary.is_empty() {
             body = body.child(div().text_color(t.ink_soft).child(crash.summary));

@@ -404,7 +404,7 @@ impl Launcher {
                 .child(self.invite_section(&ip, port, cx)),
         );
         panel = panel.child(line(
-            tr("Horizon never turns on Funnel: the server isn't put on the public internet, only shared with the people you invite.")
+            tr("GoatTech never turns on Funnel: the server isn't put on the public internet, only shared with the people you invite.")
                 .into(),
         ));
         self.internet_message(panel)
