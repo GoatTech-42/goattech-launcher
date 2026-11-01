@@ -542,7 +542,7 @@ impl Launcher {
                     }),
             );
         match press {
-            PlayPress::Nothing => play = disabled(play),
+            PlayPress::Nothing => play = play.opacity(0.6).cursor_default().tab_stop(false),
             PlayPress::Play => {
                 play = play.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.picker_open = false;
@@ -594,7 +594,7 @@ impl Launcher {
                                 crate::plate::cut(
                                     night::PIXEL_CORNER,
                                     1,
-                                    Some(alpha(t.night.stroke, 0.18)),
+                                    Some(alpha(t.night.stroke, 0.30)),
                                     None,
                                 )
                                 .absolute()
