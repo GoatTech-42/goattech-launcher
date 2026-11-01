@@ -3713,7 +3713,7 @@ pub fn {f}("
     }
 
     #[test]
-    fn the_accent_is_violet_unless_picked_and_an_unknown_one_keeps_the_rest() {
+    fn the_accent_is_mono_unless_picked_and_an_unknown_one_keeps_the_rest() {
         use crate::themes::Accent;
         // GoatTech fork: the default accent is Mono (upstream: Violet).
         assert_eq!(Settings::parse("{}").accent, Accent::Mono);

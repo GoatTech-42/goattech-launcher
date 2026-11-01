@@ -135,7 +135,7 @@
   "Horizon mods": "Horizon 模组",
   "Horizon never turns on Funnel: the server isn't put on the public internet, only shared with the people you invite.": "Horizon 绝不会开启 Funnel：服务器不会暴露在公共互联网上，仅与受邀好友共享。",
   "Horizon's landscape. Pick a PNG, JPEG or WebP picture of your own.": "Horizon 的风景图。可以选择你自己的 PNG、JPEG 或 WebP 图片。",
-  "Horizon's violet by default. Every colour keeps text as easy to read.": "默认为 Horizon 紫。每种颜色都能让文字保持同样易读。",
+  "True monochrome by default. Every colour keeps text as easy to read.": "默认为纯单色。每种颜色都能让文字保持同样易读。",
   "Host a world for your friends on this computer. Create one, press Start, and give them the address.": "在此计算机上为好友托管世界。创建一个服务器，点击“启动”，然后将地址发给他们。",
   "I read it and trust it: install": "我已阅读并信任：安装",
   "Import": "Import",
