@@ -74,7 +74,7 @@ impl Launcher {
                     .child(name.clone()),
             )
             .child(self.home_stage())
-            .child(self.play_action(ready, cx))
+            .child(self.play_action(ready, &facts.join("  ·  "), cx))
             .child(
                 shell::text(night::CAPTION, if prepared { t.success } else { t.warn })
                     .font_family(theme::PIXEL)
@@ -88,11 +88,6 @@ impl Launcher {
                         .to_string()
                         .to_uppercase(),
                     ),
-            )
-            .child(
-                shell::text(night::UI, c(n.ink_soft))
-                    .relative()
-                    .child(facts.join("  ·  ")),
             )
             .children(self.playing.map(|playing| {
                 shell::text(night::CAPTION, c(n.muted))
@@ -314,7 +309,7 @@ impl Launcher {
         let mut row = div().flex().flex_wrap().gap(px(12.));
         for instance in self.instances.list.clone() {
             let active = selected_id.as_ref() == Some(&instance.id);
-            let icon = self.instance_icon(&instance, 40.);
+            let played = instances_page::played_line(&instance);
             let sub = match self.version_of(&instance) {
                 Some(tag) => horizon_launcher::nightly::label(tag)
                     .unwrap_or_else(|| tag.trim_start_matches('v').to_string()),
@@ -332,32 +327,45 @@ impl Launcher {
                     .flex()
                     .flex_none()
                     .flex_col()
-                    .items_center()
                     .justify_center()
-                    .gap(px(6.))
-                    .size(px(112.))
+                    .gap(px(4.))
+                    .w(px(220.))
+                    .h(px(84.))
+                    .px(px(14.))
                     .bg(alpha(n.card, n.card_alpha))
                     .border_1()
-                    .border_color(if active {
-                        alpha(n.ink, 0.9)
-                    } else {
-                        alpha(n.stroke, n.stroke_alpha)
-                    })
-                    .when(active, |d| d.border_b_4().border_color(c(n.muted)))
+                    .border_color(alpha(n.stroke, n.stroke_alpha))
                     .cursor_pointer()
-                    .child(div().relative().flex_none().child(icon))
+                    .when(active, |d| {
+                        d.child(
+                            div()
+                                .absolute()
+                                .left_0()
+                                .top_0()
+                                .bottom_0()
+                                .w(px(2.))
+                                .bg(c(n.ink)),
+                        )
+                    })
                     .child(
-                        shell::text(night::CAPTION, c(n.ink))
-                            .max_w(px(96.))
+                        shell::text(night::UI, c(n.ink))
+                            .w_full()
                             .truncate()
                             .child(instance.name.clone()),
                     )
                     .child(
                         shell::text(night::CAPTION, c(n.muted))
                             .text_size(px(10.))
-                            .max_w(px(96.))
+                            .w_full()
                             .truncate()
                             .child(sub),
+                    )
+                    .child(
+                        shell::text(night::CAPTION, c(n.muted))
+                            .text_size(px(10.))
+                            .w_full()
+                            .truncate()
+                            .child(played),
                     )
                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                         this.select_instance(&clicked);
@@ -375,7 +383,8 @@ impl Launcher {
                 .items_center()
                 .justify_center()
                 .gap(px(6.))
-                .size(px(112.))
+                .w(px(220.))
+                .h(px(84.))
                 .border_1()
                 .border_dashed()
                 .border_color(alpha(n.stroke, n.stroke_alpha * 2.))
@@ -466,7 +475,7 @@ impl Launcher {
 
     /// Play itself, the hero card's big button: while it prepares, the busy state and Cancel.
     /// `ready`: prepared, or a Java instance (its game comes with Play).
-    pub(super) fn play_action(&self, ready: bool, cx: &mut Context<Self>) -> Div {
+    pub(super) fn play_action(&self, ready: bool, subtitle: &str, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let running = self.client.is_some() || self.starting_client.is_some();
         if self.preparing {
@@ -501,16 +510,37 @@ impl Launcher {
         }
         let press = play_press(ready, self.owner, self.preparing || running);
         let live = !matches!(press, PlayPress::Nothing);
+        // The concept's Play wears the instance's facts as a small second line.
         let mut play = action("play", Action::Main, &t)
             .min_w(px(320.))
             .child(
                 div()
-                    .relative()
-                    .child(blocks::icon("play", 20., c(t.night.on_accent))),
-            )
-            .child(label(
-                tr(if running { "Running" } else { "LAUNCH" }).to_string(),
-            ));
+                    .flex()
+                    .flex_col()
+                    .items_center()
+                    .gap(px(3.))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(10.))
+                            .child(
+                                div()
+                                    .relative()
+                                    .child(blocks::icon("play", 20., c(t.night.on_accent))),
+                            )
+                            .child(label(
+                                tr(if running { "Running" } else { "LAUNCH" }).to_string(),
+                            )),
+                    )
+                    .when(!subtitle.is_empty(), |d| {
+                        d.child(
+                            shell::text(theme::MICRO, c(t.night.on_accent).opacity(0.65))
+                                .text_size(px(9.))
+                                .child(subtitle.to_uppercase()),
+                        )
+                    }),
+            );
         match press {
             PlayPress::Nothing => play = disabled(play),
             PlayPress::Play => {
@@ -564,7 +594,7 @@ impl Launcher {
                                 crate::plate::cut(
                                     night::PIXEL_CORNER,
                                     1,
-                                    Some(alpha(t.night.accent, 1.)),
+                                    Some(alpha(t.night.card_hi, 1.)),
                                     None,
                                 )
                                 .absolute()
