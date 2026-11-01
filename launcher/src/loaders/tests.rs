@@ -163,3 +163,87 @@ fn the_real_loaders_install() {
         fs::remove_dir_all(&dir).unwrap();
     }
 }
+
+/// Real end-to-end run of NeoForge's official installer: downloads its jar and the Java it
+/// needs, then installs into a scratch game dir. Ignored: needs the network, a Java download,
+/// and a couple of minutes.
+#[test]
+#[ignore = "downloads NeoForge's installer and Java for real"]
+fn neoforge_installs_for_real() {
+    let dir = std::env::temp_dir().join(format!("horizon-it-neoforge-{}", std::process::id()));
+    // Stage vanilla 1.21.1 the way the play path does before installing a loader.
+    let listed = crate::minecraft_versions::load().unwrap();
+    let v = listed.find("1.21.1").unwrap();
+    let vdir = dir.join("versions").join("1.21.1");
+    std::fs::create_dir_all(&vdir).unwrap();
+    let json = crate::backend::get_bytes(&v.url).unwrap();
+    std::fs::write(vdir.join("1.21.1.json"), &json).unwrap();
+    let parsed: serde_json::Value = serde_json::from_slice(&json).unwrap();
+    let client = parsed["downloads"]["client"]["url"].as_str().unwrap();
+    std::fs::write(vdir.join("1.21.1.jar"), crate::backend::get_bytes(client).unwrap()).unwrap();
+    let loader = choose("neoforge", "1.21.1", None).unwrap();
+    let start = install(&loader, "1.21.1", &dir, &crate::backend::get_bytes, &|l| println!("{l}"))
+        .unwrap();
+    let json = dir.join("versions").join(&start).join(format!("{start}.json"));
+    let profile: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&json).unwrap()).unwrap();
+    let libraries = profile["libraries"].as_array().unwrap();
+    assert!(!libraries.is_empty());
+    for l in libraries {
+        assert!(
+            l["downloads"]["artifact"]["path"].is_string(),
+            "{} lacks downloads.artifact.path",
+            l["name"]
+        );
+    }
+    // The installer's own libraries are on disk where classpath() looks for them. (The
+    // vanilla parent's, merged by resolve(), are the play path's download, as for Fabric.)
+    // classpath() filters the list by rules and natives, so compare loosely, then strictly
+    // per jar.
+    let cp = crate::java_launch::classpath(&profile, &dir, "linux").unwrap();
+    assert!(cp.len() > 30);
+    // classpath() closes with the version's own jar, which a loader profile has none of (the
+    // JVM ignores the missing entry, as it does for Fabric); the libraries are what matter.
+    for jar in cp.iter().filter(|j| j.starts_with(dir.join("libraries"))) {
+        assert!(jar.is_file(), "{} is not on disk", jar.display());
+    }
+    // The rest of the play path short of starting the JVM (which needs an owning account):
+    // the profile's inheritance resolves against the staged vanilla version.
+    let resolved =
+        crate::java_launch::resolve(crate::java_launch::read(&json).unwrap(), &dir).unwrap();
+    assert!(resolved["mainClass"].is_string());
+    assert!(crate::java_launch::classpath(&resolved, &dir, "linux").unwrap().len() > 50);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// The same real run for Forge's installer. Ignored for the same reasons.
+#[test]
+#[ignore = "downloads Forge's installer and Java for real"]
+fn forge_installs_for_real() {
+    let dir = std::env::temp_dir().join(format!("horizon-it-forge-{}", std::process::id()));
+    let listed = crate::minecraft_versions::load().unwrap();
+    let v = listed.find("1.21.1").unwrap();
+    let vdir = dir.join("versions").join("1.21.1");
+    std::fs::create_dir_all(&vdir).unwrap();
+    let json = crate::backend::get_bytes(&v.url).unwrap();
+    std::fs::write(vdir.join("1.21.1.json"), &json).unwrap();
+    let parsed: serde_json::Value = serde_json::from_slice(&json).unwrap();
+    let client = parsed["downloads"]["client"]["url"].as_str().unwrap();
+    std::fs::write(vdir.join("1.21.1.jar"), crate::backend::get_bytes(client).unwrap()).unwrap();
+    let loader = choose("forge", "1.21.1", None).unwrap();
+    let start = install(&loader, "1.21.1", &dir, &crate::backend::get_bytes, &|l| println!("{l}"))
+        .unwrap();
+    let json = dir.join("versions").join(&start).join(format!("{start}.json"));
+    let profile: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&json).unwrap()).unwrap();
+    let cp = crate::java_launch::classpath(&profile, &dir, "linux").unwrap();
+    assert!(cp.len() > 30);
+    for jar in cp.iter().filter(|j| j.starts_with(dir.join("libraries"))) {
+        assert!(jar.is_file(), "{} is not on disk", jar.display());
+    }
+    let resolved =
+        crate::java_launch::resolve(crate::java_launch::read(&json).unwrap(), &dir).unwrap();
+    assert!(resolved["mainClass"].is_string());
+    assert!(crate::java_launch::classpath(&resolved, &dir, "linux").unwrap().len() > 50);
+    std::fs::remove_dir_all(&dir).ok();
+}

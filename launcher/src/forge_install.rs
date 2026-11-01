@@ -65,9 +65,7 @@ pub fn install(
         fs::remove_dir_all(&scratch).map_err(|e| format!("{}: {e}", scratch.display()))?;
     }
     fs::create_dir_all(&scratch).map_err(|e| format!("{}: {e}", scratch.display()))?;
-    let ok = run_installer(
-        &jar, &scratch, &id, name, minecraft, dir, log,
-    );
+    let ok = run_installer(&jar, loader.kind, &scratch, &id, name, minecraft, dir, log);
     if let Err(e) = ok {
         let _ = fs::remove_dir_all(&scratch);
         return Err(e);
@@ -132,6 +130,7 @@ fn install_profile(jar: &Path) -> Result<(String, Value), String> {
 /// Runs the installer headless in `scratch`: `java -jar installer.jar --install-client .`
 fn run_installer(
     jar: &Path,
+    kind: crate::loaders::Kind,
     scratch: &Path,
     id: &str,
     name: &str,
@@ -180,10 +179,16 @@ fn run_installer(
         }
     };
     log(format!("Running {name}'s installer (this downloads and patches the game)"));
+    // Each installer's own spelling: NeoForge's jopt-simple takes the dashed form, Forge's
+    // SimpleInstaller only the camelCase one (live-verified against both installers).
+    let mode = match kind {
+        crate::loaders::Kind::Forge => "--installClient",
+        _ => "--install-client",
+    };
     let out = std::process::Command::new(runtime.java())
         .arg("-jar")
         .arg(jar)
-        .arg("--install-client")
+        .arg(mode)
         .arg(".")
         .current_dir(scratch)
         .output()
