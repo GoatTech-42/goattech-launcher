@@ -105,7 +105,7 @@ impl Theme {
         let dark = pinned_dark(choice).unwrap_or(system_dark);
         // GoatTech: the Mono accent takes the true-neutral night with it.
         let night = if dark {
-            if matches!(accent, Accent::Mono) {
+            if accent.mono() {
                 night::NIGHT_MONO
             } else {
                 night::NIGHT

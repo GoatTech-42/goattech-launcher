@@ -593,7 +593,7 @@ pub fn tick(
         // Mob.aiStep still runs without AI (only serverAiStep is skipped),
         // so undead still burn in daylight and the endermite's life keeps
         // counting.
-        burn_undead(m, w);
+        burn_undead(m, w, events);
         if m.species() == Species::Endermite {
             endermite_lifetime(m);
         }
@@ -663,13 +663,31 @@ fn effects_from_blocks(
     // Block.stepOn for the block under a mob on the ground (`getOnPosLegacy`):
     // MagmaBlock.stepOn's hot floor, 1 damage (a mob never sneaks).
     if m.on_ground && m.alive() {
-        let (x, y, z) = (
-            m.position.x.floor() as i32,
-            (m.position.y - f64::from(0.2_f32)).floor() as i32,
-            m.position.z.floor() as i32,
-        );
+        // 0.2 below the feet, or the supporting block when the centre is over
+        // its edge.
+        let [x, y, z] = m.block_on_legacy(w);
+        crate::block_contact::emit(crate::block_contact::Event::StepOn(
+            crate::block_contact::Contact {
+                entity: m.id as i32,
+                kind: &m.kind.id,
+                block: w.block_name(x, y, z),
+                state: w.world.block(x, y, z),
+                position: horizon_core::position::BlockPos::new(x, y, z),
+            },
+        ));
         if w.block_name(x, y, z) == "minecraft:magma_block" {
             m.damage(1.0, Damage::of(DamageKind::HotFloor));
+        }
+        // TurtleEggBlock.stepOn: a mob never steps carefully, so an egg under
+        // it breaks one time in a hundred (`destroyEgg`), unless it is a turtle
+        // or a bat or mob griefing is off (`canDestroyEgg`); the roll is the
+        // level's and comes only after those checks.
+        if w.block_name(x, y, z) == "minecraft:turtle_egg"
+            && !matches!(m.species(), Species::Turtle | Species::Bat)
+            && w.mob_griefing
+            && level_random.next_int_bound(100).unwrap_or(1) == 0
+        {
+            events.push(MobEvent::CrackTurtleEgg { pos: [x, y, z] });
         }
     }
     let mut visited: Vec<[i32; 3]> = Vec::new();
@@ -691,6 +709,16 @@ fn effects_from_blocks(
                     if visited.contains(&p) {
                         continue;
                     }
+                    crate::block_contact::emit(crate::block_contact::Event::Inside(
+                        crate::block_contact::Contact {
+                            entity: m.id as i32,
+                            kind: &m.kind.id,
+                            block: w.block_name(x, y, z),
+                            state: w.world.block(x, y, z),
+                            position: horizon_core::position::BlockPos::new(x, y, z),
+                        },
+                    ));
+                    visited.push(p);
                     match w.block_name(x, y, z) {
                         "minecraft:cactus" => {
                             m.damage(1.0, Damage::of(DamageKind::Cactus));
@@ -740,7 +768,6 @@ fn effects_from_blocks(
                         "minecraft:honey_block" => honey_slide(m, p, level_random, events),
                         _ => continue,
                     }
-                    visited.push(p);
                 }
             }
         }
@@ -959,7 +986,7 @@ fn base_tick(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
         }
         freeze_tick(m, w);
     }
-    tick_effects(m);
+    tick_effects(m, w.mod_effects);
     if m.species() == Species::Illusioner {
         super::illusioner::tick(m, events);
     }
@@ -1057,7 +1084,8 @@ fn play_ambient(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
         // Nautilus/ZombieNautilus.getAmbientSound: by age, under water or on land.
         Species::Nautilus | Species::ZombieNautilus => super::nautilus::sounds(m)[0],
         Species::Enderman if m.ai.target.is_some() => "entity.enderman.scream",
-        Species::Wolf if m.ai.target.is_some() => {
+        // Wolf.isAngry reads the persistent anger timer, not the current target.
+        Species::Wolf if super::tame::angry(m) => {
             super::finalize::variant_sound(m, "growl").unwrap_or("entity.wolf.growl")
         }
         Species::Wolf if m.random.next_int_bound(3).unwrap_or(1) == 0 => {
@@ -1215,7 +1243,8 @@ fn ai_step(m: &mut Mob, w: &MobWorld, level_random: &mut LegacyRandom, events: &
         // LivingEntity.travelRidden: the rider's client moves it
         // (handleMoveVehicle), so the server only stops it.
         m.velocity = Vec3::ZERO;
-    } else {
+    } else if !(m.species() == Species::Mannequin && m.extra.immovable) {
+        // Mannequin.isEffectiveAi: an immovable one never travels.
         m.travel(w, input, events);
     }
     push_entities(m, w, events);
@@ -1303,7 +1332,7 @@ fn ai_step(m: &mut Mob, w: &MobWorld, level_random: &mut LegacyRandom, events: &
             }
         }
     }
-    burn_undead(m, w);
+    burn_undead(m, w, events);
     species_ai_step(m, w, level_random, events);
 }
 impl Mob {
@@ -1424,9 +1453,13 @@ fn push_entities(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
 }
 /// `Mob.aiStep` -> `Mob.burnUndead`: undead burn in daylight. It runs with
 /// or without AI (`NoAI` only skips `serverAiStep`).
-fn burn_undead(m: &mut Mob, w: &MobWorld) {
-    if m.kind.flags.burns_in_day && m.alive() && sun_burn_tick(m, w) && m.extra.head.is_none() {
-        m.ignite_for_ticks(160);
+fn burn_undead(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
+    if m.kind.flags.burns_in_day && m.alive() && sun_burn_tick(m, w) {
+        if m.extra.head.is_some() {
+            events.push(MobEvent::SunProtectionWear { mob: m.id });
+        } else {
+            m.ignite_for_ticks(160);
+        }
     }
 }
 fn sun_burn_tick(m: &mut Mob, w: &MobWorld) -> bool {
@@ -1507,6 +1540,7 @@ fn server_ai_step(
         || m.species() == Species::HappyGhast && m.is_baby()
         || m.species() == Species::CopperGolem
         || m.species() == Species::Axolotl
+        || m.species() == Species::Tadpole
     {
         super::animal_brain::tick(m, w, level_random, events);
     }
@@ -1554,7 +1588,10 @@ fn armadillo_server_ai_step(m: &mut Mob, mob_drops: bool, events: &mut Vec<MobEv
 }
 fn custom_server_ai_step(m: &mut Mob, cx: &mut Cx) {
     match m.species() {
-        Species::Rabbit => super::rabbit::server_ai_step(m),
+        Species::Rabbit => {
+            let target = m.target_info(cx.w).map(|t| t.position);
+            super::rabbit::server_ai_step(m, target)
+        }
         Species::Cat | Species::Ocelot => super::tame::feline_server_ai_step(m),
         // Armadillo.customServerAiStep: the brain and its activity, then the scute.
         Species::Armadillo => {
@@ -1584,6 +1621,7 @@ fn custom_server_ai_step(m: &mut Mob, cx: &mut Cx) {
         Species::Frog => super::frog::server_ai_step(m, cx.w),
         // Hoglin and Piglin.customServerAiStep: the brain, then updateActivity.
         Species::Piglin | Species::Hoglin => super::piglin::brain_step(m, cx),
+        Species::Zoglin => super::piglin::zoglin_step(m, cx),
         _ => {}
     }
 }
@@ -1707,7 +1745,9 @@ fn check_despawn(m: &mut Mob, w: &MobWorld) -> bool {
     // zombie villagers being cured and ridden mobs stay.
     let creature = m.kind.category == "creature";
     let removable = !(never_removed_when_far(m.species())
-        || creature && m.kind.flags.animal && !m.extra.jockey
+        || creature && m.kind.flags.animal && !m.extra.jockey && m.species() != Species::Ocelot
+        // Ocelot.removeWhenFarAway: `!isTrusting() && tickCount > 2400`.
+        || m.species() == Species::Ocelot && (m.extra.trusting || m.age <= 2400)
         || super::raider::keeps_alive(m, d)
         || super::zombie_villager::keeps_alive(m)
         || super::riders::keeps_alive(m));
@@ -1861,6 +1901,7 @@ pub fn takes_food(m: &Mob) -> bool {
 pub fn feed_animal(
     m: &mut Mob,
     level: &mut impl RandomSource,
+    love_cause: Option<[i32; 4]>,
 ) -> Option<Option<(&'static str, f32, f32)>> {
     // Armadillo.mobInteract: a ball takes no food.
     if super::armadillo::scared(m) {
@@ -1872,6 +1913,8 @@ pub fn feed_animal(
     if m.extra.age == 0 {
         m.extra.in_love = 600;
         m.extra.love_player = true;
+        // Animal.setInLove: the player who fed it, for a fox baby to trust.
+        m.extra.love_cause = love_cause;
     } else {
         // AgeableMob.ageUp(getSpeedUpSecondsWhenFeeding(-age), true): a tenth.
         let secs = ((-m.extra.age / 20) as f32 * 0.1) as i32;
@@ -2099,7 +2142,6 @@ pub fn accepts_damage(m: &mut Mob, source: &Damage, _amount: f32) -> bool {
         Species::Wither => super::wither::accepts(m, source.kind, source.attacker, false),
         Species::Warden => super::warden::accepts_damage(m, source),
         Species::Shulker => super::shulker::accepts(m, source),
-        Species::SulfurCube => super::sulfur_cube::accepts_damage(m, source, _amount),
         // Bat.hurtServer: a hit wakes it.
         Species::Bat => {
             super::bat::hurt(m);
@@ -2413,8 +2455,9 @@ fn flower_contact_effects(m: &mut Mob, w: &MobWorld) {
     }
 }
 
-/// MobEffect ticking for the effects mobs receive (poison, wither, regeneration).
-fn tick_effects(m: &mut Mob) {
+/// MobEffect ticking for the effects mobs receive (poison, wither,
+/// regeneration), and a content mod's on a server.
+fn tick_effects(m: &mut Mob, mods: Option<&dyn super::ModEffectTicks>) {
     let mut effects = std::mem::take(&mut m.extra.effects);
     for (effect, ticks, amp) in &mut effects {
         let interval = |base: i32| (base >> (*amp).max(0)).max(1);
@@ -2436,6 +2479,19 @@ fn tick_effects(m: &mut Mob) {
             {
                 m.health = (m.health + 1.0).min(m.attrs.max_health);
             }
+            id if horizon_client_core::potions::is_mod_effect(id) => {
+                // tickServer: one with no ticks left goes unasked.
+                if !infinite && *ticks <= 0 {
+                    continue;
+                }
+                if let Some(mods) = mods
+                    && !mods.tick_mod_effect(id, m.id, count, *amp)
+                {
+                    // Removed before it counts down.
+                    *ticks = 0;
+                    continue;
+                }
+            }
             _ => {}
         }
         if !infinite {
@@ -2445,6 +2501,9 @@ fn tick_effects(m: &mut Mob) {
     effects.retain(|e| e.1 > 0 || e.1 == -1);
     m.extra
         .hidden_effects
+        .retain(|h| effects.iter().any(|e| e.0 == *h));
+    m.extra
+        .ambient_effects
         .retain(|h| effects.iter().any(|e| e.0 == *h));
     m.extra.effects = effects;
 }
@@ -2679,7 +2738,7 @@ mod poison_effect_tests {
         pig.add_effect("poison", 100, 0);
         assert_eq!(pig.extra.effects[0].0, "minecraft:poison");
         let initial_pig_health = pig.health;
-        tick_effects(&mut pig);
+        tick_effects(&mut pig, None);
         assert_eq!(
             pig.health,
             initial_pig_health - 1.0,
@@ -2691,7 +2750,7 @@ mod poison_effect_tests {
         let mut zombie = Mob::new(2, zombie_kind, Vec3::new(0.0, 4.0, 0.0), 0.0);
         zombie.add_effect("poison", 100, 0);
         let initial_zombie_health = zombie.health;
-        tick_effects(&mut zombie);
+        tick_effects(&mut zombie, None);
         assert_eq!(
             zombie.health, initial_zombie_health,
             "undead mobs are immune to poison"
@@ -2853,7 +2912,7 @@ mod feed_tests {
             m.extra.tame = true;
             m.extra.age = -24000;
             assert!(takes_food(&m), "{id}: a tamed baby takes its food");
-            assert!(feed_animal(&mut m, &mut level).is_some(), "{id}");
+            assert!(feed_animal(&mut m, &mut level, None).is_some(), "{id}");
             // getSpeedUpSecondsWhenFeeding(24000): a tenth of 1200 seconds.
             assert_eq!(m.extra.age, -24000 + 120 * 20, "{id}: grew a tenth");
             assert_eq!(m.extra.in_love, 0, "{id}: a baby does not fall in love");
