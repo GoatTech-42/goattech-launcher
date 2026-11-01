@@ -56,6 +56,15 @@ impl Launcher {
             facts.push(trf("{n} mods", &[("n", &mods.to_string())]));
         }
         let ready = prepared || java.is_some();
+        // "Ready" means Play works, files and ownership both: the gates (account::java_player,
+        // launch_for_game) let a Java instance start only with an account that owns Minecraft -
+        // the developer offline option never exempts it - while a Horizon one also starts under
+        // that explicit option. `owner` is the keychain's last ownership answer; unread is
+        // unknown, never silently ready.
+        let signed = match self.owner {
+            Some(owner) => owner || (java.is_none() && self.settings.dev_offline),
+            None => false,
+        };
         // The concept Home: everything centered over the open sky - the instance's name, the
         // player stage, the split Play, its state as a word, then the fact chips.
         let mut hero = div()
@@ -76,18 +85,25 @@ impl Launcher {
             .child(self.home_stage())
             .child(self.play_action(ready, &facts.join("  ·  "), cx))
             .child(
-                shell::text(night::CAPTION, if prepared { t.success } else { t.warn })
-                    .font_family(theme::PIXEL)
-                    .text_size(px(10.))
-                    .child(
-                        tr(if prepared {
-                            "Ready to launch"
-                        } else {
-                            "Needs preparing"
-                        })
-                        .to_string()
-                        .to_uppercase(),
-                    ),
+                shell::text(
+                    night::CAPTION,
+                    if prepared && signed { t.success } else { t.warn },
+                )
+                .font_family(theme::PIXEL)
+                .text_size(px(10.))
+                .child(
+                    tr(if !prepared {
+                        "Needs preparing"
+                    } else if signed {
+                        "Ready to launch"
+                    } else if self.owner.is_none() {
+                        "Checking sign-in…"
+                    } else {
+                        "Sign in to launch"
+                    })
+                    .to_string()
+                    .to_uppercase(),
+                ),
             )
             .children(self.playing.map(|playing| {
                 shell::text(night::CAPTION, c(n.muted))
@@ -311,13 +327,19 @@ impl Launcher {
         for instance in self.instances.list.clone() {
             let active = selected_id.as_ref() == Some(&instance.id);
             let played = instances_page::played_line(&instance);
-            let sub = match self.version_of(&instance) {
-                Some(tag) => horizon_launcher::nightly::label(tag)
-                    .unwrap_or_else(|| tag.trim_start_matches('v').to_string()),
-                None => instance
-                    .java
-                    .as_ref()
-                    .map(|j| format!("Minecraft {}", j.minecraft))
+            // A Java instance never plays a Horizon nightly: say its Minecraft and loader,
+            // never the launcher's version.
+            let sub = match &instance.java {
+                Some(j) => match &j.loader {
+                    Some(l) => format!("Minecraft {} · {} {}", j.minecraft, l.kind.name(), l.version),
+                    None => format!("Minecraft {}", j.minecraft),
+                },
+                None => self
+                    .version_of(&instance)
+                    .map(|tag| {
+                        horizon_launcher::nightly::label(tag)
+                            .unwrap_or_else(|| tag.trim_start_matches('v').to_string())
+                    })
                     .unwrap_or_default(),
             };
             let clicked = instance.clone();
