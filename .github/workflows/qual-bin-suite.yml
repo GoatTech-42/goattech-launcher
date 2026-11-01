@@ -1,0 +1,35 @@
+name: qual bin suite
+# One-off qualification: the launcher's full test suite (library and binary targets) on one
+# standard GitHub-hosted Linux runner. Logs only: no artifacts, no cache, no secrets, nothing
+# published. Runs only on a push to the one branch named below; no schedule, no dispatch,
+# no pull_request.
+on:
+  push:
+    branches: [qual-bin-suite-5fe01c426]
+
+permissions:
+  contents: read
+
+env:
+  HORIZON_TELEMETRY_URL: "off"
+  CARGO_TERM_COLOR: never
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Linux libraries GPUI links to
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev patchelf
+      - name: Full launcher test suite
+        working-directory: launcher
+        run: cargo test --locked 2>&1 | tee /tmp/suite.log; test "${PIPESTATUS[0]}" -eq 0
+        shell: bash
+      - name: Result lines
+        if: always()
+        run: grep -E "^test result|Running |FAILED|panicked" /tmp/suite.log || true
