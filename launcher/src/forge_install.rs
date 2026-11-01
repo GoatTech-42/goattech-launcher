@@ -27,6 +27,15 @@ pub fn install(
         .kind
         .maven()
         .ok_or_else(|| format!("{name} has no installer"))?;
+    // The installer's `install_profile.json` layout exists from Minecraft 1.13 on; older Forge
+    // installers predate it and would only fail deep in the zip read (goattech/FORGE-NEOFORGE.md).
+    // Name the cutoff up front instead. Unknown version shapes (snapshots) pass through to the
+    // installer's own Minecraft check below.
+    if matches!(minecraft_minor(minecraft), Some(minor) if minor < 13) {
+        return Err(format!(
+            "{name} needs Minecraft 1.13 or newer: older installers predate the layout this install drives"
+        ));
+    }
     let artifact = coordinates.rsplit('/').next().unwrap_or(coordinates);
     let file_name = format!("{artifact}-{}-installer.jar", loader.version);
     let url = format!("{base}/{coordinates}/{}/{file_name}", loader.version);
@@ -106,6 +115,15 @@ pub fn install(
     let _ = fs::remove_dir_all(&scratch);
     log(format!("Installed {name} {} ({kept} libraries)", loader.version));
     Ok(id)
+}
+
+/// The minor in `1.<minor>...`, when `minecraft` is a release-style version id.
+fn minecraft_minor(minecraft: &str) -> Option<u64> {
+    let mut parts = minecraft.split('.');
+    if parts.next()? != "1" {
+        return None;
+    }
+    parts.next()?.parse().ok()
 }
 
 /// The installer jar's `install_profile.json`: its profile's id and the whole profile.
@@ -252,5 +270,31 @@ mod tests {
             Kind::NeoForge.profile_id("21.1.265", "1.21.1"),
             "neoforge-21.1.265"
         );
+    }
+
+    #[test]
+    fn release_versions_give_their_minor() {
+        use super::minecraft_minor;
+        assert_eq!(minecraft_minor("1.12.2"), Some(12));
+        assert_eq!(minecraft_minor("1.13"), Some(13));
+        assert_eq!(minecraft_minor("1.20.1"), Some(20));
+        assert_eq!(minecraft_minor("24w14a"), None);
+    }
+
+    #[test]
+    fn pre_1_13_is_named_before_any_download() {
+        use super::{install, minecraft_minor};
+        use crate::loaders::{Kind, Loader};
+        use std::path::Path;
+        let loader = Loader {
+            kind: Kind::Forge,
+            version: "1.12.2-14.23.5.2859".to_string(),
+        };
+        let fetch: &(dyn Fn(&str) -> Result<Vec<u8>, String> + Sync) =
+            &|_| panic!("the cutoff answers before any network");
+        let log = |_line: String| {};
+        let error = install(&loader, "1.12.2", Path::new("/nonexistent"), fetch, &log).unwrap_err();
+        assert!(error.contains("1.13"), "{error}");
+        assert_eq!(minecraft_minor("1.12.2"), Some(12));
     }
 }
