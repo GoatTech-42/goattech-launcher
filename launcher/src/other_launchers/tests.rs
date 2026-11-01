@@ -408,53 +408,52 @@ fn prism_icons_carry() {
     copy_game(&found[1], &to).unwrap();
     assert_eq!(fs::read(to.join("icon.png")).unwrap(), b"icon");
     assert!(to.join("saves/x/level.dat").is_file());
+}
 
-    #[test]
-    fn a_path_like_icon_key_carries_nothing() {
-        let root = scratch("prism-icon-key-escape");
-        let pack = root.join("instances/Pack");
-        write(
-            &pack.join("instance.cfg"),
-            "[General]\nname=Pack\niconKey=../../outside\n",
-        );
-        write(
-            &pack.join("mmc-pack.json"),
-            &json!({"components": [{"uid": "net.minecraft", "version": "1.21.1"}]}).to_string(),
-        );
-        write(&pack.join("minecraft/options.txt"), "opts");
-        write(&root.join("outside.png"), "secret");
-        let found = prism_instances(&root, "Prism Launcher");
-        assert_eq!(found.len(), 1);
-        assert_eq!(found[0].icon, None);
-        let to = root.join("imported");
-        copy_game(&found[0], &to).unwrap();
-        assert!(!to.join("icon.png").exists());
-    }
+#[test]
+fn a_path_like_icon_key_carries_nothing() {
+    let root = scratch("prism-icon-key-escape");
+    let pack = root.join("instances/Pack");
+    write(
+        &pack.join("instance.cfg"),
+        "[General]\nname=Pack\niconKey=../../outside\n",
+    );
+    write(
+        &pack.join("mmc-pack.json"),
+        &json!({"components": [{"uid": "net.minecraft", "version": "1.21.1"}]}).to_string(),
+    );
+    write(&pack.join("minecraft/options.txt"), "opts");
+    write(&root.join("outside.png"), "secret");
+    let found = prism_instances(&root, "Prism Launcher");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].icon, None);
+    let to = root.join("imported");
+    copy_game(&found[0], &to).unwrap();
+    assert!(!to.join("icon.png").exists());
+}
 
-    #[test]
-    fn a_linked_icon_is_left_behind_and_a_missing_one_never_fails() {
-        let root = scratch("prism-icon-link");
-        let pack = root.join("instances/Pack");
-        write(
-            &pack.join("mmc-pack.json"),
-            &json!({"components": [{"uid": "net.minecraft", "version": "1.21.1"}]}).to_string(),
-        );
-        write(&pack.join("minecraft/options.txt"), "opts");
-        write(&root.join("real.png"), "icon");
-        std::os::unix::fs::symlink(root.join("real.png"), pack.join("icon.png")).unwrap();
-        let found = prism_instances(&root, "Prism Launcher");
-        assert_eq!(found[0].icon, Some(pack.join("icon.png")));
-        let to = root.join("imported");
-        copy_game(&found[0], &to).unwrap();
-        // Detected through the link, refused by the no-follow copy: the card falls back to
-        // the instance's mark, and the import still happened.
-        assert!(!to.join("icon.png").exists());
-        assert!(to.join("options.txt").is_file());
-        // One gone between scan and import: skipped, not an import failure.
-        let mut gone = found.into_iter().next().unwrap();
-        gone.icon = Some(root.join("vanished.png"));
-        copy_game(&gone, &root.join("imported-two")).unwrap();
-        assert!(root.join("imported-two/options.txt").is_file());
-    }
-
+#[test]
+fn a_linked_icon_is_left_behind_and_a_missing_one_never_fails() {
+    let root = scratch("prism-icon-link");
+    let pack = root.join("instances/Pack");
+    write(
+        &pack.join("mmc-pack.json"),
+        &json!({"components": [{"uid": "net.minecraft", "version": "1.21.1"}]}).to_string(),
+    );
+    write(&pack.join("minecraft/options.txt"), "opts");
+    write(&root.join("real.png"), "icon");
+    std::os::unix::fs::symlink(root.join("real.png"), pack.join("icon.png")).unwrap();
+    let found = prism_instances(&root, "Prism Launcher");
+    assert_eq!(found[0].icon, Some(pack.join("icon.png")));
+    let to = root.join("imported");
+    copy_game(&found[0], &to).unwrap();
+    // Detected through the link, refused by the no-follow copy: the card falls back to
+    // the instance's mark, and the import still happened.
+    assert!(!to.join("icon.png").exists());
+    assert!(to.join("options.txt").is_file());
+    // One gone between scan and import: skipped, not an import failure.
+    let mut gone = found.into_iter().next().unwrap();
+    gone.icon = Some(root.join("vanished.png"));
+    copy_game(&gone, &root.join("imported-two")).unwrap();
+    assert!(root.join("imported-two/options.txt").is_file());
 }
