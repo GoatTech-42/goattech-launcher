@@ -502,8 +502,10 @@ fn a_path_like_icon_key_carries_nothing() {
     assert!(!to.join("icon.png").exists());
 }
 
+// Links are a unix-only fixture here, as in a_linked_file_or_folder_is_not_copied.
+#[cfg(unix)]
 #[test]
-fn a_linked_icon_is_left_behind_and_a_missing_one_never_fails() {
+fn a_linked_icon_is_left_behind() {
     let root = scratch("prism-icon-link");
     let pack = root.join("instances/Pack");
     write(
@@ -521,9 +523,24 @@ fn a_linked_icon_is_left_behind_and_a_missing_one_never_fails() {
     // the instance's mark, and the import still happened.
     assert!(!to.join("icon.png").exists());
     assert!(to.join("options.txt").is_file());
+}
+
+#[test]
+fn a_missing_icon_never_fails_the_import() {
+    let root = scratch("prism-icon-gone");
+    let game = root.join("game");
+    write(&game.join("options.txt"), "opts");
     // One gone between scan and import: skipped, not an import failure.
-    let mut gone = found.into_iter().next().unwrap();
-    gone.icon = Some(root.join("vanished.png"));
-    copy_game(&gone, &root.join("imported-two")).unwrap();
-    assert!(root.join("imported-two/options.txt").is_file());
+    let found = Found {
+        launcher: "Prism Launcher",
+        name: "Gone".into(),
+        minecraft: Some("1.21.1".into()),
+        loader: None,
+        icon: Some(root.join("vanished.png")),
+        notes: None,
+        game: game.clone(),
+        shared: false,
+    };
+    copy_game(&found, &root.join("imported")).unwrap();
+    assert!(root.join("imported/options.txt").is_file());
 }
