@@ -99,9 +99,11 @@ pub mod icons {
     }
 }
 
-/// Horizon's icon at 64 px (PNG), for window title bars and task bars at run time. Rendered from
-/// `docs/media/brand/icon.svg` by `cargo run -p xtask -- icons`.
-pub const ICON_PNG: &[u8] = include_bytes!("../icons/horizon-64.png");
+/// The GoatTech icon at 64 px (PNG), for window title bars and task bars at run time: the goat
+/// head of `goattech.svg`, ink on a dark tile - the launcher's interim mark while the final
+/// brand identity is unsettled (the block-G was rejected 2026-10-31; docs/media/brand keeps
+/// Horizon's masters until then).
+pub const WINDOW_ICON_PNG: &[u8] = include_bytes!("../icons/goattech-64.png");
 
 /// How a type step sizes on the web.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -749,13 +751,23 @@ mod tests {
     }
 
     #[test]
-    fn every_icon_is_a_pixel_svg() {
+    fn every_icon_is_a_24_unit_current_color_svg() {
         for (name, svg) in icons::ALL {
             let svg = std::str::from_utf8(svg).unwrap();
             assert!(svg.contains("viewBox=\"0 0 24 24\""), "{name}");
             assert!(svg.contains("currentColor"), "{name}");
         }
         assert!(icons::get("play").is_some());
+    }
+
+    #[test]
+    fn the_window_icon_is_a_64_px_png() {
+        let png = WINDOW_ICON_PNG;
+        assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
+        assert_eq!(&png[12..16], b"IHDR");
+        let width = u32::from_be_bytes(png[16..20].try_into().unwrap());
+        let height = u32::from_be_bytes(png[20..24].try_into().unwrap());
+        assert_eq!((width, height), (64, 64));
     }
 
     /// The game's menus over the brightest backdrop: the page colour veiled over it, and a

@@ -1488,9 +1488,8 @@ fn version_tag(tag: &str) -> Div {
         )
 }
 
-/// Horizon's mark: two stems, their reflection below, and the horizon across in the accent.
+/// The GoatTech mark: the goat head glyph (horizon_theme::icons::GOATTECH), in ink.
 fn mark(size: f32, t: &Theme) -> Div {
-    // The GoatTech mark: the pixel goat head glyph (horizon_theme::icons::GOATTECH), in ink.
     div()
         .flex_none()
         .size(px(size))

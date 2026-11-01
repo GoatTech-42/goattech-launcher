@@ -78,8 +78,8 @@ impl Launcher {
                 std::fs::read(grass).ok()
             }, false);
         }
-        let horizon = || Some(horizon_theme::ICON_PNG.to_vec());
-        self.icon_image("mark:horizon".into(), size, false, horizon, self.theme.night.mono)
+        let goat = || Some(horizon_theme::WINDOW_ICON_PNG.to_vec());
+        self.icon_image("mark:goattech".into(), size, false, goat, self.theme.night.mono)
     }
 
     /// A mod loader's logo by its id (`fabric`, `quilt`, `forge`, `neoforge`): None while a

@@ -25,7 +25,7 @@ places it in the design system; `candidates/` keeps the two alternatives that we
 | `packaging/linux/horizon-launcher.desktop`, `horizon.desktop` (hand-written) | Linux: the launcher installs both and the hicolor icons itself, under `$XDG_DATA_HOME` (`~/.local/share`), with its own path in `Exec` (`launcher/src/desktop.rs`; `horizon-launcher desktop-entry --remove` takes them out). Wayland matches the windows' app ids `horizon-launcher` and `horizon` |
 | `packaging/icons/horizon.ico` | Windows: embedded in `horizon-client.exe`, its tools and `horizon-launcher.exe` as icon resource 1 (`build.rs` of each, Windows builds only) |
 | `packaging/icons/horizon.icns` | macOS: `Horizon.app/Contents/Resources/horizon.icns`, packaged with the .dmg by `packaging/macos/package.sh` |
-| `crates/horizon-theme/icons/horizon-64.png` | the game window's icon at run time (X11 and Windows title bars, `window::icon`) |
+| `crates/horizon-theme/icons/horizon-64.png` | upstream's window icon (the launcher embeds `goattech-64.png` instead: the goat head of `goattech.svg`, an interim mark while the final GoatTech identity is unsettled) |
 | `web/favicon.svg`, `web/favicon-32.png`, `web/apple-touch-icon.png` | the website (its `npm run assets` copies them into its `public/`) |
 | `icon-1024.png`, `icon-macos-1024.png` | previews, store listings |
 | `social/github-avatar-500.png` | GitHub: the organisation or account avatar |
