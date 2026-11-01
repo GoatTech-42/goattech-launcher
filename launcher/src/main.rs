@@ -1474,33 +1474,11 @@ fn version_tag(tag: &str) -> Div {
 
 /// Horizon's mark: two stems, their reflection below, and the horizon across in the accent.
 fn mark(size: f32, t: &Theme) -> Div {
-    let u = size / 16.;
-    let stem = |x: f32, y: f32, color: Hsla| {
-        div()
-            .absolute()
-            .left(px(x * u))
-            .top(px(y * u))
-            .w(px(2. * u))
-            .h(px(4. * u))
-            .bg(color)
-    };
+    // The GoatTech mark: the pixel goat head glyph (horizon_theme::icons::GOATTECH), in ink.
     div()
-        .relative()
         .flex_none()
         .size(px(size))
-        .child(stem(4., 3., t.ink))
-        .child(stem(10., 3., t.ink))
-        .child(stem(4., 8., t.ink.opacity(0.36)))
-        .child(stem(10., 8., t.ink.opacity(0.36)))
-        .child(
-            div()
-                .absolute()
-                .left(px(u))
-                .top(px(7. * u))
-                .w(px(14. * u))
-                .h(px(u))
-                .bg(t.accent),
-        )
+        .child(blocks::icon("goattech", size, t.ink))
 }
 
 /// The last thing the player did was press Tab: focused controls show a ring (a click focuses them
@@ -2143,8 +2121,7 @@ impl Launcher {
         );
         // Custom title bars carry the mark and name already. The concept wordmark: the name in
         // the display face over a small "launcher".
-        // The concept rail's white square mark (a placeholder "G" until the real logo lands:
-        // todo-01M69KCZGBBKGXWB9EQSTY2N24).
+        // The GoatTech mark: the pixel goat head glyph.
         let brand = (!titlebar::draws_brand(window)).then(|| {
             div()
                 .flex()
@@ -2158,17 +2135,7 @@ impl Launcher {
                         .items_center()
                         .justify_center()
                         .size(px(40.))
-                        .bg(shell::c(n.ink))
-                        .border_b_4()
-                        .border_color(shell::c(n.muted))
-                        .child(
-                            shell::text(theme::night::TITLE, shell::c(n.page))
-                                .font_family(theme::PIXEL)
-                                .font_weight(FontWeight::BOLD)
-                                .text_size(px(24.))
-                                .line_height(px(26.))
-                                .child("G"),
-                        ),
+                        .child(blocks::icon("goattech", 30., shell::c(n.ink))),
                 )
         });
         shell::sidebar_plate(&t)

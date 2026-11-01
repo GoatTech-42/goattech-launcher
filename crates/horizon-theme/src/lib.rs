@@ -86,8 +86,15 @@ pub mod icons {
         "zap",
     );
 
+    /// The GoatTech mark: an original pixel goat head drawn for the launcher (2026-10-31),
+    /// not part of the Lucide set.
+    pub const GOATTECH: &[u8] = include_bytes!("../icons/goattech.svg");
+
     /// An icon's SVG by name.
     pub fn get(name: &str) -> Option<&'static [u8]> {
+        if name == "goattech" {
+            return Some(GOATTECH);
+        }
         ALL.iter().find(|(n, _)| *n == name).map(|(_, svg)| *svg)
     }
 }

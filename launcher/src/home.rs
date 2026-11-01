@@ -535,8 +535,8 @@ impl Launcher {
                     )
                     .when(!subtitle.is_empty(), |d| {
                         d.child(
-                            shell::text(theme::MICRO, c(t.night.on_accent).opacity(0.65))
-                                .text_size(px(9.))
+                            shell::text(theme::MICRO, c(t.night.on_accent))
+                                .text_size(px(10.))
                                 .child(subtitle.to_uppercase()),
                         )
                     }),
@@ -594,7 +594,7 @@ impl Launcher {
                                 crate::plate::cut(
                                     night::PIXEL_CORNER,
                                     1,
-                                    Some(alpha(t.night.card_hi, 1.)),
+                                    Some(alpha(t.night.stroke, 0.18)),
                                     None,
                                 )
                                 .absolute()
