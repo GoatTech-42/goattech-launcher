@@ -1,0 +1,64 @@
+name: qual shot
+# One-off: build goattech/main at the pinned commit, run the launcher under a virtual display
+# and keep two clean screenshots (Home, Instances). No secrets, no publishing. Runs only on a
+# push to the one branch named below; no schedule, dispatch or pull_request. The only artifact
+# is the two PNGs (1 day).
+on:
+  push:
+    branches: [qual-shot-82627645a]
+
+permissions:
+  contents: read
+
+env:
+  HORIZON_TELEMETRY_URL: "off"
+  CARGO_TERM_COLOR: never
+  PINNED: 82627645a9f335444352ae56fda6a97c2a5630bb
+
+jobs:
+  shot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: The build is the pinned commit plus this one workflow file
+        run: |
+          test "$(git rev-parse HEAD^)" = "$PINNED"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/qual-shot.yml"
+      - name: Libraries and a virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev patchelf xvfb x11-apps imagemagick mesa-vulkan-drivers
+      - name: Build the launcher
+        working-directory: launcher
+        run: cargo build --locked
+      - name: Run it and capture
+        run: |
+          mkdir -p shots empty-home xdg
+          Xvfb :99 -screen 0 1440x900x24 &
+          sleep 3
+          for page in play instances; do
+            DISPLAY=:99 XDG_RUNTIME_DIR="$PWD/xdg" HORIZON_LAUNCHER_HOME="$PWD/empty-home" HORIZON_NO_KEYCHAIN=1 HORIZON_LAUNCHER_NO_SELF_UPDATE=1 \
+              VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json HORIZON_LAUNCHER_PAGE="$page" \
+              launcher/target/debug/horizon-launcher > "run-$page.log" 2>&1 &
+            APP=$!
+            sleep 30
+            DISPLAY=:99 xwd -root -silent | convert xwd:- "shots/$page.png"
+            kill $APP 2>/dev/null || true
+            wait $APP 2>/dev/null || true
+            colours=$(identify -format %k "shots/$page.png")
+            echo "$page: $(identify -format '%wx%h' "shots/$page.png"), $colours colours"
+            test "$colours" -gt 50
+          done
+      - name: Show app logs on failure
+        if: failure()
+        run: tail -n 20 run-*.log || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shots
+          path: shots/*.png
+          retention-days: 1
+          if-no-files-found: error
