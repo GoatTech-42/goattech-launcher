@@ -92,15 +92,10 @@ impl Launcher {
             });
     }
 
-    /// The instance Play starts.
+    /// The instance Play starts: the player's pick, else the first Java instance, else
+    /// Horizon's own - the same order as `instances::picked`, borrowing the window's list.
     pub(super) fn selected_instance(&self) -> Option<&Instance> {
-        let id = self
-            .settings
-            .instance
-            .as_deref()
-            .unwrap_or(instances::DEFAULT);
-        let list = &self.instances.list;
-        list.iter().find(|i| i.id == id).or(list.first())
+        instances::picked(&self.instances.list, self.settings.instance.as_deref())
     }
 
     /// The installed version `instance` plays: its own, else the launcher's.
@@ -123,8 +118,9 @@ impl Launcher {
     }
 
     pub(super) fn select_instance(&mut self, instance: &Instance) {
-        self.settings.instance =
-            (instance.kind != InstanceKind::Default).then(|| instance.id.clone());
+        // Every pick is recorded, the game's own home included: None means "never picked",
+        // so collapsing that pick to None would lose it (and mislead the first-pick ask).
+        self.settings.instance = Some(instance.id.clone());
         self.settings.save();
     }
 

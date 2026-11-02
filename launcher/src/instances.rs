@@ -482,19 +482,26 @@ pub fn needs_first_pick(all: &[Instance], saved: Option<&str>, horizon_prepared:
     !(used || horizon_prepared)
 }
 
-/// `selected`'s fallback, testable: the saved id when it still exists, then the first Java
-/// instance, then the first at all (a fresh install's own Horizon one).
-fn selected_in(all: &[Instance], saved: Option<&str>) -> Instance {
+/// The picked instance: the saved id when it still exists, then the first Java instance,
+/// then the first at all (a fresh install's own Horizon one). The window borrows it.
+pub fn picked<'a>(all: &'a [Instance], saved: Option<&str>) -> Option<&'a Instance> {
     saved
-        .and_then(|id| all.iter().find(|i| i.id == id).cloned())
-        .or_else(|| all.iter().find(|i| i.java.is_some()).cloned())
-        .unwrap_or_else(|| all[0].clone())
+        .and_then(|id| all.iter().find(|i| i.id == id))
+        .or_else(|| all.iter().find(|i| i.java.is_some()))
+        .or(all.first())
+}
+
+/// `selected`'s fallback, testable: what [`picked`] borrows.
+fn selected_in(all: &[Instance], saved: Option<&str>) -> Instance {
+    picked(all, saved).cloned().unwrap_or_else(|| all[0].clone())
 }
 
 pub fn select(query: &str) -> Result<Instance, String> {
     let instance = find(query)?;
     let mut settings = backend::Settings::load();
-    settings.instance = (instance.kind != Kind::Default).then(|| instance.id.clone());
+    // Every pick is recorded, the game's own home ("horizon") included: None means "never
+    // picked", so collapsing that pick to None would lose it (and mislead the first-pick ask).
+    settings.instance = Some(instance.id.clone());
     settings.save();
     Ok(instance)
 }

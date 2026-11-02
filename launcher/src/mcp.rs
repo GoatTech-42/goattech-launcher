@@ -87,6 +87,12 @@ impl Session {
                         instances::selected()
                     }
                 };
+                if instance.java.is_some() {
+                    return Err(format!(
+                        "{} plays Minecraft: Java Edition: MCP `play` starts Horizon (Rust)                          instances only. Start a Java instance from the launcher or the CLI,                          or pass a Horizon one as `instance`.",
+                        instance.name
+                    ));
+                }
                 let tag = instance.resolve_version(arg_str(args, "version"))?;
                 let mut cmd = backend::client(&tag)?;
                 instances::apply(&mut cmd, &instance)?;

@@ -778,11 +778,22 @@ pub fn is_prepared(tag: &str) -> bool {
 
 /// Any Horizon version ever prepared here: a returning player's evidence, so Play's fallback
 /// may offer their existing Rust game. A fresh install has none and is asked to pick first
-/// (`instances::needs_first_pick`).
+/// (`instances::needs_first_pick`). "Prepared" is the defined state, not any entry: an
+/// interrupted install's `.<tag>.partial` or a stray file never counts.
 pub fn any_prepared() -> bool {
-    versions_dir()
-        .read_dir()
-        .is_ok_and(|mut entries| entries.next().is_some())
+    any_prepared_in(&versions_dir())
+}
+
+/// `any_prepared` on a given versions folder: a version directory whose resources manifest
+/// exists, nothing else.
+fn any_prepared_in(versions: &Path) -> bool {
+    let Ok(entries) = versions.read_dir() else {
+        return false;
+    };
+    entries.flatten().any(|e| {
+        e.file_type().map(|t| t.is_dir()).unwrap_or(false)
+            && resources_at(&e.path()).join(RESOURCES_MANIFEST).exists()
+    })
 }
 
 /// Whether a version's resources hold Minecraft's sounds, which `sounds` copies from the player's own
@@ -3044,8 +3055,8 @@ impl WhilePlaying {
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 pub struct Settings {
     pub selected: Option<String>,
-    /// The instance Play starts (`instances`), by id. Unset means the first Java instance,
-    /// else Horizon, the game's home.
+    /// The instance Play starts (`instances`), by id: every pick is recorded, the game's own
+    /// home included. Unset means never picked: the first Java instance, else that home.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub instance: Option<String>,
     pub minecraft_dir: Option<PathBuf>,
@@ -3203,6 +3214,10 @@ mod release_loading_tests;
 #[cfg(test)]
 #[path = "backend/java_tests.rs"]
 mod java_tests;
+
+#[cfg(test)]
+#[path = "backend/prepared_tests.rs"]
+mod prepared_tests;
 
 #[cfg(test)]
 mod tests {
