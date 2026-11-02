@@ -3035,7 +3035,8 @@ impl WhilePlaying {
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 pub struct Settings {
     pub selected: Option<String>,
-    /// The instance Play starts (`instances`), by id. Unset means Horizon, the game's home.
+    /// The instance Play starts (`instances`), by id. Unset means the first Java instance,
+    /// else Horizon, the game's home.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub instance: Option<String>,
     pub minecraft_dir: Option<PathBuf>,

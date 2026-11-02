@@ -455,12 +455,21 @@ fn delete_in(
     Ok(instance)
 }
 
-/// The instance Play starts: the one picked in the launcher, else Horizon.
+/// The instance Play starts: the one picked in the launcher, else the first Java instance,
+/// else Horizon's own (the only one a fresh install has): a Minecraft launcher never starts
+/// a player on the Rust game without their pick.
 pub fn selected() -> Instance {
     let all = list();
-    backend::Settings::load()
-        .instance
+    let saved = backend::Settings::load().instance;
+    selected_in(&all, saved.as_deref())
+}
+
+/// `selected`'s fallback, testable: the saved id when it still exists, then the first Java
+/// instance, then the first at all (a fresh install's own Horizon one).
+fn selected_in(all: &[Instance], saved: Option<&str>) -> Instance {
+    saved
         .and_then(|id| all.iter().find(|i| i.id == id).cloned())
+        .or_else(|| all.iter().find(|i| i.java.is_some()).cloned())
         .unwrap_or_else(|| all[0].clone())
 }
 

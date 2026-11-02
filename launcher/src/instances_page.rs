@@ -455,18 +455,20 @@ impl Launcher {
                     .child(
                         button("new-instance", "New instance", Kind::Primary, &t).on_click(
                             cx.listener(|this, _: &ClickEvent, _, cx| {
-                                this.open_instance_dialog(None);
+                                this.open_instance_dialog(None, cx);
                                 cx.notify();
                             }),
                         ),
                     ),
             )
-            .child(section("Rust", None, rust))
             .child(section(
                 "Java",
-                Some("Software is chosen inside each Java instance - vanilla, Fabric or Quilt."),
+                Some(
+                    "Software is chosen inside each Java instance - vanilla, Fabric, Quilt, Forge or NeoForge.",
+                ),
                 java,
             ))
+            .child(section("Rust", None, rust))
             .child(self.other_launchers_section(cx))
     }
 
@@ -624,7 +626,11 @@ impl Launcher {
     }
 
     /// Opens the dialog for a new instance, or for changing `editing`.
-    pub(super) fn open_instance_dialog(&mut self, editing: Option<Instance>) {
+    pub(super) fn open_instance_dialog(
+        &mut self,
+        editing: Option<Instance>,
+        cx: &mut Context<Self>,
+    ) {
         let (name, group) = editing
             .as_ref()
             .map(|i| (i.name.clone(), i.group.clone().unwrap_or_default()))
@@ -659,6 +665,10 @@ impl Launcher {
             java: Default::default(),
         });
         self.servers.text(Field::InstanceVersion).set(String::new());
+        // A fresh dialog opens on Vanilla: its versions load now, not after a tab click.
+        if self.instances.dialog.as_ref().is_some_and(|d| d.editing.is_none()) {
+            self.ensure_versions(cx);
+        }
     }
 
     /// Escape closes the dialog. Whether it did.
@@ -1247,7 +1257,7 @@ impl Launcher {
             .child(
                 button("instance-edit", "Edit…", Kind::Ghost, &t).on_click(cx.listener(
                     move |this, _: &ClickEvent, _, cx| {
-                        this.open_instance_dialog(Some(edit.clone()));
+                        this.open_instance_dialog(Some(edit.clone()), cx);
                         cx.notify();
                     },
                 )),
@@ -1255,7 +1265,7 @@ impl Launcher {
             .child(
                 button("instance-copy", "Copy…", Kind::Ghost, &t).on_click(cx.listener(
                     move |this, _: &ClickEvent, _, cx| {
-                        this.open_instance_dialog(None);
+                        this.open_instance_dialog(None, cx);
                         this.servers
                             .text(Field::InstanceName)
                             .set(format!("{name} copy"));

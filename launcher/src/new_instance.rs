@@ -34,7 +34,7 @@ pub(super) struct JavaChoice {
 impl Default for JavaChoice {
     fn default() -> Self {
         JavaChoice {
-            kind: NewKind::Horizon,
+            kind: NewKind::Vanilla,
             loader: Loader::Fabric,
             version: None,
             snapshots: false,
@@ -105,7 +105,17 @@ impl Launcher {
     /// Picks the dialog's kind; a Java one fetches Mojang's list the first time.
     pub(super) fn pick_kind(&mut self, kind: NewKind, cx: &mut Context<Self>) {
         self.change(|j| j.kind = kind);
-        if kind == NewKind::Horizon || !matches!(self.instances.versions, VersionList::NotAsked) {
+        self.ensure_versions(cx);
+    }
+
+    /// Mojang's list is fetched once, when a Java kind needs it: the dialog opens on Vanilla.
+    pub(super) fn ensure_versions(&mut self, cx: &mut Context<Self>) {
+        let java = self
+            .instances
+            .dialog
+            .as_ref()
+            .is_some_and(|d| d.java.kind != NewKind::Horizon);
+        if !java || !matches!(self.instances.versions, VersionList::NotAsked) {
             return;
         }
         self.instances.versions = VersionList::Loading;
@@ -130,15 +140,17 @@ impl Launcher {
         .detach();
     }
 
-    /// The tabs over a new instance's dialog: Horizon, Vanilla, Modded.
+    /// The tabs over a new instance's dialog: Vanilla, Modded, then Horizon's Rust engine.
+    /// Vanilla is the dialog's own default: a Minecraft launcher never starts a player on
+    /// another game without their pick.
     pub(super) fn kind_tabs(&self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let now = self.instances.dialog.as_ref().map(|d| d.java.kind);
         div().flex().gap(px(4.)).children(
             [
-                (NewKind::Horizon, "Horizon"),
                 (NewKind::Vanilla, "Vanilla"),
                 (NewKind::Modded, "Modded"),
+                (NewKind::Horizon, "Horizon"),
             ]
             .map(|(kind, label)| {
                 shell::tab(

@@ -464,3 +464,25 @@ fn meta_without_notes_reads_as_none_and_notes_roundtrip() {
     // None stays out of the file.
     assert!(serde_json::to_value(&old).unwrap().get("notes").is_none());
 }
+
+#[test]
+fn play_falls_back_to_a_java_instance_before_horizons_own() {
+    let root = scratch("java-first");
+    let (home, data) = (root.join("horizon"), root.join("launcher"));
+    player_home(&home);
+
+    // A fresh install: Horizon's own is the only one, and the fallback.
+    let all = list_in(&home, &data);
+    assert_eq!(selected_in(&all, None).id, DEFAULT);
+    assert_eq!(selected_in(&all, Some("gone")), all[0]);
+
+    // With a Java instance the fallback picks it: the Rust game never starts unpicked.
+    let java = create_in(&home, &data, "Fabric", None, Some("1.21.1")).unwrap();
+    let all = list_in(&home, &data);
+    assert_eq!(selected_in(&all, None).id, java.id);
+    assert_eq!(selected_in(&all, Some("gone")).id, java.id);
+
+    // A saved pick still wins, including Horizon's own.
+    assert_eq!(selected_in(&all, Some(DEFAULT)).id, DEFAULT);
+    assert_eq!(selected_in(&all, Some(&java.id.clone())).id, java.id);
+}

@@ -583,11 +583,11 @@ impl Launcher {
         }
         // `HORIZON_LAUNCHER_PAGE=new-instance`: the dialog open on Modded, for screenshots.
         if std::env::var("HORIZON_LAUNCHER_PAGE").as_deref() == Ok("new-instance") {
-            this.open_instance_dialog(None);
+            this.open_instance_dialog(None, cx);
             this.pick_kind(new_instance::NewKind::Modded, cx);
         }
         if std::env::var("HORIZON_LAUNCHER_PAGE").as_deref() == Ok("edit-instance") {
-            this.open_instance_dialog(this.selected_instance().cloned());
+            this.open_instance_dialog(this.selected_instance().cloned(), cx);
         }
         // What the game and the launcher kept, if the player allows it and there is a server.
         telemetry::send_in_background();
