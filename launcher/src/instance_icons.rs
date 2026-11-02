@@ -27,7 +27,9 @@ impl Launcher {
     ) -> Option<Arc<RenderImage>> {
         let file = instance.home.join(instances::PICTURE);
         let key = format!("picture:{}", instance.id);
-        self.icon_image(key, size, true, || std::fs::read(file).ok())
+        self.icon_image(key, size, true, || {
+            instances::read_capped(&file, instances::MAX_PICTURE_BYTES)
+        })
     }
 
     /// What an instance shows when nothing was chosen for it.

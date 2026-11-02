@@ -82,6 +82,22 @@ impl Icon {
 /// An instance's own picture, in its game folder: one the player chose, or its modpack's icon.
 /// Drawn instead of [`Meta::icon`] while it is there.
 pub const PICTURE: &str = "icon.png";
+
+/// The most an instance's picture may weigh: the bound `browser::images` already applies
+/// to pictures fetched from a CDN; one read from disk gets the same trust, and it stays
+/// well inside the decoder's 64 MiB bound.
+pub const MAX_PICTURE_BYTES: u64 = 8 << 20;
+
+/// `path` fully read, but only when it holds at most `max` bytes: the read itself stops
+/// at `max + 1`, so a growing file cannot race a metadata check.
+pub fn read_capped(path: &Path, max: u64) -> Option<Vec<u8>> {
+    use std::io::Read;
+    let mut file = fs::File::open(path).ok()?;
+    let mut bytes = Vec::new();
+    file.by_ref().take(max + 1).read_to_end(&mut bytes).ok()?;
+    (bytes.len() as u64 <= max).then_some(bytes)
+}
+
 /// How many pixels a side a picture is kept at: twice the largest it is drawn.
 pub const PICTURE_SIDE: u32 = 128;
 
@@ -139,6 +155,10 @@ pub struct Meta {
     pub icon: Option<Icon>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
+    /// Free text the player keeps with it (an imported instance keeps the notes its old
+    /// launcher held). None: none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
     /// The Horizon version this instance plays, kept when newer ones are installed. None: the
     /// launcher's own version, which follows updates.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -239,6 +259,8 @@ pub struct Instance {
     pub home: PathBuf,
     pub icon: Option<Icon>,
     pub group: Option<String>,
+    /// The player's own text about it (`Meta::notes`), if any.
+    pub notes: Option<String>,
     /// Its pinned Horizon version, if any (`Meta::version`).
     pub version: Option<String>,
     pub played: Duration,
@@ -342,6 +364,7 @@ fn list_in(game_home: &Path, data: &Path) -> Vec<Instance> {
                 name: meta.name.unwrap_or(name),
                 icon: meta.icon,
                 group: meta.group,
+                notes: meta.notes,
                 version: meta.version,
                 played: Duration::from_secs(meta.played_secs),
                 last_played: meta

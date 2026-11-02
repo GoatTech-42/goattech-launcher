@@ -64,8 +64,15 @@ pub struct Found {
     /// launcher keeps it where Horizon doesn't read.
     pub minecraft: Option<String>,
     pub loader: Option<Loader>,
+    /// The player's own notes about it, when the launcher keeps them (Prism/MultiMC's
+    /// instance.cfg `notes`).
+    pub notes: Option<String>,
     /// Its game folder: saves, mods, packs, options.
     pub game: PathBuf,
+    /// Its icon file, when the launcher keeps one for the instance (Prism/MultiMC):
+    /// [`copy_game`] puts it at the new home's `icon.png` (capped at
+    /// `instances::MAX_PICTURE_BYTES`), which its card then shows.
+    pub icon: Option<PathBuf>,
     /// The game folder is the launcher's own (the official launcher's default): only what an
     /// instance holds is copied, not the launcher's versions, libraries and assets.
     pub shared: bool,
@@ -154,10 +161,12 @@ pub fn prism_instance(dir: &Path, launcher: &'static str) -> Option<Found> {
         .map(|g| dir.join(g))
         .find(|g| g.is_dir())
         .unwrap_or_else(|| dir.join("minecraft"));
+    let cfg = fs::read_to_string(dir.join("instance.cfg")).ok();
     let folder = dir.file_name()?.to_string_lossy().into_owned();
-    let name = fs::read_to_string(dir.join("instance.cfg"))
-        .ok()
-        .and_then(|t| ini_value(&t, "name"))
+    let name = cfg
+        .as_deref()
+        .and_then(|t| ini_value(t, "name"))
+        .map(|n| ini_string(&n))
         .filter(|n| !n.is_empty())
         .unwrap_or(folder);
     Some(Found {
@@ -165,9 +174,209 @@ pub fn prism_instance(dir: &Path, launcher: &'static str) -> Option<Found> {
         name,
         minecraft: Some(minecraft),
         loader,
+        notes: cfg
+            .as_deref()
+            .and_then(|t| ini_value(t, "notes"))
+            .map(|n| ini_string(&n))
+            .filter(|n| !n.is_empty()),
+        icon: prism_icon(dir, cfg.as_deref()),
         game,
         shared: false,
     })
+}
+
+/// A value of Prism/MultiMC's instance.cfg the way it reads back through Qt's INI
+/// format, which both launchers write with (`INIFile::saveFile` -> `QSettings::IniFormat`):
+/// one pass over the raw value; `"` toggles a quoted span and is never emitted; escapes
+/// work inside and outside quotes (`\\`, `\"`, `\'`, `\?`, `\a` `\b` `\f` `\n` `\r` `\t`
+/// `\v`, `\xHH` hex, `\ooo` octal); a backslash before a real line break continues the
+/// line; an unknown escape drops both characters; an unquoted value's trailing blanks are
+/// chopped. The writer wraps a value holding `;`, `,`, `=` or edge spaces in quotes, so
+/// those quotes never reach the value here. A bare `,` is Qt's list separator: these keys
+/// (`name`, `notes`, `iconKey`) are plain strings, and a list of more than one item reads
+/// back empty, the way Prism's `value(key).toString()` sees it. A leading `@` then goes
+/// through Qt's variant pass, reduced to the plain-string cases (see the tail below).
+/// A pre-ConfigVersion MultiMC file knew only `\n`, `\t` and `\#`; one of those is
+/// read with Qt's rules here (`\#` drops), a legacy corner a new write fixes. Note
+/// ini_value reads a value per physical line: a hand-written `\`-at-line-end
+/// continuation is not joined end to end (Qt's writer never emits one - it escapes a
+/// newline as `\n`), though the helper still resolves one inside a raw value.
+fn ini_string(raw: &str) -> String {
+    let mut out = String::new();
+    let mut items = 1usize;
+    let mut quoted = false;
+    let mut chars = raw.chars().peekable();
+    // The end of `out` counted in real content: unquoted trailing blanks chop back to it.
+    let mut chop = 0usize;
+    while let Some(c) = chars.next() {
+        match c {
+            '"' => {
+                quoted = !quoted;
+                chop = out.len();
+            }
+            ',' if !quoted => {
+                items += 1;
+                out.clear();
+                chop = 0;
+                while matches!(chars.peek(), Some(&(' ' | '\t'))) {
+                    chars.next();
+                }
+            }
+            '\\' => {
+                let Some(e) = chars.next() else {
+                    break; // a trailing lone backslash drops
+                };
+                let decoded = match e {
+                    'a' => Some('\u{7}'),
+                    'b' => Some('\u{8}'),
+                    'f' => Some('\u{c}'),
+                    'n' => Some('\n'),
+                    'r' => Some('\r'),
+                    't' => Some('\t'),
+                    'v' => Some('\u{b}'),
+                    '"' | '\'' | '?' | '\\' => Some(e),
+                    'x' => {
+                        // Qt accumulates into a char16_t: the shifts wrap at 16 bits.
+                        let mut v = 0u16;
+                        let mut any = false;
+                        while let Some(&d) = chars.peek() {
+                            let Some(h) = d.to_digit(16) else { break };
+                            v = (v << 4) | h as u16;
+                            any = true;
+                            chars.next();
+                        }
+                        // A lone surrogate is one QChar to Qt; a Rust String cannot hold
+                        // it, so it reads as the replacement character here.
+                        any.then(|| char::from_u32(v as u32).unwrap_or('\u{FFFD}'))
+                    }
+                    '0'..='7' => {
+                        let mut v = e.to_digit(8).unwrap() as u16;
+                        while let Some(&d) = chars.peek() {
+                            let Some(o) = d.to_digit(8) else { break };
+                            v = (v << 3) | o as u16;
+                            chars.next();
+                        }
+                        Some(char::from_u32(v as u32).unwrap_or('\u{FFFD}'))
+                    }
+                    '\n' => {
+                        if matches!(chars.peek(), Some(&'\r')) {
+                            chars.next();
+                        }
+                        None
+                    }
+                    '\r' => {
+                        if matches!(chars.peek(), Some(&'\n')) {
+                            chars.next();
+                        }
+                        None
+                    }
+                    _ => None, // an unknown escape drops both characters
+                };
+                if let Some(d) = decoded {
+                    out.push(d);
+                    if quoted || !(d == ' ' || d == '\t') {
+                        chop = out.len();
+                    }
+                }
+            }
+            _ => {
+                out.push(c);
+                if quoted || !(c == ' ' || c == '\t') {
+                    chop = out.len();
+                }
+            }
+        }
+    }
+    out.truncate(chop);
+    if items > 1 {
+        // Qt hands back a string list; Prism's `value(key).toString()` of a list of
+        // more than one item is an empty string.
+        return String::new();
+    }
+    // Then Qt's variant pass (stringToVariant), reduced to what one of these
+    // plain-string keys can meet: the writer escapes a value's own leading '@' as a
+    // second one, wraps a QString holding a NUL in `@String(...)`, stores bytes as
+    // `@ByteArray(...)`, and writes `@Invalid()` for an absent value. Any other
+    // `@...(...)` wrapper encodes a non-string variant type these keys never hold:
+    // kept literal.
+    if out.starts_with("@@") {
+        // The writer's escape of a literal leading '@' is one extra '@': drop ONE.
+        return out[1..].to_string();
+    }
+    if let Some(inner) = out.strip_prefix("@String(").and_then(|r| r.strip_suffix(')')) {
+        return inner.to_string();
+    }
+    if let Some(inner) = out
+        .strip_prefix("@ByteArray(")
+        .and_then(|r| r.strip_suffix(')'))
+    {
+        // Qt keeps the raw bytes here and QString-converts them on the way back; the
+        // characters as parsed are the content for any name, notes or key a writer
+        // actually produced.
+        return inner.to_string();
+    }
+    if out == "@Invalid()" {
+        return String::new();
+    }
+    out
+}
+
+/// A Prism/MultiMC instance's icon file: its own `icon.png`, else the `iconKey` of its
+/// instance.cfg looked up in the launcher's shared `icons/` folder (beside `instances/`),
+/// else none (its card falls back to its mark, like any instance without a picture).
+/// Every step from the folder the import was given down to the file must be a real
+/// directory: a linked `icons/` or a linked instance folder would read the picture from
+/// outside it, and the leaf check at copy time only sees the file. (A directory swapped
+/// for a link between this check and the copy is still a race; the leaf is re-checked
+/// there, this only narrows it.)
+fn prism_icon(dir: &Path, cfg: Option<&str>) -> Option<PathBuf> {
+    let own = dir.join("icon.png");
+    if own.is_file() && confined(dir, &own) {
+        return Some(own);
+    }
+    let key = ini_string(&cfg.and_then(|t| ini_value(t, "iconKey"))?);
+    // iconKeys are plain names ("steelfeathers"). A path-like one (`../`, an absolute
+    // Windows key) would escape `icons/`, and an import only ever reads inside the folder
+    // it was given - reject it rather than follow it.
+    if key.is_empty()
+        || key.contains("..")
+        || !key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, ' ' | '_' | '+' | '.' | '-'))
+    {
+        return None;
+    }
+    let instances = dir.parent()?;
+    let root = if instances.file_name()? == "instances" {
+        instances.parent()?
+    } else {
+        instances
+    };
+    let icons = root.join("icons");
+    ["png", "jpg", "jpeg"]
+        .iter()
+        .map(|ext| icons.join(format!("{key}.{ext}")))
+        .find(|i| i.is_file() && confined(root, i))
+}
+
+/// Every component of `path` from `root` down is a real directory (or the file itself):
+/// one linked step would silently point the read outside `root`, and checking only the
+/// leaf (`symlink_metadata` on the file) does not see it.
+fn confined(root: &Path, path: &Path) -> bool {
+    let mut step = path;
+    loop {
+        match step.symlink_metadata() {
+            Ok(meta) if !meta.file_type().is_symlink() => {}
+            _ => return false,
+        }
+        if step == root {
+            return true;
+        }
+        step = match step.parent() {
+            Some(parent) => parent,
+            None => return false,
+        };
+    }
 }
 
 /// Every instance in a Prism or MultiMC folder (its root, or its `instances/` itself).
@@ -254,6 +463,8 @@ pub fn official_profiles(root: &Path) -> Vec<Found> {
                 name,
                 minecraft: Some(minecraft),
                 loader,
+                notes: None,
+                icon: None,
                 shared: game.as_ref().is_none_or(|g| g == root),
                 game: game.unwrap_or_else(|| root.to_path_buf()),
             })
@@ -281,6 +492,8 @@ fn game_folders(dir: &Path, launcher: &'static str) -> Vec<Found> {
                 name: game.file_name()?.to_string_lossy().into_owned(),
                 minecraft: None,
                 loader: None,
+                notes: None,
+                icon: None,
                 game,
                 shared: false,
             })
@@ -338,6 +551,8 @@ pub fn atlauncher_instance(dir: &Path) -> Option<Found> {
         name,
         minecraft: Some(minecraft.to_string()),
         loader: atlauncher_loader(launcher),
+        notes: None,
+        icon: None,
         game: dir.to_path_buf(),
         shared: false,
     })
@@ -475,7 +690,72 @@ pub fn copy_game(found: &Found, to: &Path) -> std::io::Result<()> {
             fs::copy(entry.path(), to.join(name.as_ref()))?;
         }
     }
+    // The instance's icon from its launcher's folder; it is cosmetic: anything
+    // unreadable, oversized or suspicious skips quietly and the import still lands.
+    if let Some(icon) = &found.icon {
+        carry_icon(icon, &to.join(crate::instances::PICTURE));
+    }
     Ok(())
+}
+
+/// The one picture the import adds to the new home: `icon` copied only when it is a real
+/// file (never a link), at most `instances::MAX_PICTURE_BYTES`, and the new home holds no
+/// picture of its own (the game folder's own icon.png always wins). The source is read
+/// fully - the read itself is capped - before the target is touched, and the write lands
+/// through a uniquely-named create_new temporary, so a failing source or write leaves no
+/// partial icon.png and no file already in the folder is ever truncated.
+fn carry_icon(icon: &Path, to: &Path) {
+    if to.exists() {
+        return;
+    }
+    let Ok(meta) = icon.symlink_metadata() else {
+        return;
+    };
+    if !meta.is_file() || meta.file_type().is_symlink() {
+        return;
+    }
+    let Some(bytes) = crate::instances::read_capped(icon, crate::instances::MAX_PICTURE_BYTES)
+    else {
+        return;
+    };
+    // A temporary of our own, made with create_new: a fixed name (say icon.tmp) could be
+    // a file the game folder already held, and writing it would truncate the player's
+    // file. Ours gets a fresh suffix, and only the one we created is ever removed.
+    use std::io::Write;
+    let mut made = None;
+    for n in 0..100u32 {
+        let suffix = if n == 0 {
+            "horizon-import-tmp".to_string()
+        } else {
+            format!("horizon-import-tmp.{n}")
+        };
+        let candidate = to.with_file_name(format!(
+            "{}.{suffix}",
+            to.file_name().unwrap_or_default().to_string_lossy()
+        ));
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&candidate)
+        {
+            Ok(mut file) => {
+                if file.write_all(&bytes).is_ok() {
+                    made = Some(candidate);
+                } else {
+                    let _ = fs::remove_file(&candidate);
+                }
+                break;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(_) => return,
+        }
+    }
+    let Some(tmp) = made else {
+        return;
+    };
+    if fs::rename(&tmp, to).is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
 }
 
 /// The loader `found` runs, when Horizon installs it (Fabric, Quilt): at the same version.
@@ -504,12 +784,16 @@ pub fn import(found: &Found, name: &str, minecraft: Option<&str>) -> Result<Inst
         let _ = instances::delete(&instance.id);
         return Err(format!("Could not copy {}: {e}", found.game.display()));
     }
-    match loader(found) {
-        Some(l) => instances::edit(&instance.id, |m| {
-            m.java.get_or_insert_with(Default::default).loader = Some(l)
-        }),
-        None => Ok(instance),
+    let loader = loader(found);
+    if loader.is_none() && found.notes.is_none() {
+        return Ok(instance);
     }
+    instances::edit(&instance.id, |m| {
+        if let Some(l) = loader {
+            m.java.get_or_insert_with(Default::default).loader = Some(l);
+        }
+        m.notes = found.notes.clone();
+    })
 }
 
 #[cfg(test)]

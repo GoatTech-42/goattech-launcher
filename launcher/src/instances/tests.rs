@@ -423,3 +423,60 @@ fn a_picture_is_kept_small_and_goes_to_the_trash() {
     assert!(picture(b"not an image".to_vec()).is_err());
     fs::remove_dir_all(&root).unwrap();
 }
+
+#[test]
+fn meta_without_notes_reads_as_none_and_notes_roundtrip() {
+    // Old metadata (written before notes existed) must read as no notes, not fail.
+    let old: Meta = serde_json::from_str(r#"{"name": "Old", "group": "g"}"#).unwrap();
+    assert_eq!(old.notes, None);
+    let with: Meta = serde_json::from_str(r#"{"notes": "seed 42, village north"}"#).unwrap();
+    assert_eq!(with.notes.as_deref(), Some("seed 42, village north"));
+    let saved = serde_json::to_value(&with).unwrap();
+    assert_eq!(saved["notes"], "seed 42, village north");
+    // None stays out of the file.
+    assert!(serde_json::to_value(&old).unwrap().get("notes").is_none());
+}
+
+#[test]
+fn read_capped_reads_up_to_the_cap_and_no_more() {
+    let root = scratch("read-capped");
+    let small = root.join("small.png");
+    fs::write(&small, b"abc").unwrap();
+    assert_eq!(read_capped(&small, 8).unwrap(), b"abc");
+    let exact = root.join("exact.png");
+    fs::write(&exact, vec![7u8; 8]).unwrap();
+    assert_eq!(read_capped(&exact, 8).unwrap().len(), 8);
+    let over = root.join("over.png");
+    fs::write(&over, vec![7u8; 9]).unwrap();
+    assert_eq!(read_capped(&over, 8), None);
+    assert_eq!(read_capped(&root.join("missing.png"), 8), None);
+    fs::remove_dir_all(&root).unwrap();
+}
+#[test]
+fn notes_made_are_returned_and_an_unrelated_edit_preserves_them() {
+    let root = scratch("notes-made");
+    let (home, data) = (root.join("horizon"), root.join("launcher"));
+    player_home(&home);
+    let made = create_in(&home, &data, "Survival", None, None).unwrap();
+    assert_eq!(made.notes, None);
+
+    // Notes made on the instance - the same edit path an import's notes write takes -
+    // come back from the listing.
+    let noted = edit_in(&home, &data, "survival", |m| {
+        m.name = Some("Survival".into());
+        m.group = Some("Mine".into());
+        m.notes = Some("seed 42, village north".into());
+    })
+    .unwrap();
+    assert_eq!(noted.notes.as_deref(), Some("seed 42, village north"));
+
+    // A later edit that touches something else preserves the notes, and everything else.
+    let renamed = edit_in(&home, &data, "survival", |m| {
+        m.name = Some("Main base".into())
+    })
+    .unwrap();
+    assert_eq!(renamed.name, "Main base");
+    assert_eq!(renamed.notes.as_deref(), Some("seed 42, village north"));
+    assert_eq!(renamed.group.as_deref(), Some("Mine"));
+    fs::remove_dir_all(&root).unwrap();
+}
