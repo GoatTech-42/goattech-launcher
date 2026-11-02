@@ -38,6 +38,7 @@ fn maker(root: &Path) -> impl Fn(&str) -> Result<Instance, String> + '_ {
         }
         fs::create_dir_all(&home).unwrap();
         Ok(Instance {
+            notes: None,
             id: crate::modpacks::slug(name),
             name: name.into(),
             kind: instances::Kind::Own,
