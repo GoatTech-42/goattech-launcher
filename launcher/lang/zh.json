@@ -235,7 +235,6 @@
   "Not prepared. Play downloads Minecraft {version} from Mojang for your account and prepares it.": "未准备。点击“开始游戏”后，Horizon 会为你的账户从 Mojang 下载 Minecraft {version} 并完成准备。",
   "Not prepared. Sign in with the Microsoft account that owns Minecraft {version} first.": "未准备。请先登录拥有 Minecraft {version} 的 Microsoft 账户。",
   "Not reviewed by the Horizon registry": "未经 Horizon 注册表审核",
-  "Not supported yet - tracked upstream.": "尚不支持——正在跟踪上游进展。",
   "Not yet": "Not yet",
   "Nothing found for {target}.": "未找到适用于 {target} 的内容。",
   "Nothing found that runs in Horizon. Show everything lists the rest.": "未找到可在 Horizon 中运行的内容。开启“显示全部”可查看其余结果。",

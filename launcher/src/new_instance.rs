@@ -306,33 +306,8 @@ impl Launcher {
                     cx.notify();
                 }))
             };
-            // Forge and NeoForge show as what they are: known loaders the launcher can't
-            // install yet (no installer pipeline), never hidden and never clickable. The words
-            // carry the state; the dimming is decoration.
-            let unsupported = |name: &'static str| {
-                div()
-                    .flex()
-                    .flex_none()
-                    .flex_col()
-                    .justify_center()
-                    .gap(px(2.))
-                    .h(px(48.))
-                    .w(px(180.))
-                    .px(px(16.))
-                    .rounded(px(night::RADIUS_CONTROL))
-                    .border_1()
-                    .border_color(alpha(n.stroke, n.stroke_alpha))
-                    .opacity(0.62)
-                    .child(
-                        shell::text(night::UI, c(n.ink_soft))
-                            .font_weight(FontWeight::MEDIUM)
-                            .child(name),
-                    )
-                    .child(
-                        shell::text(night::CAPTION, c(n.muted))
-                            .child(tr("Not supported yet - tracked upstream.").to_string()),
-                    )
-            };
+            // All four loaders install (Forge and NeoForge through the verified installer
+            // driver); their cards carry no service logo, as only Fabric and Quilt have one.
             rows = rows.child(heading("Loader")).child(
                 div()
                     .flex()
@@ -340,8 +315,8 @@ impl Launcher {
                     .gap(px(10.))
                     .child(card(Loader::Fabric))
                     .child(card(Loader::Quilt))
-                    .child(unsupported("Forge"))
-                    .child(unsupported("NeoForge")),
+                    .child(card(Loader::Forge))
+                    .child(card(Loader::NeoForge)),
             );
         }
         rows.child(shell::text(night::CAPTION, c(n.muted)).child(

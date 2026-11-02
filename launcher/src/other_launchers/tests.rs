@@ -74,7 +74,8 @@ fn prism_and_multimc_instances() {
         ]
     );
     assert_eq!(in_folder(&fabric, None)[0].name, "My Fabric");
-    // Fabric comes along at the same version; Forge isn't installed by Horizon yet.
+    // Fabric comes along at the same version; the 1.12.2 Forge predates the installer
+    // driver's 1.13 layout, so its block stays (`forge_install::supports`).
     assert_eq!(
         loader(&found[0]),
         Some(crate::loaders::Loader {
@@ -341,14 +342,24 @@ fn mods_that_could_never_load_are_refused_or_left_behind_never_silent() {
     });
     assert_eq!(mods_blocked(&fabric), None);
 
-    // Forge/NeoForge: blocked, naming the loader and version.
+    // Forge/NeoForge on a supported Minecraft: installed, mods carry.
     let mut forge = base.clone();
     forge.loader = Some(Loader {
         name: "forge",
         version: "47.2.0".into(),
     });
-    let why = mods_blocked(&forge).expect("forge is blocked");
-    assert!(why.contains("forge 47.2.0"), "{why}");
+    assert_eq!(mods_blocked(&forge), None);
+
+    // A Forge whose Minecraft predates the driver's 1.13 layout: blocked, naming why.
+    let mut old_forge = base.clone();
+    old_forge.minecraft = Some("1.12.2".into());
+    old_forge.loader = Some(Loader {
+        name: "forge",
+        version: "14.23.5.2860".into(),
+    });
+    let why = mods_blocked(&old_forge).expect("pre-1.13 forge is blocked");
+    assert!(why.contains("forge 14.23.5.2860"), "{why}");
+    assert!(why.contains("1.13"), "{why}");
 
     // No mods: never blocked.
     let mut empty = base.clone();
@@ -543,4 +554,69 @@ fn a_missing_icon_never_fails_the_import() {
     };
     copy_game(&found, &root.join("imported")).unwrap();
     assert!(root.join("imported/options.txt").is_file());
+}
+
+#[test]
+fn a_forge_instance_carries_its_loader_and_mods() {
+    let root = scratch("forge-import");
+    let pack = root.join("instances/ForgePack");
+    write(
+        &pack.join("mmc-pack.json"),
+        &json!({"components": [{"uid": "net.minecraft", "version": "1.20.1"},
+            {"uid": "net.minecraftforge", "version": "47.2.0"}]}).to_string(),
+    );
+    write(&pack.join("minecraft/options.txt"), "opts");
+    write(&pack.join("minecraft/mods/a.jar"), "jar");
+
+    let found = prism_instances(&root, "Prism Launcher");
+    assert_eq!(found.len(), 1);
+    // The loader carries, and its mods are no longer blocked.
+    assert_eq!(mods_blocked(&found[0]), None);
+
+    let made = import(&found[0], "forge-copy", None, true).unwrap();
+    let listed = crate::instances::list();
+    let again = listed.iter().find(|i| i.id == made.id).unwrap();
+    // The recorded bare build is named the way Maven does for the installer download.
+    assert_eq!(
+        again.java.as_ref().unwrap().loader,
+        Some(crate::loaders::Loader {
+            kind: crate::loaders::Kind::Forge,
+            version: "1.20.1-47.2.0".into()
+        })
+    );
+    assert!(made.home.join("mods/a.jar").is_file());
+    let _ = crate::instances::delete(&made.id);
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn a_legacy_neoforge_instance_carries_its_loader_and_mods() {
+    let root = scratch("neoforge-legacy-import");
+    let pack = root.join("instances/NeoPack");
+    write(
+        &pack.join("mmc-pack.json"),
+        &json!({"components": [{"uid": "net.minecraft", "version": "1.20.1"},
+            {"uid": "net.neoforged", "version": "47.1.106"}]}).to_string(),
+    );
+    write(&pack.join("minecraft/options.txt"), "opts");
+    write(&pack.join("minecraft/mods/a.jar"), "jar");
+
+    let found = prism_instances(&root, "Prism Launcher");
+    assert_eq!(found.len(), 1);
+    assert_eq!(mods_blocked(&found[0]), None);
+
+    let made = import(&found[0], "neo-copy", None, true).unwrap();
+    let listed = crate::instances::list();
+    let again = listed.iter().find(|i| i.id == made.id).unwrap();
+    // 1.20.1 NeoForge lives on the legacy artifact, Minecraft-prefixed like a Forge build.
+    assert_eq!(
+        again.java.as_ref().unwrap().loader,
+        Some(crate::loaders::Loader {
+            kind: crate::loaders::Kind::NeoForge,
+            version: "1.20.1-47.1.106".into()
+        })
+    );
+    assert!(made.home.join("mods/a.jar").is_file());
+    let _ = crate::instances::delete(&made.id);
+    let _ = fs::remove_dir_all(&root);
 }

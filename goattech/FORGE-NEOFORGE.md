@@ -1,14 +1,12 @@
 # Forge / NeoForge support plan
 
-Status: **implemented, verified, gated off**. `loaders::Kind` covers all four
+Status: **implemented and verified**. `loaders::Kind` covers all four
 loaders; Forge and NeoForge install through the official-installer driver in
-`launcher/src/forge_install.rs` (route A below, chosen and built). The
-`Kind::installable()` gate still returns true for Fabric and Quilt only:
-new Java instances show Forge/NeoForge as "Not supported yet" cards, and
-imports of Forge/NeoForge instances keep their explicit block (never silently
-imported without mods). The flip is release-gate work, not done here. The
-"import everything" scope does not accept dropping Forge/NeoForge mods, so
-the flip remains owed work.
+`launcher/src/forge_install.rs` (route A below, chosen and built), for
+Minecraft 1.13 and newer. New Java instances offer all four loaders, and
+Forge/NeoForge imports carry their loader and mods. What a working install
+does not prove is a signed-in game launch: that check waits on Mojang's
+approval of the launcher's app registration, as does every launch.
 
 ## Grounded installer behavior (checked 2026-10-31)
 
@@ -77,10 +75,15 @@ real on Linux against the official installers and Mojang's services:
   and `java_launch::resolve` against the staged vanilla version all checked.
 - `forge_installs_for_real`: installed Forge 1.21.1-52.1.20 for Minecraft
   1.21.1 (61 libraries); same checks.
+- `legacy_neoforge_installs_for_real`: installed NeoForge 1.20.1-47.1.106 -
+  the legacy `net.neoforged:forge` artifact - for Minecraft 1.20.1 (83
+  libraries, Java 17); same checks.
 
-Both passed. This is the "installer driver is verified" precondition the
-`installable()` doc comment names; the flip itself (plus the new-instance
-cards and the import block lifting) stays gated until release sign-off.
+All passed. With the driver verified, the flip has landed: new instances
+offer all four loaders and imports carry their loader and mods. What stays
+gated is publishing any launcher version (the independent-review release
+gate) and claiming a signed-in game launch, which waits on Mojang's approval
+of the launcher's app registration, as for every instance.
 
 ## Integration points (current state)
 
@@ -93,10 +96,13 @@ cards and the import block lifting) stays gated until release sign-off.
   the produced version id for the existing `java_launch::resolve` merge.
   `backend::java_game`'s `.downloaded` marker caches the result; the next
   start is offline, as for Fabric/Quilt.
-- `new_instance`: not done (gated) - Forge/NeoForge render as disabled
-  "Not supported yet" cards.
-- `other_launchers.rs`: not done (gated) - Forge/NeoForge imports keep the
-  explicit unsupported block; `--no-mods` stays an explicit user choice.
+- `new_instance`: done - all four loaders are real cards (Forge/NeoForge
+  render without a service logo, as only Fabric and Quilt have one).
+- `other_launchers.rs`: done - Forge/NeoForge imports carry their loader and
+  mods; the recorded bare Forge build is named with its Minecraft prefix for
+  the Maven installer download. A Forge/NeoForge whose Minecraft predates the
+  1.13 layout keeps the explicit block, and `--no-mods` stays an explicit
+  user choice.
 - Offline start after install: covered by the same profile/library cache as
   Fabric/Quilt.
 
@@ -105,7 +111,10 @@ cards and the import block lifting) stays gated until release sign-off.
 - Processor runtime and failure surface: first install downloads + runs
   several JVM tools; needs progress reporting on the install bar and a
   clear error, not a hang.
-- NeoForge legacy vs current Maven split (version string shape decides).
+- NeoForge legacy vs current Maven split; resolved: 1.20.1 builds come from
+  the legacy `net.neoforged:forge` artifact, Minecraft-prefixed like Forge's
+  (`neoforge_legacy`, `maven_for`, `maven_version`); 1.20.2+ uses the
+  `neoforge` artifact unprefixed.
 - Forge's installer for old Minecraft versions (pre-1.13) predates
   `install_profile.json`; resolved: the cutoff is 1.13, named up front by
   `forge_install::install` before any download.

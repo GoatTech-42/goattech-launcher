@@ -25,14 +25,14 @@ pub fn install(
     let name = loader.kind.name();
     let (base, coordinates) = loader
         .kind
-        .maven()
+        .maven_for(minecraft)
         .ok_or_else(|| format!("{name} has no installer"))?;
     // The `install_profile.json` layout this install drives landed with Minecraft 1.13;
     // older Forge installers carry the old format and would only fail deep in the zip read
     // (goattech/FORGE-NEOFORGE.md).
     // Name the cutoff up front instead. Unknown version shapes (snapshots) pass through to the
     // installer's own Minecraft check below.
-    if matches!(minecraft_minor(minecraft), Some(minor) if minor < 13) {
+    if !supports(minecraft) {
         return Err(format!(
             "{name} needs Minecraft 1.13 or newer: older installers predate the layout this install drives"
         ));
@@ -116,6 +116,13 @@ pub fn install(
     let _ = fs::remove_dir_all(&scratch);
     log(format!("Installed {name} {} ({kept} libraries)", loader.version));
     Ok(id)
+}
+
+/// Whether this driver can install for `minecraft`: the `install_profile.json` layout it
+/// drives landed with Minecraft 1.13. Unknown version shapes (snapshots) pass through to the
+/// installer's own Minecraft check, as `install` does.
+pub fn supports(minecraft: &str) -> bool {
+    !matches!(minecraft_minor(minecraft), Some(minor) if minor < 13)
 }
 
 /// The minor in `1.<minor>...`, when `minecraft` is a release-style version id.
