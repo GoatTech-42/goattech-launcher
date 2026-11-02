@@ -79,9 +79,11 @@ real on Linux against the official installers and Mojang's services:
   the legacy `net.neoforged:forge` artifact - for Minecraft 1.20.1 (83
   libraries, Java 17); same checks.
 
-All passed. This is the "installer driver is verified" precondition the
-`installable()` doc comment names; the flip itself (plus the new-instance
-cards and the import block lifting) stays gated until release sign-off.
+All passed. With the driver verified, the flip has landed: new instances
+offer all four loaders and imports carry their loader and mods. What stays
+gated is publishing any launcher version (the independent-review release
+gate) and claiming a signed-in game launch, which waits on Mojang's approval
+of the launcher's app registration, as for every instance.
 
 ## Integration points (current state)
 

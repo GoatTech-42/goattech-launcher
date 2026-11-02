@@ -118,7 +118,6 @@ pub fn install(
     Ok(id)
 }
 
-/// The minor in `1.<minor>...`, when `minecraft` is a release-style version id.
 /// Whether this driver can install for `minecraft`: the `install_profile.json` layout it
 /// drives landed with Minecraft 1.13. Unknown version shapes (snapshots) pass through to the
 /// installer's own Minecraft check, as `install` does.
@@ -126,6 +125,7 @@ pub fn supports(minecraft: &str) -> bool {
     !matches!(minecraft_minor(minecraft), Some(minor) if minor < 13)
 }
 
+/// The minor in `1.<minor>...`, when `minecraft` is a release-style version id.
 fn minecraft_minor(minecraft: &str) -> Option<u64> {
     let mut parts = minecraft.split('.');
     if parts.next()? != "1" {

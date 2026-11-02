@@ -53,7 +53,8 @@ fn versions_name_the_stable_ones() {
     assert_eq!(Kind::parse(" Fabric ").unwrap(), Kind::Fabric);
     assert_eq!(Kind::parse("forge").unwrap(), Kind::Forge);
     assert_eq!(Kind::parse("neoforge").unwrap(), Kind::NeoForge);
-    // Known, but not installed until the installer driver is verified.
+    // All four install: Fabric/Quilt from their services, Forge/NeoForge through the
+    // verified installer driver.
     assert!(Kind::Forge.installable());
     assert!(Kind::NeoForge.installable());
     assert!(Kind::Fabric.installable());
