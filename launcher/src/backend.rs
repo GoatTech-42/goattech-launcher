@@ -776,6 +776,15 @@ pub fn is_prepared(tag: &str) -> bool {
     resources(tag).join(RESOURCES_MANIFEST).exists()
 }
 
+/// Any Horizon version ever prepared here: a returning player's evidence, so Play's fallback
+/// may offer their existing Rust game. A fresh install has none and is asked to pick first
+/// (`instances::needs_first_pick`).
+pub fn any_prepared() -> bool {
+    versions_dir()
+        .read_dir()
+        .is_ok_and(|mut entries| entries.next().is_some())
+}
+
 /// Whether a version's resources hold Minecraft's sounds, which `sounds` copies from the player's own
 /// install beside the preparation. A version prepared while that copy failed (Mojang's republished 26.3
 /// asset index, #1076), or one that reused such a version's resources, plays no sound at all (#1035).

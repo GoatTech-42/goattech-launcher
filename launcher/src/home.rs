@@ -530,6 +530,24 @@ impl Launcher {
                         })
                 }));
         }
+        // Nothing was ever picked and the Rust game was never used here: the hero's Play
+        // would choose a game for the player. Ask for the first pick instead. An explicit
+        // card Play, Join or quick-play stays untouched: those are the pick.
+        if instances::needs_first_pick(
+            &self.instances.list,
+            self.settings.instance.as_deref(),
+            backend::any_prepared(),
+        ) {
+            return div().flex().child(
+                action("play", Action::Main, &t)
+                    .min_w(px(320.))
+                    .child(label(tr("New instance").to_string()))
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                        this.open_instance_dialog(None, cx);
+                        cx.notify();
+                    })),
+            );
+        }
         let press = play_press(ready, self.owner, self.preparing || running);
         let live = !matches!(press, PlayPress::Nothing);
         // The concept's Play wears the instance's facts as a small second line.

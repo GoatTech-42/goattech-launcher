@@ -148,13 +148,13 @@ impl Launcher {
         let now = self.instances.dialog.as_ref().map(|d| d.java.kind);
         div().flex().gap(px(4.)).children(
             [
-                (NewKind::Vanilla, "Vanilla"),
-                (NewKind::Modded, "Modded"),
-                (NewKind::Horizon, "Horizon"),
+                (NewKind::Vanilla, "Vanilla", "Vanilla"),
+                (NewKind::Modded, "Modded", "Modded"),
+                (NewKind::Horizon, "Horizon", "Horizon (Rust)"),
             ]
-            .map(|(kind, label)| {
+            .map(|(kind, id, label)| {
                 shell::tab(
-                    format!("new-kind-{label}"),
+                    format!("new-kind-{id}"),
                     tr(label),
                     now == Some(kind),
                     &t,

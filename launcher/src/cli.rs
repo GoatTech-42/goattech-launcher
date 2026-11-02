@@ -1263,7 +1263,17 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
         } => {
             let instance = match instance {
                 Some(name) => instances::find(&name)?,
-                None => instances::selected(),
+                None => {
+                    let all = instances::list();
+                    let saved = backend::Settings::load().instance;
+                    if instances::needs_first_pick(&all, saved.as_deref(), backend::any_prepared()) {
+                        return Err(
+                            "No instance yet: create one first (`instance new`), then `play`."
+                                .into(),
+                        );
+                    }
+                    instances::selected()
+                }
             };
             if instance.java.is_some() {
                 if version.is_some() || world.is_some() || join.is_some() || creative {

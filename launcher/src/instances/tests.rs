@@ -486,3 +486,38 @@ fn play_falls_back_to_a_java_instance_before_horizons_own() {
     assert_eq!(selected_in(&all, Some(DEFAULT)).id, DEFAULT);
     assert_eq!(selected_in(&all, Some(&java.id.clone())).id, java.id);
 }
+
+#[test]
+fn play_asks_for_a_first_pick_instead_of_starting_the_rust_game_silently() {
+    let root = scratch("first-pick");
+    let (home, data) = (root.join("horizon"), root.join("launcher"));
+    player_home(&home);
+
+    // Fresh install, nothing prepared: Play must ask, not start Horizon's own.
+    let all = list_in(&home, &data);
+    assert!(needs_first_pick(&all, None, false));
+    assert!(needs_first_pick(&all, Some("gone"), false));
+
+    // A version prepared here before: a returning player keeps their game as the fallback.
+    assert!(!needs_first_pick(&all, None, true));
+    // So does one who played or pinned a version, even with the builds since pruned.
+    edit_in(&home, &data, DEFAULT, |m| m.played_secs = 60).unwrap();
+    assert!(!needs_first_pick(&list_in(&home, &data), None, false));
+    edit_in(&home, &data, DEFAULT, |m| {
+        m.played_secs = 0;
+        m.version = Some("v2026.10.15".into());
+    })
+    .unwrap();
+    assert!(!needs_first_pick(&list_in(&home, &data), None, false));
+    edit_in(&home, &data, DEFAULT, |m| m.version = None).unwrap();
+    assert!(needs_first_pick(&list_in(&home, &data), None, false));
+
+    // Any Java instance, or any pick that still exists, settles it too.
+    let java = create_in(&home, &data, "Fabric", None, Some("1.21.1")).unwrap();
+    let all = list_in(&home, &data);
+    assert!(!needs_first_pick(&all, None, false));
+    let rust = create_in(&home, &data, "Rusty", None, None).unwrap();
+    let all = list_in(&home, &data);
+    assert!(!needs_first_pick(&all, Some(&rust.id), false));
+    let _ = java;
+}

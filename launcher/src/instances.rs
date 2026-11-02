@@ -464,6 +464,24 @@ pub fn selected() -> Instance {
     selected_in(&all, saved.as_deref())
 }
 
+/// Play with no real choice yet: nothing picked that still exists, no Java instance, and the
+/// Rust game's own shows no sign the player ever used it (no play recorded, no version pinned,
+/// none prepared). Then Play must ask for a first pick - a Minecraft launcher never starts a
+/// different game silently - while a returning Horizon player keeps it as their fallback.
+pub fn needs_first_pick(all: &[Instance], saved: Option<&str>, horizon_prepared: bool) -> bool {
+    if saved.is_some_and(|id| all.iter().any(|i| i.id == id)) {
+        return false;
+    }
+    if all.iter().any(|i| i.java.is_some()) {
+        return false;
+    }
+    let used = all.first().is_some_and(|i| {
+        i.id == DEFAULT
+            && (i.played > Duration::ZERO || i.last_played.is_some() || i.version.is_some())
+    });
+    !(used || horizon_prepared)
+}
+
 /// `selected`'s fallback, testable: the saved id when it still exists, then the first Java
 /// instance, then the first at all (a fresh install's own Horizon one).
 fn selected_in(all: &[Instance], saved: Option<&str>) -> Instance {

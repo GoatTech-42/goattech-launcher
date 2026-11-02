@@ -71,7 +71,21 @@ impl Session {
                 }
                 let instance = match arg_str(args, "instance") {
                     Some(name) => instances::find(name)?,
-                    None => instances::selected(),
+                    None => {
+                        let all = instances::list();
+                        let saved = backend::Settings::load().instance;
+                        if instances::needs_first_pick(
+                            &all,
+                            saved.as_deref(),
+                            backend::any_prepared(),
+                        ) {
+                            return Err(
+                                "No instance yet: create one in the launcher first, then play."
+                                    .into(),
+                            );
+                        }
+                        instances::selected()
+                    }
                 };
                 let tag = instance.resolve_version(arg_str(args, "version"))?;
                 let mut cmd = backend::client(&tag)?;
