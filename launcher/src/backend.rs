@@ -776,23 +776,25 @@ pub fn is_prepared(tag: &str) -> bool {
     resources(tag).join(RESOURCES_MANIFEST).exists()
 }
 
-/// Any Horizon version ever prepared here: a returning player's evidence, so Play's fallback
-/// may offer their existing Rust game. A fresh install has none and is asked to pick first
-/// (`instances::needs_first_pick`). "Prepared" is the defined state, not any entry: an
-/// interrupted install's `.<tag>.partial` or a stray file never counts.
+/// Any Horizon version ever installed or prepared here: a returning player's evidence, so
+/// Play's fallback may offer their existing Rust game. A fresh install has none and is asked
+/// to pick first (`instances::needs_first_pick`). The evidence is the defined end states, not
+/// any entry: an interrupted install's `.<tag>.partial` or a stray file never counts.
 pub fn any_prepared() -> bool {
     any_prepared_in(&versions_dir())
 }
 
-/// `any_prepared` on a given versions folder: a version directory whose resources manifest
-/// exists, nothing else.
+/// `any_prepared` on a given versions folder: a version directory carrying the launcher's
+/// `.installed` marker or its resources manifest. The predicate checks for that evidence
+/// wherever it lies; how it got there is the install flow's contract, not this lookup's.
 fn any_prepared_in(versions: &Path) -> bool {
     let Ok(entries) = versions.read_dir() else {
         return false;
     };
     entries.flatten().any(|e| {
         e.file_type().map(|t| t.is_dir()).unwrap_or(false)
-            && resources_at(&e.path()).join(RESOURCES_MANIFEST).exists()
+            && (e.path().join(COMPLETE).exists()
+                || resources_at(&e.path()).join(RESOURCES_MANIFEST).exists())
     })
 }
 
