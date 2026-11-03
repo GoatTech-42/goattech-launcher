@@ -17,6 +17,7 @@ pub mod heads;
 pub mod i18n;
 pub mod import;
 pub mod instances;
+pub mod options_sync;
 pub mod game_tools;
 pub mod java;
 pub mod java_launch;

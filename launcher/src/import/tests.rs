@@ -51,6 +51,8 @@ fn maker(root: &Path) -> impl Fn(&str) -> Result<Instance, String> + '_ {
             last_played: None,
             launch: Default::default(),
             java: None,
+            options_sync: false,
+            options_pin: vec![],
         })
     }
 }
@@ -238,6 +240,8 @@ fn java_maker(root: &Path) -> impl Fn(&str, &str, crate::loaders::Loader) -> Res
                 loader: Some(loader),
                 ..Default::default()
             }),
+            options_sync: false,
+            options_pin: vec![],
         })
     }
 }

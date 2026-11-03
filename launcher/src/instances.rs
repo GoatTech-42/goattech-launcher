@@ -193,6 +193,13 @@ pub struct Meta {
     /// Set for a Minecraft: Java Edition instance: it plays the real game, not Horizon.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub java: Option<JavaGame>,
+    /// Shares its keybinds with the player's other opted-in instances (`options_sync`). Off by
+    /// default: an instance is independent until the player opts it in.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub options_sync: bool,
+    /// Synced option keys this instance keeps its own (`options_sync` pin), by options.txt key.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub options_pin: Vec<String>,
 }
 
 /// A Minecraft: Java Edition instance: the real game of one version, with the Java it runs on
@@ -287,6 +294,10 @@ pub struct Instance {
     pub launch: Launch,
     /// The Minecraft: Java Edition it plays, for a Java instance.
     pub java: Option<JavaGame>,
+    /// Shares its keybinds with the other opted-in instances (`options_sync`).
+    pub options_sync: bool,
+    /// Synced option keys it keeps its own.
+    pub options_pin: Vec<String>,
 }
 
 impl Instance {
@@ -388,6 +399,8 @@ fn list_in(game_home: &Path, data: &Path) -> Vec<Instance> {
                     .map(|s| UNIX_EPOCH + Duration::from_secs(s)),
                 launch: meta.launch,
                 java: meta.java,
+                options_sync: meta.options_sync,
+                options_pin: meta.options_pin,
                 id,
                 kind,
                 work,

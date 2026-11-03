@@ -434,6 +434,19 @@ Make Play start this instance.
 
 MCP: `instance_select`.
 
+## `horizon-launcher instance options-sync`
+
+Share an instance's keybinds with your other instances that opted in, or keep them its own. What syncs grows deliberately: today keybinds only. Off unless you turn it on; turning it on backs the instance's options up first.
+
+    horizon-launcher instance options-sync <INSTANCE> [STATE]
+
+- `INSTANCE`
+- `STATE` (on, off): on shares; off keeps them its own (its options stay as they are)
+- `--pin`: Keep this synced option the instance's own (its options.txt key, key_key.sneak)
+- `--unpin`: Let a pinned option sync again
+
+MCP: `instance_options_sync`.
+
 ## `horizon-launcher instance version`
 
 Keep an instance on one installed Horizon version, or "latest" to follow updates again.

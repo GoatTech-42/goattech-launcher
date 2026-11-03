@@ -207,6 +207,12 @@ enum ModpackCmd {
     Remove { pack: String },
 }
 
+#[derive(Clone, clap::ValueEnum)]
+enum SyncChoice {
+    On,
+    Off,
+}
+
 #[derive(Subcommand)]
 enum InstanceCmd {
     /// The instances, each with its game folder (* = the one Play starts)
@@ -283,6 +289,20 @@ enum InstanceCmd {
     },
     /// Make Play start this instance
     Select { instance: String },
+    /// Share an instance's keybinds with your other instances that opted in, or keep them its
+    /// own. What syncs grows deliberately: today keybinds only. Off unless you turn it on;
+    /// turning it on backs the instance's options up first
+    OptionsSync {
+        instance: String,
+        /// on shares; off keeps them its own (its options stay as they are)
+        state: Option<SyncChoice>,
+        /// Keep this synced option the instance's own (its options.txt key, key_key.sneak)
+        #[arg(long, conflicts_with = "unpin")]
+        pin: Option<String>,
+        /// Let a pinned option sync again
+        #[arg(long)]
+        unpin: Option<String>,
+    },
     /// Keep an instance on one installed Horizon version, or "latest" to follow updates again
     Version { instance: String, version: String },
     /// Export an instance (or a port) to share: its settings, packs, Horizon mods and the worlds
@@ -1287,6 +1307,15 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                     let list = server_list::List::load(&instance.home);
                     server_list::find(&list, &server).map_or(server, |(_, s)| s.ip)
                 });
+                if instance.options_sync {
+                    if let Err(e) = crate::options_sync::merge_at_launch_in(
+                        &instance.home,
+                        &backend::data_dir(),
+                        &instance.options_pin,
+                    ) {
+                        eprintln!("Shared options not applied: {e}");
+                    }
+                }
                 let mut cmd =
                     backend::java_game(&instance, server.as_deref(), &|line| eprintln!("{line}"))?;
                 if let Some(e) = account::take_unsaved() {
@@ -1299,6 +1328,15 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 let played = attached(crate::launch::wrap(cmd, &instance.launch));
                 if let Err(e) = instances::record_play(&instance.id, started.elapsed()) {
                     eprintln!("Play time not saved: {e}");
+                }
+                if instance.options_sync {
+                    if let Err(e) = crate::options_sync::learn_at_exit_in(
+                        &instance.home,
+                        &backend::data_dir(),
+                        &instance.options_pin,
+                    ) {
+                        eprintln!("Shared options not saved: {e}");
+                    }
                 }
                 after_exit(&instance, &vars);
                 return played;
@@ -2770,6 +2808,58 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             changed(instances::edit(&instance, |m| m.group = group)?)
         }
         InstanceCmd::Select { instance } => changed(instances::select(&instance)?),
+        InstanceCmd::OptionsSync {
+            instance,
+            state,
+            pin,
+            unpin,
+        } => {
+            let pinned_or_unpinned = pin.is_some() || unpin.is_some();
+            if let Some(pin) = pin {
+                let found = instances::edit(&instance, |m| {
+                    if !m.options_pin.contains(&pin) {
+                        m.options_pin.push(pin.clone());
+                    }
+                })?;
+                println!("{} keeps {pin} its own.", found.name);
+            }
+            if let Some(unpin) = unpin {
+                let found = instances::edit(&instance, |m| m.options_pin.retain(|p| p != &unpin))?;
+                println!("{unpin} syncs for {} again.", found.name);
+            }
+            match state {
+                Some(SyncChoice::On) => {
+                    let found = instances::find(&instance)?;
+                    crate::options_sync::enable_in(
+                        &found.home,
+                        &backend::data_dir(),
+                        &found.options_pin,
+                    )?;
+                    instances::edit(&instance, |m| m.options_sync = true)?;
+                    println!(
+                        "{} shares its keybinds with your other instances that opted in. Its options as they were are backed up next to them (options.txt.pre-sync-backup).",
+                        found.name
+                    );
+                }
+                Some(SyncChoice::Off) => {
+                    let found = instances::edit(&instance, |m| m.options_sync = false)?;
+                    println!(
+                        "{} keeps its keybinds its own. Its options stay as they are.",
+                        found.name
+                    );
+                }
+                None => {
+                    if !pinned_or_unpinned {
+                        let found = instances::find(&instance)?;
+                        println!(
+                            "{}: {} (syncs: keybinds).",
+                            found.name,
+                            if found.options_sync { "sharing" } else { "its own" }
+                        );
+                    }
+                }
+            }
+        }
         InstanceCmd::Version { instance, version } => {
             let pin = match version.as_str() {
                 "latest" => None,
