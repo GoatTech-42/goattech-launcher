@@ -308,7 +308,6 @@
   "Remove for good": "Remove for good",
   "Remove shortcut": "移除快捷方式",
   "Removed {name}.": "已移除 {name}。",
-  "Report on Discord": "在 Discord 上报告",
   "Resource packs": "资源包",
   "Resources": "资源",
   "Restart": "重启",
@@ -372,7 +371,6 @@
   "The MCP server answered with {count} tools. Now ask your agent: \"Say hello from Horizon\".": "The MCP server answered with {count} tools. Now ask your agent: \"Say hello from Horizon\".",
   "The MCP server did not answer: {error}": "The MCP server did not answer: {error}",
   "The build compiles the game: 20 to 30 minutes and a few GB of disk the first time (it downloads Rust), a few minutes after that.": "构建时会编译游戏：首次需要 20 到 30 分钟及几 GB 磁盘空间（会下载 Rust），之后只需几分钟。",
-  "The game ended without a crash report. When you report it on Discord, attach latest.log from the logs folder and say what you were doing.": "游戏结束了，但没有生成崩溃报告。在 Discord 上报告时，请附上日志文件夹里的 latest.log，并说明你当时在做什么。",
   "The launcher goes down when the game starts, and comes back when it closes.": "游戏启动时启动器最小化，游戏关闭后恢复。",
   "The launcher hides when the game starts, and comes back when it closes.": "游戏启动时启动器隐藏，游戏关闭后恢复。",
   "The launcher stays open while you play.": "游戏时启动器保持打开。",
@@ -409,7 +407,6 @@
   "What an agent can do, and the commands": "What an agent can do, and the commands",
   "What's new": "最新动态",
   "When the game crashes: the error, where in Horizon's code it happened, your graphics adapter and settings. No log, no world or server, no user name in paths.": "When the game crashes: the error, where in Horizon's code it happened, your graphics adapter and settings. No log, no world or server, no user name in paths.",
-  "When you report it on Discord, attach the crash report file (or paste it with Copy report) and say what you were doing.": "在 Discord 上报告时，请附上崩溃报告文件（或用“复制报告”粘贴），并说明你当时在做什么。",
   "While playing": "游戏时",
   "When a telemetry server is configured, the game sends an anonymous \"I'm playing\" ping once a minute while you play, so the launcher can show how many people play right now. This build configures no server by default: the ping is not sent. The ping holds: a random number made when the game starts and forgotten when it closes, the version, your OS (Linux, macOS or Windows), and whether you have a world open to LAN or friends. It doesn't hold: your account, your install ID, world or server names, or anything you do in the game, and the server doesn't keep your IP address. With a server configured it is sent whatever the switches above say.": "配置遥测服务器后，游戏会在你游玩时每分钟发送一次匿名的\"I'm playing\"ping，以便启动器显示当前有多少人在玩。此版本默认不配置服务器：不会发送 ping。ping 包含：游戏启动时生成、关闭时遗忘的随机数、版本、你的操作系统（Linux、macOS 或 Windows），以及是否开放了 LAN 或好友世界。不包含：你的账户、安装 ID、世界或服务器名称，或你在游戏中的任何操作，服务器也不会保留你的 IP 地址。配置服务器后，无论上方开关如何都会发送。",
   "Working": "Working",
@@ -477,5 +474,7 @@
   "{version} from Horizon's registry, its own profile: {mods}": "{version} from Horizon's registry, its own profile: {mods}",
   "{version} plays in this instance.": "此实例使用 {version} 进行游戏。",
   "~/.claude.json (or .mcp.json in a project)": "~/.claude.json (or .mcp.json in a project)",
-  "← All servers": "← 所有服务器"
+  "← All servers": "← 所有服务器",
+  "If you report this crash, attach the crash report file (or paste it with Copy report) and say what you were doing.": "报告此崩溃时，请附上崩溃报告文件（或用“复制报告”粘贴），并说明你当时在做什么。",
+  "The game ended without a crash report. If you report the problem, attach latest.log from the logs folder and say what you were doing.": "游戏结束了，但没有生成崩溃报告。报告此问题时，请附上日志文件夹里的 latest.log，并说明你当时在做什么。"
 }

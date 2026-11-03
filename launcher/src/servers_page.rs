@@ -1067,26 +1067,20 @@ impl Launcher {
             .entry(uuid.to_string())
             .or_insert_with(|| heads::default_face(&resources, uuid))
             .clone());
-        let cell = size / 8.;
+        // One nearest-baked image at the window scale: per-texel divs at fractional sizes
+        // rounded into dark vertical seams between columns (Luke's corner-head report).
         let mut d = div()
             .flex_none()
-            .flex()
-            .flex_col()
             .size(px(size))
             .rounded(px(3.))
             .overflow_hidden()
             .bg(self.theme.plate);
         if let Some(pixels) = face {
-            for row in pixels.chunks(8) {
-                d = d.child(div().flex().children(row.iter().map(|p| {
-                    div().size(px(cell)).bg(Hsla::from(gpui::Rgba {
-                        r: p[0] as f32 / 255.,
-                        g: p[1] as f32 / 255.,
-                        b: p[2] as f32 / 255.,
-                        a: 1.,
-                    }))
-                })));
-            }
+            d = d.child(
+                gpui::img(art::bake(&pixels, 8, 8, size / 8., self.scale))
+                    .w(px(size))
+                    .h(px(size)),
+            );
         }
         d
     }

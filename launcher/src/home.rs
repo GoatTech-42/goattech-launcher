@@ -81,7 +81,7 @@ impl Launcher {
                     .line_height(px(30.))
                     .child(name.clone()),
             )
-            .child(self.home_stage())
+            .child(self.home_stage(cx))
             .child(self.play_action(ready, &facts.join("  ·  "), cx))
             .child(
                 shell::text(
@@ -449,7 +449,7 @@ impl Launcher {
     /// The home stage's center (concept Home): the player model, 3D-projected from its skin,
     /// under its pixel nametag. Account textures load off-thread; the labelled fixture is
     /// kept only while no supported account texture is available.
-    pub(super) fn home_stage(&mut self) -> Div {
+    pub(super) fn home_stage(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let n = t.night;
         let scale = self.scale;
@@ -468,25 +468,28 @@ impl Launcher {
             };
             Some((file, slim))
         });
-        let key = texture.as_ref().map(|(p, slim)| (p.clone(), *slim));
-        let current = match &self.home_model {
-            Some((s, k, i, real)) if *s == scale && *k == key => Some((Some(i.clone()), *real)),
-            _ => None,
+        // The stage is alive: the clock from drain drives idle sway, a wave every few
+        // seconds, and a look around; dragging turns the model. Rendered fresh each frame.
+        let cycle = self.stage_t % 7.;
+        let pose = if cycle > 5. {
+            player_model::Pose::wave(self.stage_t)
+        } else {
+            player_model::Pose::idle(self.stage_t)
         };
-        let (baked, real) = current.unwrap_or_else(|| {
-            let pixels = texture.and_then(|(path, slim)| {
-                let bytes = horizon_launcher::browser::images::read_capped(&path, 1 << 20)?;
-                let png = horizon_launcher::skins::read_skin(&bytes).ok()?;
-                player_model::render_account(&png, -0.5, slim)
-            });
-            let real = pixels.is_some();
-            let pixels = pixels.or_else(|| player_model::fixture().map(|p| player_model::render(&p, -0.5)));
-            let baked = pixels.map(|p| art::bake(&p, player_model::W, player_model::H, 6., scale));
-            if let Some(i) = &baked {
-                self.home_model = Some((scale, key, i.clone(), real));
+        let (yaw, pitch) = (self.stage_yaw, self.stage_pitch);
+        let pixels = texture.and_then(|(path, slim)| {
+            let bytes = horizon_launcher::browser::images::read_capped(&path, 1 << 20)?;
+            let png = horizon_launcher::skins::read_skin(&bytes).ok()?;
+            if png.dimensions() != (64, 64) {
+                return None;
             }
-            (baked, real)
+            Some(player_model::render_posed(&png, yaw, pitch, &pose, slim))
         });
+        let real = pixels.is_some();
+        let pixels = pixels.or_else(|| {
+            player_model::fixture().map(|p| player_model::render_posed(&p, yaw, pitch, &pose, false))
+        });
+        let baked = pixels.map(|p| art::bake(&p, player_model::W, player_model::H, 8., scale));
         let (who, _) = self.who_plays();
         let mut stage = div()
             .relative()
@@ -503,9 +506,34 @@ impl Launcher {
             );
         if let Some(i) = baked {
             stage = stage.child(
-                gpui::img(i)
-                    .w(px(player_model::W as f32 * 6.))
-                    .h(px(player_model::H as f32 * 6.)),
+                div()
+                    .w(px(player_model::W as f32 * 8.))
+                    .h(px(player_model::H as f32 * 8.))
+                    .cursor(gpui::CursorStyle::PointingHand)
+                    .on_mouse_down(gpui::MouseButton::Left, cx.listener(|this, event: &gpui::MouseDownEvent, _, cx| {
+                        this.stage_drag = Some((event.position.x.into(), event.position.y.into()));
+                        cx.notify();
+                    }))
+                    .on_mouse_up(gpui::MouseButton::Left, cx.listener(|this, _: &gpui::MouseUpEvent, _, cx| {
+                        this.stage_drag = None;
+                        cx.notify();
+                    }))
+                    .on_mouse_move(cx.listener(|this, event: &gpui::MouseMoveEvent, _, cx| {
+                        if event.pressed_button != Some(gpui::MouseButton::Left) {
+                            if this.stage_drag.is_some() {
+                                this.stage_drag = None;
+                            }
+                            return;
+                        }
+                        let (x, y): (f32, f32) = (event.position.x.into(), event.position.y.into());
+                        if let Some((lx, ly)) = this.stage_drag {
+                            this.stage_yaw += (x - lx) * 0.012;
+                            this.stage_pitch = (this.stage_pitch + (y - ly) * 0.008).clamp(-0.15, 0.9);
+                            this.stage_drag = Some((x, y));
+                            cx.notify();
+                        }
+                    }))
+                    .child(gpui::img(i).w_full().h_full()),
             );
         }
         if real {

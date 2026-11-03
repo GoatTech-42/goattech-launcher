@@ -355,7 +355,12 @@ struct Launcher {
     /// The window's scale, as of its last frame, for art drawn outside `render`'s reach.
     scale: f32,
     /// The home stage's baked model, keyed by scale and the selected account texture.
-    home_model: Option<(f32, Option<(std::path::PathBuf, bool)>, std::sync::Arc<gpui::RenderImage>, bool)>,
+    /// The home stage's live player: turn/pitch from dragging, the animation clock, and an
+    /// in-progress drag's last pointer position.
+    stage_yaw: f32,
+    stage_pitch: f32,
+    stage_t: f32,
+    stage_drag: Option<(f32, f32)>,
 }
 
 impl Launcher {
@@ -467,7 +472,10 @@ impl Launcher {
             account_menu: false,
             menu_closed_at: None,
             skin: None,
-            home_model: None,
+            stage_yaw: -0.5,
+            stage_pitch: 0.21,
+            stage_t: 0.,
+            stage_drag: None,
             background_error: None,
             java_runtimes: None,
             java_runtimes_busy: false,
@@ -737,6 +745,10 @@ impl Launcher {
     fn drain(&mut self, cx: &mut Context<Self>) {
         let mut changed = false;
         self.perf.tick();
+        if self.page == Page::Play {
+            self.stage_t += 0.08;
+            changed = true;
+        }
         match self.bench.as_mut().map(|b| b.tick(&self.perf)) {
             Some(perf::Step::Go(page)) => {
                 self.go(Page::ALL[page % Page::ALL.len()].0);
@@ -2088,9 +2100,8 @@ impl Launcher {
         }
         // GoatTech is ad-free (Luke, 2026-10-31): no partner card in the sidebar. The
         // partner module and its assets stay for attribution; nothing of it renders.
-        if !self.links.discord.is_empty() {
-            foot = foot.child(link("discord", "message", "DISCORD", self.links.discord.clone()));
-        }
+        // No Discord server exists (Luke, 2026-11-03): the sidebar never shows a
+        // Discord entry, whatever the remote links file carries.
         if !self.links.website.is_empty() {
             foot = foot.child(link("website", "globe", "SITE", self.links.website.clone()));
         }
@@ -2702,14 +2713,8 @@ impl Launcher {
                     cx.open_with_system(&dir);
                 }),
         );
-        let discord = self.links.discord.clone();
-        if !discord.is_empty() {
-            actions = actions.child(
-                button("crash-discord", "Report on Discord", Kind::Secondary, &t)
-                    .bg(t.plate)
-                    .on_click(move |_, _, cx| cx.open_url(&discord)),
-            );
-        }
+        // Luke 2026-11-03: no Discord server exists, so the crash dialog
+        // must not send people to a dead Discord destination.
         actions = actions.child(
             button("crash-dismiss", "Dismiss", Kind::Ghost, &t).on_click(cx.listener(
                 |this, _: &ClickEvent, _, cx| {
@@ -2719,9 +2724,9 @@ impl Launcher {
             )),
         );
         let help = tr(if crash.report.is_some() {
-            "When you report it on Discord, attach the crash report file (or paste it with Copy report) and say what you were doing."
+            "If you report this crash, attach the crash report file (or paste it with Copy report) and say what you were doing."
         } else {
-            "The game ended without a crash report. When you report it on Discord, attach latest.log from the logs folder and say what you were doing."
+            "The game ended without a crash report. If you report the problem, attach latest.log from the logs folder and say what you were doing."
         });
         let mut body = div()
             .flex_1()
