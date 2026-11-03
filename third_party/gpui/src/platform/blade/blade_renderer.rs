@@ -647,35 +647,15 @@ impl BladeRenderer {
         // pixels of frame GOATTECH_SHOT_AT (default 2; boot frames animate before the window's
         // real UI exists, so captures point it past the splash) to a file, bypassing the
         // (failing) swapchain present path.
-        {
+        if let Ok(path) = std::env::var("GOATTECH_SHOT") {
             static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
             let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            if let Ok(path) = std::env::var("GOATTECH_SHOT") {
-                let at: u32 = std::env::var("GOATTECH_SHOT_AT")
-                    .ok()
-                    .and_then(|v| v.parse().ok())
-                    .unwrap_or(2);
-                if n + 1 == at {
-                    self.goattech_dump = Some((path, 1u32));
-                }
-            }
-            // Ranged mode: GOATTECH_SHOT_DIR=dir dumps every frame from
-            // GOATTECH_SHOT_FROM (default 1) through GOATTECH_SHOT_AT as
-            // dir/frame-NNNN.ppm, exiting after the last - for motion captures.
-            if let Ok(dir) = std::env::var("GOATTECH_SHOT_DIR") {
-                let from: u32 = std::env::var("GOATTECH_SHOT_FROM")
-                    .ok()
-                    .and_then(|v| v.parse().ok())
-                    .unwrap_or(1);
-                let at: u32 = std::env::var("GOATTECH_SHOT_AT")
-                    .ok()
-                    .and_then(|v| v.parse().ok())
-                    .unwrap_or(2);
-                if n + 1 >= from && n + 1 <= at {
-                    let exit = if n + 1 == at { 1 } else { 0 };
-                    self.goattech_dump =
-                        Some((format!("{}/frame-{:04}.ppm", dir, n + 1), exit));
-                }
+            let at: u32 = std::env::var("GOATTECH_SHOT_AT")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(2);
+            if n + 1 == at {
+                self.goattech_dump = Some((path, 1u32));
             }
         }
         self.command_encoder.start();
