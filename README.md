@@ -18,7 +18,7 @@ a minecraft launcher, forked from [horizon](https://github.com/horizon-rust/hori
 
 ## what's not done yet
 
-- the gui runs in headless test rigs (virtual display, software rendering) with reviewed frame captures, including the player's real account skin on home; it has not had a physical-display qualification - no installers, no releases
+- the gui runs in headless test rigs (virtual display, software rendering) with reviewed frame captures; the home stage renders the account's real skin - verified from the public profile texture in a test rig, not from a new signed-in session in this rig; physical-display qualification still outstanding - no installers, no releases
 - forge and neoforge java instances install through the official-installer driver (goattech/FORGE-NEOFORGE.md); importing forge/neoforge modpacks is refused with the reason, and no forge/neoforge instance has had a signed-in game launch yet
 - the fork trails upstream horizon and catches up continuously
 

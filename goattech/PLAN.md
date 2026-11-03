@@ -14,12 +14,14 @@ the Java lane; ViaFabricPlus as the running benchmark. Free-only. The repo exist
       desaturates hue, keeps upstream contrast invariants; fork default; tests updated
       (themes/tests.rs hue check skipped when an accent has no hue; backend.rs default test)
 - [x] `cargo test -p horizon-theme` 9/9; `cd launcher && cargo test --lib` 320/320 (3 ignored)
-- [x] Brand rename pass: user-visible "Horizon" -> "GoatTech" in launcher strings
-      (verified in actual gui frames 2026-11-03: window title and sidebar brand read GoatTech;
-      the Play page's big heading is the selected instance's name - "Horizon", the
-      upstream-engine instance - not a leftover brand string);
-      crate names/API ids stay stable (horizon-launcher, horizon_theme) so upstream
-      merges stay clean; user agent / window title / CLI name change with the strings
+- [ ] Brand rename pass: user-visible "Horizon" -> "GoatTech" in launcher strings.
+      Major surfaces verified in actual gui frames 2026-11-03 (window title, sidebar brand);
+      the Play page's big heading is the selected instance's name ("Horizon", the
+      upstream-engine instance), not a leftover brand string. Remaining user-facing
+      "Horizon" strings still to audit, e.g. backend.rs download/sign-in errors
+      ("Horizon tried to download", "Horizon then"), owner_page.rs sign-in text
+      ("Horizon downloads it from Mojang"), proxy.rs. Crate names/API ids stay stable
+      (horizon-launcher, horizon_theme) so upstream merges stay clean.
 - [ ] Window/app identity: title, icon set (crates/horizon-theme/icons), about/credits keep
       upstream attribution per MIT
 - [x] Scripted proof (CLI, no sign-in): gt-cli (CLI-only bin) created Vanilla + Fabric 0.20.1
