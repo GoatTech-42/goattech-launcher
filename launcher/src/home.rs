@@ -511,7 +511,7 @@ impl Launcher {
                     .h(px(player_model::H as f32 * 8.))
                     .cursor(gpui::CursorStyle::PointingHand)
                     .on_mouse_down(gpui::MouseButton::Left, cx.listener(|this, event: &gpui::MouseDownEvent, _, cx| {
-                        this.stage_drag = Some((event.position.x.into(), event.position.y.into()));
+                        this.stage_drag.begin((event.position.x.into(), event.position.y.into()));
                         cx.notify();
                     }))
                     .child(gpui::img(i).w_full().h_full()),
