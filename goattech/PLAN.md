@@ -36,10 +36,10 @@ the Java lane; ViaFabricPlus as the running benchmark. Free-only. The code lives
 
 ## Milestone 2 (needs an owned Minecraft account + a full-build machine)
 - Sign-in (MSA device code), actual Java launch, VFP benchmark: join an older-version server
-- MSA client ID: own app registration reported approved 2026-11-02; device-code sign-in
-  reported passing the ownership check 2026-11-03 (project status reports; session persistence
-  unverified). Remaining here: actual Java launch and the VFP benchmark on an older-version
-  server.
+- MSA client ID: approval email reported 2026-11-03 as received the evening of 2026-11-02;
+  device-code sign-in reported passing the ownership check 2026-11-03 (project status
+  reports; session persistence unverified). Remaining here: actual Java launch and the VFP
+  benchmark on an older-version server.
 
 ## Discipline
 - Fork-only files under goattech/; upstream-tree edits minimal and additive (easier merges)

@@ -9,11 +9,12 @@ file that names Forge or NeoForge in its dependencies is refused with the
 reason (`launcher/src/import.rs`), while cross-launcher instance copies
 (`launcher/src/other_launchers.rs`) carry their loader and mods, including
 Forge/NeoForge instances. What a working install does not prove is a
-signed-in game launch: approval of the launcher's app registration was
-reported 2026-11-02 and device-code sign-in was reported passing the
-Minecraft ownership check 2026-11-03 (project status reports, not
-independently re-verified here; session persistence unverified), but no
-signed-in launch of any instance - loader or vanilla - has run yet.
+signed-in game launch: the approval email for the launcher's app
+registration was reported 2026-11-03 as received the evening of 2026-11-02,
+and device-code sign-in was reported passing the Minecraft ownership check
+2026-11-03 (project status reports, not independently re-verified here;
+session persistence unverified), but no signed-in launch of any instance -
+loader or vanilla - has run yet.
 
 ## Grounded installer behavior (checked 2026-10-31)
 
