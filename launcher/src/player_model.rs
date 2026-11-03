@@ -302,7 +302,7 @@ fn render_grid(
         } else {
             1.
         };
-        let (oxs, oys) = (cx + ox, feet + oy);
+        let (oxs, oys) = (cx + ox * mag, feet + oy * mag);
         // Bounding box of the parallelogram's four corners.
         let corners = [
             (oxs, oys),
