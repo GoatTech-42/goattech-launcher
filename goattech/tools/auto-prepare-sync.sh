@@ -76,7 +76,12 @@ fi
 # this tip with all gates passed.
 while read -r ref; do
   if git merge-base --is-ancestor "$TIP" "$ref"; then
-    ENTRY_LINE="$(git show "${ref}:goattech/UPSTREAM-TRACKING.md" 2>/dev/null | grep -F "$TIP" || true)"
+    MATCHES="$(git show "${ref}:goattech/UPSTREAM-TRACKING.md" 2>/dev/null | grep -cF "$TIP" || true)"
+    if [ "$MATCHES" != "1" ]; then
+      say "CONTAINED-BUT-UNVERIFIED: $ref contains $TIP but has $MATCHES tracking lines naming it (need exactly one canonical record). Not preparing a duplicate; route $ref for review. Stopping."
+      exit 4
+    fi
+    ENTRY_LINE="$(git show "${ref}:goattech/UPSTREAM-TRACKING.md" 2>/dev/null | grep -F "$TIP")"
     ALL_PASS=1
     for gate in lib-suite bin-suite cli-build gt-cli-proof; do
       printf '%s' "$ENTRY_LINE" | grep -qF "${gate} PASS" || ALL_PASS=0
@@ -105,8 +110,8 @@ PIN_MAIN="$(git rev-parse main)"
 say "pinned base: main=$PIN_MAIN; tip=$TIP"
 
 # Owned isolated worktree: caller checkout, index and staged files untouched.
-# Ownership token lives OUTSIDE the working tree and binds common-dir, worktree
-# path, branch ref, pins and pid; cleanup verifies every field before removing.
+# Ownership token lives OUTSIDE the working tree as INERT metadata (common-dir,
+# worktree path, branch ref, pins, pid). It is never sourced or executed.
 git worktree add --quiet -b "$BRANCH" "$WT" "$PIN_MAIN" >>"$LOG" 2>&1
 TOKEN="${WT}.owned"
 {
@@ -126,7 +131,7 @@ if [ -n "$(wt_git status --porcelain)" ]; then
   exit 5
 fi
 
-GATES="not run"
+GATES=""
 if ! wt_git merge --no-ff --no-edit "$TIP" >>"$LOG" 2>&1; then
   if wt_git status --porcelain | grep -qE '^(UU|AA|DD|U.|.U)'; then KIND="MERGE CONFLICT"; else KIND="MERGE ERROR (not a conflict)"; fi
   if ! wt_git merge --abort >>"$LOG" 2>&1; then
@@ -174,8 +179,8 @@ if [ "$(wt_git rev-parse HEAD)" != "$EXPECTED_HEAD" ] || [ "$(git rev-parse "$BR
   exit 7
 fi
 
-ENTRY_STATUS="PENDING REVIEW (gates${GATES})"
-[ -n "$STATUS" ] && ENTRY_STATUS="${STATUS} (gates${GATES}); do not merge"
+ENTRY_STATUS="PENDING REVIEW (gates:${GATES})"
+[ -n "$STATUS" ] && ENTRY_STATUS="${STATUS} (gates:${GATES}); do not merge"
 ENTRY="auto-prepared batch (${DATE}): upstream ${TIP}, ${COUNT} commits since ${BASE}, ${FILES} files. ${ENTRY_STATUS}. Gate log: ${LOG}."
 
 # Only the tracking file may be committed, and only if nothing else changed.
@@ -194,26 +199,12 @@ if [ "$DIRTY" != " M goattech/UPSTREAM-TRACKING.md" ]; then
 fi
 wt_git commit -q -m "auto-prepare: record ${DATE} upstream batch (${TIP:0:9}) as ${ENTRY_STATUS%% (*}" -- goattech/UPSTREAM-TRACKING.md >>"$LOG" 2>&1
 
-# Cleanup: remove ONLY this run's own worktree, and only when every custody
-# check passes. Any uncertainty leaves it in place (leaving is always safe).
-CUSTODY_OK=1
-[ -f "$TOKEN" ] || CUSTODY_OK=0
-if [ "$CUSTODY_OK" = 1 ]; then
-  . "$TOKEN"
-  [ "${common_dir:-}" = "$(cd "$GIT_DIR_ABS" && pwd -P)" ] || CUSTODY_OK=0
-  [ "${worktree:-}" = "$(cd "$WT" && pwd -P)" ] || CUSTODY_OK=0
-  [ "${branch:-}" = "$BRANCH" ] || CUSTODY_OK=0
-  [ "${pin_main:-}" = "$PIN_MAIN" ] || CUSTODY_OK=0
-  [ "${tip:-}" = "$TIP" ] || CUSTODY_OK=0
-  [ "${pid:-}" = "$$" ] || CUSTODY_OK=0
-  [ "$(wt_git rev-parse --abbrev-ref HEAD)" = "$BRANCH" ] || CUSTODY_OK=0
-  [ -z "$(wt_git status --porcelain)" ] || CUSTODY_OK=0
-fi
-if [ "$CUSTODY_OK" = 1 ]; then
-  git worktree remove "$WT" && rm -f "$TOKEN" && say "owned worktree removed after full custody check (branch $BRANCH remains)."
-else
-  say "custody check failed for $WT; left in place with token $TOKEN for manual review."
-fi
+# No automatic cleanup: git status cannot see ignored files, so no read proves
+# the worktree holds only this run's files, and sourcing metadata would execute
+# mutable content. The owned worktree and its inert token are left in place;
+# removal is a later explicit human/review action with both locations known.
+say "owned worktree left in place (explicit cleanup only): $WT"
+say "inert ownership metadata (never sourced): $TOKEN"
 
 say "done: $BRANCH prepared. $ENTRY"
 say "next: review, then a reviewed merge decision. This tool never merges to main and never pushes."
