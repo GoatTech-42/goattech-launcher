@@ -14,12 +14,12 @@ a minecraft launcher, forked from [horizon](https://github.com/horizon-rust/hori
 - the cli creates java (vanilla) and fabric instances end to end
 - installs mods from modrinth, checksums verified
 - imports instances from other launchers without mutating the source
-- 322 library tests pass
+- the launcher library and binary test suites pass (`cargo test`)
 
 ## what's not done yet
 
-- the gui passes `cargo check` but the full app hasn't had a real run yet - no installers, no releases
-- forge and neoforge aren't supported: there's no installer pipeline for them, and the app says so instead of faking it
+- the gui runs in headless test rigs (virtual display, software rendering) with reviewed frame captures, including the player's real account skin on home; it has not had a physical-display qualification - no installers, no releases
+- forge and neoforge java instances install through the official-installer driver (goattech/FORGE-NEOFORGE.md); importing forge/neoforge modpacks is refused with the reason, and no forge/neoforge instance has had a signed-in game launch yet
 - the fork trails upstream horizon and catches up continuously
 
 ## credit
@@ -30,4 +30,4 @@ files that aren't specific to the fork (`docs/`, `ROADMAP.md`, `CONTRIBUTING.md`
 
 ## building
 
-it's a rust workspace: `cargo test` runs the library suite, `cargo check` covers the gui crate. when real builds ship they'll be on github releases, verified before install.
+it's a rust workspace: `cargo test` runs the library and gui binary suites. when real builds ship they'll be on github releases, verified before install.

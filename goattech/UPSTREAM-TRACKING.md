@@ -1,6 +1,14 @@
 # Upstream tracking (horizon-rust/horizon)
 
-Last reviewed upstream main: 36f4bc00d (2026-10-31, reviewed + merged here).
+Last MERGED upstream batch: 36f4bc00d (2026-10-31, reviewed + merged here).
+
+Pending batch (2026-11-03): the 2026-11-02 sync sits on branch
+`upstream-sync-20261102` (merge 46f093c90, upstream ba5ba8b00), with the
+qualification branch `qual-bin-suite-46f093c90`. It is NOT merged into `main`
+as of 2026-11-03. By merge titles it is a batch of upstream chore/ports PRs
+(vol-a client classes, vol-b game classes) plus native-hooks stamping;
+integration and the usual gates (lib + bin suites, gt-cli live proof) are
+still outstanding, so nothing from it is claimed here yet.
 Batch reviewed: 66 commits since 94b3b4aca; 6 launcher files. Landings that
 matter to GoatTech: native rebuilds now stay on the Horizon the instance plays
 and inside its instance (647ec89bf: new base_for/--update, toolchain commands
