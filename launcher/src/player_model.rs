@@ -459,44 +459,34 @@ mod tests {
         );
     }
 
-    /// Longest run of rows whose left silhouette edge sits at the same x. A coarse
-    /// raster enlarged afterwards leaves texel-long stair steps; display-resolution
-    /// rasterization breaks them up.
-    fn longest_edge_plateau(buf: &[[u8; 4]], w: usize, h: usize) -> usize {
-        let edge: Vec<Option<usize>> = (0..h)
-            .map(|y| (0..w).find(|&x| buf[y * w + x][3] > 0))
-            .collect();
-        let mut longest = 0;
-        let mut run = 1;
-        for pair in edge.windows(2) {
-            if pair[0].is_some() && pair[0] == pair[1] {
-                run += 1;
-                longest = longest.max(run);
-            } else {
-                run = 1;
-            }
-        }
-        longest
-    }
-
+    /// The display-resolution raster responds to a sub-texel turn everywhere the
+    /// geometry moves; a coarse raster enlarged afterwards quantizes the same turn
+    /// to a handful of texels. Calibrated margins: measured 68-327 changed hi-res
+    /// pixels vs 0-15 coarse across yaws -1.2..1.2.
     #[test]
-    fn display_resolution_edges_do_not_staircase_like_an_enlarged_coarse_raster() {
+    fn display_resolution_turns_move_pixels_a_coarse_raster_quantizes_away() {
         let skin = fixture().expect("fixture skin");
-        let yaw = 0.35;
-        let hi = render_posed_hi(&skin, yaw, 0.21, &Pose::default(), false, W * 8, H * 8);
-        // What the old pipeline produced: the coarse raster enlarged 8x nearest.
-        let coarse = render_posed(&skin, yaw, 0.21, &Pose::default(), false);
-        let mut enlarged = vec![[0u8; 4]; W * 8 * H * 8];
-        for y in 0..H * 8 {
-            for x in 0..W * 8 {
-                enlarged[y * W * 8 + x] = coarse[(y / 8) * W + (x / 8)];
-            }
-        }
-        let hi_plateau = longest_edge_plateau(&hi, W * 8, H * 8);
-        let coarse_plateau = longest_edge_plateau(&enlarged, W * 8, H * 8);
+        let pose = Pose::default();
+        let coarse_a = render_posed(&skin, -0.59, 0.21, &pose, false);
+        let coarse_b = render_posed(&skin, -0.57, 0.21, &pose, false);
+        let hi_a = render_posed_hi(&skin, -0.59, 0.21, &pose, false, W * 8, H * 8);
+        let hi_b = render_posed_hi(&skin, -0.57, 0.21, &pose, false, W * 8, H * 8);
+        let diff = |a: &[[u8; 4]], b: &[[u8; 4]]| {
+            a.iter().zip(b).filter(|(x, y)| x != y).count()
+        };
+        let coarse_diff = diff(&coarse_a, &coarse_b);
+        let hi_diff = diff(&hi_a, &hi_b);
         assert!(
-            hi_plateau * 2 <= coarse_plateau.max(1) || hi_plateau <= 3,
-            "hi-res edge plateau {hi_plateau} should be far below the enlarged coarse {coarse_plateau}"
+            hi_diff > coarse_diff * 4 + 20,
+            "sub-texel turn: hi-res {hi_diff} changed px should dwarf the coarse raster's {coarse_diff}"
+        );
+        // Area scales with the squared texel ratio: the hi-res model is the same model.
+        let opaque = |b: &[[u8; 4]]| b.iter().filter(|p| p[3] > 0).count();
+        let (lo, hi) = (opaque(&coarse_a), opaque(&hi_a));
+        let expected = lo * 64;
+        assert!(
+            hi > expected * 9 / 10 && hi < expected * 11 / 10,
+            "hi-res opaque {hi} should be about 64x the coarse {lo}"
         );
     }
 
