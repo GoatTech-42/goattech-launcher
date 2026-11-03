@@ -46,8 +46,15 @@ fn kind_id(prefix: &str, kind: DataKind) -> &'static str {
 }
 
 /// Where a switch would be: the ping has none.
-fn always_on(t: &Theme) -> Div {
-    caps(tr("Always on")).flex_none().text_color(t.muted)
+/// The ping's state chip: "Always on" while a telemetry server is configured, otherwise
+/// "Off by default" (this build configures no server; see `horizon_telemetry::endpoint`).
+fn ping_state(t: &Theme) -> Div {
+    let label = if horizon_telemetry::endpoint().is_some() {
+        tr("Always on")
+    } else {
+        tr("Off by default")
+    };
+    caps(label).flex_none().text_color(t.muted)
 }
 
 /// The "I'm playing" ping on the first-run question, laid out as the switches' rows.
@@ -77,7 +84,7 @@ fn ping_row(t: &Theme) -> Div {
                         .child(tr(telemetry::PING)),
                 ),
         )
-        .child(always_on(t))
+        .child(ping_state(t))
 }
 
 /// The exact JSON, in mono, scrolling inside a plate.
@@ -299,7 +306,7 @@ impl Launcher {
             telemetry::SWITCHES.len() + 1,
             tr(telemetry::PING_NAME),
             Some(div().child(tr(telemetry::PING)).into_any_element()),
-            Some(always_on(&t).into_any_element()),
+            Some(ping_state(&t).into_any_element()),
             &t,
         ));
         let waiting = horizon_telemetry::outbox::pending(&telemetry::home()).len();
@@ -316,7 +323,7 @@ impl Launcher {
                 &[("count", &waiting.to_string())],
             )
         } else {
-            tr("Sending is turned off here (HORIZON_TELEMETRY_URL=off)").into()
+            tr("Sending is off: no telemetry server is configured, nothing is sent").into()
         };
         let confirm = self.collection.confirm_delete;
         let actions = div()

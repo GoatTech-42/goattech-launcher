@@ -39,11 +39,13 @@ pub const SWITCHES: [(Kind, &str, &str); 4] = [
 /// Never sent, whatever the switches say.
 pub const NEVER: &str = "Never sent: your account name or UUID, world names, server addresses, chat, or your IP address. Each report is dated to the day, under a random install ID you can delete.";
 
-/// The anonymous "I'm playing" ping the game sends whatever the switches say (Ludovic's
-/// decision, 2026-10-22: count everyone, and tell them). Shown on the first-run question, in
-/// Settings, and once on the Play page to players who answered before it existed.
+/// The anonymous "I'm playing" ping. In this build it is OFF BY DEFAULT: the game sends it
+/// only when a telemetry server is explicitly configured (`HORIZON_TELEMETRY_URL`); with none,
+/// no ping and no live count. When a server is configured it is sent whatever the switches
+/// say. Shown on the first-run question, in Settings, and once on the Play page (only while a
+/// server is configured).
 pub const PING_NAME: &str = "\"I'm playing\" ping";
-pub const PING: &str = "While you play, the game sends an anonymous \"I'm playing\" ping once a minute, so the launcher can show how many people play Horizon right now. It holds: a random number made when the game starts and forgotten when it closes, the Horizon version, your OS (Linux, macOS or Windows), and whether you have a world open to LAN or friends. It doesn't hold: your account, your install ID, world or server names, or anything you do in the game, and the server doesn't keep your IP address. It is sent whatever the switches say.";
+pub const PING: &str = "When a telemetry server is configured, the game sends an anonymous \"I'm playing\" ping once a minute while you play, so the launcher can show how many people play right now. This build configures no server by default: the ping is not sent. The ping holds: a random number made when the game starts and forgotten when it closes, the version, your OS (Linux, macOS or Windows), and whether you have a world open to LAN or friends. It doesn't hold: your account, your install ID, world or server names, or anything you do in the game, and the server doesn't keep your IP address. With a server configured it is sent whatever the switches above say.";
 
 /// How many play Horizon now (rounded), if the server says.
 pub fn playing_now() -> Option<u64> {
@@ -162,27 +164,30 @@ pub fn with_example_gpu(mut system: System) -> System {
 
 /// "Delete my data": the server deletes everything sent under this install's ID, the waiting
 /// items go, and the install gets a new ID. If the server can't be reached the ID is kept, so
-/// the deletion can be asked again.
+/// the deletion can be asked again. With no server configured (the default, or `off`) nothing
+/// remote can be asked: the waiting items still go, but the install ID is KEPT so a later ask
+/// with the server configured (`HORIZON_TELEMETRY_URL`) can still delete what was sent before.
 pub fn delete_my_data() -> Result<String, String> {
     let home = home();
     let mut consent = Consent::load(&home);
     outbox::clear(&home).map_err(|e| e.to_string())?;
-    let remote = match horizon_telemetry::endpoint() {
-        _ if consent.install_id.is_empty() => "Nothing was ever sent from here.",
-        None => {
-            "Sending is turned off here (HORIZON_TELEMETRY_URL=off), so the server was not asked."
-        }
-        Some(url) => {
-            upload::delete_remote(&url, &consent.install_id)
-                .map_err(|e| format!("The server could not be reached ({e}). Try again later."))?;
-            "The server deleted everything sent from here."
-        }
+    if consent.install_id.is_empty() {
+        // An empty local ID proves nothing about the past (metadata could have been reset):
+        // state only what is true here now.
+        return Ok("This install has no telemetry ID recorded, and nothing is waiting to be sent.".into());
+    }
+    let Some(url) = horizon_telemetry::endpoint() else {
+        return Ok(concat!(
+            "No telemetry server is configured, so no server was asked. The items waiting here ",
+            "are deleted. Your install ID is kept: if anything was sent before, set ",
+            "HORIZON_TELEMETRY_URL to that server and ask again."
+        ).into());
     };
+    upload::delete_remote(&url, &consent.install_id)
+        .map_err(|e| format!("The server could not be reached ({e}). Try again later."))?;
     consent.reset_install_id();
     consent.save(&home).map_err(|e| e.to_string())?;
-    Ok(format!(
-        "{remote} Nothing is waiting, and this install has a new ID."
-    ))
+    Ok("The server deleted everything sent from here. Nothing is waiting, and this install has a new ID.".into())
 }
 
 /// Hides the player's account names and UUIDs and their worlds' folder names, besides what
@@ -250,7 +255,7 @@ pub fn submit(item: &Item) -> Result<String, String> {
     Ok(match send() {
         Flush::Sent { .. } => "Sent. Thank you.".into(),
         Flush::Nothing if horizon_telemetry::endpoint().is_none() => {
-            "Kept; sending is turned off here (HORIZON_TELEMETRY_URL=off).".into()
+            "Kept; no telemetry server is configured, so nothing is sent.".into()
         }
         _ => "Kept; it will be sent the next time the launcher starts.".into(),
     })
@@ -377,5 +382,53 @@ mod tests {
     #[test]
     fn every_kind_has_a_switch() {
         assert!(Kind::ALL.iter().all(|&k| !label(k).is_empty()));
+    }
+
+    /// Env-var tests share the process: one at a time.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// With no telemetry server configured (the default, or explicit `off`), "delete my data"
+    /// deletes the waiting items locally but KEEPS the install ID, so a later ask with the
+    /// server set can still delete what was sent before; the message says no server was asked.
+    #[test]
+    fn delete_my_data_without_a_server_keeps_the_install_id() {
+        let _g = ENV_LOCK.lock().unwrap();
+        let dir = std::env::temp_dir().join(format!("horizon-delete-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::env::set_var("HORIZON_HOME", &dir);
+        std::env::remove_var("HORIZON_TELEMETRY_URL");
+
+        let mut consent = Consent::load(&dir);
+        consent.answer(Choices::ALL);
+        consent.save(&dir).unwrap();
+        let kept = consent.install_id.clone();
+        assert!(!kept.is_empty());
+
+        let message = delete_my_data().unwrap();
+        assert!(message.contains("no server was asked"), "{message}");
+        assert!(message.contains("deleted"), "{message}");
+
+        let after = Consent::load(&dir);
+        assert_eq!(after.install_id, kept, "install ID must survive a local-only delete");
+
+        std::env::remove_var("HORIZON_HOME");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// A fresh install that never sent anything is told so, and stays ID-less.
+    #[test]
+    fn delete_my_data_on_a_fresh_install_sends_and_changes_nothing() {
+        let _g = ENV_LOCK.lock().unwrap();
+        let dir = std::env::temp_dir().join(format!("horizon-delete-fresh-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::env::set_var("HORIZON_HOME", &dir);
+        std::env::remove_var("HORIZON_TELEMETRY_URL");
+
+        let message = delete_my_data().unwrap();
+        assert!(message.contains("no telemetry ID recorded"), "{message}");
+        assert!(Consent::load(&dir).install_id.is_empty());
+
+        std::env::remove_var("HORIZON_HOME");
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
