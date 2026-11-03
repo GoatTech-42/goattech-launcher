@@ -13,8 +13,8 @@ struct Face {
 }
 
 /// A cuboid at x x0..x1, y y0..y1, z z0..z1 with base and overlay texture columns. `bx,by` is
-/// the base column's top-left in the skin (top rect at bx+? per the standard unwrap), `ox,oy`
-/// the overlay column's. The standard unwrap: top (bx+depth..), right (bx), front (bx+depth),
+/// the base column's top-left in the skin, `ox,oy` the overlay column's. The standard unwrap:
+/// top (bx+depth), bottom (bx+depth+width), both at row by; right (bx), front (bx+depth),
 /// left (bx+depth+width), back (bx+2*depth+width), each at row by+depth.
 struct Part {
     x0: f32,
@@ -98,7 +98,7 @@ impl Part {
                     [x0, y0, z0 + d],
                     [w, 0., 0.],
                     [0., 0., -d],
-                    (self.bx + 2 * di, self.by, wi, di),
+                    (self.bx + di + wi, self.by, wi, di),
                 ),
             ),
         ]
@@ -170,6 +170,24 @@ impl Pose {
     pub fn wave(t: f32) -> Pose {
         let mut p = Pose::idle(t);
         p.arm_r = std::f32::consts::PI - 0.45 * (t * 7.0).sin();
+        p
+    }
+
+    /// The stage pose: idle, waving for the last 2s of every 7s cycle. The wave blends in
+    /// and out over half a second so the arm raises and lowers smoothly - switching between
+    /// idle(t) and wave(t) at the boundary snapped the arm ~3.3 rad in one tick.
+    pub fn stage(t: f32) -> Pose {
+        fn smooth(a: f32, b: f32, x: f32) -> f32 {
+            let t = ((x - a) / (b - a)).clamp(0., 1.);
+            t * t * (3. - 2. * t)
+        }
+        let cycle = t % 7.;
+        let w = smooth(5., 5.5, cycle) * (1. - smooth(6.5, 7., cycle));
+        let idle = Pose::idle(t);
+        // Both ends stay within [-pi, pi+0.45], so a plain lerp is the short way and the
+        // raise always goes forward over the head; only arm_r differs in wave().
+        let mut p = idle;
+        p.arm_r = idle.arm_r + (Pose::wave(t).arm_r - idle.arm_r) * w;
         p
     }
 }
@@ -510,4 +528,37 @@ mod tests {
         let turned = render(&skin, -0.6);
         assert_ne!(front, turned, "yaw should change the silhouette");
     }
+
+    #[test]
+    fn stage_pose_transitions_without_a_snap() {
+        // The wave blends in and out: nowhere in the cycle may the right arm jump.
+        // QA caught idle(t4.999).arm_r 0.072 -> wave(t5.001) 3.337, a 187 deg snap.
+        let mut prev = Pose::stage(0.);
+        let mut max_step = 0f32;
+        let mut t = 0.02;
+        while t < 14. {
+            let pose = Pose::stage(t);
+            max_step = max_step.max((pose.arm_r - prev.arm_r).abs());
+            prev = pose;
+            t += 0.02;
+        }
+        assert!(max_step < 0.35, "arm snaps {max_step} rad in one 20ms step");
+        let peak = (0..1400)
+            .map(|i| Pose::stage(i as f32 * 0.01).arm_r)
+            .fold(0f32, f32::max);
+        assert!(peak > 2.5, "the wave still raises the arm, peak {peak}");
+    }
+
+    #[test]
+    fn bottom_face_reads_the_official_unwrap_column() {
+        // Official Cube unwrap: the bottom rect sits at bx + depth + width on the top
+        // row, not bx + 2*depth. QA: body w8 d4 sampled texel 24 instead of 28; slim
+        // arm w3 d4 sampled 48 instead of 47. Head w8 d8 was unaffected.
+        let wide = parts(false);
+        assert_eq!(wide[2].faces(0.)[5].1.tex, (16 + 4 + 8, 16, 8, 4), "body bottom");
+        assert_eq!(wide[5].faces(0.)[5].1.tex, (0 + 8 + 8, 0, 8, 8), "head bottom");
+        let slim = parts(true);
+        assert_eq!(slim[3].faces(0.)[5].1.tex, (40 + 4 + 3, 16, 3, 4), "slim arm bottom");
+    }
 }
+

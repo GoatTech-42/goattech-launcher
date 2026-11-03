@@ -2654,6 +2654,33 @@ impl Launcher {
             .child(topbar)
             .child(banner)
             .child(next);
+        // Drag-to-turn scoped to the whole page, not the stage's hitbox: GPUI dispatches
+        // move/up only along the hovered element's chain, so on the stage alone a drag
+        // that left the 320px column froze mid-turn and never released. Started on the
+        // stage, tracked here, released cleanly wherever the button comes up.
+        page = page
+            .on_mouse_move(cx.listener(|this, event: &gpui::MouseMoveEvent, _, cx| {
+                if event.pressed_button != Some(gpui::MouseButton::Left) {
+                    if this.stage_drag.is_some() {
+                        this.stage_drag = None;
+                        cx.notify();
+                    }
+                    return;
+                }
+                let (x, y): (f32, f32) = (event.position.x.into(), event.position.y.into());
+                if let Some((lx, ly)) = this.stage_drag {
+                    this.stage_yaw += (x - lx) * 0.012;
+                    this.stage_pitch = (this.stage_pitch + (y - ly) * 0.008).clamp(-0.15, 0.9);
+                    this.stage_drag = Some((x, y));
+                    cx.notify();
+                }
+            }))
+            .on_mouse_up(gpui::MouseButton::Left, cx.listener(|this, _: &gpui::MouseUpEvent, _, cx| {
+                if this.stage_drag.is_some() {
+                    this.stage_drag = None;
+                    cx.notify();
+                }
+            }));
         if let Some(e) = self.prepare_error.clone() {
             page = page.child(notice(e, &t));
         }

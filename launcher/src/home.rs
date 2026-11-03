@@ -470,12 +470,7 @@ impl Launcher {
         });
         // The stage is alive: the clock from drain drives idle sway, a wave every few
         // seconds, and a look around; dragging turns the model. Rendered fresh each frame.
-        let cycle = self.stage_t % 7.;
-        let pose = if cycle > 5. {
-            player_model::Pose::wave(self.stage_t)
-        } else {
-            player_model::Pose::idle(self.stage_t)
-        };
+        let pose = player_model::Pose::stage(self.stage_t);
         let (yaw, pitch) = (self.stage_yaw, self.stage_pitch);
         // Rasterize at real display resolution (texel 8 in device pixels): geometry edges
         // are sharp at any window scale while the skin texture stays nearest-blocky.
@@ -518,25 +513,6 @@ impl Launcher {
                     .on_mouse_down(gpui::MouseButton::Left, cx.listener(|this, event: &gpui::MouseDownEvent, _, cx| {
                         this.stage_drag = Some((event.position.x.into(), event.position.y.into()));
                         cx.notify();
-                    }))
-                    .on_mouse_up(gpui::MouseButton::Left, cx.listener(|this, _: &gpui::MouseUpEvent, _, cx| {
-                        this.stage_drag = None;
-                        cx.notify();
-                    }))
-                    .on_mouse_move(cx.listener(|this, event: &gpui::MouseMoveEvent, _, cx| {
-                        if event.pressed_button != Some(gpui::MouseButton::Left) {
-                            if this.stage_drag.is_some() {
-                                this.stage_drag = None;
-                            }
-                            return;
-                        }
-                        let (x, y): (f32, f32) = (event.position.x.into(), event.position.y.into());
-                        if let Some((lx, ly)) = this.stage_drag {
-                            this.stage_yaw += (x - lx) * 0.012;
-                            this.stage_pitch = (this.stage_pitch + (y - ly) * 0.008).clamp(-0.15, 0.9);
-                            this.stage_drag = Some((x, y));
-                            cx.notify();
-                        }
                     }))
                     .child(gpui::img(i).w_full().h_full()),
             );

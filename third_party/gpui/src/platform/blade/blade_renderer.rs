@@ -655,7 +655,7 @@ impl BladeRenderer {
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(2);
             if n + 1 == at {
-                self.goattech_dump = Some((path, 1u32));
+                self.goattech_dump = Some((path, 0u32));
             }
         }
         self.command_encoder.start();
@@ -950,7 +950,7 @@ impl BladeRenderer {
             }
             let sync_point = self.gpu.submit(&mut self.command_encoder);
             self.gpu.wait_for(&sync_point, 10_000);
-            let (path, exit_after) = self.goattech_dump.take().unwrap();
+            let (path, _) = self.goattech_dump.take().unwrap();
             let data =
                 unsafe { std::slice::from_raw_parts(buf.data(), (row_pitch * height) as usize) };
             let mut out = format!("P6\n{} {}\n255\n", width, height).into_bytes();
@@ -966,10 +966,7 @@ impl BladeRenderer {
             self.gpu.destroy_buffer(buf);
             self.instance_belt.flush(&sync_point);
             self.atlas.after_frame(&sync_point);
-            if exit_after != 0 {
-                std::process::exit(0);
-            }
-            return;
+            std::process::exit(0);
         }
         self.command_encoder.present(frame);
         let sync_point = self.gpu.submit(&mut self.command_encoder);
