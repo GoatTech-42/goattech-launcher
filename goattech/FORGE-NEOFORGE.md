@@ -4,13 +4,16 @@ Status: **install driver implemented and verified** (updated 2026-11-03).
 `loaders::Kind` covers all four loaders; Forge and NeoForge install through
 the official-installer driver in `launcher/src/forge_install.rs` (route A
 below, chosen and built), for Minecraft 1.13 and newer. New Java instances
-offer all four loaders. Importing a Forge/NeoForge modpack is different:
-`launcher/src/import.rs` refuses those packs with the reason, so no
-Forge/NeoForge content arrives through an import. What a working install
-does not prove is a signed-in game launch: Mojang approved the launcher's
-app registration (approval email 2026-11-02) and device-code sign-in passed
-the Minecraft ownership check on 2026-11-03, but no signed-in launch of any
-instance - loader or vanilla - has run yet.
+offer all four loaders. Import paths differ by kind: a `.mrpack` or pack
+file that names Forge or NeoForge in its dependencies is refused with the
+reason (`launcher/src/import.rs`), while cross-launcher instance copies
+(`launcher/src/other_launchers.rs`) carry their loader and mods, including
+Forge/NeoForge instances. What a working install does not prove is a
+signed-in game launch: approval of the launcher's app registration was
+reported 2026-11-02 and device-code sign-in was reported passing the
+Minecraft ownership check 2026-11-03 (project status reports, not
+independently re-verified here; session persistence unverified), but no
+signed-in launch of any instance - loader or vanilla - has run yet.
 
 ## Grounded installer behavior (checked 2026-10-31)
 
@@ -84,10 +87,12 @@ real on Linux against the official installers and Mojang's services:
   libraries, Java 17); same checks.
 
 All passed. With the driver verified, the flip has landed: new instances
-offer all four loaders and imports carry their loader and mods. What stays
-gated is publishing any launcher version (the independent-review release
-gate) and claiming a signed-in game launch, which waits on Mojang's approval
-of the launcher's app registration, as for every instance.
+offer all four loaders, and cross-launcher instance copies carry their
+loader and mods (`.mrpack` Forge/NeoForge imports stay refused, as above).
+What stays gated is publishing any launcher version (the independent-review
+release gate) and claiming a signed-in game launch: sign-in itself was
+reported working 2026-11-03 (see the status note at the top), but no
+signed-in launch of any instance has run.
 
 ## Integration points (current state)
 

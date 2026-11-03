@@ -1,12 +1,16 @@
 # GoatTech Launcher (Horizon fork) - milestone plan
 
+(2026-11-03 status refresh: this file's branch/publication/branding/MSA lines were
+corrected to the verified current state; it is a scoped status refresh, not a full
+docs review.)
+
 Fork of horizon-rust/horizon (MIT). Started on branch `goattech/main` off verified upstream
 origin/main HEAD 98b6a44 (2026-10-30); work now integrates on `main` of
 github.com/GoatTech-42/goattech-launcher (`goattech/main` is the stale initial branch, kept
 for history). Direction (locked 2026-10-30): hybrid launcher -
 keep BOTH runtimes: Rust (Horizon engine) and Java (Vanilla/Modded Fabric/Quilt instances,
 upstream PR #4399, merge a827346dd5a29f65c4315d94d5ee63965404ccc2). Fabric mod support via
-the Java lane; ViaFabricPlus as the running benchmark. Free-only. The repo exists and receives pushes (deploy key, 2026-11); it stays private and nothing is published until the repo/audience/"as me" grant lands.
+the Java lane; ViaFabricPlus as the running benchmark. Free-only. The code lives in a private development repository; publication is not authorized.
 
 ## Milestone 1 (local, no account needed)
 - [x] Fork branch from verified upstream HEAD
@@ -32,9 +36,10 @@ the Java lane; ViaFabricPlus as the running benchmark. Free-only. The repo exist
 
 ## Milestone 2 (needs an owned Minecraft account + a full-build machine)
 - Sign-in (MSA device code), actual Java launch, VFP benchmark: join an older-version server
-- MSA client ID: DONE 2026-11-02/03 - own app registration approved by Mojang (approval email
-  2026-11-02); device-code sign-in verified 2026-11-03 (ownership check passes). Remaining here:
-  actual Java launch and the VFP benchmark on an older-version server.
+- MSA client ID: own app registration reported approved 2026-11-02; device-code sign-in
+  reported passing the ownership check 2026-11-03 (project status reports; session persistence
+  unverified). Remaining here: actual Java launch and the VFP benchmark on an older-version
+  server.
 
 ## Discipline
 - Fork-only files under goattech/; upstream-tree edits minimal and additive (easier merges)
