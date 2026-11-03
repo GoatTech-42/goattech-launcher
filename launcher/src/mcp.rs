@@ -34,6 +34,16 @@ enum Client {
     Java,
 }
 
+impl Session {
+    /// Wait for the previous game's exit work to finish, so replacing the waiter (a new `play`)
+    /// or the session's end never loses it.
+    fn drain_exit_waiter(&mut self) {
+        if let Some(prior) = self.exit_waiter.take() {
+            let _ = prior.join();
+        }
+    }
+}
+
 /// What a Java client's end does, as the CLI's play does when the game closes: its play time
 /// recorded and its post-exit command run. Problems are said on stderr, as the CLI says them.
 fn java_exit_work(
@@ -100,6 +110,9 @@ impl Session {
                 if self.client.as_ref().is_some_and(|c| c.finished().is_none()) {
                     return Err("The client is already running.".into());
                 }
+                // The previous game has closed, but its exit work may still be running:
+                // wait for it, so the new game never replaces a live waiter and loses it.
+                self.drain_exit_waiter();
                 let instance = match arg_str(args, "instance") {
                     Some(name) => instances::find(name)?,
                     None => {
@@ -468,6 +481,19 @@ pub fn serve() -> Result<(), String> {
         sign_in: None,
         game: None,
     };
+    let result = serve_loop(&mut session);
+    // The session is over, however the loop ended (EOF, or a dead transport on a failed write).
+    // The dedicated server promised to run until the session's end, so it stops first - it does
+    // not stay up for the hours a game may still be played. A Java client's exit work then runs
+    // to its end, as the CLI's play stays attached until the game closes.
+    if let Some(mut server) = session.server.take() {
+        server.stop(Duration::from_secs(30));
+    }
+    session.drain_exit_waiter();
+    result
+}
+
+fn serve_loop(session: &mut Session) -> Result<(), String> {
     let stdin = std::io::stdin();
     let mut stdout = std::io::stdout();
     for line in stdin.lock().lines() {
@@ -497,15 +523,6 @@ pub fn serve() -> Result<(), String> {
                 .and_then(|_| stdout.flush())
                 .map_err(|e| e.to_string())?;
         }
-    }
-    // The session is over: the server it started goes with it. A Java client keeps the process
-    // until the game closes, so its exit work (play time, post-exit command) always runs - as
-    // the CLI's play stays attached until then.
-    if let Some(waiter) = session.exit_waiter.take() {
-        let _ = waiter.join();
-    }
-    if let Some(mut server) = session.server.take() {
-        server.stop(Duration::from_secs(30));
     }
     Ok(())
 }
@@ -662,6 +679,37 @@ mod tests {
         waiter.join().unwrap();
         assert_eq!(std::fs::read_to_string(&marker).unwrap(), "x
 ");
+        let store = std::fs::read_to_string(home.1.join("instances.json")).unwrap();
+        assert!(store.contains("mymc-mcp-test"), "{store}");
+    }
+
+    /// A new play comes while the last game's post-exit command still runs: the drain waits it
+    /// out, so replacing the waiter loses no exit work.
+    #[cfg(unix)]
+    #[test]
+    fn a_new_play_drains_the_previous_games_exit_work() {
+        let _lock = HOME_LOCK.lock().unwrap();
+        let home = HomeGuard::new("drain");
+        let marker = home.1.join("marker");
+        let mut first = java_instance(&format!(
+            "sleep 1; printf '1\n' >> '{}'",
+            marker.display()
+        ));
+        first.home = home.1.clone();
+        first.work = home.1.clone();
+        let mut s = java_session(instant_exit(), first);
+        // What play does after the running-client guard: wait out the previous exit work.
+        s.drain_exit_waiter();
+        // The drain really waited: the first game's slow post-exit command has already run.
+        assert_eq!(std::fs::read_to_string(&marker).unwrap(), "1\n");
+        // The new game replaces the waiter only now; its exit work runs too.
+        let mut second = java_instance(&format!("printf '2\n' >> '{}'", marker.display()));
+        second.home = home.1.clone();
+        second.work = home.1.clone();
+        let mut second_session = java_session(instant_exit(), second);
+        s.exit_waiter = second_session.exit_waiter.take();
+        s.drain_exit_waiter();
+        assert_eq!(std::fs::read_to_string(&marker).unwrap(), "1\n2\n");
         let store = std::fs::read_to_string(home.1.join("instances.json")).unwrap();
         assert!(store.contains("mymc-mcp-test"), "{store}");
     }
