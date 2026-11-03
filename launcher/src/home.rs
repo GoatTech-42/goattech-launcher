@@ -477,19 +477,24 @@ impl Launcher {
             player_model::Pose::idle(self.stage_t)
         };
         let (yaw, pitch) = (self.stage_yaw, self.stage_pitch);
+        // Rasterize at real display resolution (texel 8 in device pixels): geometry edges
+        // are sharp at any window scale while the skin texture stays nearest-blocky.
+        let dev_w = (player_model::W as f32 * 8. * scale).round().max(1.) as usize;
+        let dev_h = (player_model::H as f32 * 8. * scale).round().max(1.) as usize;
         let pixels = texture.and_then(|(path, slim)| {
             let bytes = horizon_launcher::browser::images::read_capped(&path, 1 << 20)?;
             let png = horizon_launcher::skins::read_skin(&bytes).ok()?;
             if png.dimensions() != (64, 64) {
                 return None;
             }
-            Some(player_model::render_posed(&png, yaw, pitch, &pose, slim))
+            Some(player_model::render_posed_hi(&png, yaw, pitch, &pose, slim, dev_w, dev_h))
         });
         let real = pixels.is_some();
         let pixels = pixels.or_else(|| {
-            player_model::fixture().map(|p| player_model::render_posed(&p, yaw, pitch, &pose, false))
+            player_model::fixture()
+                .map(|p| player_model::render_posed_hi(&p, yaw, pitch, &pose, false, dev_w, dev_h))
         });
-        let baked = pixels.map(|p| art::bake(&p, player_model::W, player_model::H, 8., scale));
+        let baked = pixels.map(|p| art::bake(&p, dev_w, dev_h, 1., 1.));
         let (who, _) = self.who_plays();
         let mut stage = div()
             .relative()
