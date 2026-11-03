@@ -7,13 +7,20 @@ taken here.
 
 ## The two boundaries (keep them separate)
 
-1. **Compile-time engine crates.** The launcher path-depends on eight in-repo
+1. **Compile-time engine crates.** The launcher path-depends on ten in-repo
    engine crates (`launcher/Cargo.toml`: horizon-theme, horizon-core,
    horizon-prepare, horizon-friends, horizon-bench, horizon-port-pack,
-   horizon-mods, horizon-telemetry). None are published on crates.io.
-   GoatTech's own engine-side patches are deliberately thin: as of 2026-11-03
-   they touch only `crates/horizon-theme` (two source files plus icon assets);
-   everything else the fork adds lives in `launcher/` and `goattech/`.
+   horizon-mods, horizon-release-sign, horizon-telemetry, horizon-world).
+   None of the ten is published on crates.io (crates.io API check 2026-11-03:
+   every name returns 404). GoatTech's own engine-side patches are
+   deliberately thin but not theme-only: `crates/horizon-theme` (two source
+   files plus icon assets); a telemetry default-endpoint opt-out in
+   `crates/horizon-telemetry/src/lib.rs` (`endpoint()` returns `None` unless
+   `HORIZON_TELEMETRY_URL` explicitly names a server, with tests); a matching
+   module comment in `crates/horizon-client/src/heartbeat.rs`; and one
+   reworded line in `crates/horizon-telemetry-server/README.md`. Everything
+   else the fork adds lives in `launcher/`, `goattech/`, `docs/` and brand
+   assets.
 2. **Vendored UI dependencies.** `third_party/gpui`, `wgpu-hal` (and upstream
    also vendors `naga`) are UPSTREAM's own vendoring, wired by upstream's own
    `[patch.crates-io]` redirects. The fork inherits this; it did not choose it
@@ -34,13 +41,17 @@ review. The merged tree is where the verification lives: lib + bin suites and
 the gt-cli live proof all run on the integrated source.
 
 **B. Remove the vendored engine; launcher-only repo with git dependencies.**
-Judgment: not worth it now. The launcher would pin 8+ unpublished engine crates
-as git deps - the same tracking burden with weaker verification (suites and
-live proof no longer run on the integrated tree), no merge window for upstream
-API breaks, and a forced tiny fork of horizon-theme anyway for the fork's
-branding. The burden it appears to remove does not actually go away.
+Judgment: not worth it now. The launcher would pin ten unpublished engine
+crates as git deps - the same tracking burden, and verification weakens if
+the extracted crates' home no longer runs the suites and the live proof
+against the integrated source (a separate engine repo could keep doing that;
+the loss is conditional on its CI, not automatic). What is not conditional:
+the merge window for upstream API breaks disappears, and the fork's own
+engine-side patches (theme, telemetry opt-out) would still force a small
+fork regardless. The burden removal appears to offer does not actually go away.
 Revisit only if upstream publishes its crates AND the fork's engine-side
-patches (today: theme only) are gone or upstreamed.
+patches (today: theme, telemetry opt-out, and their docs) are gone or
+upstreamed.
 
 **C. Auto-sync.** Automation of the tracking work, compatible with A and not a
 license to skip review. UPSTREAM-TRACKING.md's rule stands: never merge
