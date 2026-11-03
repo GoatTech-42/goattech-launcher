@@ -21,10 +21,16 @@ taken here.
    reworded line in `crates/horizon-telemetry-server/README.md`. Everything
    else the fork adds lives in `launcher/`, `goattech/`, `docs/` and brand
    assets.
-2. **Vendored UI dependencies.** `third_party/gpui`, `wgpu-hal` (and upstream
-   also vendors `naga`) are UPSTREAM's own vendoring, wired by upstream's own
-   `[patch.crates-io]` redirects. The fork inherits this; it did not choose it
-   and should not un-vendor locally unless upstream does.
+2. **Vendored UI dependencies.** The two vendored UI dependencies have
+   DIFFERENT origins. `third_party/wgpu-hal` is upstream's own vendoring: it
+   exists at the upstream base 36f4bc00d wired by upstream's own root
+   `[patch.crates-io]` redirect, and upstream syncs keep it current.
+   `third_party/gpui` is the FORK's own vendoring: added 2026-10-31 in
+   48056282c (GoatTech redesign stage 1) with the fork's own
+   `[patch.crates-io]` redirect in `launcher/Cargo.toml`, and patched since
+   (redesign work in 6f45e7517). Upstream has no gpui vendoring, so upstream
+   syncs will never update it; tracking zed's gpui and carrying the fork's
+   gpui patches is the fork's own burden on top of engine sync.
 
 The Rust game instance itself already ships as a DOWNLOADED nightly artifact
 (`versions/nightly-*`): playing the engine does not require the in-repo engine
@@ -45,10 +51,12 @@ Judgment: not worth it now. The launcher would pin ten unpublished engine
 crates as git deps - the same tracking burden, and verification weakens if
 the extracted crates' home no longer runs the suites and the live proof
 against the integrated source (a separate engine repo could keep doing that;
-the loss is conditional on its CI, not automatic). What is not conditional:
-the merge window for upstream API breaks disappears, and the fork's own
-engine-side patches (theme, telemetry opt-out) would still force a small
-fork regardless. The burden removal appears to offer does not actually go away.
+the loss is conditional on its CI, not automatic). Catching upstream API
+breaks would move from an integrated merge-and-test window to pin-bump
+review - slower feedback, not a lost ability - and the fork's own
+engine-side patches (theme, telemetry opt-out) plus its own vendored gpui
+would still force a small fork regardless. The burden removal appears to
+offer does not actually go away.
 Revisit only if upstream publishes its crates AND the fork's engine-side
 patches (today: theme, telemetry opt-out, and their docs) are gone or
 upstreamed.
