@@ -19,9 +19,9 @@
 #
 # Hard rules (UPSTREAM-TRACKING.md practice): never merges into main, never
 # pushes anything, never stashes/resets/deletes caller or pre-existing work.
-# Cleanup removes only a worktree this run itself created, after verifying
-# path, marker, ref and clean state; anything unexpected is left in place and
-# reported. The merge decision stays with review.
+# No automatic cleanup: the owned worktree and its inert token are left in
+# place with their locations reported; removal is a later explicit action.
+# The merge decision stays with review.
 #
 # Usage:
 #   goattech/tools/auto-prepare-sync.sh --check-only   # fetch + decide, no worktree, no builds
