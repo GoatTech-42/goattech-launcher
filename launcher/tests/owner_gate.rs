@@ -87,3 +87,67 @@ fn the_mcp_server_refuses_to_play_without_an_owner() {
     assert!(said.contains(REFUSED), "{said}");
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// A home with one Java instance (`game/instances/mymc` + its instances.json entry), no accounts.
+fn java_home(name: &str) -> PathBuf {
+    let root = home(name);
+    std::fs::create_dir_all(root.join("game/instances/mymc")).unwrap();
+    std::fs::write(
+        root.join("launcher/instances.json"),
+        r#"{"instances":{"mymc":{"name":"My MC","java":{"minecraft":"1.21.4"}}}}"#,
+    )
+    .unwrap();
+    root
+}
+
+fn mcp_play(root: &Path, arguments: &str) -> serde_json::Value {
+    let mut child = launcher(root, &["mcp"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let requests = [
+        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#.to_string(),
+        format!(
+            r#"{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"play","arguments":{arguments}}}}}"#
+        ),
+    ];
+    let mut stdin = child.stdin.take().unwrap();
+    for r in requests {
+        writeln!(stdin, "{r}").unwrap();
+    }
+    drop(stdin);
+    let out = child.wait_with_output().unwrap();
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .map(|l| serde_json::from_str::<serde_json::Value>(l).unwrap())
+        .find(|v| v["id"] == 2)
+        .expect("a reply to play")
+}
+
+#[test]
+fn the_mcp_server_gates_a_java_instance_on_ownership() {
+    let root = java_home("mcp-java");
+    let reply = mcp_play(&root, r#"{"instance":"mymc"}"#);
+    assert_eq!(reply["result"]["isError"], true, "{reply}");
+    let said = reply["result"]["content"][0]["text"].as_str().unwrap();
+    // The Java instance reaches the owner gate: refused as unsigned-in, not as "Rust only".
+    assert!(said.contains(REFUSED), "{said}");
+    assert!(!said.contains("instances only"), "{said}");
+    // The gate fired before anything of the game ran or downloaded, and no secret hit the disk.
+    assert!(!root.join("game/sessions").exists());
+    assert!(!root.join("launcher/minecraft").exists());
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn the_mcp_server_rejects_horizon_flags_for_a_java_instance() {
+    let root = java_home("mcp-java-flags");
+    let reply = mcp_play(&root, r#"{"instance":"mymc","world":"x"}"#);
+    assert_eq!(reply["result"]["isError"], true, "{reply}");
+    let said = reply["result"]["content"][0]["text"].as_str().unwrap();
+    assert!(said.contains("--world is for Horizon instances"), "{said}");
+    assert!(!said.contains(REFUSED), "{said}");
+    let _ = std::fs::remove_dir_all(&root);
+}

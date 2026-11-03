@@ -17,9 +17,22 @@ pub const PROTOCOL: &str = "2025-06-18";
 struct Session {
     server: Option<Logged>,
     client: Option<Logged>,
+    /// What `play` started: a Horizon client the game_* tools drive, or a Java client that only
+    /// plays on the player's screen (with what its exit must do once, as the CLI's play does).
+    client_kind: Option<Client>,
     sign_in: Option<SignIn>,
     /// The selected version's `horizon-ctl mcp`, once a version is installed.
     game: Option<GameTools>,
+}
+
+/// The client `play` started in this session.
+enum Client {
+    Horizon,
+    Java {
+        instance: instances::Instance,
+        vars: crate::launch::Vars,
+        started: std::time::Instant,
+    },
 }
 
 /// The tools the session runs itself, under their CLI names: they keep a process (the game, a
@@ -28,7 +41,7 @@ fn session_tools() -> Value {
     let version = json!({ "type": "string", "description": "An installed version tag such as v2026.10.13. Default: the selected version (play: the instance's own first)." });
     let none = json!({ "type": "object", "properties": {} });
     json!([
-        { "name": "play", "description": "Start the Horizon client (a game window on the player's screen) under agent control: the game_* tools then play it. Returns once it has started; game_wait_ready waits for the world. CLI: horizon-launcher play",
+        { "name": "play", "description": "Start the selected instance: a Horizon client (a game window on the player's screen) under agent control, the game_* tools then play it; a Java instance starts its Minecraft: Java Edition as the CLI's play does (no game_* tools). Returns once it has started; game_wait_ready waits for a Horizon world. CLI: horizon-launcher play",
           "inputSchema": { "type": "object", "properties": { "version": version,
             "instance": { "type": "string", "description": "The instance to play, by name or id (instance_list). Default: the selected one." },
             "world": { "type": "string", "description": "Open or create this world (a folder under saves) at once." },
@@ -88,10 +101,80 @@ impl Session {
                     }
                 };
                 if instance.java.is_some() {
-                    return Err(format!(
-                        "{} plays Minecraft: Java Edition: MCP `play` starts Horizon (Rust)                          instances only. Start a Java instance from the launcher or the CLI,                          or pass a Horizon one as `instance`.",
-                        instance.name
-                    ));
+                    // A Java instance plays Minecraft: Java Edition through the same backend as
+                    // the CLI's `play`: the owner gate fires inside before anything downloads,
+                    // and the account's session reaches the game on its command line (never
+                    // logged). The sign-in this session's `account_sign_in` started lives in
+                    // this process's store, so sign-in and play can share one run.
+                    for flag in ["version", "world", "join"] {
+                        if arg_str(args, flag).is_some() {
+                            return Err(format!(
+                                "{} plays Minecraft: Java Edition: --{flag} is for Horizon instances.",
+                                instance.name
+                            ));
+                        }
+                    }
+                    for flag in ["creative", "offscreen"] {
+                        if args.get(flag).and_then(Value::as_bool).unwrap_or(false) {
+                            return Err(format!(
+                                "{} plays Minecraft: Java Edition: --{flag} is for Horizon instances.",
+                                instance.name
+                            ));
+                        }
+                    }
+                    let server = arg_str(args, "server").map(|server| {
+                        let list = crate::server_list::List::load(&instance.home);
+                        crate::server_list::find(&list, server)
+                            .map_or(server.to_string(), |(_, s)| s.ip)
+                    });
+                    let mut cmd =
+                        backend::java_game(&instance, server.as_deref(), &|_line| {})?;
+                    let unsaved = account::take_unsaved();
+                    if let Some(extra) = args.get("arg").and_then(Value::as_array) {
+                        cmd.args(extra.iter().filter_map(Value::as_str));
+                    }
+                    let vars = instance.vars(cmd.get_program());
+                    cmd.envs(vars.iter().map(|(k, v)| (k, v)));
+                    let started = std::time::Instant::now();
+                    let client =
+                        match Logged::start(Job::Client, crate::launch::wrap(cmd, &instance.launch)) {
+                            Ok(client) => client,
+                            Err(e) => {
+                                return Err(match unsaved {
+                                    Some(unsaved) => format!("{e}\n{unsaved}"),
+                                    None => e,
+                                });
+                            }
+                        };
+                    // No control socket on a Java client: catch an instant crash, then report.
+                    std::thread::sleep(Duration::from_secs(5));
+                    if let Some(result) = client.finished() {
+                        let mut said = format!(
+                            "The game stopped: {}\n{}",
+                            result.err().unwrap_or_default(),
+                            client.tail(20).join("\n")
+                        );
+                        if let Some(unsaved) = unsaved {
+                            said.push_str(&format!("\n{unsaved}"));
+                        }
+                        return Err(said);
+                    }
+                    // A Java client has no horizon-ctl: drop a stale cached one so the game_*
+                    // tools cannot reach another Horizon client while this one runs.
+                    self.game = None;
+                    self.client_kind = Some(Client::Java {
+                        instance,
+                        vars,
+                        started,
+                    });
+                    self.client = Some(client);
+                    let mut said =
+                        "Started the Java client on the player's screen. The game_* tools drive Horizon clients only, not this one."
+                            .to_string();
+                    if let Some(unsaved) = unsaved {
+                        said.push_str(&format!("\n{unsaved}"));
+                    }
+                    return Ok(said);
                 }
                 let tag = instance.resolve_version(arg_str(args, "version"))?;
                 let mut cmd = backend::client(&tag)?;
@@ -136,6 +219,7 @@ impl Session {
                     }
                     std::thread::sleep(Duration::from_millis(100));
                 }
+                self.client_kind = Some(Client::Horizon);
                 self.client = Some(client);
                 Ok(format!(
                     "Started the {tag} client. The game_* tools play it; game_wait_ready waits until the world is ready."
@@ -259,6 +343,39 @@ impl Session {
     }
 
     /// The game's tools, starting the selected version's horizon-ctl the first time.
+    /// True while this session's client is a Java one that has not exited.
+    fn java_client_running(&self) -> bool {
+        matches!(self.client_kind, Some(Client::Java { .. }))
+            && self.client.as_ref().is_some_and(|c| c.finished().is_none())
+    }
+
+    /// A finished client's one-time exit work. A Java client gets what the CLI's play does when
+    /// the game closes: its play time recorded and its post-exit command run, once. Problems are
+    /// said on stderr, as the CLI says them. Horizon clients keep their existing behavior.
+    fn note_client_exit(&mut self) {
+        if self.client.as_ref().is_none_or(|c| c.finished().is_none()) {
+            return;
+        }
+        let Some(Client::Java {
+            instance,
+            vars,
+            started,
+        }) = self.client_kind.take()
+        else {
+            return;
+        };
+        if let Err(e) = instances::record_play(&instance.id, started.elapsed()) {
+            eprintln!("Play time not saved: {e}");
+        }
+        if let Some(mut cmd) = crate::launch::after_exit(&instance.launch, &instance.home, &vars) {
+            match cmd.status() {
+                Ok(s) if s.success() => {}
+                Ok(s) => eprintln!("The post-exit command failed ({s})."),
+                Err(e) => eprintln!("The post-exit command didn't run: {e}."),
+            }
+        }
+    }
+
     fn game(&mut self) -> Option<&mut GameTools> {
         if self.game.is_none() {
             self.game = backend::resolve_version(None)
@@ -276,6 +393,7 @@ impl Session {
     }
 
     fn handle(&mut self, method: &str, params: &Value) -> Result<Value, (i64, String)> {
+        self.note_client_exit();
         match method {
             "initialize" => Ok(json!({
                 "protocolVersion": params.get("protocolVersion").and_then(Value::as_str).unwrap_or(PROTOCOL),
@@ -286,8 +404,12 @@ impl Session {
             "ping" => Ok(json!({})),
             "tools/list" => {
                 let mut list = tools();
-                if let Some(game) = self.game() {
-                    list.extend(game.tools().iter().cloned());
+                // A running Java client has no game_* tools; do not start a horizon-ctl for
+                // another client just to list them.
+                if !self.java_client_running() {
+                    if let Some(game) = self.game() {
+                        list.extend(game.tools().iter().cloned());
+                    }
                 }
                 Ok(json!({ "tools": list }))
             }
@@ -304,6 +426,13 @@ impl Session {
                 if name.starts_with(game_tools::PREFIX)
                     && !tools().iter().any(|t| t["name"] == name)
                 {
+                    if self.java_client_running() {
+                        return Err((
+                            -32602,
+                            "The game_* tools drive a Horizon client; the running game is a                              Minecraft: Java Edition client, which has no control socket."
+                                .to_string(),
+                        ));
+                    }
                     let args = params.get("arguments").cloned().unwrap_or(json!({}));
                     let game = self.game().ok_or((
                         -32602,
@@ -333,6 +462,7 @@ pub fn serve() -> Result<(), String> {
     let mut session = Session {
         server: None,
         client: None,
+        client_kind: None,
         sign_in: None,
         game: None,
     };
@@ -371,4 +501,143 @@ pub fn serve() -> Result<(), String> {
         server.stop(Duration::from_secs(30));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::instances::{Instance, JavaGame, Kind};
+    use std::process::Command;
+
+    fn java_instance(post_exit: &str) -> Instance {
+        Instance {
+            id: "mymc-mcp-test".into(),
+            name: "My MC".into(),
+            kind: Kind::Own,
+            work: PathBuf::from("/tmp"),
+            home: PathBuf::from("/tmp"),
+            icon: None,
+            group: None,
+            notes: None,
+            version: None,
+            played: Duration::ZERO,
+            last_played: None,
+            launch: crate::launch::Launch {
+                post_exit: post_exit.into(),
+                ..Default::default()
+            },
+            java: Some(JavaGame {
+                minecraft: "1.21.4".into(),
+                ..Default::default()
+            }),
+        }
+    }
+
+    fn long_running() -> Command {
+        if cfg!(windows) {
+            let mut c = Command::new("cmd.exe");
+            c.args(["/D", "/S", "/C", "ping -n 20 127.0.0.1 >nul"]);
+            c
+        } else {
+            let mut c = Command::new("sleep");
+            c.arg("20");
+            c
+        }
+    }
+
+    fn instant_exit() -> Command {
+        if cfg!(windows) {
+            let mut c = Command::new("cmd.exe");
+            c.args(["/D", "/S", "/C", "exit 0"]);
+            c
+        } else {
+            Command::new("true")
+        }
+    }
+
+    fn session_with(cmd: Command, kind: Option<Client>) -> Session {
+        Session {
+            server: None,
+            client: Some(Logged::start(Job::Client, cmd).unwrap()),
+            client_kind: kind,
+            sign_in: None,
+            game: None,
+        }
+    }
+
+    fn java_running(cmd: Command) -> Session {
+        session_with(
+            cmd,
+            Some(Client::Java {
+                instance: java_instance(""),
+                vars: vec![],
+                started: std::time::Instant::now(),
+            }),
+        )
+    }
+
+    #[test]
+    fn game_tools_do_not_reach_past_a_running_java_client() {
+        let mut s = java_running(long_running());
+        let (code, message) = s
+            .handle(
+                "tools/call",
+                &json!({ "name": "game_state", "arguments": {} }),
+            )
+            .unwrap_err();
+        assert_eq!(code, -32602);
+        assert!(message.contains("no control socket"), "{message}");
+        // tools/list advertises no game_* tools and never starts a horizon-ctl for them.
+        let list = s.handle("tools/list", &json!({})).unwrap();
+        let names: Vec<&str> = list["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|t| t["name"].as_str())
+            .collect();
+        // game_args is the launcher's own CLI tool of that name, not a game's tool.
+        assert!(
+            !names.iter().any(|n| n.starts_with("game_") && *n != "game_args"),
+            "{names:?}"
+        );
+        assert!(s.game.is_none(), "no horizon-ctl started while a Java client runs");
+    }
+
+    /// The post-exit command is a unix shell line; the completion-once logic it exercises is
+    /// platform-neutral.
+    #[cfg(unix)]
+    #[test]
+    fn a_finished_java_clients_exit_work_runs_once() {
+        let dir = std::env::temp_dir().join(format!("horizon-mcp-exit-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        // record_play writes instances.json under the test home, never the player's.
+        std::env::set_var("HORIZON_LAUNCHER_HOME", &dir);
+        let marker = dir.join("marker");
+        let mut instance = java_instance(&format!("printf 'x\\n' >> '{}'", marker.display()));
+        instance.home = dir.clone();
+        instance.work = dir.clone();
+        let mut s = session_with(
+            instant_exit(),
+            Some(Client::Java {
+                instance,
+                vars: vec![],
+                started: std::time::Instant::now(),
+            }),
+        );
+        for _ in 0..50 {
+            if s.client.as_ref().unwrap().finished().is_some() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        s.handle("ping", &json!({})).unwrap();
+        assert_eq!(std::fs::read_to_string(&marker).unwrap(), "x\n");
+        let store = std::fs::read_to_string(dir.join("instances.json")).unwrap();
+        assert!(store.contains("mymc-mcp-test"), "{store}");
+        // A later call does not repeat the exit work.
+        s.handle("ping", &json!({})).unwrap();
+        assert_eq!(std::fs::read_to_string(&marker).unwrap(), "x\n");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
