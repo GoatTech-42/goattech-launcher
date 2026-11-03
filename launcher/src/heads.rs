@@ -36,6 +36,16 @@ pub fn parse_uuid(text: &str) -> Option<u128> {
     (hex.len() == 32).then(|| u128::from_str_radix(&hex, 16).ok())?
 }
 
+
+/// Same player UUID in any mix of dashed, undashed, or letter case.
+/// Never true when either side is invalid: None never equals None.
+pub fn same_uuid(a: &str, b: &str) -> bool {
+    match (parse_uuid(a), parse_uuid(b)) {
+        (Some(x), Some(y)) => x == y,
+        _ => false,
+    }
+}
+
 /// The 8 by 8 face, row by row as RGBA, with the hat layer over it: what the tab list draws.
 pub fn face(skin_png: &[u8]) -> Option<Vec<[u8; 4]>> {
     let skin = image::load_from_memory_with_format(skin_png, image::ImageFormat::Png)
@@ -94,5 +104,33 @@ mod tests {
         assert_eq!(face.len(), 64);
         assert_eq!(face[0], [1, 2, 3, 255]);
         assert_eq!(face[1], [7, 8, 9, 255]);
+    }
+
+    #[test]
+    fn same_uuid_accepts_dashed_undashed_and_case() {
+        assert!(same_uuid(
+            "36532b5e-c442-3dbb-a24c-c7e55d0f979a",
+            "36532b5ec4423dbba24cc7e55d0f979a"
+        ));
+        assert!(same_uuid(
+            "36532B5E-C442-3DBB-A24C-C7E55D0F979A",
+            "36532b5ec4423dbba24cc7e55d0f979a"
+        ));
+    }
+
+    #[test]
+    fn same_uuid_rejects_invalid_even_when_identical() {
+        assert!(!same_uuid("not-a-uuid", "not-a-uuid"));
+        assert!(!same_uuid("", ""));
+        assert!(!same_uuid("not-a-uuid", "36532b5ec4423dbba24cc7e55d0f979a"));
+        assert!(!same_uuid("36532b5ec4423dbba24cc7e55d0f979a", "zz"));
+    }
+
+    #[test]
+    fn same_uuid_rejects_different_valid_uuids() {
+        assert!(!same_uuid(
+            "36532b5e-c442-3dbb-a24c-c7e55d0f979a",
+            "59815ee1662144e9bd436fc6f0495a25"
+        ));
     }
 }

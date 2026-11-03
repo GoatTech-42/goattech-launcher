@@ -1052,9 +1052,11 @@ impl Launcher {
     }
 
     /// A known account's active face, else the UUID's vanilla default skin.
+    /// Server data keeps dashed UUIDs; accounts store them normalized, so
+    /// compare parsed UUIDs, never raw strings.
     pub(super) fn head(&mut self, uuid: &str, size: f32) -> Div {
         let resources = servers::game_files(&servers::runtime_root(), "26.3");
-        let account_skin = self.accounts.accounts.iter().find(|a| a.uuid == uuid)
+        let account_skin = self.accounts.accounts.iter().find(|a| heads::same_uuid(&a.uuid, uuid))
             .and_then(|a| a.skin.as_ref()).and_then(|(url, _)| horizon_launcher::skins::texture_url(url));
         let actual = account_skin.and_then(|url| self.mods_image(&url, 64))
             .and_then(|p| horizon_launcher::browser::images::read_capped(&p, 1 << 20))
