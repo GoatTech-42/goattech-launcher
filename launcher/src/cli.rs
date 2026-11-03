@@ -1375,11 +1375,9 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             if as_json {
                 json(serde_json::to_value(&links).unwrap());
             } else {
-                for (name, url) in [
-                    ("Discord", &links.discord),
-                    ("Sponsor", &links.sponsor),
-                    ("Website", &links.website),
-                ] {
+                // Luke 2026-11-03: no Discord server exists; the Discord
+                // destination is dead and stays out of the printed links.
+                for (name, url) in [("Sponsor", &links.sponsor), ("Website", &links.website)] {
                     println!("{name:<8} {}", if url.is_empty() { "(none)" } else { url });
                 }
             }

@@ -355,7 +355,68 @@ struct Launcher {
     /// The window's scale, as of its last frame, for art drawn outside `render`'s reach.
     scale: f32,
     /// The home stage's baked model, keyed by scale and the selected account texture.
-    home_model: Option<(f32, Option<(std::path::PathBuf, bool)>, std::sync::Arc<gpui::RenderImage>, bool)>,
+    /// The home stage's live player: turn/pitch from dragging, the animation clock, and an
+    /// in-progress drag's last pointer position.
+    stage_yaw: f32,
+    stage_pitch: f32,
+    stage_t: f32,
+    stage_drag: StageDrag,
+}
+
+/// The home stage's drag-to-turn state.
+///
+/// The vendored GPUI dispatches mouse events only along the hovered hitbox's
+/// chain (third_party/gpui div.rs), so the drag cannot live on the stage's own
+/// hitbox: a pointer that left it mid-drag froze the turn and lost the release.
+/// The stage's mousedown begins the drag (home.rs); the full-window root element
+/// tracks moves and ends the drag on any release it reports (render); navigation
+/// ends it (Launcher::go); and a hover move without the button clears a drag
+/// whose release the window never reported.
+#[derive(Clone, Copy, Default)]
+struct StageDrag {
+    last: Option<(f32, f32)>,
+}
+
+/// What one pointer move means for a drag.
+enum Track {
+    /// Dragging: the pointer moved this far since the previous point.
+    Turn(f32, f32),
+    /// No button held: a leftover drag, whose release the window missed, ended.
+    Ended,
+    /// Nothing changed.
+    Idle,
+}
+
+impl StageDrag {
+    /// Only the stage's own mousedown starts a turn.
+    fn begin(&mut self, at: (f32, f32)) {
+        self.last = Some(at);
+    }
+
+    /// A move with the left button held during an active drag turns from the
+    /// last point. Without an active drag a held-button move turns nothing (no
+    /// stale coordinates); without the button it ends a leftover drag.
+    fn track(&mut self, at: (f32, f32), left_held: bool) -> Track {
+        if !left_held {
+            return match self.last.take() {
+                Some(_) => Track::Ended,
+                None => Track::Idle,
+            };
+        }
+        match self.last {
+            Some((lx, ly)) => {
+                self.last = Some(at);
+                Track::Turn(at.0 - lx, at.1 - ly)
+            }
+            None => Track::Idle,
+        }
+    }
+
+    /// The button came up, wherever the window reported it. Returns whether a
+    /// drag actually ended, so callers redraw only on a real change.
+    fn release(&mut self) -> bool {
+        self.last.take().is_some()
+    }
 }
 
 impl Launcher {
@@ -467,7 +528,12 @@ impl Launcher {
             account_menu: false,
             menu_closed_at: None,
             skin: None,
-            home_model: None,
+            // Face the camera by default (Luke, Nov 3): yaw 0 is the model's
+            // front toward the viewer; dragging still turns it from there.
+            stage_yaw: 0.,
+            stage_pitch: 0.,
+            stage_t: 0.,
+            stage_drag: StageDrag::default(),
             background_error: None,
             java_runtimes: None,
             java_runtimes_busy: false,
@@ -517,7 +583,14 @@ impl Launcher {
             tx,
             rx,
             _appearance: appearance,
-            _activation: cx.observe_window_activation(window, |_, _, cx| cx.notify()),
+            _activation: cx.observe_window_activation(window, |this, window, cx| {
+                // If the window goes inactive mid-drag, the release is another
+                // app's event; end the turn here, not on stale coordinates.
+                if !window.is_window_active() {
+                    this.stage_drag.release();
+                }
+                cx.notify();
+            }),
             perf: perf::Perf::new("session"),
             install_started: None,
             prepare_started: None,
@@ -603,6 +676,9 @@ impl Launcher {
         // Settings' Java runtimes row counts again when the page opens (a launch may have
         // downloaded one since).
         self.java_runtimes = None;
+        // Any navigation ends a stage drag in progress: the drag belongs to the
+        // page the pointer started on.
+        self.stage_drag.release();
         if page != self.page {
             self.page = page;
             self.switches += 1;
@@ -737,6 +813,10 @@ impl Launcher {
     fn drain(&mut self, cx: &mut Context<Self>) {
         let mut changed = false;
         self.perf.tick();
+        if self.page == Page::Play {
+            self.stage_t += 0.08;
+            changed = true;
+        }
         match self.bench.as_mut().map(|b| b.tick(&self.perf)) {
             Some(perf::Step::Go(page)) => {
                 self.go(Page::ALL[page % Page::ALL.len()].0);
@@ -2088,9 +2168,8 @@ impl Launcher {
         }
         // GoatTech is ad-free (Luke, 2026-10-31): no partner card in the sidebar. The
         // partner module and its assets stay for attribution; nothing of it renders.
-        if !self.links.discord.is_empty() {
-            foot = foot.child(link("discord", "message", "DISCORD", self.links.discord.clone()));
-        }
+        // No Discord server exists (Luke, 2026-11-03): the sidebar never shows a
+        // Discord entry, whatever the remote links file carries.
         if !self.links.website.is_empty() {
             foot = foot.child(link("website", "globe", "SITE", self.links.website.clone()));
         }
@@ -2702,14 +2781,8 @@ impl Launcher {
                     cx.open_with_system(&dir);
                 }),
         );
-        let discord = self.links.discord.clone();
-        if !discord.is_empty() {
-            actions = actions.child(
-                button("crash-discord", "Report on Discord", Kind::Secondary, &t)
-                    .bg(t.plate)
-                    .on_click(move |_, _, cx| cx.open_url(&discord)),
-            );
-        }
+        // Luke 2026-11-03: no Discord server exists, so the crash dialog
+        // must not send people to a dead Discord destination.
         actions = actions.child(
             button("crash-dismiss", "Dismiss", Kind::Ghost, &t).on_click(cx.listener(
                 |this, _: &ClickEvent, _, cx| {
@@ -2719,9 +2792,9 @@ impl Launcher {
             )),
         );
         let help = tr(if crash.report.is_some() {
-            "When you report it on Discord, attach the crash report file (or paste it with Copy report) and say what you were doing."
+            "If you report this crash, attach the crash report file (or paste it with Copy report) and say what you were doing."
         } else {
-            "The game ended without a crash report. When you report it on Discord, attach latest.log from the logs folder and say what you were doing."
+            "The game ended without a crash report. If you report the problem, attach latest.log from the logs folder and say what you were doing."
         });
         let mut body = div()
             .flex_1()
@@ -4057,6 +4130,12 @@ impl Render for Launcher {
                 cx.notify();
             }))
             .capture_any_mouse_down(|_, _, _| KEYBOARD.store(false, Ordering::Relaxed))
+            // A fresh press anywhere ends a drag the window somehow kept:
+            // capture on the root runs before the stage's bubble begin, so a
+            // stage press still starts the new turn cleanly.
+            .capture_any_mouse_down(cx.listener(|this, _: &gpui::MouseDownEvent, _, _| {
+                this.stage_drag.release();
+            }))
             .relative()
             .flex()
             .flex_col()
@@ -4108,6 +4187,40 @@ impl Render for Launcher {
                             ),
                     ),
             );
+        // Drag-to-turn on the home stage, tracked at the window root: GPUI
+        // dispatches mouse events only along the hovered hitbox's chain, so
+        // stage-scoped (then page-scoped) handlers lost moves and releases the
+        // moment the pointer left them. The root covers the whole window, so a
+        // drag started on the stage keeps turning anywhere inside the window,
+        // releases that land on the sidebar or any other element end it
+        // (on_mouse_up), releases outside the window during the OS press-grab
+        // end it too (on_mouse_up_out), and go() ends it on navigation.
+        root = root
+            .on_mouse_move(cx.listener(|this, event: &gpui::MouseMoveEvent, _, cx| {
+                let at: (f32, f32) = (event.position.x.into(), event.position.y.into());
+                match this
+                    .stage_drag
+                    .track(at, event.pressed_button == Some(gpui::MouseButton::Left))
+                {
+                    Track::Turn(dx, dy) => {
+                        this.stage_yaw += dx * 0.012;
+                        this.stage_pitch = (this.stage_pitch + dy * 0.008).clamp(-0.15, 0.9);
+                        cx.notify();
+                    }
+                    Track::Ended => cx.notify(),
+                    Track::Idle => {}
+                }
+            }))
+            .on_mouse_up(gpui::MouseButton::Left, cx.listener(|this, _: &gpui::MouseUpEvent, _, cx| {
+                if this.stage_drag.release() {
+                    cx.notify();
+                }
+            }))
+            .on_mouse_up_out(gpui::MouseButton::Left, cx.listener(|this, _: &gpui::MouseUpEvent, _, cx| {
+                if this.stage_drag.release() {
+                    cx.notify();
+                }
+            }));
         if self.page == Page::Servers {
             if let Some(dialog) = self.create_dialog(cx) {
                 root = root.child(dialog);
@@ -4361,6 +4474,43 @@ fn closed_by_press(closed_at: Option<Point<Pixels>>, event: &ClickEvent) -> bool
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn stage_drag_turns_only_from_a_stage_press() {
+        use super::{StageDrag, Track};
+        let mut d = StageDrag::default();
+        // A held-button move with no stage press turns nothing and starts nothing.
+        assert!(matches!(d.track((100., 100.), true), Track::Idle));
+        assert!(matches!(d.track((400., 100.), true), Track::Idle));
+        d.begin((100., 100.));
+        assert!(matches!(d.track((120., 110.), true), Track::Turn(dx, dy) if dx == 20. && dy == 10.));
+    }
+
+    #[test]
+    fn stage_drag_release_anywhere_ends_it_without_stale_coords() {
+        use super::{StageDrag, Track};
+        let mut d = StageDrag::default();
+        d.begin((680., 350.));
+        // Drag off the stage; the release lands outside the stage but the root
+        // reports it. A later held-button move must not turn from the stale point.
+        assert!(matches!(d.track((1100., 350.), true), Track::Turn(..)));
+        assert!(d.release());
+        assert!(!d.release());
+        assert!(matches!(d.track((690., 350.), true), Track::Idle));
+        assert!(matches!(d.track((695., 350.), true), Track::Idle));
+    }
+
+    #[test]
+    fn stage_drag_hover_without_button_clears_a_missed_release() {
+        use super::{StageDrag, Track};
+        let mut d = StageDrag::default();
+        d.begin((680., 350.));
+        assert!(matches!(d.track((700., 350.), true), Track::Turn(..)));
+        // The release was never reported: the next hover ends the drag instead
+        // of turning from stale coordinates.
+        assert!(matches!(d.track((705., 350.), false), Track::Ended));
+        assert!(matches!(d.track((710., 350.), false), Track::Idle));
+    }
+
     #[test]
     fn a_menu_button_stays_closed_after_the_press_that_closed_its_menu() {
         use super::closed_by_press;

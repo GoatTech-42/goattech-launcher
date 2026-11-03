@@ -308,7 +308,6 @@
   "Remove for good": "Remove for good",
   "Remove shortcut": "Прибрати ярлик",
   "Removed {name}.": "Видалено: {name}.",
-  "Report on Discord": "Повідомити в Discord",
   "Resource packs": "Пакети ресурсів",
   "Resources": "Ресурси",
   "Restart": "Перезапустити",
@@ -372,7 +371,6 @@
   "The MCP server answered with {count} tools. Now ask your agent: \"Say hello from Horizon\".": "The MCP server answered with {count} tools. Now ask your agent: \"Say hello from Horizon\".",
   "The MCP server did not answer: {error}": "The MCP server did not answer: {error}",
   "The build compiles the game: 20 to 30 minutes and a few GB of disk the first time (it downloads Rust), a few minutes after that.": "Збирання компілює гру: уперше це 20–30 хвилин і кілька ГБ на диску (воно завантажує Rust), далі — кілька хвилин.",
-  "The game ended without a crash report. When you report it on Discord, attach latest.log from the logs folder and say what you were doing.": "Гра завершилася без звіту про збій. Коли повідомлятимете про це в Discord, додайте latest.log із теки журналів і розкажіть, що ви робили.",
   "The launcher goes down when the game starts, and comes back when it closes.": "Лаунчер згортається, коли гра запускається, і повертається, коли вона закривається.",
   "The launcher hides when the game starts, and comes back when it closes.": "Лаунчер ховається, коли гра запускається, і повертається, коли вона закривається.",
   "The launcher stays open while you play.": "Лаунчер залишається відкритим, поки ви граєте.",
@@ -409,7 +407,6 @@
   "What an agent can do, and the commands": "What an agent can do, and the commands",
   "What's new": "Що нового",
   "When the game crashes: the error, where in Horizon's code it happened, your graphics adapter and settings. No log, no world or server, no user name in paths.": "When the game crashes: the error, where in Horizon's code it happened, your graphics adapter and settings. No log, no world or server, no user name in paths.",
-  "When you report it on Discord, attach the crash report file (or paste it with Copy report) and say what you were doing.": "Коли повідомлятимете про це в Discord, додайте файл звіту про збій (або вставте його через «Копіювати звіт») і розкажіть, що ви робили.",
   "While playing": "Під час гри",
   "When a telemetry server is configured, the game sends an anonymous \"I'm playing\" ping once a minute while you play, so the launcher can show how many people play right now. This build configures no server by default: the ping is not sent. The ping holds: a random number made when the game starts and forgotten when it closes, the version, your OS (Linux, macOS or Windows), and whether you have a world open to LAN or friends. It doesn't hold: your account, your install ID, world or server names, or anything you do in the game, and the server doesn't keep your IP address. With a server configured it is sent whatever the switches above say.": "Коли налаштовано сервер телеметрії, гра надсилає анонімний ping \"I'm playing\" раз на хвилину, поки ви граєте, щоб лаунчер міг показати, скільки людей грає зараз. Ця збірка типово не налаштовує сервер: ping не надсилається. Ping містить: випадкове число, створене під час запуску гри й забуте після закриття, версію, вашу ОС (Linux, macOS або Windows) та чи відкрито світ для LAN чи друзів. Він не містить: ваш акаунт, ID інсталяції, назви світів чи серверів або будь-що з того, що ви робите в грі, а сервер не зберігає вашу IP-адресу. Коли сервер налаштовано, ping надсилається незалежно від перемикачів вище.",
   "Working": "Working",
@@ -477,5 +474,7 @@
   "{version} from Horizon's registry, its own profile: {mods}": "{version} from Horizon's registry, its own profile: {mods}",
   "{version} plays in this instance.": "Цей екземпляр використовує {version}.",
   "~/.claude.json (or .mcp.json in a project)": "~/.claude.json (or .mcp.json in a project)",
-  "← All servers": "← Усі сервери"
+  "← All servers": "← Усі сервери",
+  "If you report this crash, attach the crash report file (or paste it with Copy report) and say what you were doing.": "Якщо ви повідомлятимете про цей збій, додайте файл звіту про збій (або вставте його через «Копіювати звіт») і розкажіть, що ви робили.",
+  "The game ended without a crash report. If you report the problem, attach latest.log from the logs folder and say what you were doing.": "Гра завершилася без звіту про збій. Якщо ви повідомлятимете про проблему, додайте latest.log із теки журналів і розкажіть, що ви робили."
 }

@@ -308,7 +308,6 @@
   "Remove for good": "Remove for good",
   "Remove shortcut": "Убрать ярлык",
   "Removed {name}.": "Удалено: {name}.",
-  "Report on Discord": "Сообщить в Discord",
   "Resource packs": "Наборы ресурсов",
   "Resources": "Ресурсы",
   "Restart": "Перезапустить",
@@ -372,7 +371,6 @@
   "The MCP server answered with {count} tools. Now ask your agent: \"Say hello from Horizon\".": "The MCP server answered with {count} tools. Now ask your agent: \"Say hello from Horizon\".",
   "The MCP server did not answer: {error}": "The MCP server did not answer: {error}",
   "The build compiles the game: 20 to 30 minutes and a few GB of disk the first time (it downloads Rust), a few minutes after that.": "Сборка компилирует игру: 20–30 минут и несколько ГБ на диске в первый раз (она скачивает Rust), затем несколько минут.",
-  "The game ended without a crash report. When you report it on Discord, attach latest.log from the logs folder and say what you were doing.": "Игра закрылась без отчёта о сбое. Сообщая об этом в Discord, приложите latest.log из папки журналов и расскажите, что вы делали.",
   "The launcher goes down when the game starts, and comes back when it closes.": "Лаунчер сворачивается при запуске игры и возвращается, когда она закрывается.",
   "The launcher hides when the game starts, and comes back when it closes.": "Лаунчер скрывается при запуске игры и возвращается, когда она закрывается.",
   "The launcher stays open while you play.": "Лаунчер остаётся открытым, пока вы играете.",
@@ -409,7 +407,6 @@
   "What an agent can do, and the commands": "What an agent can do, and the commands",
   "What's new": "Что нового",
   "When the game crashes: the error, where in Horizon's code it happened, your graphics adapter and settings. No log, no world or server, no user name in paths.": "When the game crashes: the error, where in Horizon's code it happened, your graphics adapter and settings. No log, no world or server, no user name in paths.",
-  "When you report it on Discord, attach the crash report file (or paste it with Copy report) and say what you were doing.": "Сообщая об этом в Discord, приложите файл отчёта о сбое (или вставьте его через «Скопировать отчёт») и расскажите, что вы делали.",
   "While playing": "Во время игры",
   "When a telemetry server is configured, the game sends an anonymous \"I'm playing\" ping once a minute while you play, so the launcher can show how many people play right now. This build configures no server by default: the ping is not sent. The ping holds: a random number made when the game starts and forgotten when it closes, the version, your OS (Linux, macOS or Windows), and whether you have a world open to LAN or friends. It doesn't hold: your account, your install ID, world or server names, or anything you do in the game, and the server doesn't keep your IP address. With a server configured it is sent whatever the switches above say.": "Если настроен сервер телеметрии, игра раз в минуту отправляет анонимный ping \"I'm playing\", пока вы играете, чтобы лаунчер мог показать, сколько людей играет сейчас. В этой сборке сервер по умолчанию не настроен: ping не отправляется. Ping содержит: случайное число, созданное при запуске игры и забытое при её закрытии, версию, вашу ОС (Linux, macOS или Windows) и открыт ли мир для LAN или друзей. Он не содержит: ваш аккаунт, ID установки, названия миров или серверов и ничего из того, что вы делаете в игре, а сервер не хранит ваш IP-адрес. Если сервер настроен, ping отправляется независимо от переключателей выше.",
   "Working": "Working",
@@ -477,5 +474,7 @@
   "{version} from Horizon's registry, its own profile: {mods}": "{version} from Horizon's registry, its own profile: {mods}",
   "{version} plays in this instance.": "В этой сборке запускается {version}.",
   "~/.claude.json (or .mcp.json in a project)": "~/.claude.json (or .mcp.json in a project)",
-  "← All servers": "← Все серверы"
+  "← All servers": "← Все серверы",
+  "If you report this crash, attach the crash report file (or paste it with Copy report) and say what you were doing.": "Если вы сообщите об этом сбое, приложите файл отчёта о сбое (или вставьте его через «Скопировать отчёт») и расскажите, что вы делали.",
+  "The game ended without a crash report. If you report the problem, attach latest.log from the logs folder and say what you were doing.": "Игра закрылась без отчёта о сбое. Если вы сообщите о проблеме, приложите latest.log из папки журналов и расскажите, что вы делали."
 }
