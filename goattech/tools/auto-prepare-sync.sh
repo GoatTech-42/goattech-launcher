@@ -39,7 +39,7 @@ CHECK_ONLY=0
 cd "$(dirname "$0")/../.."
 GIT_DIR_ABS="$(git rev-parse --git-common-dir)"
 DATE="$(date +%Y%m%d)"
-BRANCH="upstream-sync-${DATE}"
+BRANCH="upstream-sync-${DATE}${SYNC_BRANCH_SUFFIX:-}"
 LOG="/tmp/auto-prepare-${DATE}-$$.log"
 WT_ROOT="${GIT_DIR_ABS}/auto-prepare-wt"
 WT="${WT_ROOT}/${BRANCH}-$$"
@@ -76,9 +76,13 @@ fi
 # this tip with all gates passed.
 while read -r ref; do
   if git merge-base --is-ancestor "$TIP" "$ref"; then
-    if git show "${ref}:goattech/UPSTREAM-TRACKING.md" 2>/dev/null | grep -F "$TIP" | grep -q "PASS" \
-       && ! git show "${ref}:goattech/UPSTREAM-TRACKING.md" 2>/dev/null | grep -F "$TIP" | grep -qE "FAIL|BLOCKED"; then
-      say "ALREADY PREPARED: $ref contains $TIP and its tracking entry records gates passed. Nothing to do."
+    ENTRY_LINE="$(git show "${ref}:goattech/UPSTREAM-TRACKING.md" 2>/dev/null | grep -F "$TIP" || true)"
+    ALL_PASS=1
+    for gate in lib-suite bin-suite cli-build gt-cli-proof; do
+      printf '%s' "$ENTRY_LINE" | grep -qF "${gate} PASS" || ALL_PASS=0
+    done
+    if [ "$ALL_PASS" = 1 ] && ! printf '%s' "$ENTRY_LINE" | grep -qiE "SKIPPED|NOT RUN|FAIL|BLOCKED|incomplete"; then
+      say "ALREADY PREPARED: $ref contains $TIP and its canonical tracking entry records all four gates passed. Nothing to do."
       exit 0
     fi
     say "CONTAINED-BUT-UNVERIFIED: $ref contains $TIP but its tracking entry is missing or does not record all gates passed. Not preparing a duplicate batch; route $ref for review. Stopping."
@@ -93,7 +97,7 @@ say "new batch: $COUNT commits since $BASE, $FILES files touched"
 [ "$CHECK_ONLY" = 1 ] && { say "check-only: would prepare $BRANCH from pinned main in an owned worktree. Stopping here."; exit 0; }
 
 if git show-ref --verify --quiet "refs/heads/${BRANCH}"; then
-  say "branch $BRANCH already exists; refusing to reuse it (a same-day rerun needs a human look)."
+  say "branch $BRANCH already exists and its origin is unresolved (tool leftover or human work). Not touching it. For a deliberate same-day rerun, set SYNC_BRANCH_SUFFIX (e.g. SYNC_BRANCH_SUFFIX=-r2) to cut a new uniquely named owned branch."
   exit 1
 fi
 
@@ -101,8 +105,19 @@ PIN_MAIN="$(git rev-parse main)"
 say "pinned base: main=$PIN_MAIN; tip=$TIP"
 
 # Owned isolated worktree: caller checkout, index and staged files untouched.
-git worktree add --quiet -b "$BRANCH" "$WT" main >>"$LOG" 2>&1
-echo "owned by auto-prepare pid $$ at $(date -Is)" > "${WT}/.auto-prepare-owned"
+# Ownership token lives OUTSIDE the working tree and binds common-dir, worktree
+# path, branch ref, pins and pid; cleanup verifies every field before removing.
+git worktree add --quiet -b "$BRANCH" "$WT" "$PIN_MAIN" >>"$LOG" 2>&1
+TOKEN="${WT}.owned"
+{
+  echo "common_dir=$(cd "$GIT_DIR_ABS" && pwd -P)"
+  echo "worktree=$(cd "$WT" && pwd -P)"
+  echo "branch=$BRANCH"
+  echo "pin_main=$PIN_MAIN"
+  echo "tip=$TIP"
+  echo "pid=$$"
+  echo "created=$(date -Is)"
+} > "$TOKEN"
 
 wt_git() { git -C "$WT" "$@"; }
 
@@ -112,7 +127,7 @@ if [ -n "$(wt_git status --porcelain)" ]; then
 fi
 
 GATES="not run"
-if ! wt_git merge --no-ff --no-edit "${UPSTREAM_REF}" >>"$LOG" 2>&1; then
+if ! wt_git merge --no-ff --no-edit "$TIP" >>"$LOG" 2>&1; then
   if wt_git status --porcelain | grep -qE '^(UU|AA|DD|U.|.U)'; then KIND="MERGE CONFLICT"; else KIND="MERGE ERROR (not a conflict)"; fi
   if ! wt_git merge --abort >>"$LOG" 2>&1; then
     say "$KIND and merge --abort FAILED. Worktree $WT left exactly as-is; do not touch it until reviewed. Log: $LOG. Hard stop."
@@ -121,7 +136,8 @@ if ! wt_git merge --no-ff --no-edit "${UPSTREAM_REF}" >>"$LOG" 2>&1; then
   say "$KIND: merge of $TIP aborted cleanly. Branch $BRANCH stays at main in $WT for inspection; nothing deleted. Review merges by hand. Log: $LOG."
   exit 2
 fi
-say "merged $TIP into $BRANCH"
+EXPECTED_HEAD="$(wt_git rev-parse HEAD)"
+say "merged $TIP into $BRANCH (HEAD $EXPECTED_HEAD)"
 
 run_gate() { # name, command...
   local name="$1"; shift
@@ -146,9 +162,15 @@ if [ -z "$STATUS" ]; then
   fi
 fi
 
-# Pin check: main must not have moved while gates ran.
+# Pin + HEAD binding: main must not have moved, and the worktree/branch must
+# still sit on the exact merge HEAD the gates ran against (flock only excludes
+# other instances of THIS script, not other operators).
 if [ "$(git rev-parse main)" != "$PIN_MAIN" ]; then
   say "main moved during this run ($PIN_MAIN -> $(git rev-parse main)). Leaving $BRANCH in $WT uncommitted-of-tracking; review before reuse. Log: $LOG."
+  exit 7
+fi
+if [ "$(wt_git rev-parse HEAD)" != "$EXPECTED_HEAD" ] || [ "$(git rev-parse "$BRANCH")" != "$EXPECTED_HEAD" ]; then
+  say "HEAD binding failed: worktree or $BRANCH moved off the gated merge HEAD $EXPECTED_HEAD during the run. Leaving $WT in place; nothing committed."
   exit 7
 fi
 
@@ -172,11 +194,25 @@ if [ "$DIRTY" != " M goattech/UPSTREAM-TRACKING.md" ]; then
 fi
 wt_git commit -q -m "auto-prepare: record ${DATE} upstream batch (${TIP:0:9}) as ${ENTRY_STATUS%% (*}" -- goattech/UPSTREAM-TRACKING.md >>"$LOG" 2>&1
 
-# Cleanup: remove ONLY this run's own worktree, after ownership/ref/state checks.
-if [ -f "${WT}/.auto-prepare-owned" ] && [ "$(wt_git rev-parse --abbrev-ref HEAD)" = "$BRANCH" ] && [ -z "$(wt_git status --porcelain)" ]; then
-  git worktree remove "$WT" && say "owned worktree removed (branch $BRANCH remains)."
+# Cleanup: remove ONLY this run's own worktree, and only when every custody
+# check passes. Any uncertainty leaves it in place (leaving is always safe).
+CUSTODY_OK=1
+[ -f "$TOKEN" ] || CUSTODY_OK=0
+if [ "$CUSTODY_OK" = 1 ]; then
+  . "$TOKEN"
+  [ "${common_dir:-}" = "$(cd "$GIT_DIR_ABS" && pwd -P)" ] || CUSTODY_OK=0
+  [ "${worktree:-}" = "$(cd "$WT" && pwd -P)" ] || CUSTODY_OK=0
+  [ "${branch:-}" = "$BRANCH" ] || CUSTODY_OK=0
+  [ "${pin_main:-}" = "$PIN_MAIN" ] || CUSTODY_OK=0
+  [ "${tip:-}" = "$TIP" ] || CUSTODY_OK=0
+  [ "${pid:-}" = "$$" ] || CUSTODY_OK=0
+  [ "$(wt_git rev-parse --abbrev-ref HEAD)" = "$BRANCH" ] || CUSTODY_OK=0
+  [ -z "$(wt_git status --porcelain)" ] || CUSTODY_OK=0
+fi
+if [ "$CUSTODY_OK" = 1 ]; then
+  git worktree remove "$WT" && rm -f "$TOKEN" && say "owned worktree removed after full custody check (branch $BRANCH remains)."
 else
-  say "worktree $WT failed ownership/ref/clean checks; left in place for manual review."
+  say "custody check failed for $WT; left in place with token $TOKEN for manual review."
 fi
 
 say "done: $BRANCH prepared. $ENTRY"
