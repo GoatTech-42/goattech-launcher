@@ -1,7 +1,7 @@
-//! The home stage's 3D player (`assets/fixture-skin.png`): the skin's texture projected onto the
+//! The home stage's 3D player: the skin's texture projected onto the
 //! player's cuboids and software-rasterized - orthographic, yaw plus a slight downward pitch,
-//! z-buffered, nearest texels (the pixel look). No GPU, no skin service: a labelled fixture
-//! preview until the real account skin renders here. Wide (4-texel arm) layout only.
+//! z-buffered, nearest texels (the pixel look). Classic and slim account models, with a
+//! labelled fixture preview when no supported account texture is available.
 
 /// One face of a cuboid: 3D origin + per-texel u/v vectors (model space, y up, z toward the
 /// viewer) and its rectangle in the 64x64 skin texture.
@@ -99,8 +99,8 @@ impl Part {
 
 /// The six parts in model space (texels; y up, 0 at the feet; z toward the viewer): legs,
 /// body, arms, head. Standard wide layout columns in the 64x64 skin.
-fn parts() -> [Part; 6] {
-    [
+fn parts(slim: bool) -> [Part; 6] {
+    let mut parts = [
         // right leg (viewer's left), x -4..0
         Part { x0: -4., y0: 0., z0: -2., w: 4., h: 12., d: 4., bx: 0, by: 16, ox: 0, oy: 32 },
         // left leg, x 0..4
@@ -113,7 +113,13 @@ fn parts() -> [Part; 6] {
         Part { x0: 4., y0: 12., z0: -2., w: 4., h: 12., d: 4., bx: 32, by: 48, ox: 48, oy: 48 },
         // head
         Part { x0: -4., y0: 24., z0: -4., w: 8., h: 8., d: 8., bx: 0, by: 0, ox: 32, oy: 0 },
-    ]
+    ];
+    if slim {
+        parts[3].x0 = -7.;
+        parts[3].w = 3.;
+        parts[4].w = 3.;
+    }
+    parts
 }
 
 /// Render size in texels before `art::bake` scales it.
@@ -123,6 +129,10 @@ pub const H: usize = 44;
 /// The fixture player at `yaw` (radians, positive turns the player's left side toward the
 /// viewer) with a slight downward pitch: straight-alpha RGBA, transparent background.
 pub fn render(skin: &image::RgbaImage, yaw: f32) -> Vec<[u8; 4]> {
+    render_model(skin, yaw, false)
+}
+
+fn render_model(skin: &image::RgbaImage, yaw: f32, slim: bool) -> Vec<[u8; 4]> {
     let pitch = 0.21_f32; // ~12 degrees: looks down at the model, tops show
     let (sy, cy) = yaw.sin_cos();
     let (sp, cp) = pitch.sin_cos();
@@ -183,14 +193,14 @@ pub fn render(skin: &image::RgbaImage, yaw: f32) -> Vec<[u8; 4]> {
             }
         }
     };
-    for part in parts() {
+    for part in parts(slim) {
         for (on, f) in part.faces(0.) {
             if on {
                 draw_face(&f, skin);
             }
         }
     }
-    for part in parts() {
+    for part in parts(slim) {
         for (on, f) in part.overlay_faces() {
             if on {
                 draw_face(&f, skin);
@@ -207,9 +217,42 @@ pub fn fixture() -> Option<image::RgbaImage> {
         .map(|i| i.to_rgba8())
 }
 
+/// Render an account model; unsupported layouts keep the labelled fallback.
+pub fn render_account(skin: &image::RgbaImage, yaw: f32, slim: bool) -> Option<Vec<[u8; 4]>> {
+    if skin.dimensions() != (64, 64) {
+        return None;
+    }
+    Some(render_model(skin, yaw, slim))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn account_render_uses_the_supplied_texture_not_the_fixture() {
+        let skin = image::RgbaImage::from_pixel(64, 64, image::Rgba([17, 33, 99, 255]));
+        let rendered = render_account(&skin, -0.5, false).unwrap();
+        let pixels: Vec<_> = rendered.iter().filter(|p| p[3] > 0).collect();
+        assert!(pixels.len() > 200);
+        assert!(pixels.iter().all(|p| **p == [17, 33, 99, 255]));
+    }
+
+    #[test]
+    fn slim_arms_use_three_texels_not_four() {
+        let skin = image::RgbaImage::from_pixel(64, 64, image::Rgba([80, 100, 120, 255]));
+        let classic = render_account(&skin, 0., false).unwrap();
+        let slim = render_account(&skin, 0., true).unwrap();
+        assert_ne!(classic, slim);
+        let count = |p: &Vec<[u8; 4]>| p.iter().filter(|p| p[3] > 0).count();
+        assert!(count(&slim) < count(&classic));
+    }
+
+    #[test]
+    fn unsupported_skin_dimensions_do_not_panic_or_claim_a_real_model() {
+        assert!(render_account(&image::RgbaImage::new(64, 32), 0., false).is_none());
+        assert!(render_account(&image::RgbaImage::new(32, 32), 0., false).is_none());
+    }
 
     #[test]
     fn renders_opaque_player_pixels() {

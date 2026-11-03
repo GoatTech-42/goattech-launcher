@@ -354,8 +354,8 @@ struct Launcher {
     sky_wake: Option<(Instant, gpui::Task<()>)>,
     /// The window's scale, as of its last frame, for art drawn outside `render`'s reach.
     scale: f32,
-    /// The home stage's baked 3D fixture player, at the scale it was baked for.
-    home_model: Option<(f32, std::sync::Arc<gpui::RenderImage>)>,
+    /// The home stage's baked model, keyed by scale and the selected account texture.
+    home_model: Option<(f32, Option<(std::path::PathBuf, bool)>, std::sync::Arc<gpui::RenderImage>, bool)>,
 }
 
 impl Launcher {

@@ -10,8 +10,9 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 /// Hosts images may come from.
-const HOSTS: [&str; 7] = [
+const HOSTS: [&str; 8] = [
     "https://cdn.modrinth.com/",
+    "https://textures.minecraft.net/texture/",
     // Fabric's and Forge's own icons, for instances that play them (no published logo licence:
     // drawn from their sites, never shipped).
     "https://raw.githubusercontent.com/FabricMC/fabric-loader/",
@@ -371,6 +372,13 @@ fn draw_block(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn minecraft_textures_are_fetched_only_over_https() {
+        assert!(refuse("https://textures.minecraft.net/texture/abc").is_none());
+        assert!(refuse("http://textures.minecraft.net/texture/abc").is_some());
+        assert!(refuse("https://textures.minecraft.net.evil.test/texture/abc").is_some());
+    }
 
     #[test]
     fn a_read_over_the_cap_is_no_image_and_growth_cannot_past_it() {

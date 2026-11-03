@@ -181,3 +181,25 @@ pub fn env(dir: &Path, name: &str, look: &Look) -> Vec<(&'static str, String)> {
 #[cfg(test)]
 #[path = "skins/tests.rs"]
 mod tests;
+
+/// Mojang profile textures use HTTP URLs; fetch their exact content hash over HTTPS only.
+pub fn texture_url(url: &str) -> Option<String> {
+    let hash = url.strip_prefix("http://textures.minecraft.net/texture/")
+        .or_else(|| url.strip_prefix("https://textures.minecraft.net/texture/"))?;
+    if hash.is_empty() || hash.len() > 64 || !hash.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    Some(format!("https://textures.minecraft.net/texture/{hash}"))
+}
+
+#[cfg(test)]
+mod texture_tests {
+    #[test]
+    fn profile_texture_urls_are_upgraded_without_accepting_other_hosts_or_paths() {
+        assert_eq!(super::texture_url("http://textures.minecraft.net/texture/abc"), Some("https://textures.minecraft.net/texture/abc".into()));
+        assert_eq!(super::texture_url("https://textures.minecraft.net/texture/ABC123"), Some("https://textures.minecraft.net/texture/ABC123".into()));
+        for bad in ["https://evil.test/abc", "http://textures.minecraft.net.evil.test/texture/abc", "https://textures.minecraft.net/texture/../x", "https://textures.minecraft.net/texture/abc?x=y", "https://textures.minecraft.net/texture/"] {
+            assert!(super::texture_url(bad).is_none());
+        }
+    }
+}

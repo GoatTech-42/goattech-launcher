@@ -447,34 +447,46 @@ impl Launcher {
     }
 
     /// The home stage's center (concept Home): the player model, 3D-projected from its skin,
-    /// under its pixel nametag. A labelled fixture skin until the signed-in player's own skin
-    /// renders here.
+    /// under its pixel nametag. Account textures load off-thread; the labelled fixture is
+    /// kept only while no supported account texture is available.
     pub(super) fn home_stage(&mut self) -> Div {
         let t = self.theme;
         let n = t.night;
         let scale = self.scale;
-        let current = match &self.home_model {
-            Some((s, i)) if *s == scale => Some(i.clone()),
+        let profile = match self.accounts.player() {
+            account::Player::Microsoft(_) => self.accounts.selected().cloned(),
             _ => None,
         };
-        let baked = match current {
-            Some(i) => Some(i),
-            None => {
-                let b = player_model::fixture().map(|png| {
-                    art::bake(
-                        &player_model::render(&png, -0.5),
-                        player_model::W,
-                        player_model::H,
-                        6.,
-                        scale,
-                    )
-                });
-                if let Some(i) = &b {
-                    self.home_model = Some((scale, i.clone()));
-                }
-                b
-            }
+        let texture = profile.and_then(|a| {
+            let (url, model) = a.skin?;
+            let url = horizon_launcher::skins::texture_url(&url)?;
+            let file = self.mods_image(&url, 64)?;
+            let slim = match model.as_str() {
+                "classic" => false,
+                "slim" => true,
+                _ => return None,
+            };
+            Some((file, slim))
+        });
+        let key = texture.as_ref().map(|(p, slim)| (p.clone(), *slim));
+        let current = match &self.home_model {
+            Some((s, k, i, real)) if *s == scale && *k == key => Some((Some(i.clone()), *real)),
+            _ => None,
         };
+        let (baked, real) = current.unwrap_or_else(|| {
+            let pixels = texture.and_then(|(path, slim)| {
+                let bytes = horizon_launcher::browser::images::read_capped(&path, 1 << 20)?;
+                let png = horizon_launcher::skins::read_skin(&bytes).ok()?;
+                player_model::render_account(&png, -0.5, slim)
+            });
+            let real = pixels.is_some();
+            let pixels = pixels.or_else(|| player_model::fixture().map(|p| player_model::render(&p, -0.5)));
+            let baked = pixels.map(|p| art::bake(&p, player_model::W, player_model::H, 6., scale));
+            if let Some(i) = &baked {
+                self.home_model = Some((scale, key, i.clone(), real));
+            }
+            (baked, real)
+        });
         let (who, _) = self.who_plays();
         let mut stage = div()
             .relative()
@@ -496,9 +508,11 @@ impl Launcher {
                     .h(px(player_model::H as f32 * 6.)),
             );
         }
-        stage.child(
-            shell::text(night::CAPTION, c(n.muted)).child(tr("Preview player").to_string()),
-        )
+        if real {
+            stage
+        } else {
+            stage.child(shell::text(night::CAPTION, c(n.muted)).child(tr("Preview player").to_string()))
+        }
     }
 
     /// Play itself, the hero card's big button: while it prepares, the busy state and Cancel.
