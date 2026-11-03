@@ -528,8 +528,10 @@ impl Launcher {
             account_menu: false,
             menu_closed_at: None,
             skin: None,
-            stage_yaw: -0.5,
-            stage_pitch: 0.21,
+            // Face the camera by default (Luke, Nov 3): yaw 0 is the model's
+            // front toward the viewer; dragging still turns it from there.
+            stage_yaw: 0.,
+            stage_pitch: 0.,
             stage_t: 0.,
             stage_drag: StageDrag::default(),
             background_error: None,
