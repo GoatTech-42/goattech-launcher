@@ -311,7 +311,7 @@ impl Launcher {
                             )
                             .child(shell::label(tr("New instance").to_string()))
                             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                                this.pick_kind(new_instance::NewKind::Modded, cx);
+                                this.open_instance_dialog(None, cx);
                                 cx.notify();
                             })),
                     )
@@ -428,7 +428,7 @@ impl Launcher {
                         .child(tr("New instance").to_string().to_uppercase()),
                 )
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                    this.pick_kind(new_instance::NewKind::Modded, cx);
+                    this.open_instance_dialog(None, cx);
                     cx.notify();
                 })),
         );
