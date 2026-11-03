@@ -350,6 +350,8 @@ fn a_forge_pack_says_so_instead_of_importing_broken() {
     )
     .unwrap_err();
     assert!(err.contains("neoforge 21.1.0"), "{err}");
-    assert!(err.contains("Fabric and Quilt"), "{err}");
+    assert!(err.contains(".mrpack"), "{err}");
+    assert!(err.contains("importing Forge or NeoForge .mrpack files is not supported"), "{err}");
+    assert!(err.contains("A new Java instance can install neoforge itself"), "{err}");
     let _ = fs::remove_dir_all(&root);
 }

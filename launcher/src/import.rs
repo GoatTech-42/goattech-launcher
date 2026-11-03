@@ -207,8 +207,8 @@ fn pack_loader(deps: &serde_json::Map<String, serde_json::Value>) -> Result<Opti
     for key in ["forge", "neoforge"] {
         if let Some(version) = deps.get(key).and_then(|v| v.as_str()) {
             return Err(format!(
-                "This pack needs {key} {version}: this launcher installs Fabric and Quilt \
-                 loaders only, and its mods would not run without {key}."
+                "This .mrpack needs {key} {version}: importing Forge or NeoForge .mrpack \
+                 files is not supported. A new Java instance can install {key} itself."
             ));
         }
     }
