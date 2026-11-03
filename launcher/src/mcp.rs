@@ -16,10 +16,13 @@ pub const PROTOCOL: &str = "2025-06-18";
 
 struct Session {
     server: Option<Logged>,
-    client: Option<Logged>,
+    client: Option<std::sync::Arc<Logged>>,
     /// What `play` started: a Horizon client the game_* tools drive, or a Java client that only
-    /// plays on the player's screen (with what its exit must do once, as the CLI's play does).
+    /// plays on the player's screen.
     client_kind: Option<Client>,
+    /// The thread that does a Java client's exit work when the game closes, however the session
+    /// goes from here (idle, disconnect, or requests that never come).
+    exit_waiter: Option<std::thread::JoinHandle<()>>,
     sign_in: Option<SignIn>,
     /// The selected version's `horizon-ctl mcp`, once a version is installed.
     game: Option<GameTools>,
@@ -28,11 +31,26 @@ struct Session {
 /// The client `play` started in this session.
 enum Client {
     Horizon,
-    Java {
-        instance: instances::Instance,
-        vars: crate::launch::Vars,
-        started: std::time::Instant,
-    },
+    Java,
+}
+
+/// What a Java client's end does, as the CLI's play does when the game closes: its play time
+/// recorded and its post-exit command run. Problems are said on stderr, as the CLI says them.
+fn java_exit_work(
+    instance: &instances::Instance,
+    vars: &crate::launch::Vars,
+    started: std::time::Instant,
+) {
+    if let Err(e) = instances::record_play(&instance.id, started.elapsed()) {
+        eprintln!("Play time not saved: {e}");
+    }
+    if let Some(mut cmd) = crate::launch::after_exit(&instance.launch, &instance.home, vars) {
+        match cmd.status() {
+            Ok(s) if s.success() => {}
+            Ok(s) => eprintln!("The post-exit command failed ({s})."),
+            Err(e) => eprintln!("The post-exit command didn't run: {e}."),
+        }
+    }
 }
 
 /// The tools the session runs itself, under their CLI names: they keep a process (the game, a
@@ -135,6 +153,7 @@ impl Session {
                     }
                     let vars = instance.vars(cmd.get_program());
                     cmd.envs(vars.iter().map(|(k, v)| (k, v)));
+                    let name = instance.name.clone();
                     let started = std::time::Instant::now();
                     let client =
                         match Logged::start(Job::Client, crate::launch::wrap(cmd, &instance.launch)) {
@@ -146,8 +165,27 @@ impl Session {
                                 });
                             }
                         };
+                    let client = std::sync::Arc::new(client);
+                    // Exit-owned: the waiter does the exit work when the game closes, whether or
+                    // not another message ever arrives, and serve() joins it at the session's
+                    // end - as the CLI's play stays until the game closes.
+                    let waiter = {
+                        let client = client.clone();
+                        std::thread::spawn(move || {
+                            let _ = client.wait();
+                            java_exit_work(&instance, &vars, started);
+                        })
+                    };
+                    // A Java client has no horizon-ctl: drop a stale cached one so the game_*
+                    // tools cannot reach another Horizon client while this one runs.
+                    self.game = None;
+                    self.client_kind = Some(Client::Java);
+                    self.exit_waiter = Some(waiter);
+                    self.client = Some(client);
                     // No control socket on a Java client: catch an instant crash, then report.
+                    // The waiter above already owns the exit work, even for this early exit.
                     std::thread::sleep(Duration::from_secs(5));
+                    let client = self.client.as_ref().unwrap();
                     if let Some(result) = client.finished() {
                         let mut said = format!(
                             "The game stopped: {}\n{}",
@@ -159,18 +197,9 @@ impl Session {
                         }
                         return Err(said);
                     }
-                    // A Java client has no horizon-ctl: drop a stale cached one so the game_*
-                    // tools cannot reach another Horizon client while this one runs.
-                    self.game = None;
-                    self.client_kind = Some(Client::Java {
-                        instance,
-                        vars,
-                        started,
-                    });
-                    self.client = Some(client);
-                    let mut said =
-                        "Started the Java client on the player's screen. The game_* tools drive Horizon clients only, not this one."
-                            .to_string();
+                    let mut said = format!(
+                        "Started {name} (Minecraft: Java Edition) on the player's screen. The game_* tools drive Horizon clients only, not this one."
+                    );
                     if let Some(unsaved) = unsaved {
                         said.push_str(&format!("\n{unsaved}"));
                     }
@@ -220,7 +249,7 @@ impl Session {
                     std::thread::sleep(Duration::from_millis(100));
                 }
                 self.client_kind = Some(Client::Horizon);
-                self.client = Some(client);
+                self.client = Some(std::sync::Arc::new(client));
                 Ok(format!(
                     "Started the {tag} client. The game_* tools play it; game_wait_ready waits until the world is ready."
                 ))
@@ -349,33 +378,6 @@ impl Session {
             && self.client.as_ref().is_some_and(|c| c.finished().is_none())
     }
 
-    /// A finished client's one-time exit work. A Java client gets what the CLI's play does when
-    /// the game closes: its play time recorded and its post-exit command run, once. Problems are
-    /// said on stderr, as the CLI says them. Horizon clients keep their existing behavior.
-    fn note_client_exit(&mut self) {
-        if self.client.as_ref().is_none_or(|c| c.finished().is_none()) {
-            return;
-        }
-        let Some(Client::Java {
-            instance,
-            vars,
-            started,
-        }) = self.client_kind.take()
-        else {
-            return;
-        };
-        if let Err(e) = instances::record_play(&instance.id, started.elapsed()) {
-            eprintln!("Play time not saved: {e}");
-        }
-        if let Some(mut cmd) = crate::launch::after_exit(&instance.launch, &instance.home, &vars) {
-            match cmd.status() {
-                Ok(s) if s.success() => {}
-                Ok(s) => eprintln!("The post-exit command failed ({s})."),
-                Err(e) => eprintln!("The post-exit command didn't run: {e}."),
-            }
-        }
-    }
-
     fn game(&mut self) -> Option<&mut GameTools> {
         if self.game.is_none() {
             self.game = backend::resolve_version(None)
@@ -393,7 +395,6 @@ impl Session {
     }
 
     fn handle(&mut self, method: &str, params: &Value) -> Result<Value, (i64, String)> {
-        self.note_client_exit();
         match method {
             "initialize" => Ok(json!({
                 "protocolVersion": params.get("protocolVersion").and_then(Value::as_str).unwrap_or(PROTOCOL),
@@ -463,6 +464,7 @@ pub fn serve() -> Result<(), String> {
         server: None,
         client: None,
         client_kind: None,
+        exit_waiter: None,
         sign_in: None,
         game: None,
     };
@@ -496,7 +498,12 @@ pub fn serve() -> Result<(), String> {
                 .map_err(|e| e.to_string())?;
         }
     }
-    // The session is over: the server it started goes with it.
+    // The session is over: the server it started goes with it. A Java client keeps the process
+    // until the game closes, so its exit work (play time, post-exit command) always runs - as
+    // the CLI's play stays attached until then.
+    if let Some(waiter) = session.exit_waiter.take() {
+        let _ = waiter.join();
+    }
     if let Some(mut server) = session.server.take() {
         server.stop(Duration::from_secs(30));
     }
@@ -508,6 +515,35 @@ mod tests {
     use super::*;
     use crate::instances::{Instance, JavaGame, Kind};
     use std::process::Command;
+    use std::sync::Mutex;
+
+    /// The exit-work tests point HORIZON_LAUNCHER_HOME at a scratch folder; hold this so no two
+    /// of them see another's home, and the guard restores the player's own on drop.
+    static HOME_LOCK: Mutex<()> = Mutex::new(());
+
+    struct HomeGuard(Option<std::ffi::OsString>, PathBuf);
+
+    impl HomeGuard {
+        fn new(name: &str) -> HomeGuard {
+            let dir =
+                std::env::temp_dir().join(format!("horizon-mcp-{name}-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).unwrap();
+            let old = std::env::var_os("HORIZON_LAUNCHER_HOME");
+            std::env::set_var("HORIZON_LAUNCHER_HOME", &dir);
+            HomeGuard(old, dir)
+        }
+    }
+
+    impl Drop for HomeGuard {
+        fn drop(&mut self) {
+            match &self.0 {
+                Some(old) => std::env::set_var("HORIZON_LAUNCHER_HOME", old),
+                None => std::env::remove_var("HORIZON_LAUNCHER_HOME"),
+            }
+            let _ = std::fs::remove_dir_all(&self.1);
+        }
+    }
 
     fn java_instance(post_exit: &str) -> Instance {
         Instance {
@@ -533,6 +569,27 @@ mod tests {
         }
     }
 
+    /// A session wired as the play handler wires a Java client: shared client, kind, and the
+    /// waiter thread that owns the exit work.
+    fn java_session(cmd: Command, instance: Instance) -> Session {
+        let client = std::sync::Arc::new(Logged::start(Job::Client, cmd).unwrap());
+        let waiter = {
+            let client = client.clone();
+            std::thread::spawn(move || {
+                let _ = client.wait();
+                java_exit_work(&instance, &vec![], std::time::Instant::now());
+            })
+        };
+        Session {
+            server: None,
+            client: Some(client),
+            client_kind: Some(Client::Java),
+            exit_waiter: Some(waiter),
+            sign_in: None,
+            game: None,
+        }
+    }
+
     fn long_running() -> Command {
         if cfg!(windows) {
             let mut c = Command::new("cmd.exe");
@@ -555,30 +612,11 @@ mod tests {
         }
     }
 
-    fn session_with(cmd: Command, kind: Option<Client>) -> Session {
-        Session {
-            server: None,
-            client: Some(Logged::start(Job::Client, cmd).unwrap()),
-            client_kind: kind,
-            sign_in: None,
-            game: None,
-        }
-    }
-
-    fn java_running(cmd: Command) -> Session {
-        session_with(
-            cmd,
-            Some(Client::Java {
-                instance: java_instance(""),
-                vars: vec![],
-                started: std::time::Instant::now(),
-            }),
-        )
-    }
-
     #[test]
     fn game_tools_do_not_reach_past_a_running_java_client() {
-        let mut s = java_running(long_running());
+        let _lock = HOME_LOCK.lock().unwrap();
+        let _home = HomeGuard::new("guard");
+        let mut s = java_session(long_running(), java_instance(""));
         let (code, message) = s
             .handle(
                 "tools/call",
@@ -601,43 +639,30 @@ mod tests {
             "{names:?}"
         );
         assert!(s.game.is_none(), "no horizon-ctl started while a Java client runs");
+        // Leave nothing running: kill the stand-in; its waiter finishes the (hookless) exit work.
+        s.client.as_ref().unwrap().running.kill();
+        let _ = s.exit_waiter.take().unwrap().join();
     }
 
-    /// The post-exit command is a unix shell line; the completion-once logic it exercises is
+    /// The post-exit command is a unix shell line; the waiter lifecycle it exercises is
     /// platform-neutral.
     #[cfg(unix)]
     #[test]
-    fn a_finished_java_clients_exit_work_runs_once() {
-        let dir = std::env::temp_dir().join(format!("horizon-mcp-exit-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        // record_play writes instances.json under the test home, never the player's.
-        std::env::set_var("HORIZON_LAUNCHER_HOME", &dir);
-        let marker = dir.join("marker");
-        let mut instance = java_instance(&format!("printf 'x\\n' >> '{}'", marker.display()));
-        instance.home = dir.clone();
-        instance.work = dir.clone();
-        let mut s = session_with(
-            instant_exit(),
-            Some(Client::Java {
-                instance,
-                vars: vec![],
-                started: std::time::Instant::now(),
-            }),
-        );
-        for _ in 0..50 {
-            if s.client.as_ref().unwrap().finished().is_some() {
-                break;
-            }
-            std::thread::sleep(Duration::from_millis(100));
-        }
-        s.handle("ping", &json!({})).unwrap();
-        assert_eq!(std::fs::read_to_string(&marker).unwrap(), "x\n");
-        let store = std::fs::read_to_string(dir.join("instances.json")).unwrap();
+    fn a_java_clients_exit_work_runs_without_another_request() {
+        let _lock = HOME_LOCK.lock().unwrap();
+        let home = HomeGuard::new("idle");
+        let marker = home.1.join("marker");
+        let mut instance = java_instance(&format!("printf 'x\n' >> '{}'", marker.display()));
+        instance.home = home.1.clone();
+        instance.work = home.1.clone();
+        let mut s = java_session(instant_exit(), instance);
+        // No MCP message follows the exit: joining the waiter, as serve() does at the session's
+        // end, is what runs the exit work - once.
+        let waiter = s.exit_waiter.take().unwrap();
+        waiter.join().unwrap();
+        assert_eq!(std::fs::read_to_string(&marker).unwrap(), "x
+");
+        let store = std::fs::read_to_string(home.1.join("instances.json")).unwrap();
         assert!(store.contains("mymc-mcp-test"), "{store}");
-        // A later call does not repeat the exit work.
-        s.handle("ping", &json!({})).unwrap();
-        assert_eq!(std::fs::read_to_string(&marker).unwrap(), "x\n");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }
