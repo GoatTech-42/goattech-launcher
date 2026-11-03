@@ -2,24 +2,33 @@
 # auto-prepare-sync.sh - auto-PREPARE upstream sync batches for review (goattech/ARCHITECTURE-SYNC.md, option C).
 #
 # What it does, in order:
-#   1. Fetch upstream horizon-rust/horizon main into refs/remotes/upstream/main.
-#   2. Decide: no movement / already prepared (an existing upstream-sync-* branch
-#      contains the tip) / new batch needed.
-#   3. For a new batch: cut upstream-sync-<date> off main, merge upstream main
-#      (--no-ff), run the gates (lib suite, bin suite, gt-cli live proof via
-#      goattech/proof-m1.sh), then write a PENDING batch summary into
-#      goattech/UPSTREAM-TRACKING.md and commit it ON THE SYNC BRANCH.
-#   4. Report a summary on stdout for the operator/review pipeline.
+#   1. Take an exclusive lock (one instance at a time; second run exits).
+#   2. Fetch upstream horizon-rust/horizon main into refs/remotes/upstream/main.
+#   3. Decide: NO MOVEMENT (tip already in main) / ALREADY PREPARED (an existing
+#      upstream-sync-* branch contains the tip AND its UPSTREAM-TRACKING.md entry
+#      records all gates passed) / CONTAINED-BUT-UNVERIFIED (contained, but gate
+#      or tracking state missing or not clean) / new batch needed.
+#   4. For a new batch: pin base (main sha) and tip (upstream sha), create an
+#      OWNED detached worktree inside .git/auto-prepare-wt/ (the caller's
+#      checkout, index and staged files are never touched), cut
+#      upstream-sync-<date> there, merge upstream main (--no-ff), run the gates
+#      (lib suite, bin suite, fresh CLI build, gt-cli live proof), then write a
+#      PENDING/BLOCKED batch summary into goattech/UPSTREAM-TRACKING.md and
+#      commit ONLY that file, only if main has not moved since the pin.
+#   5. Report a summary on stdout for the operator/review pipeline.
 #
 # Hard rules (UPSTREAM-TRACKING.md practice): never merges into main, never
-# pushes anything anywhere, never resolves conflicts beyond stopping and
-# reporting them. The merge decision stays with review.
+# pushes anything, never stashes/resets/deletes caller or pre-existing work.
+# Cleanup removes only a worktree this run itself created, after verifying
+# path, marker, ref and clean state; anything unexpected is left in place and
+# reported. The merge decision stays with review.
 #
 # Usage:
-#   goattech/tools/auto-prepare-sync.sh --check-only   # fetch + decide, no branch, no builds
+#   goattech/tools/auto-prepare-sync.sh --check-only   # fetch + decide, no worktree, no builds
 #   goattech/tools/auto-prepare-sync.sh                # full prepare (builds; needs a full toolchain box)
 # Env: UPSTREAM_URL (default https://github.com/horizon-rust/horizon.git),
-#      RUSTFLAGS/PATH as the box needs, SKIP_PROOF=1 to skip the gt-cli live proof.
+#      RUSTFLAGS/PATH as the box needs, SKIP_PROOF=1 to skip the gt-cli live
+#      proof (the tracking entry is then marked BLOCKED/incomplete, not PENDING).
 set -euo pipefail
 
 UPSTREAM_URL="${UPSTREAM_URL:-https://github.com/horizon-rust/horizon.git}"
@@ -28,13 +37,31 @@ CHECK_ONLY=0
 [ "${1:-}" = "--check-only" ] && CHECK_ONLY=1
 
 cd "$(dirname "$0")/../.."
+GIT_DIR_ABS="$(git rev-parse --git-common-dir)"
 DATE="$(date +%Y%m%d)"
 BRANCH="upstream-sync-${DATE}"
-LOG="/tmp/auto-prepare-${DATE}.log"
+LOG="/tmp/auto-prepare-${DATE}-$$.log"
+WT_ROOT="${GIT_DIR_ABS}/auto-prepare-wt"
+WT="${WT_ROOT}/${BRANCH}-$$"
 STATUS=""
 
 say() { echo "auto-prepare: $*"; }
 
+on_interrupt() {
+  say "INTERRUPTED: leaving everything in place. Owned worktree (if created): $WT (state unknown, verify before any manual cleanup). Log: $LOG"
+  exit 130
+}
+trap on_interrupt INT TERM
+
+# Exclusive single-instance lock (fd 9 held for the whole run).
+mkdir -p "$WT_ROOT"
+exec 9>"${GIT_DIR_ABS}/auto-prepare.lock"
+if ! flock -n 9; then
+  say "another auto-prepare instance holds ${GIT_DIR_ABS}/auto-prepare.lock; exiting."
+  exit 1
+fi
+
+say "log: $LOG"
 say "fetching upstream main from $UPSTREAM_URL"
 git fetch --quiet "$UPSTREAM_URL" "main:${UPSTREAM_REF}"
 TIP="$(git rev-parse "${UPSTREAM_REF}")"
@@ -45,30 +72,53 @@ if git merge-base --is-ancestor "$TIP" main; then
   exit 0
 fi
 
+# Containment alone is not "prepared": the branch's tracking entry must record
+# this tip with all gates passed.
 while read -r ref; do
   if git merge-base --is-ancestor "$TIP" "$ref"; then
-    say "ALREADY PREPARED: $ref contains upstream tip $TIP (batch pending review). Nothing to do."
-    exit 0
+    if git show "${ref}:goattech/UPSTREAM-TRACKING.md" 2>/dev/null | grep -F "$TIP" | grep -q "PASS" \
+       && ! git show "${ref}:goattech/UPSTREAM-TRACKING.md" 2>/dev/null | grep -F "$TIP" | grep -qE "FAIL|BLOCKED"; then
+      say "ALREADY PREPARED: $ref contains $TIP and its tracking entry records gates passed. Nothing to do."
+      exit 0
+    fi
+    say "CONTAINED-BUT-UNVERIFIED: $ref contains $TIP but its tracking entry is missing or does not record all gates passed. Not preparing a duplicate batch; route $ref for review. Stopping."
+    exit 4
   fi
-done < <(git for-each-ref --format='%(refname)' 'refs/heads/upstream-sync-*' 'refs/remotes/origin/upstream-sync-*' | awk '{print $1}')
+done < <(git for-each-ref --format='%(refname)' 'refs/heads/upstream-sync-*' 'refs/remotes/origin/upstream-sync-*')
 
 BASE="$(git merge-base main "${UPSTREAM_REF}")"
 COUNT="$(git rev-list --count "${BASE}..${UPSTREAM_REF}")"
 FILES="$(git diff --name-only "${BASE}...${UPSTREAM_REF}" | wc -l | tr -d ' ')"
 say "new batch: $COUNT commits since $BASE, $FILES files touched"
-[ "$CHECK_ONLY" = 1 ] && { say "check-only: would cut $BRANCH off main, merge $TIP, run gates, write PENDING entry. Stopping here."; exit 0; }
+[ "$CHECK_ONLY" = 1 ] && { say "check-only: would prepare $BRANCH from pinned main in an owned worktree. Stopping here."; exit 0; }
 
 if git show-ref --verify --quiet "refs/heads/${BRANCH}"; then
   say "branch $BRANCH already exists; refusing to reuse it (a same-day rerun needs a human look)."
   exit 1
 fi
 
-git checkout -q -b "$BRANCH" main
+PIN_MAIN="$(git rev-parse main)"
+say "pinned base: main=$PIN_MAIN; tip=$TIP"
+
+# Owned isolated worktree: caller checkout, index and staged files untouched.
+git worktree add --quiet -b "$BRANCH" "$WT" main >>"$LOG" 2>&1
+echo "owned by auto-prepare pid $$ at $(date -Is)" > "${WT}/.auto-prepare-owned"
+
+wt_git() { git -C "$WT" "$@"; }
+
+if [ -n "$(wt_git status --porcelain)" ]; then
+  say "UNEXPECTED: fresh owned worktree $WT is not clean before starting. Leaving it in place; investigate before any cleanup."
+  exit 5
+fi
+
 GATES="not run"
-if ! git merge --no-ff --no-edit "${UPSTREAM_REF}" >>"$LOG" 2>&1; then
-  git merge --abort || true
-  git checkout -q main
-  say "MERGE CONFLICT: merge of $TIP onto main conflicts (log: $LOG). Merge aborted; $BRANCH left in place (points at main) for inspection - this tool never deletes a branch or worktree. Review merges by hand. Stopping."
+if ! wt_git merge --no-ff --no-edit "${UPSTREAM_REF}" >>"$LOG" 2>&1; then
+  if wt_git status --porcelain | grep -qE '^(UU|AA|DD|U.|.U)'; then KIND="MERGE CONFLICT"; else KIND="MERGE ERROR (not a conflict)"; fi
+  if ! wt_git merge --abort >>"$LOG" 2>&1; then
+    say "$KIND and merge --abort FAILED. Worktree $WT left exactly as-is; do not touch it until reviewed. Log: $LOG. Hard stop."
+    exit 6
+  fi
+  say "$KIND: merge of $TIP aborted cleanly. Branch $BRANCH stays at main in $WT for inspection; nothing deleted. Review merges by hand. Log: $LOG."
   exit 2
 fi
 say "merged $TIP into $BRANCH"
@@ -76,7 +126,7 @@ say "merged $TIP into $BRANCH"
 run_gate() { # name, command...
   local name="$1"; shift
   say "gate: $name"
-  if "$@" >>"$LOG" 2>&1; then GATES="${GATES}; ${name} PASS"; else
+  if ( cd "$WT" && "$@" ) >>"$LOG" 2>&1; then GATES="${GATES}; ${name} PASS"; else
     GATES="${GATES}; ${name} FAIL"
     STATUS="BLOCKED at gate: ${name}"
   fi
@@ -84,23 +134,50 @@ run_gate() { # name, command...
 
 run_gate "lib-suite" cargo test --manifest-path launcher/Cargo.toml --lib
 run_gate "bin-suite" cargo test --manifest-path launcher/Cargo.toml --bins
-if [ -z "$STATUS" ] && [ "${SKIP_PROOF:-0}" != "1" ]; then
-  [ -x launcher/target/debug/horizon-launcher ] || run_gate "cli-build" cargo build --manifest-path launcher/Cargo.toml
-  [ -z "$STATUS" ] && run_gate "gt-cli-proof" sh goattech/proof-m1.sh
+if [ -z "$STATUS" ]; then
+  # Always build fresh before the proof: cargo no-ops when up to date, and a
+  # stale debug binary can never bypass source that moved.
+  run_gate "cli-build" cargo build --manifest-path launcher/Cargo.toml
+  if [ -z "$STATUS" ] && [ "${SKIP_PROOF:-0}" != "1" ]; then
+    run_gate "gt-cli-proof" sh goattech/proof-m1.sh
+  elif [ -z "$STATUS" ]; then
+    GATES="${GATES}; gt-cli-proof SKIPPED"
+    STATUS="BLOCKED: gt-cli live proof not run (SKIP_PROOF=1); batch incomplete"
+  fi
+fi
+
+# Pin check: main must not have moved while gates ran.
+if [ "$(git rev-parse main)" != "$PIN_MAIN" ]; then
+  say "main moved during this run ($PIN_MAIN -> $(git rev-parse main)). Leaving $BRANCH in $WT uncommitted-of-tracking; review before reuse. Log: $LOG."
+  exit 7
 fi
 
 ENTRY_STATUS="PENDING REVIEW (gates${GATES})"
-[ -n "$STATUS" ] && ENTRY_STATUS="BLOCKED - ${STATUS} (gates${GATES}); do not merge"
+[ -n "$STATUS" ] && ENTRY_STATUS="${STATUS} (gates${GATES}); do not merge"
 ENTRY="auto-prepared batch (${DATE}): upstream ${TIP}, ${COUNT} commits since ${BASE}, ${FILES} files. ${ENTRY_STATUS}. Gate log: ${LOG}."
+
+# Only the tracking file may be committed, and only if nothing else changed.
 TMPENTRY="$(mktemp)"
 awk -v entry="$ENTRY" '
   /^Pending batch/ && !done { print "Pending batches:\n\n- " entry; done=1; next }
   /^Last MERGED upstream batch:/ && !done { print; print ""; print "Pending batches:\n\n- " entry; done=1; next }
   { print }
-' goattech/UPSTREAM-TRACKING.md > "$TMPENTRY"
-mv "$TMPENTRY" goattech/UPSTREAM-TRACKING.md
-git add goattech/UPSTREAM-TRACKING.md
-git commit -q -m "auto-prepare: record ${DATE} upstream batch (${TIP:0:9}) as ${ENTRY_STATUS%% (*}"
+' "${WT}/goattech/UPSTREAM-TRACKING.md" > "$TMPENTRY"
+mv "$TMPENTRY" "${WT}/goattech/UPSTREAM-TRACKING.md"
+
+DIRTY="$(wt_git status --porcelain)"
+if [ "$DIRTY" != " M goattech/UPSTREAM-TRACKING.md" ]; then
+  say "UNEXPECTED worktree state before commit: [$DIRTY]. Expected only the tracking file modified. Leaving $WT in place; nothing committed."
+  exit 5
+fi
+wt_git commit -q -m "auto-prepare: record ${DATE} upstream batch (${TIP:0:9}) as ${ENTRY_STATUS%% (*}" -- goattech/UPSTREAM-TRACKING.md >>"$LOG" 2>&1
+
+# Cleanup: remove ONLY this run's own worktree, after ownership/ref/state checks.
+if [ -f "${WT}/.auto-prepare-owned" ] && [ "$(wt_git rev-parse --abbrev-ref HEAD)" = "$BRANCH" ] && [ -z "$(wt_git status --porcelain)" ]; then
+  git worktree remove "$WT" && say "owned worktree removed (branch $BRANCH remains)."
+else
+  say "worktree $WT failed ownership/ref/clean checks; left in place for manual review."
+fi
 
 say "done: $BRANCH prepared. $ENTRY"
 say "next: review, then a reviewed merge decision. This tool never merges to main and never pushes."
