@@ -2,19 +2,19 @@ name: launcher-runtime-shot
 # On-demand (this file changing on the integration branch, or manual dispatch), Linux-only,
 # GitHub-hosted runtime capture and saved-state qualification: builds the launcher fresh from
 # the checked-out source (no artifact reuse), runs it under a headless cage/wlroots compositor,
-# captures the opening wordmark and the first-run consent dialog, answers consent through the
-# launcher's own CLI (the same answer() writer the dialog button calls), and checks the saved
-# answer and a saved setting across relaunches. A small-output run gives the consent dialog's
-# footer spacing at a reduced size (an adaptation observation, not a minimum-window test).
-# No accounts, no game/server launch, no purchases, telemetry endpoint off. The artifact is
-# review evidence only: not a >9 review, not a release. Rendering is configured for software
-# (headless wlroots + lavapipe ICD); the renderer the compositor and client actually select is
-# NOT verified by this run: no GPU, performance or animation-smoothness claims. The button's
-# click path itself is not exercised: no synthetic input route exists in this environment
-# (headless backend consumes no kernel uinput devices, and no supported virtual-pointer client
-# is packaged), so dismissal uses the CLI route that shares the writer
-# (launcher/src/telemetry.rs:174, collection.rs:127); the GUI-only side effect
-# ping_notice_seen (collection.rs:136-138) is likewise not exercised.
+# captures the opening wordmark in a dense burst (the H evidence), captures the first-run
+# consent dialog, scrolls it and answers "Keep optional data off" through the GUI itself via
+# the compositor's wlr virtual pointer (tools/virtual_input.c), then checks the saved consent
+# answer, the ping_notice_seen side effect and a saved setting across relaunches. Endpoint
+# variants are qualified through the CLI (default/set/off) plus one dialog capture with the
+# endpoint at its GoatTech default. 960x600 is the app's own minimum window size
+# (launcher/src/main.rs window_min_size); the 800x500 run is a below-minimum adaptation
+# observation, not a minimum-window test. No accounts, no game/server launch, no purchases.
+# The artifact is review evidence only: not a >9 review, not a release. Rendering is
+# configured for software (headless wlroots + lavapipe ICD); the renderer the compositor and
+# client actually select is NOT verified by this run: no GPU, performance or
+# animation-smoothness claims. The GUI click and scroll use fixed coordinates for the
+# 1280x720 default mode; layout drift fails the run loudly instead of passing silently.
 
 on:
   workflow_dispatch:
@@ -47,10 +47,15 @@ jobs:
       - name: GPUI and compositor libraries (mirrors launcher.yml apt list + capture tools)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev cage grim wlr-randr mesa-vulkan-drivers vulkan-tools
+          sudo apt-get install -y libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev cage grim wlr-randr mesa-vulkan-drivers vulkan-tools libwayland-bin
       - name: Build launcher
         working-directory: launcher
         run: cargo build --release --locked
+      - name: Build virtual input client
+        run: |
+          wayland-scanner client-header tools/wlr-virtual-pointer-unstable-v1.xml "$RUNNER_TEMP/vp.h"
+          wayland-scanner private-code tools/wlr-virtual-pointer-unstable-v1.xml "$RUNNER_TEMP/vp.c"
+          gcc -O2 -Wall -o "$RUNNER_TEMP/virtual-input" tools/virtual_input.c "$RUNNER_TEMP/vp.c" -I"$RUNNER_TEMP" $(pkg-config --cflags --libs wayland-client)
       - name: Run, capture and qualify saved state
         env:
           XDG_RUNTIME_DIR: ${{ runner.temp }}/xdg
@@ -64,8 +69,13 @@ jobs:
           set -euo pipefail
           mkdir -p "$XDG_RUNTIME_DIR" "$XDG_PICTURES_DIR" "$HOME" && chmod 700 "$XDG_RUNTIME_DIR"
           BIN="$GITHUB_WORKSPACE/launcher/target/release/horizon-launcher"
+          VINPUT="$RUNNER_TEMP/virtual-input"
           start_cage() {
             setsid cage -- "$BIN" >"$RUNNER_TEMP/cage-$1.log" 2>&1 &
+            cage_pid=$!
+          }
+          start_cage_default_endpoint() {
+            env -u HORIZON_TELEMETRY_URL setsid cage -- "$BIN" >"$RUNNER_TEMP/cage-$1.log" 2>&1 &
             cage_pid=$!
           }
           find_sock() {
@@ -90,30 +100,77 @@ jobs:
             WAYLAND_DISPLAY="$sock" timeout 20 grim "$XDG_PICTURES_DIR/$1" || { echo "FAIL: grim $1"; exit 1; }
             [ -s "$XDG_PICTURES_DIR/$1" ] || { echo "FAIL: empty frame $1"; exit 1; }
           }
+          output_extent() {
+            WAYLAND_DISPLAY="$sock" timeout 20 wlr-randr 2>/dev/null \
+              | grep -oE '[0-9]+x[0-9]+ px \(current\)' | head -1 | grep -oE '[0-9]+x[0-9]+' || true
+          }
           cleanup() {
             stop_cage
             cp "$RUNNER_TEMP"/cage-*.log "$XDG_PICTURES_DIR/" 2>/dev/null || true
           }
           trap cleanup EXIT
           CONSENT="$HORIZON_HOME/telemetry/consent.json"
+          SETTINGS="$HORIZON_LAUNCHER_HOME/settings.json"
           # Phase 1, default state: opening wordmark first (it ends before consent can show,
-          # collection.rs asking_consent), then the first-run consent dialog.
+          # collection.rs asking_consent), then the first-run consent dialog. The wordmark's
+          # visible window is short (hold 1.4s, max 2.5s, from the first rendered frame), so
+          # capture a dense burst; timestamps recorded per frame.
           start_cage first
           find_sock first
           sleep 1; live intro-1; cap frame-intro-1.png
-          sleep 1; live intro-2; cap frame-intro-2.png
-          sleep 2; live intro-3; cap frame-intro-3.png
-          sleep 6; live intro-4; cap frame-intro-4.png
+          echo "# frame,captured_at_unix" > "$XDG_PICTURES_DIR/intro-timestamps.txt"
+          for i in $(seq -w 1 18); do
+            sleep 0.35
+            live "seq-$i"
+            cap "frame-intro-seq-$i.png"
+            echo "frame-intro-seq-$i.png,$(date +%s.%N)" >> "$XDG_PICTURES_DIR/intro-timestamps.txt"
+          done
+          sleep 4; live intro-4; cap frame-intro-4.png
           sleep 8; live dialog;  cap frame-dialog.png
           timeout 60 "$BIN" data status > "$XDG_PICTURES_DIR/data-status-default.txt" 2>&1 \
             || echo "note: data status (default) nonzero" >> "$RUNNER_TEMP/cage-first.log"
           [ ! -e "$CONSENT" ] || { echo "FAIL: consent.json exists before any answer"; exit 1; }
+          # Scroll the dialog body through the compositor's virtual pointer and back (fixed
+          # footer evidence while the body scrolls; frames inspected).
+          EXT=$(output_extent); EX=${EXT%x*}; EY=${EXT#*x}
+          [ "$EX" = "1280" ] && [ "$EY" = "720" ] || { echo "FAIL: unexpected mode '$EXT' for coordinate input"; exit 1; }
+          "$VINPUT" scroll $((EX/2)) $((EY/2)) "$EX" "$EY" 3 || { echo "FAIL: virtual scroll down"; exit 1; }
+          sleep 1; live dialog-scrolled; cap frame-dialog-scrolled.png
+          "$VINPUT" scroll $((EX/2)) $((EY/2)) "$EX" "$EY" -3 || { echo "FAIL: virtual scroll up"; exit 1; }
+          sleep 1; live dialog-rescrolled; cap frame-dialog-rescrolled.png
+          # Click "Keep optional data off" through the GUI itself: the dialog's own button
+          # path (collection.rs answer_consent), at its 1280x720 layout position. The asserts
+          # below fail loudly if the layout moved the button.
+          "$VINPUT" click 715 649 "$EX" "$EY" || { echo "FAIL: virtual click"; exit 1; }
+          sleep 2; live after-click; cap frame-after-click.png
+          [ -f "$CONSENT" ] || { echo "FAIL: consent.json missing after GUI answer"; exit 1; }
+          jq -e '.version == 3 and (.answered | tonumber) > 0
+            and .choices.performance == false and .choices.crashes == false
+            and .choices.bugs == false and .choices.benchmarks == false
+            and ((.install_id // "") == "")' "$CONSENT" > /dev/null \
+            || { echo "FAIL: consent.json content wrong after GUI answer:"; cat "$CONSENT"; exit 1; }
+          cp "$CONSENT" "$XDG_PICTURES_DIR/consent-after-gui-deny.json"
+          jq -e '.ping_notice_seen == true' "$SETTINGS" > /dev/null \
+            || { echo "FAIL: GUI answer did not set ping_notice_seen:"; cat "$SETTINGS"; exit 1; }
           stop_cage
-          # Phase 2: answer "everything optional off" through the launcher's own CLI (same
-          # answer() writer as the dialog's "Keep optional data off" button).
+          # Endpoint variants through the CLI: one binary, three configurations. The endpoint
+          # and the ping copy must follow the configuration (telemetry.rs status_json).
+          env -u HORIZON_TELEMETRY_URL timeout 60 "$BIN" --json data status > "$XDG_PICTURES_DIR/data-status-endpoint-default.json" 2>&1 \
+            || { echo "FAIL: data status (endpoint default)"; exit 1; }
+          jq -e '.server == null and (.ping | contains("telemetry.goattech.us"))' "$XDG_PICTURES_DIR/data-status-endpoint-default.json" > /dev/null \
+            || { echo "FAIL: endpoint-default status wrong:"; cat "$XDG_PICTURES_DIR/data-status-endpoint-default.json"; exit 1; }
+          HORIZON_TELEMETRY_URL="http://127.0.0.1:9" timeout 60 "$BIN" --json data status > "$XDG_PICTURES_DIR/data-status-endpoint-set.json" 2>&1 \
+            || { echo "FAIL: data status (endpoint set)"; exit 1; }
+          jq -e '.server == "http://127.0.0.1:9" and (.ping | length) > 0' "$XDG_PICTURES_DIR/data-status-endpoint-set.json" > /dev/null \
+            || { echo "FAIL: endpoint-set status wrong:"; cat "$XDG_PICTURES_DIR/data-status-endpoint-set.json"; exit 1; }
+          HORIZON_TELEMETRY_URL="off" timeout 60 "$BIN" --json data status > "$XDG_PICTURES_DIR/data-status-endpoint-off.json" 2>&1 \
+            || { echo "FAIL: data status (endpoint off)"; exit 1; }
+          jq -e '.server == null and (.ping | contains("is off in this configuration"))' "$XDG_PICTURES_DIR/data-status-endpoint-off.json" > /dev/null \
+            || { echo "FAIL: endpoint-off status wrong:"; cat "$XDG_PICTURES_DIR/data-status-endpoint-off.json"; exit 1; }
+          # Phase 2: answer "everything optional off" through the launcher's own CLI as well
+          # (the same answer() writer the dialog button calls; CLI path regression).
           timeout 60 "$BIN" data deny all > "$XDG_PICTURES_DIR/data-deny-all.txt" 2>&1 \
             || { echo "FAIL: data deny all"; exit 1; }
-          [ -f "$CONSENT" ] || { echo "FAIL: consent.json missing after answer"; exit 1; }
           jq -e '.version == 3 and (.answered | tonumber) > 0
             and .choices.performance == false and .choices.crashes == false
             and .choices.bugs == false and .choices.benchmarks == false
@@ -136,8 +193,8 @@ jobs:
           # then a relaunch must start on Home, not the wordmark (frames inspected).
           timeout 60 "$BIN" settings opening-animation off > "$XDG_PICTURES_DIR/settings-set-opening-off.txt" 2>&1 \
             || { echo "FAIL: settings opening-animation off"; exit 1; }
-          jq -e '.skip_opening == true' "$HORIZON_LAUNCHER_HOME/settings.json" > /dev/null \
-            || { echo "FAIL: settings.json skip_opening not true:"; cat "$HORIZON_LAUNCHER_HOME/settings.json"; exit 1; }
+          jq -e '.skip_opening == true' "$SETTINGS" > /dev/null \
+            || { echo "FAIL: settings.json skip_opening not true:"; cat "$SETTINGS"; exit 1; }
           timeout 60 "$BIN" settings > "$XDG_PICTURES_DIR/settings-after-set.txt" 2>&1 \
             || echo "note: settings list nonzero" >> "$RUNNER_TEMP/cage-relaunch.log"
           start_cage settings
@@ -145,8 +202,21 @@ jobs:
           sleep 2; live settings-early; cap frame-settings-off-early.png
           sleep 10; live settings-settled; cap frame-settings-off-settled.png
           stop_cage
-          # Phase 5, small-output consent dialog (footer spacing evidence; an adaptation
-          # observation at whatever mode was actually set, not a minimum-window test).
+          # Phase 5, true minimum window: the app enforces a 960x600 minimum window size
+          # (launcher/src/main.rs window_min_size); capture the first-run consent dialog at
+          # exactly that mode with a fresh home.
+          export HORIZON_HOME="$RUNNER_TEMP/game-home-min"
+          start_cage min
+          find_sock min
+          sleep 3
+          WAYLAND_DISPLAY="$sock" timeout 20 wlr-randr --output HEADLESS-1 --custom-mode 960x600 >>"$RUNNER_TEMP/cage-min.log" 2>&1 \
+            || WAYLAND_DISPLAY="$sock" timeout 20 wlr-randr --output HEADLESS-1 --mode 960x600 >>"$RUNNER_TEMP/cage-min.log" 2>&1 \
+            || { echo "FAIL: 960x600 mode-set"; exit 1; }
+          WAYLAND_DISPLAY="$sock" timeout 20 wlr-randr > "$XDG_PICTURES_DIR/wlr-randr-min.txt" 2>&1 || true
+          sleep 12; live dialog-min; cap frame-dialog-min.png
+          stop_cage
+          # Phase 6, below-minimum adaptation observation (800x500 < the 960x600 minimum):
+          # footer separation under overflow, not a minimum-window test.
           export HORIZON_HOME="$RUNNER_TEMP/game-home-small"
           start_cage small
           find_sock small
@@ -156,6 +226,13 @@ jobs:
             || echo "note: 800x500 mode-set failed; small-output dialog captured at the default mode" >> "$RUNNER_TEMP/cage-small.log"
           WAYLAND_DISPLAY="$sock" timeout 20 wlr-randr > "$XDG_PICTURES_DIR/wlr-randr-small.txt" 2>&1 || true
           sleep 10; live dialog-small; cap frame-dialog-small.png
+          stop_cage
+          # Phase 7, endpoint at its GoatTech default (no override): the first-run dialog must
+          # show the on-state "I'm playing" ping note (frame inspected).
+          export HORIZON_HOME="$RUNNER_TEMP/game-home-live"
+          start_cage_default_endpoint live
+          find_sock live
+          sleep 12; live dialog-live; cap frame-dialog-ping-default.png
           stop_cage
           echo "capture and qualification sequence complete"
           ls -la "$XDG_PICTURES_DIR"
