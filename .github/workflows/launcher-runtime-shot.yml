@@ -1,0 +1,99 @@
+name: launcher-runtime-shot
+# Manual, Linux-only, GitHub-hosted runtime capture: builds the launcher and photographs real
+# rendered frames under a headless Wayland compositor (weston) with the software Vulkan driver
+# (lavapipe). No release, no publishing, no self-hosted runners, no secrets. The artifact is review
+# evidence only; it is not a running-app qualification by itself and not a >9 review.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: launcher-runtime-shot-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HORIZON_TELEMETRY_URL: "off"
+  HORIZON_LAUNCHER_NO_SELF_UPDATE: "1"
+
+jobs:
+  capture:
+    name: headless wayland runtime capture
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: GPUI and compositor libraries (mirrors launcher.yml apt list + weston/mesa)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev weston mesa-vulkan-drivers vulkan-tools
+      - name: Build launcher
+        working-directory: launcher
+        run: cargo build --release --locked
+      - name: Run and capture real frames
+        env:
+          XDG_RUNTIME_DIR: ${{ runner.temp }}/xdg
+          XDG_PICTURES_DIR: ${{ runner.temp }}/captures
+          WAYLAND_DISPLAY: wl-shot
+          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+          HORIZON_LAUNCHER_HOME: ${{ runner.temp }}/launcher-home
+          HOME: ${{ runner.temp }}/shot-home
+        run: |
+          set -euo pipefail
+          mkdir -p "$XDG_RUNTIME_DIR" "$XDG_PICTURES_DIR" "$HOME" && chmod 700 "$XDG_RUNTIME_DIR"
+          weston --version | tee "$RUNNER_TEMP/weston-version.txt"
+          weston --debug --backend=headless --width=1440 --height=900 --socket="$WAYLAND_DISPLAY" >"$RUNNER_TEMP/weston.log" 2>&1 &  # --debug: advertises weston_capture_v1, required by weston 13 weston-screenshooter
+          weston_pid=$!
+          launcher_pid=""
+          cleanup() {
+            kill "$launcher_pid" "$weston_pid" 2>/dev/null || true
+            cp "$RUNNER_TEMP/weston.log" "$RUNNER_TEMP/launcher.log" "$RUNNER_TEMP/weston-version.txt" "$XDG_PICTURES_DIR/" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          ok=0
+          for i in $(seq 1 30); do [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && { ok=1; break; }; sleep 1; done
+          [ "$ok" = 1 ] || { echo "FAIL: compositor socket never appeared"; exit 1; }
+          "$GITHUB_WORKSPACE/launcher/target/release/horizon-launcher" >"$RUNNER_TEMP/launcher.log" 2>&1 &
+          launcher_pid=$!
+          for t in 1 2 3; do
+            sleep 30
+            kill -0 "$weston_pid" 2>/dev/null || { echo "FAIL: compositor died before attempt $t"; exit 1; }
+            kill -0 "$launcher_pid" 2>/dev/null || { echo "FAIL: launcher exited before attempt $t"; exit 1; }
+            before=$(find "$XDG_PICTURES_DIR" -name 'wayland-screenshot-*.png' 2>/dev/null | sort | tail -1)
+            (cd "$XDG_PICTURES_DIR" && timeout 20 weston-screenshooter) || { echo "FAIL: screenshooter attempt $t"; exit 1; }
+            latest=$(find "$XDG_PICTURES_DIR" -name 'wayland-screenshot-*.png' 2>/dev/null | sort | tail -1)
+            [ -n "$latest" ] && [ "$latest" != "$before" ] || { echo "FAIL: no fresh frame on attempt $t"; exit 1; }
+            [ -s "$latest" ] || { echo "FAIL: empty frame on attempt $t"; exit 1; }
+            mv "$latest" "$XDG_PICTURES_DIR/frame-$t.png"
+          done
+          echo "captured 3 frames"
+          ls -la "$XDG_PICTURES_DIR"
+      - name: Evidence manifest
+        if: always()
+        run: |
+          mkdir -p "${{ runner.temp }}/captures"
+          {
+            echo "git_head=$(git rev-parse HEAD)"
+            echo "github_sha=${{ github.sha }}"
+            echo "workflow_sha=${{ github.workflow_sha }}"
+            echo "run_id=${{ github.run_id }}"
+            echo "run_attempt=${{ github.run_attempt }}"
+            [ -f launcher/target/release/horizon-launcher ] && echo "binary_sha256=$(sha256sum launcher/target/release/horizon-launcher | awk '{print $1}')"
+            rustc --version
+            cargo --version
+            weston --version
+            dpkg -l weston mesa-vulkan-drivers 2>/dev/null | grep '^ii' || true
+            vulkaninfo --summary 2>/dev/null | grep -i -m2 "deviceName\|driverName" || true
+          } | tee "${{ runner.temp }}/captures/manifest.txt"
+      - name: Upload frames
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: launcher-runtime-shot
+          path: ${{ runner.temp }}/captures/
+          retention-days: 5
+          if-no-files-found: error
