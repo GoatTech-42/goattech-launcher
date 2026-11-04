@@ -12,17 +12,18 @@
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://launcher.goattech.us/assets/concepts/home.webp">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%230a0a0a'/%3E%3Cpath d='M12 4l7 4v8l-7 4-7-4V8z' fill='none' stroke='%23f2f2f2' stroke-width='1.6'/%3E%3Cpath d='M12 12l7-4M12 12L5 8M12 12v8' stroke='%23f2f2f2' stroke-width='1.6'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preload" href="assets/fonts/PixelifySans-Bold.ttf" as="font" type="font/ttf" crossorigin>
 <script>document.documentElement.className='js'</script>
 <style>
+@font-face{font-family:"Pixelify Sans";src:url("assets/fonts/PixelifySans-Bold.ttf") format("truetype");font-weight:700;font-display:swap}
+@font-face{font-family:"Pixelify Sans";src:url("assets/fonts/PixelifySans-SemiBold.ttf") format("truetype");font-weight:600;font-display:swap}
+@font-face{font-family:"Bricolage Grotesque";src:url("assets/fonts/BricolageGrotesque-Regular.ttf") format("truetype");font-weight:400;font-display:swap}
 :root{
   --ground:#0a0a0a; --surface:#131313; --raised:#1b1b1b; --well:#050505;
   --line:#242424; --line-soft:#1a1a1a;
   --text:#ffffff; --muted:#b4b4b4; --faint:#8f8f8f; --dim:#6a6a6a;
-  --font:"Geist",ui-sans-serif,system-ui,-apple-system,sans-serif;
-  --disp:"Bricolage Grotesque",var(--font);
+  --font:"Bricolage Grotesque",ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --disp:"Pixelify Sans",var(--font);
   --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   --ease:cubic-bezier(.2,.8,.2,1);
 }
@@ -239,6 +240,52 @@ html.no-js .panel .srow{opacity:1;transform:none}
   .scrollhint{display:none}
   .player{animation:none}
 }
+/* The actual GoatTech shell: neutral night, pixel labels, square raised controls. */
+:root{--mono:var(--font)}
+.rv,.panel .srow,.foot .wm .l{opacity:1!important;transform:none!important}
+.frow::before{display:none}
+#status .idx{display:block;font-size:14px;color:var(--muted)}
+body{font-size:17px}
+.top{position:absolute;background:none;padding:24px 32px}
+.wordmark,.foot .wm{font-weight:700;letter-spacing:0}
+.wordmark{font-size:28px}
+h1,h2,.engine h3,.forkcard h3{font-weight:700;letter-spacing:0}
+h1{font-size:clamp(42px,6.5vw,88px);line-height:1.05}
+h2{font-size:clamp(30px,3.6vw,44px)}
+.hero{min-height:760px}
+.hero-inner{padding-bottom:100px}
+.hero .rv{opacity:1;transform:none;transition:none}
+.kicker{border-radius:0;background:none;box-shadow:none;padding:0;backdrop-filter:none;font-size:16px;color:var(--muted)}
+.kicker .dot,.idx,.frow .n,.scrollhint,.bigmark{display:none}
+.btn{border-radius:0;font-family:var(--disp);font-weight:600;font-size:20px;border-bottom:4px solid #080808;box-shadow:inset 0 2px #ffffff18}
+.btn.primary{border-bottom-color:#999}
+.btn:hover{transform:none;background:#292929}
+.btn.primary:hover{background:#ddd}
+.btn:active{transform:translateY(2px)}
+a:focus-visible{outline:2px solid white;outline-offset:5px}
+.engine,.panel,.forkcard,.shot img{border-radius:0;box-shadow:none}
+.engine .art{height:100px}
+.engine p,.sub,.frow .d,.forkcard p{font-size:16px;color:var(--muted)}
+.chip{border-radius:0;font-size:14px}
+.feat,.frow,footer,.srow{border:0}
+.frow{grid-template-columns:280px 1fr;background:var(--surface);padding:24px;margin-top:12px}
+.frow .t{font-family:var(--disp);font-size:24px;font-weight:600}
+.panel h3{font-family:var(--disp);font-size:24px;letter-spacing:0;text-transform:none;color:var(--text)}
+.note,.shot figcaption,.foot .l{font-size:14px;color:var(--muted)}
+.hero::after{background:linear-gradient(#0a0a0a00 15%,#0a0a0acc 58%,#0a0a0a 96%)}
+.hero .lede{max-width:48ch}
+@media(max-width:1000px){.hero .player{display:none}}
+.top nav a{font-family:var(--disp);font-size:20px}
+#fork .forkcard{margin-top:0}
+.forkcard h3{max-width:24ch}
+.shot:hover img{box-shadow:none}
+@media(max-width:760px){
+ .top{padding:20px}.hero{min-height:720px}.hero-inner{padding-bottom:72px}
+ h1{font-size:42px}.lede{font-size:17px}.frow{grid-template-columns:1fr;padding:20px}
+ .shot{flex-basis:88vw}.foot .wm{font-size:40px}.kicker{max-width:30ch}
+ .btn{padding:0 18px}.sec-head{display:block}
+}
+@media(prefers-reduced-motion:reduce){.btn:active{transform:none}}
 </style>
 </head>
 <body>
@@ -257,12 +304,12 @@ html.no-js .panel .srow{opacity:1;transform:none}
   <div class="sky" id="sky" aria-hidden="true"></div>
   <div class="bigmark" aria-hidden="true">goattech</div>
   <div class="wrap hero-inner">
-    <span class="kicker rv"><span class="dot half"></span>in development · the cli works, the gui is next</span>
-    <h1 class="rv">rust and java,<br><span class="thin">side by side.</span></h1>
-    <p class="lede rv">goattech launcher is a minecraft launcher built as a fork of horizon (mit). it puts the horizon rust engine and ordinary java instances in one home - fabric and quilt mods from modrinth, imports from the launchers you already have, and every instance keeping its own runtime, mods and saves.</p>
+    <span class="kicker rv"><span class="dot half"></span>in development · no public release yet</span>
+    <h1 class="rv">Rust and Java,<br>your own way</h1>
+    <p class="lede rv">A Minecraft launcher for the Horizon Rust client and Java instances, with separate versions, mods and saves. Forked from Horizon (MIT).</p>
     <div class="cta rv">
       <a class="btn primary" href="https://github.com/GoatTech-42/goattech-launcher">view on github</a>
-      <a class="btn ghost" href="#status">read the honest status</a>
+      <a class="btn ghost" href="#status">project status</a>
     </div>
   </div>
   <div class="scrollhint" aria-hidden="true">scroll</div>
@@ -271,7 +318,7 @@ html.no-js .panel .srow{opacity:1;transform:none}
 <section class="sec" id="engines" aria-label="two engines">
   <div class="wrap">
     <div class="sec-head rv"><h2>two engines, one home</h2><span class="idx">01</span></div>
-    <p class="sub rv">most launchers only do java. horizon only does rust. this one keeps both in the same instances list - pick per instance, switch whenever.</p>
+    <p class="sub rv">The Horizon Rust client and Java instances share one launcher. Each instance keeps its own version, loader, runtime and files.</p>
     <div class="engines">
       <div class="engine rv">
         <div class="art" data-landscape="3"></div>
@@ -285,8 +332,8 @@ html.no-js .panel .srow{opacity:1;transform:none}
         <div class="art" data-landscape="11"></div>
         <div class="body">
           <h3>java <span class="chip hollow">the game you know</span></h3>
-          <p>vanilla, fabric or quilt - chosen once per instance, in the instance. no separate loader sections, no shared global java: each instance gets the runtime its version needs.</p>
-          <div class="chips"><span class="chip">vanilla</span><span class="chip">fabric</span><span class="chip">quilt</span><span class="chip hollow">forge + neoforge: not yet, shown not hidden</span></div>
+          <p>Vanilla, Fabric, Quilt, Forge or NeoForge, chosen inside each Java instance. Forge-family installation is implemented; signed-in game-launch qualification is still open.</p>
+          <div class="chips"><span class="chip">vanilla</span><span class="chip">fabric</span><span class="chip">quilt</span><span class="chip hollow">forge + neoforge installers</span></div>
         </div>
       </div>
     </div>
@@ -301,30 +348,30 @@ html.no-js .panel .srow{opacity:1;transform:none}
       <div class="frow rv"><span class="n">01</span><span class="t">isolated instances</span><span class="d">every instance keeps its own version, runtime, mods, configs and saves. nothing mixes with your other instances - or with the official launcher's files.</span></div>
       <div class="frow rv"><span class="n">02</span><span class="t">mods from modrinth</span><span class="d">browse and install straight into an instance. only mods matching that instance's loader and version are offered, and downloads are checked against modrinth's checksums before they land.</span></div>
       <div class="frow rv"><span class="n">03</span><span class="t">imports that never move</span><span class="d">bringing instances from prism, the modrinth app or a pack file copies - it never overwrites an existing instance and never modifies the source launcher. an unsupported pack is refused with the reason stated, before anything downloads.</span></div>
-      <div class="frow rv"><span class="n">04</span><span class="t">icons and banners</span><span class="d">per-instance art, saved inside the instance folder and carried by its export. files are checked and resized locally - nothing is uploaded. no art picked? the default plate fills in.</span></div>
-      <div class="frow rv"><span class="n">05</span><span class="t">labels, not silence</span><span class="d">old versions are labeled untested instead of hidden. forge and neoforge show as unavailable instead of silently dropping your pack. the launcher's answer to "can it" is allowed to be "not yet".</span></div>
+      <div class="frow rv"><span class="n">04</span><span class="t">icons and banners</span><span class="d">per-instance art, saved inside the instance folder and carried by its export. Artwork is checked and resized locally; these image files are not uploaded. no art picked? the default plate fills in.</span></div>
+      <div class="frow rv"><span class="n">05</span><span class="t">labels, not silence</span><span class="d">Untested versions stay labeled. Forge/NeoForge instance copies keep their loader and mods; Forge-family .mrpack imports are refused with a reason. Installer support is not a game-launch guarantee.</span></div>
     </div>
   </div>
 </section>
 
-<section class="sec" id="status" aria-label="honest status">
+<section class="sec" id="status" aria-label="project status">
   <div class="wrap">
-    <div class="sec-head rv"><h2>where it actually is</h2><span class="idx">03 · 2026-10-30</span></div>
+    <div class="sec-head rv"><h2>where it actually is</h2><span class="idx">Checked November 4, 2026</span></div>
     <p class="sub rv">no download button on this page, on purpose. here's the real state.</p>
     <div class="status-grid">
       <div class="panel rv">
-        <h3>works today</h3>
+        <h3>Verified progress</h3>
         <div class="srow"><span class="dot"></span><span class="w">the <b>cli</b> creates java and fabric instances end to end</span></div>
         <div class="srow"><span class="dot"></span><span class="w">installs mods from <b>modrinth</b>, checksums verified</span></div>
         <div class="srow"><span class="dot"></span><span class="w"><b>imports</b> instances from other launchers</span></div>
-        <div class="srow"><span class="dot"></span><span class="w"><b>322 library tests</b> pass</span></div>
+        <div class="srow"><span class="dot"></span><span class="w">The November 4 integration candidate passed <b>Linux and Windows tests</b>; it is not a release</span></div>
       </div>
       <div class="panel rv">
         <h3>not done yet</h3>
-        <div class="srow"><span class="dot hollow"></span><span class="w">the gui passes <b>cargo check</b> but the full app hasn't had a real run</span></div>
-        <div class="srow"><span class="dot hollow"></span><span class="w">no installers, no releases - <b>nothing to download</b> yet</span></div>
-        <div class="srow"><span class="dot hollow"></span><span class="w">forge and neoforge <b>aren't supported</b> (tracked upstream)</span></div>
-        <div class="srow"><span class="dot hollow"></span><span class="w">the fork trails upstream horizon - <b>catching up is active work</b></span></div>
+        <div class="srow"><span class="dot hollow"></span><span class="w">The GUI has rendered in test rigs. <b>The latest screens still need a running-app check</b> and an independent review above 9/10</span></div>
+        <div class="srow"><span class="dot hollow"></span><span class="w">No public release or downloads yet. <b>Test artifacts are not release builds</b></span></div>
+        <div class="srow"><span class="dot hollow"></span><span class="w">Forge and NeoForge <b>install through their official installers</b>; signed-in game-launch qualification remains open</span></div>
+        <div class="srow"><span class="dot hollow"></span><span class="w"><b>Mac testing has not run</b>. New upstream changes are checked separately, not blindly merged</span></div>
       </div>
     </div>
     <p class="note rv">want it anyway? build from source: github.com/GoatTech-42/goattech-launcher · when real builds ship they'll be on github releases, verified before install.</p>
@@ -333,8 +380,8 @@ html.no-js .panel .srow{opacity:1;transform:none}
 
 <section class="sec" id="concepts" aria-label="gui concepts">
   <div class="wrap">
-    <div class="sec-head rv"><h2>where the gui is headed</h2><span class="idx">04</span></div>
-    <p class="sub rv">concept designs for the app - fictional data, not shipped ui. the look is the launcher's own: black and white, dark by default, status you can read without colour.</p>
+    <div class="sec-head rv"><h2>The launcher direction</h2><span class="idx">04</span></div>
+    <p class="sub rv">Early concepts, not current app screenshots. The current launcher keeps the monochrome night sky, square controls, pixel headings and central player. Latest runtime visuals are still being verified.</p>
   </div>
   <div class="gallery rv" id="gallery">
     <figure class="shot"><img src="assets/concepts/home.webp" alt="concept: home screen with a playing-next hero and patch notes" loading="lazy"><figcaption><span>home</span><span>concept · not shipped ui</span></figcaption></figure>
@@ -364,7 +411,7 @@ html.no-js .panel .srow{opacity:1;transform:none}
   <div class="wrap foot">
     <div class="wm">goattech<small>LAUNCHER</small></div>
     <div class="l">
-      <a href="https://github.com/GoatTech-42/goattech-launcher">github</a> · <a href="https://github.com/GoatTech-42/goattech-launcher/blob/goattech/main/LICENSE">mit license</a><br>
+      <a href="https://github.com/GoatTech-42/goattech-launcher">github</a> · <a href="https://github.com/GoatTech-42/goattech-launcher/blob/main/LICENSE">mit license</a><br>
       made by goattech · <a href="https://goattech.us">goattech.us</a>
     </div>
   </div>
@@ -506,8 +553,8 @@ if(skyEl){
   var midH=[],frontH=[];
   skyEl.innerHTML=
     '<div class="layer" data-p="0.04" style="position:absolute;inset:0;--d:0.04;--pd:0.04">'+svgLayer(sky(42,W,H,true)+clouds(W,H),W,H)+'</div>'+
-    '<div class="layer" data-p="0.12" style="position:absolute;inset:0;--d:0.12;--pd:0.12">'+svgLayer(ridge(mulberry32(7),W,H,0.66,0.09,'#1e1e1e',6,midH)+trees(midH,W,H)+goat(midH,W,H)+(W<700?playerInScene(midH,W,H,2.6):''),W,H)+'</div>'+
-    '<div class="layer" data-p="0.26" style="position:absolute;inset:0;--d:0.26;--pd:0.26">'+svgLayer(ridge(mulberry32(19),W,H,0.85,0.05,'#121212',6,frontH)+fireflies(frontH,W,H)+(W<700?'':playerInScene(frontH,W,H,3.6)),W,H)+'</div>';
+    '<div class="layer" data-p="0.12" style="position:absolute;inset:0;--d:0.12;--pd:0.12">'+svgLayer('',W,H)+'</div>'+
+    '<div class="layer" data-p="0.26" style="position:absolute;inset:0;--d:0.26;--pd:0.26">'+svgLayer((W<700?'':playerInScene(Array(Math.ceil(W/6)).fill(760),W,H,4)),W,H)+'</div>';
   if(!reduce){
     skyEl.insertAdjacentHTML('beforeend',
       '<svg id="meteors" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 '+W+' 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">'+
@@ -566,7 +613,7 @@ if(h1){
       [].slice.call(node.childNodes).forEach(function(n){if(n.nodeType===3){off+=splitInto(n,node,off)}});
     }
   });
-  h1.setAttribute('aria-label','rust and java, side by side.');
+  h1.setAttribute('aria-label','Rust and Java, your own way');
   setTimeout(function(){h1.classList.add('play')},80);
 }
 

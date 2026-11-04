@@ -6,8 +6,8 @@ Source for https://launcher.goattech.us - the public site for goattech launcher
 ## Contents
 
 - `index.html` - the whole site. Self-contained: CSS and JS are inline, no build
-  step, no dependencies. Fonts (Geist, Geist Mono, Bricolage Grotesque) are
-  loaded from Google Fonts (css2 API); the pixel night-sky hero is generated at runtime
+  step, no dependencies. Fonts (Pixelify Sans headings and controls, Bricolage Grotesque body text) are
+  bundled under `assets/fonts/` with their OFL licenses; the pixel night-sky hero is generated at runtime
   by the inline script (canvas, seeded PRNG per viewport shape).
 - `assets/concepts/*.webp` - renders of the 8 app UI concept screens, shown in
   the concepts section. They are concept designs with fictional data, not
@@ -68,3 +68,12 @@ output dir is this folder.
   buttons; the player and scroll hint are hidden on small screens.
 - Gallery: idle drift (pauses on hover/drag), drag-to-scroll and tilt on
   desktop.
+
+## November 4 correction (private until reviewed and deployed)
+
+The site follows the actual GoatTech Mono shell: neutral night sky, square raised
+controls, Pixelify headings, and the existing owner's player illustration. It is
+not a new logo proposal. Early concepts remain labeled and are not evidence of
+the latest running build. Status distinguishes the Linux/Windows-tested
+integration candidate from unverified latest runtime visuals and untested Mac
+legs. No release/download button has been added.
