@@ -3362,6 +3362,15 @@ pub struct Settings {
     /// An older file's switch for the release profile, read when `native_profile` is unset.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub native_release: bool,
+    /// Basic performance summaries (`basic_stats`): a few coarse numbers after a game
+    /// session. On by default only where the window's one-time init found a genuinely new
+    /// install, and always recorded explicitly then. Unset (older files, CLI-only use) is off
+    /// and is never inferred again.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub basic_summaries: Option<bool>,
+    /// How `basic_summaries` got its first value (`basic_stats::Cohort`). Local only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub basic_summaries_cohort: Option<crate::basic_stats::Cohort>,
     /// Developer options (hidden: seven clicks on the sidebar's launcher version reveal them):
     /// offline names play without an account that owns the game, in the window only
     /// (`account::Accounts::play_as_with`, `account::launch_for_game`). Never a download: the game still

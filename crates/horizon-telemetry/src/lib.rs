@@ -13,6 +13,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+pub mod basic;
 pub mod batch;
 pub mod consent;
 pub mod live;

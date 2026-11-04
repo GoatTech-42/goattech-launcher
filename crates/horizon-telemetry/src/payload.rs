@@ -381,6 +381,12 @@ impl Timings {
         self.count
     }
 
+    /// The duration under which a fraction `p` of them fell (nearest-rank over the 0.1 ms
+    /// bins); None when nothing was recorded.
+    pub fn percentile_ms(&self, p: f64) -> Option<f32> {
+        (self.count > 0).then(|| self.percentile(p))
+    }
+
     /// The duration under which a fraction `p` of them fell, to the tenth of a millisecond.
     fn percentile(&self, p: f64) -> f32 {
         let rank = ((self.count as f64 * p).ceil() as u64).max(1);

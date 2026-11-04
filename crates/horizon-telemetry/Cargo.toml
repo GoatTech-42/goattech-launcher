@@ -21,6 +21,10 @@ default = ["upload", "live"]
 upload = ["dep:ureq"]
 # The "I'm playing" ping and reading the live count (`live`), for the game and the launcher.
 live = ["dep:ureq"]
+# Sending basic performance summaries (`basic::send_to`); the types and checks are always in.
+basic = ["dep:ureq"]
+# Test-only: lets debug builds point basic summaries at a loopback collector (`basic`).
+telemetry-test-seam = ["basic"]
 
 [[test]]
 name = "consent_gating"

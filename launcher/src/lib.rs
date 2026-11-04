@@ -4,6 +4,7 @@ pub mod cli;
 pub mod cli_tools;
 pub mod agents;
 pub mod backend;
+pub mod basic_stats;
 pub mod browser;
 pub mod build_import;
 pub mod datapacks;
