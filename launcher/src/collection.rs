@@ -81,7 +81,7 @@ fn ping_row(t: &Theme) -> Div {
                 .child(
                     text(theme::CAPTION)
                         .text_color(t.muted)
-                        .child(tr(telemetry::PING)),
+                        .child(tr(telemetry::ping_text())),
                 ),
         )
         .child(ping_state(t))
@@ -147,7 +147,7 @@ impl Launcher {
         };
     }
 
-    /// The question, centred over the launcher. Everything starts off; "Send nothing" is one
+    /// The question, centred over the launcher. Everything optional starts off; "Keep optional data off" is one
     /// click, as easy as saying yes.
     pub(crate) fn consent_screen(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
         let t = self.theme;
@@ -231,8 +231,15 @@ impl Launcher {
             .gap(px(12.))
             .px(px(28.))
             .pb(px(28.))
+            .children(horizon_telemetry::live_endpoint().is_some().then(|| {
+                div().flex_1().min_w_0().flex().items_center().child(
+                    text(theme::CAPTION)
+                        .text_color(t.muted)
+                        .child(tr("The anonymous player-count ping stays on.")),
+                )
+            }))
             .child(
-                button("ask-none", "Send nothing", Kind::Secondary, &t).on_click(cx.listener(
+                button("ask-none", "Keep optional data off", Kind::Secondary, &t).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.answer_consent(Choices::NONE);
                         cx.notify();
@@ -305,13 +312,13 @@ impl Launcher {
         list = list.child(index_row(
             telemetry::SWITCHES.len() + 1,
             tr(telemetry::PING_NAME),
-            Some(div().child(tr(telemetry::PING)).into_any_element()),
+            Some(div().child(tr(telemetry::ping_text())).into_any_element()),
             Some(ping_state(&t).into_any_element()),
             &t,
         ));
         let waiting = horizon_telemetry::outbox::pending(&telemetry::home()).len();
         let id = match consent.install_id.as_str() {
-            "" => tr("No install ID: nothing has been collected").to_string(),
+            "" => tr("No optional-data install ID is recorded").to_string(),
             id => trf(
                 "Install ID {prefix}…{suffix}",
                 &[("prefix", &id[..4]), ("suffix", &id[id.len() - 4..])],
@@ -323,7 +330,7 @@ impl Launcher {
                 &[("count", &waiting.to_string())],
             )
         } else {
-            tr("Sending is off: no telemetry server is configured, nothing is sent").into()
+            tr("Optional uploads are unavailable: no upload server is configured. The player-count ping is separate.").into()
         };
         let confirm = self.collection.confirm_delete;
         let actions = div()

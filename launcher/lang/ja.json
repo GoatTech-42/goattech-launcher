@@ -324,9 +324,10 @@
   "Horizon can send a few things to its developers. Each switch is off until you turn it on, and Settings can change it any time.": "Horizonは開発者にいくつかのデータを送信できます。各スイッチは手動で有効にするまでオフであり、設定でいつでも変更できます。",
   "Hide what would be sent": "送信内容を表示しない",
   "View what would be sent": "送信内容を表示",
-  "Send nothing": "何も送信しない",
+  "Keep optional data off": "任意データはオフのままにする",
+  "The anonymous player-count ping stays on.": "匿名のプレイヤー数 ping はオンのままです。",
   "Save choices": "選択を保存",
-  "No install ID: nothing has been collected": "インストールIDなし：データは収集されていません",
+  "No optional-data install ID is recorded": "任意データのインストール ID は記録されていません",
   "Install ID {prefix}…{suffix}": "インストールID {prefix}…{suffix}",
   "{count} waiting to be sent": "{count} 件が送信待ち",
   "Delete everything?": "すべて削除しますか？",
@@ -843,8 +844,9 @@
   "{n} playing Horizon now": "{n} playing Horizon now",
   "If you report this crash, attach the crash report file (or paste it with Copy report) and say what you were doing.": "このクラッシュを報告する場合は、クラッシュレポートファイルを添付（または「レポートをコピー」で貼り付け）し、何をしていたかを説明してください。",
   "Off by default": "デフォルトでオフ",
-  "Sending is off: no telemetry server is configured, nothing is sent": "送信はオフです：テレメトリサーバーが設定されていないため、何も送信されません",
+  "Optional uploads are unavailable: no upload server is configured. The player-count ping is separate.": "任意のアップロードは利用できません: アップロードサーバーが設定されていません。プレイヤー数 ping は別です。",
   "Software is chosen inside each Java instance - vanilla, Fabric, Quilt, Forge or NeoForge.": "ソフトウェアは各Javaインスタンス内で選択します - バニラ、Fabric、Quilt、Forge、NeoForge。",
   "The game ended without a crash report. If you report the problem, attach latest.log from the logs folder and say what you were doing.": "ゲームがクラッシュレポートなしで終了しました。問題を報告する際は、logsフォルダ内のlatest.logを添付し、何をしていたかを説明してください。",
-  "The game sends an anonymous \"I'm playing\" ping once a minute while you play, so the launcher can show how many people play right now. The ping is always on and goes to GoatTech's own counter (telemetry.goattech.us), which stores only each session's anonymous row while you play and removes it about an hour after you stop; cleanup can take longer if the service hits its daily limit. The ping holds: a random number made when the game starts and forgotten when it closes, the version, your OS (Linux, macOS or Windows), and whether you have a world open to LAN or friends. It doesn't hold: your account, your install ID, world or server names, or anything you do in the game, and the server doesn't keep your IP address. It is sent whatever the switches above say.": "ゲームはプレイ中に毎分匿名の「プレイ中」ピングを送信し、ランチャーが現在のプレイヤー数を表示できるようにします。ピングは常にオンで、GoatTech独自のカウンター（telemetry.goattech.us）に送信されます。このカウンターはプレイ中のみ各セッションの匿名行を保存し、プレイ終了後約1時間で削除します。サービスが1日の上限に達した場合、クリーンアップはさらに遅れることがあります。ピングに含まれる情報：ゲーム開始時に生成され終了時に破棄されるランダム番号、バージョン、OS（Linux、macOS、Windows）、LANまたはフレンド向けにワールドを公開しているかどうか。含まれない情報：アカウント、インストールID、ワールド名、サーバー名、ゲーム内での行動。サーバーはIPアドレスを保持しません。上記のスイッチの状態に関わらず送信されます。"
+  "The game sends an anonymous \"I'm playing\" ping once a minute while you play, so the launcher can show how many people play right now. The ping is always on and goes to GoatTech's own counter (telemetry.goattech.us), which stores only each session's anonymous row while you play and removes it about an hour after you stop; cleanup can take longer if the service hits its daily limit. The ping holds: a random number made when the game starts and forgotten when it closes, the version, your OS (Linux, macOS or Windows), and whether you have a world open to LAN or friends. It doesn't hold: your account, your install ID, world or server names, or anything you do in the game, and the server doesn't keep your IP address. It is sent whatever the switches above say.": "ゲームはプレイ中に毎分匿名の「プレイ中」ピングを送信し、ランチャーが現在のプレイヤー数を表示できるようにします。ピングは常にオンで、GoatTech独自のカウンター（telemetry.goattech.us）に送信されます。このカウンターはプレイ中のみ各セッションの匿名行を保存し、プレイ終了後約1時間で削除します。サービスが1日の上限に達した場合、クリーンアップはさらに遅れることがあります。ピングに含まれる情報：ゲーム開始時に生成され終了時に破棄されるランダム番号、バージョン、OS（Linux、macOS、Windows）、LANまたはフレンド向けにワールドを公開しているかどうか。含まれない情報：アカウント、インストールID、ワールド名、サーバー名、ゲーム内での行動。サーバーはIPアドレスを保持しません。上記のスイッチの状態に関わらず送信されます。",
+  "The anonymous player-count ping is off in this configuration: no ping is sent and no live player count is shown. The optional switches work the same either way.": "この構成では匿名のプレイヤー数 ping はオフです: ping は送信されず、ライブのプレイヤー数も表示されません。任意のスイッチはどちらの場合も同じように動作します。"
 }

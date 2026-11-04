@@ -44,6 +44,20 @@ pub const NEVER: &str = "Never sent: your account name or UUID, world names, ser
 /// `HORIZON_TELEMETRY_URL=off` turns it off. Shown on the first-run question, in Settings,
 /// and once on the Play page.
 pub const PING_NAME: &str = "\"I'm playing\" ping";
+
+/// Shown in PING's place when `HORIZON_TELEMETRY_URL=off` (or `none`, `0`) turns the ping off,
+/// so the text never claims "always on" beside the chip's "Off by default". The full payload and
+/// retention disclosure stays in PING for the default on state.
+pub const PING_OFF: &str = "The anonymous player-count ping is off in this configuration: no ping is sent and no live player count is shown. The optional switches work the same either way.";
+
+/// The ping's description: PING while the ping is on (the default), PING_OFF when it is off.
+pub fn ping_text() -> &'static str {
+    if horizon_telemetry::live_endpoint().is_some() {
+        PING
+    } else {
+        PING_OFF
+    }
+}
 pub const PING: &str = "The game sends an anonymous \"I'm playing\" ping once a minute while you play, so the launcher can show how many people play right now. The ping is always on and goes to GoatTech's own counter (telemetry.goattech.us), which stores only each session's anonymous row while you play and removes it about an hour after you stop; cleanup can take longer if the service hits its daily limit. The ping holds: a random number made when the game starts and forgotten when it closes, the version, your OS (Linux, macOS or Windows), and whether you have a world open to LAN or friends. It doesn't hold: your account, your install ID, world or server names, or anything you do in the game, and the server doesn't keep your IP address. It is sent whatever the switches above say.";
 
 /// How many play now (cached a few seconds), if GoatTech's collector says. The count and the ping share
@@ -335,7 +349,7 @@ pub fn submit(item: &Item) -> Result<String, String> {
     Ok(match send() {
         Flush::Sent { .. } => "Sent. Thank you.".into(),
         Flush::Nothing if horizon_telemetry::endpoint().is_none() => {
-            "Kept; no telemetry server is configured, so nothing is sent.".into()
+            "Kept; no upload server is configured, so uploads are not sent.".into()
         }
         _ => "Kept; it will be sent the next time the launcher starts.".into(),
     })

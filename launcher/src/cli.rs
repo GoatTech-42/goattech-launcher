@@ -2114,7 +2114,7 @@ fn data(action: DataCmd, as_json: bool) -> Result<(), String> {
             println!("Waiting to be sent: {}", status["waiting"]);
             match horizon_telemetry::endpoint() {
                 Some(url) => println!("Server: {url}"),
-                None => println!("Server: none configured, nothing is sent (set HORIZON_TELEMETRY_URL to enable)"),
+                None => println!("Upload server: none configured, optional uploads are not sent (set HORIZON_TELEMETRY_URL to enable)"),
             }
         }
         DataCmd::Allow { kinds } => {
