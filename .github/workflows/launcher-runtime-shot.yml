@@ -6,15 +6,21 @@ name: launcher-runtime-shot
 # consent dialog, scrolls it and answers "Keep optional data off" through the GUI itself via
 # the compositor's wlr virtual pointer (tools/virtual_input.c), then checks the saved consent
 # answer, the ping_notice_seen side effect and a saved setting across relaunches. Endpoint
-# variants are qualified through the CLI (default/set/off) plus one dialog capture with the
-# endpoint at its GoatTech default. 960x600 is the app's own minimum window size
-# (launcher/src/main.rs window_min_size); the 800x500 run is a below-minimum adaptation
-# observation, not a minimum-window test. No accounts, no game/server launch, no purchases.
-# The artifact is review evidence only: not a >9 review, not a release. Rendering is
-# configured for software (headless wlroots + lavapipe ICD); the renderer the compositor and
-# client actually select is NOT verified by this run: no GPU, performance or
-# animation-smoothness claims. The GUI click and scroll use fixed coordinates for the
-# 1280x720 default mode; layout drift fails the run loudly instead of passing silently.
+# variants are qualified through the CLI (default/set/off, no network). The on-state
+# "I'm playing" ping note is photographed against a LOCAL mock collector on 127.0.0.1
+# (tools/mock_collector.py): nothing contacts a real endpoint in this workflow, and the
+# mock's request log records exactly what the app asked for. 960x600 is an OUTPUT-mode
+# observation at the app's documented window_min_size (launcher/src/main.rs); it is NOT a
+# window-resize or constraint-enforcement proof. 800x500 is a below-minimum adaptation
+# observation. No accounts, no game/server launch, no purchases. The artifact is review
+# evidence only: not a >9 review, not a release. Rendering is configured for software
+# (headless wlroots + lavapipe ICD); the renderer the compositor and client actually select
+# is NOT verified by this run: no GPU, performance or animation-smoothness claims. The GUI
+# click and scroll use fixed coordinates for the 1280x720 default mode; layout drift fails
+# the run loudly instead of passing silently. A virtual-input exit 0 only proves the
+# compositor accepted the events; scroll proof is the frame pair showing body movement
+# behind the fixed footer (frames inspected), and the click's proof is the saved consent
+# and ping_notice_seen asserts below.
 
 on:
   workflow_dispatch:
@@ -74,10 +80,6 @@ jobs:
             setsid cage -- "$BIN" >"$RUNNER_TEMP/cage-$1.log" 2>&1 &
             cage_pid=$!
           }
-          start_cage_default_endpoint() {
-            env -u HORIZON_TELEMETRY_URL setsid cage -- "$BIN" >"$RUNNER_TEMP/cage-$1.log" 2>&1 &
-            cage_pid=$!
-          }
           find_sock() {
             sock=""
             for i in $(seq 1 30); do
@@ -130,18 +132,25 @@ jobs:
           timeout 60 "$BIN" data status > "$XDG_PICTURES_DIR/data-status-default.txt" 2>&1 \
             || echo "note: data status (default) nonzero" >> "$RUNNER_TEMP/cage-first.log"
           [ ! -e "$CONSENT" ] || { echo "FAIL: consent.json exists before any answer"; exit 1; }
-          # Scroll the dialog body through the compositor's virtual pointer and back (fixed
-          # footer evidence while the body scrolls; frames inspected).
+          # Scroll the dialog body through the compositor's virtual pointer and back. The
+          # client's exit 0 only proves the compositor accepted the events; the proof of
+          # actual scrolling is the frame pair (body moved behind the fixed footer),
+          # inspected from the artifact.
           EXT=$(output_extent); EX=${EXT%x*}; EY=${EXT#*x}
           [ "$EX" = "1280" ] && [ "$EY" = "720" ] || { echo "FAIL: unexpected mode '$EXT' for coordinate input"; exit 1; }
-          "$VINPUT" scroll $((EX/2)) $((EY/2)) "$EX" "$EY" 3 || { echo "FAIL: virtual scroll down"; exit 1; }
+          WAYLAND_DISPLAY="$sock" timeout 20 "$VINPUT" scroll $((EX/2)) $((EY/2)) "$EX" "$EY" 3 \
+            || { echo "FAIL: virtual scroll down (client error)"; exit 1; }
           sleep 1; live dialog-scrolled; cap frame-dialog-scrolled.png
-          "$VINPUT" scroll $((EX/2)) $((EY/2)) "$EX" "$EY" -3 || { echo "FAIL: virtual scroll up"; exit 1; }
+          WAYLAND_DISPLAY="$sock" timeout 20 "$VINPUT" scroll $((EX/2)) $((EY/2)) "$EX" "$EY" -3 \
+            || { echo "FAIL: virtual scroll up (client error)"; exit 1; }
           sleep 1; live dialog-rescrolled; cap frame-dialog-rescrolled.png
           # Click "Keep optional data off" through the GUI itself: the dialog's own button
           # path (collection.rs answer_consent), at its 1280x720 layout position. The asserts
-          # below fail loudly if the layout moved the button.
-          "$VINPUT" click 715 649 "$EX" "$EY" || { echo "FAIL: virtual click"; exit 1; }
+          # below fail loudly if the layout moved the button. The asserts do not by themselves
+          # distinguish this button from "Save choices" with all switches off; the coordinate
+          # plus the before/after frames carry that evidence.
+          WAYLAND_DISPLAY="$sock" timeout 20 "$VINPUT" click 715 649 "$EX" "$EY" \
+            || { echo "FAIL: virtual click (client error)"; exit 1; }
           sleep 2; live after-click; cap frame-after-click.png
           [ -f "$CONSENT" ] || { echo "FAIL: consent.json missing after GUI answer"; exit 1; }
           jq -e '.version == 3 and (.answered | tonumber) > 0
@@ -153,8 +162,9 @@ jobs:
           jq -e '.ping_notice_seen == true' "$SETTINGS" > /dev/null \
             || { echo "FAIL: GUI answer did not set ping_notice_seen:"; cat "$SETTINGS"; exit 1; }
           stop_cage
-          # Endpoint variants through the CLI: one binary, three configurations. The endpoint
-          # and the ping copy must follow the configuration (telemetry.rs status_json).
+          # Endpoint variants through the CLI: one binary, three configurations, no network
+          # (status_json reads config only). The endpoint and the ping copy must follow the
+          # configuration (telemetry.rs status_json).
           env -u HORIZON_TELEMETRY_URL timeout 60 "$BIN" --json data status > "$XDG_PICTURES_DIR/data-status-endpoint-default.json" 2>&1 \
             || { echo "FAIL: data status (endpoint default)"; exit 1; }
           jq -e '.server == null and (.ping | contains("telemetry.goattech.us"))' "$XDG_PICTURES_DIR/data-status-endpoint-default.json" > /dev/null \
@@ -202,10 +212,18 @@ jobs:
           sleep 2; live settings-early; cap frame-settings-off-early.png
           sleep 10; live settings-settled; cap frame-settings-off-settled.png
           stop_cage
-          # Phase 5, true minimum window: the app enforces a 960x600 minimum window size
-          # (launcher/src/main.rs window_min_size); capture the first-run consent dialog at
-          # exactly that mode with a fresh home.
+          # Phase 5, output-mode observation at the app's documented minimum: the source
+          # declares window_min_size 960x600 (launcher/src/main.rs WindowOptions); set the
+          # compositor OUTPUT to that mode with a fresh home and capture the first-run
+          # dialog. This does NOT prove client-side resize behavior or constraint
+          # enforcement; the recorded mode is the evidence of what was observed.
           export HORIZON_HOME="$RUNNER_TEMP/game-home-min"
+          {
+            echo "960x600 phase: compositor output set to the app's documented"
+            echo "window_min_size (launcher/src/main.rs WindowOptions). This is an"
+            echo "output-mode observation of the rendered dialog at that size, not a"
+            echo "window-resize or constraint-enforcement proof."
+          } > "$XDG_PICTURES_DIR/min-window-notes.txt"
           start_cage min
           find_sock min
           sleep 3
@@ -215,8 +233,8 @@ jobs:
           WAYLAND_DISPLAY="$sock" timeout 20 wlr-randr > "$XDG_PICTURES_DIR/wlr-randr-min.txt" 2>&1 || true
           sleep 12; live dialog-min; cap frame-dialog-min.png
           stop_cage
-          # Phase 6, below-minimum adaptation observation (800x500 < the 960x600 minimum):
-          # footer separation under overflow, not a minimum-window test.
+          # Phase 6, below-minimum adaptation observation (800x500 < the 960x600 documented
+          # minimum): footer separation under overflow, not a minimum-window test.
           export HORIZON_HOME="$RUNNER_TEMP/game-home-small"
           start_cage small
           find_sock small
@@ -227,13 +245,26 @@ jobs:
           WAYLAND_DISPLAY="$sock" timeout 20 wlr-randr > "$XDG_PICTURES_DIR/wlr-randr-small.txt" 2>&1 || true
           sleep 10; live dialog-small; cap frame-dialog-small.png
           stop_cage
-          # Phase 7, endpoint at its GoatTech default (no override): the first-run dialog must
-          # show the on-state "I'm playing" ping note (frame inspected).
+          # Phase 7, on-state "I'm playing" ping note WITHOUT any real endpoint contact: a
+          # local mock collector on 127.0.0.1 stands in (tools/mock_collector.py). The mock's
+          # request log records exactly what the app asked for; nothing leaves the runner.
           export HORIZON_HOME="$RUNNER_TEMP/game-home-live"
-          start_cage_default_endpoint live
+          MOCK_LOG="$XDG_PICTURES_DIR/mock-collector-requests.txt"
+          : > "$MOCK_LOG"
+          python3 "$GITHUB_WORKSPACE/tools/mock_collector.py" 127.0.0.1:18789 "$MOCK_LOG" &
+          mock_pid=$!
+          mock_ready=""
+          for i in $(seq 1 40); do
+            curl -fsS -o /dev/null --max-time 2 "http://127.0.0.1:18789/healthz" && { mock_ready=1; break; }
+            sleep 0.5
+          done
+          [ -n "$mock_ready" ] || { echo "FAIL: local mock collector never came up"; exit 1; }
+          HORIZON_TELEMETRY_URL="http://127.0.0.1:18789" setsid cage -- "$BIN" >"$RUNNER_TEMP/cage-live.log" 2>&1 &
+          cage_pid=$!
           find_sock live
-          sleep 12; live dialog-live; cap frame-dialog-ping-default.png
+          sleep 12; live dialog-live; cap frame-dialog-ping-onstate.png
           stop_cage
+          kill "$mock_pid" 2>/dev/null || true
           echo "capture and qualification sequence complete"
           ls -la "$XDG_PICTURES_DIR"
       - name: Evidence manifest
@@ -247,8 +278,14 @@ jobs:
             echo "run_id=${{ github.run_id }}"
             echo "run_attempt=${{ github.run_attempt }}"
             [ -f launcher/target/release/horizon-launcher ] && echo "binary_sha256=$(sha256sum launcher/target/release/horizon-launcher | awk '{print $1}')"
+            echo "virtual_input_c_sha256=$(sha256sum tools/virtual_input.c | awk '{print $1}')"
+            echo "virtual_pointer_xml_sha256=$(sha256sum tools/wlr-virtual-pointer-unstable-v1.xml | awk '{print $1}')"
+            echo "mock_collector_py_sha256=$(sha256sum tools/mock_collector.py | awk '{print $1}')"
+            [ -f "${{ runner.temp }}/virtual-input" ] && echo "virtual_input_bin_sha256=$(sha256sum "${{ runner.temp }}/virtual-input" | awk '{print $1}')"
             rustc --version
             cargo --version
+            gcc --version | head -1
+            wayland-scanner --version 2>&1 | head -1
             dpkg -l cage grim wlr-randr mesa-vulkan-drivers 2>/dev/null | grep '^ii' || true
             vulkaninfo --summary 2>/dev/null | grep -i -m2 "deviceName\|driverName" || true
           } | tee "${{ runner.temp }}/captures/manifest.txt"
