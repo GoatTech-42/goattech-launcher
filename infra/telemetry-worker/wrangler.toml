@@ -1,0 +1,21 @@
+name = "goattech-telemetry"
+main = "src/index.js"
+compatibility_date = "2026-11-03"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "goattech-telemetry"
+database_id = "00000000-0000-0000-0000-000000000000" # local-dev placeholder; real id substituted at deploy
+
+[triggers]
+crons = ["* * * * *"]
+
+# Privacy: no invocation logs (they record request/response metadata) and no
+# Workers Logs. Verified against the deployed settings after every deploy.
+[observability]
+enabled = false
+
+[observability.logs]
+enabled = false
+invocation_logs = false
