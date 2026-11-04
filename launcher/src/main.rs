@@ -4843,7 +4843,8 @@ impl Render for Launcher {
             let gone = 1. - ease_out_cubic(reveal / 0.6);
             let word = div()
                 .flex()
-                .font_family(theme::PIXEL)
+                // The intro-only cut removes the H's M-like central notch.
+                .font_family("GoatTech Opening")
                 .text_size(px(theme::WORDMARK.px * 0.5))
                 .line_height(px(theme::WORDMARK.px * 0.5))
                 .font_weight(FontWeight::BOLD)
@@ -5039,6 +5040,7 @@ fn main() {
                     Cow::Borrowed(horizon_theme::fonts::PIXEL_MEDIUM),
                     Cow::Borrowed(horizon_theme::fonts::PIXEL_SEMIBOLD),
                     Cow::Borrowed(horizon_theme::fonts::PIXEL_BOLD),
+                    Cow::Borrowed(include_bytes!("../assets/fonts/GoatTechOpening-Bold.ttf")),
                 ])
                 .expect("bundled fonts");
             cx.bind_keys(key_bindings());
