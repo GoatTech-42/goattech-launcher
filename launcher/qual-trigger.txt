@@ -1,0 +1,1 @@
+qual trigger: rerun windows gate on 61471fa20 (shortcut test fix)
