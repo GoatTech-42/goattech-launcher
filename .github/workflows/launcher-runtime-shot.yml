@@ -6,10 +6,10 @@ name: launcher-runtime-shot
 # consent dialog, scrolls it and answers "Keep optional data off" through the GUI itself via
 # the compositor's wlr virtual pointer (tools/virtual_input.c), then checks the saved consent
 # answer, the ping_notice_seen side effect and a saved setting across relaunches. Endpoint
-# variants are qualified through the CLI (default/set/off, no network). The on-state
-# "I'm playing" ping note is photographed against a LOCAL mock collector on 127.0.0.1
-# (tools/mock_collector.py): nothing contacts a real endpoint in this workflow, and the
-# mock's request log records exactly what the app asked for. 960x600 is an OUTPUT-mode
+# variants are qualified through the CLI (default/set/off; status_json reads config only,
+# no telemetry traffic). The launcher still makes its ordinary PUBLIC fetches in every
+# phase (version lists and similar); with the endpoint off and nothing consented it
+# transmits no telemetry, and no telemetry endpoint is contacted. 960x600 is an OUTPUT-mode
 # observation at the app's documented window_min_size (launcher/src/main.rs); it is NOT a
 # window-resize or constraint-enforcement proof. 800x500 is a below-minimum adaptation
 # observation. No accounts, no game/server launch, no purchases. The artifact is review
@@ -245,26 +245,6 @@ jobs:
           WAYLAND_DISPLAY="$sock" timeout 20 wlr-randr > "$XDG_PICTURES_DIR/wlr-randr-small.txt" 2>&1 || true
           sleep 10; live dialog-small; cap frame-dialog-small.png
           stop_cage
-          # Phase 7, on-state "I'm playing" ping note WITHOUT any real endpoint contact: a
-          # local mock collector on 127.0.0.1 stands in (tools/mock_collector.py). The mock's
-          # request log records exactly what the app asked for; nothing leaves the runner.
-          export HORIZON_HOME="$RUNNER_TEMP/game-home-live"
-          MOCK_LOG="$XDG_PICTURES_DIR/mock-collector-requests.txt"
-          : > "$MOCK_LOG"
-          python3 "$GITHUB_WORKSPACE/tools/mock_collector.py" 127.0.0.1:18789 "$MOCK_LOG" &
-          mock_pid=$!
-          mock_ready=""
-          for i in $(seq 1 40); do
-            curl -fsS -o /dev/null --max-time 2 "http://127.0.0.1:18789/healthz" && { mock_ready=1; break; }
-            sleep 0.5
-          done
-          [ -n "$mock_ready" ] || { echo "FAIL: local mock collector never came up"; exit 1; }
-          HORIZON_TELEMETRY_URL="http://127.0.0.1:18789" setsid cage -- "$BIN" >"$RUNNER_TEMP/cage-live.log" 2>&1 &
-          cage_pid=$!
-          find_sock live
-          sleep 12; live dialog-live; cap frame-dialog-ping-onstate.png
-          stop_cage
-          kill "$mock_pid" 2>/dev/null || true
           echo "capture and qualification sequence complete"
           ls -la "$XDG_PICTURES_DIR"
       - name: Evidence manifest
@@ -280,7 +260,6 @@ jobs:
             [ -f launcher/target/release/horizon-launcher ] && echo "binary_sha256=$(sha256sum launcher/target/release/horizon-launcher | awk '{print $1}')"
             echo "virtual_input_c_sha256=$(sha256sum tools/virtual_input.c | awk '{print $1}')"
             echo "virtual_pointer_xml_sha256=$(sha256sum tools/wlr-virtual-pointer-unstable-v1.xml | awk '{print $1}')"
-            echo "mock_collector_py_sha256=$(sha256sum tools/mock_collector.py | awk '{print $1}')"
             [ -f "${{ runner.temp }}/virtual-input" ] && echo "virtual_input_bin_sha256=$(sha256sum "${{ runner.temp }}/virtual-input" | awk '{print $1}')"
             rustc --version
             cargo --version
