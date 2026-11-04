@@ -189,7 +189,7 @@ impl Launcher {
             .gap(px(12.))
             .px(px(28.))
             .pt(px(28.))
-            .pb(px(20.))
+            .pb(px(24.))
             .overflow_y_scroll()
             .child(caps(tr("Data collection")).text_color(t.muted))
             .child(
@@ -230,7 +230,10 @@ impl Launcher {
             .justify_end()
             .gap(px(12.))
             .px(px(28.))
+            .pt(px(16.))
             .pb(px(28.))
+            .border_t_1()
+            .border_color(t.rule)
             .children(horizon_telemetry::live_endpoint().is_some().then(|| {
                 div().flex_1().min_w_0().flex().items_center().child(
                     text(theme::CAPTION)
