@@ -30,6 +30,9 @@ options.name_IDs = ['*']
 options.name_legacy = True
 options.name_languages = ['*']
 subsetter = subset.Subsetter(options=options)
-subsetter.populate(text='GOATTECH')
+# The subset still needs an 'm': GPUI's Linux text system drops any registered face whose
+# charmap lacks one (the storybook icon-font hack in third_party/gpui load_family), which
+# would silently fall the wordmark back to a system font. The 'm' is never shown.
+subsetter.populate(text='GOATTECHm')
 subsetter.subset(font)
 font.save(ROOT / 'launcher/assets/fonts/GoatTechOpening-Bold.ttf')

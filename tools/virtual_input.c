@@ -136,9 +136,16 @@ int main(int argc, char **argv) {
     } else if (verb == VERB_SCROLL) {
         int dir = steps < 0 ? -1 : 1;
         if (steps < 0) steps = -steps;
+        /* Declare a wheel source: without an axis_source event clients keep their default
+           (wheel), and some (GPUI's Wayland client) then drop smooth axis values entirely,
+           scrolling nothing. axis_discrete carries the smooth value too, so a separate
+           axis request would send it twice; discrete clicks are what wheel-style clients
+           consume. */
+        zwlr_virtual_pointer_v1_axis_source(vp, WL_POINTER_AXIS_SOURCE_WHEEL);
         for (int i = 0; i < steps; i++) {
-            zwlr_virtual_pointer_v1_axis(vp, now_ms(), 0 /* vertical */,
-                                         wl_fixed_from_double(15.0 * dir));
+            zwlr_virtual_pointer_v1_axis_discrete(vp, now_ms(),
+                                                  WL_POINTER_AXIS_VERTICAL_SCROLL,
+                                                  wl_fixed_from_double(15.0 * dir), dir);
             zwlr_virtual_pointer_v1_frame(vp);
             roundtrip(dpy, "axis");
             usleep(70000);

@@ -33,6 +33,13 @@ class OpeningFont(unittest.TestCase):
             h.draw(pen)
             self.assertEqual(pen.getResult(), want, f'H fill at {point}')
 
+    def test_subset_keeps_the_gpui_m_probe_glyph(self):
+        # third_party/gpui's Linux load_family removes any registered face whose 'm' maps
+        # to glyph id 0, so assert the loader's criterion, not just a cmap key.
+        glyph = self.font.getBestCmap().get(ord('m'))
+        self.assertIsNotNone(glyph)
+        self.assertNotEqual(self.font.getGlyphID(glyph), 0)
+
     def test_other_wordmark_glyphs_and_all_advance_widths_are_unchanged(self):
         for char in 'GOATECH':
             a = self.font.getBestCmap()[ord(char)]
