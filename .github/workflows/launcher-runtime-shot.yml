@@ -1,5 +1,6 @@
 name: launcher-runtime-shot
-# On-demand (this file changing on the integration branch, or manual dispatch), Linux-only,
+# On-demand (a change to this file or to the diagnostic inputs it qualifies, on the
+# integration branch), Linux-only,
 # GitHub-hosted runtime capture and saved-state qualification: builds the launcher fresh from
 # the checked-out source (no artifact reuse), runs it under a headless cage/wlroots compositor,
 # captures the opening wordmark in a dense burst (the H evidence), captures the first-run
@@ -25,10 +26,18 @@ name: launcher-runtime-shot
 on:
   workflow_dispatch:
   push:
-    # Fires only when this workflow file itself changes on the integration branch:
-    # the normal-CI invocation path for the manual capture, nothing wider.
+    # Fires when this workflow or a diagnostic input it qualifies changes on the
+    # integration branch: the virtual-input helper and its protocol, and the opening
+    # wordmark font with its bake/test tooling. Nothing wider: launcher source and
+    # game changes go through their own CI.
     branches: [integrate-nov2-batch-20261103]
-    paths: ['.github/workflows/launcher-runtime-shot.yml']
+    paths:
+      - '.github/workflows/launcher-runtime-shot.yml'
+      - 'tools/virtual_input.c'
+      - 'tools/wlr-virtual-pointer-unstable-v1.xml'
+      - 'tools/bake_opening_font.py'
+      - 'tools/test_opening_font.py'
+      - 'launcher/assets/fonts/**'
 
 permissions:
   contents: read
