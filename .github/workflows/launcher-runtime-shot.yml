@@ -1,11 +1,17 @@
 name: launcher-runtime-shot
-# Manual, Linux-only, GitHub-hosted runtime capture: builds the launcher and photographs real
+# On-demand (this file changing on the integration branch, or manual dispatch), Linux-only,
+# GitHub-hosted runtime capture: builds the launcher and photographs real
 # rendered frames under a headless Wayland compositor (weston) with the software Vulkan driver
 # (lavapipe). No release, no publishing, no self-hosted runners, no secrets. The artifact is review
 # evidence only; it is not a running-app qualification by itself and not a >9 review.
 
 on:
   workflow_dispatch:
+  push:
+    # Fires only when this workflow file itself changes on the integration branch:
+    # the normal-CI invocation path for the manual capture, nothing wider.
+    branches: [integrate-nov2-batch-20261103]
+    paths: ['.github/workflows/launcher-runtime-shot.yml']
 
 permissions:
   contents: read
