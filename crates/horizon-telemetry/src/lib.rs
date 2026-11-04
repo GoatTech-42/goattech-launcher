@@ -32,20 +32,39 @@ pub use payload::{Item, Kind, Payload, Source};
 pub const SCHEMA: u32 = 1;
 
 /// What players agree to. Bumped when what is collected changes: the launcher then asks again,
-/// and until the player answers nothing new is kept or sent. 2: the machine's full hardware
-/// (cores, clocks, VRAM, drive, screen, power, form), 2026-10-23.
-pub const CONSENT_VERSION: u32 = 2;
+/// and until the player answers nothing new is kept or sent under the switches. The always-on
+/// "I'm playing" ping is not a switch and is unchanged by the answer. 2: the machine's full hardware
+/// (cores, clocks, VRAM, drive, screen, power, form), 2026-10-23. 3: the "I'm playing" ping
+/// is on by default and goes to GoatTech's own collector, 2026-11-03.
+pub const CONSENT_VERSION: u32 = 3;
 
 /// The upstream ingest server (`crates/horizon-telemetry-server`, on Railway). NOT contacted
 /// by default in this build: [`endpoint`] returns `None` unless `HORIZON_TELEMETRY_URL`
 /// explicitly names a server (this URL or any other). `HORIZON_TELEMETRY_URL=off` (or `none`,
 /// `0`) also turns everything off, no ping either (tests and automated runs). What is sent
-/// still depends on the player's switches.
+/// still depends on the player's switches. Consented uploads use only this: they never go
+/// to [`LIVE_ENDPOINT`] unless the player configures it as their upload server too.
 pub const DEFAULT_ENDPOINT: &str = "https://telemetry.playhorizon.dev";
 
 /// Where items are sent, if anywhere. `None` unless a server is explicitly configured.
 pub fn endpoint() -> Option<String> {
     resolve(std::env::var("HORIZON_TELEMETRY_URL").ok().as_deref())
+}
+
+/// GoatTech's own collector (`infra/telemetry-worker`): it answers the anonymous "I'm
+/// playing" ping and the live count, and nothing else - no uploads, no hub, no exports.
+pub const LIVE_ENDPOINT: &str = "https://telemetry.goattech.us";
+
+/// Where the ping and the live count go: [`LIVE_ENDPOINT`] by default in this build.
+/// `HORIZON_TELEMETRY_URL=off` (or `none`, `0`) turns the ping and count off; any other
+/// value overrides the address (tests, self-hosting). Only the ping and the count read
+/// this - consented uploads keep using [`endpoint`], unset by default.
+pub fn live_endpoint() -> Option<String> {
+    match std::env::var("HORIZON_TELEMETRY_URL").ok().as_deref().map(str::trim) {
+        Some("off") | Some("none") | Some("0") => None,
+        Some(url) if !url.is_empty() => Some(url.trim_end_matches('/').to_owned()),
+        _ => Some(LIVE_ENDPOINT.to_owned()),
+    }
 }
 
 fn resolve(var: Option<&str>) -> Option<String> {
@@ -136,5 +155,19 @@ mod tests {
             Some(DEFAULT_ENDPOINT)
         );
         assert!(DEFAULT_ENDPOINT.starts_with("https://") && !DEFAULT_ENDPOINT.ends_with('/'));
+        assert!(LIVE_ENDPOINT.starts_with("https://") && !LIVE_ENDPOINT.ends_with('/'));
+    }
+
+    #[test]
+    fn live_endpoint_defaults_to_the_goattech_collector() {
+        // Default: GoatTech's collector. `off`/`none`/`0` turn it off; a URL overrides.
+        // (The env var itself is process-global, so this test must not run alongside
+        // others that set it; it never sets it itself - resolve logic is shared with
+        // `endpoint`, whose cases are covered above. Here we pin the default and the
+        // constant's shape.)
+        assert_eq!(LIVE_ENDPOINT, "https://telemetry.goattech.us");
+        if std::env::var("HORIZON_TELEMETRY_URL").is_err() {
+            assert_eq!(live_endpoint().as_deref(), Some(LIVE_ENDPOINT));
+        }
     }
 }

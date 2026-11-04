@@ -12,7 +12,7 @@ The one exception is the anonymous ["I'm playing" ping](#the-im-playing-ping) be
 { "version": 2, "answered": 1792060800, "choices": { "performance": true, "crashes": true, "bugs": false, "benchmarks": false }, "install_id": "3f2c…" }
 ```
 
-- `version` is the consent version the player answered (`CONSENT_VERSION`). It goes up when what is collected changes. The launcher then asks again, and until the player answers nothing new is kept or sent.
+- `version` is the consent version the player answered (`CONSENT_VERSION`). It goes up when what is collected changes. The launcher then asks again, and until the player answers nothing new is kept or sent under the switches; the always-on "I'm playing" ping (below) is unchanged by the answer.
 - `answered` is when they answered, in seconds since 1970 (UTC).
 - `install_id` is 128 random bits, made the first time the player says yes to anything. It ties their items together so they can be deleted, and nothing else. "Delete my data" asks the server to delete everything under it, then replaces it.
 
@@ -64,13 +64,15 @@ Never sent: account names or UUIDs, world names, server or LAN addresses, chat, 
 - `telemetry/outbox/` holds one JSON file per item, `<day>-<kind>-<random>.json`. It never holds more than 200 items or 2 MiB, and the oldest go first. `kept.json` counts today's items per kind against the caps above.
 - The launcher sends the outbox when it starts and when it closes. Items go as one JSON batch (`{"schema":1,"install_id":…,"items":[…]}`, up to 64 items and 1 MiB), compressed with zstd: `POST /v1/batch` with `Content-Encoding: zstd`. A day's perf summaries are under 2 KB on the wire.
 - After a failure the launcher waits a minute, doubling up to a day, and sends at most 8 batches a day. A batch the server refuses with a 4xx (not 429) is dropped.
-- No server is contacted by default in this build: the launcher and the game send nothing, no ping either, unless `HORIZON_TELEMETRY_URL` explicitly names one. The upstream server is `https://telemetry.playhorizon.dev` (`DEFAULT_ENDPOINT`), on Railway in the EU (`europe-west4`, Amsterdam); setting the variable to it (or any other server) opts in. `HORIZON_TELEMETRY_URL=off` (or `none`, `0`) is the explicit off switch. Tests, CI and the benchmark and test harnesses set `off`.
+- No upload server is contacted by default in this build: nothing you consent to is sent unless `HORIZON_TELEMETRY_URL` explicitly names a server. The upstream server is `https://telemetry.playhorizon.dev` (`DEFAULT_ENDPOINT`), on Railway in the EU (`europe-west4`, Amsterdam); setting the variable to it (or any other server) opts uploads in. The one exception is the "I'm playing" ping below: it goes to GoatTech's own collector by default. `HORIZON_TELEMETRY_URL=off` (or `none`, `0`) is the explicit off switch for everything, ping included. Tests, CI and the benchmark and test harnesses set `off`.
 - What is sent still depends on the switches: with every switch off nothing but the ping leaves, and the outbox stays empty.
 - `SCHEMA` versions the format. New optional fields keep it. A field that changes meaning or goes bumps it, and the server keeps reading the older ones.
 
 ## The "I'm playing" ping
 
 Ludovic decided on 2026-10-22 to count every player, with or without consent, and to tell them. The launcher's first-run question and Settings → Data collection show it as an "Always on" row next to the switches. Players who answered the question before the ping existed see the same text once on the Play page. The privacy page on playhorizon.dev says the same.
+
+In this GoatTech build the ping and the count go to GoatTech's own collector, `telemetry.goattech.us` (`infra/telemetry-worker`, a small Cloudflare Worker), by default; the consented uploads above never go there. The collector answers only the ping and the count: no uploads, no hub, no exports, and no public history endpoint. `HORIZON_TELEMETRY_URL=off` still turns the ping and count off; any other value of it overrides the address for both.
 
 While the game runs (not a dedicated server, a benchmark or a run that quits by itself), a thread of its own (`crates/horizon-client/src/heartbeat.rs`) sends `POST /v1/live` once a minute. It also sends one at once when a world is opened to or closed from LAN or friends:
 
@@ -82,14 +84,14 @@ While the game runs (not a dedicated server, a benchmark or a run that quits by 
 - `version` is the release, `platform` is `linux`, `macos`, `windows` or `other`, and `lan` says whether a LAN or play-with-friends world is open.
 - Nothing else: no account, install ID, world, server, settings or hardware. The server checks each field (`live::Ping::check`) and refuses anything more.
 
-The server keeps sessions in memory only, never on disk, and never with the sender's address. A session counts while its last ping is under 2 minutes old. `GET /v1/live` gives the exact count; versions past the 12 most played are summed under `other`:
+The collector keeps sessions in its database without the sender's address - the ping holds no IP address, and the address is used only as a transient in-memory rate-limit key and is never stored or logged. A session counts while its last ping is under 2 minutes old. Its row (the random number, version, OS, LAN flag and last-ping time - nothing that names a player) is removed by a cleanup that runs about every minute against a one-hour age, so a row can persist up to roughly an hour after the pings stop, and Cloudflare quota can delay cleanup. Beyond those session rows the collector keeps no history of who played. `GET /v1/live` gives the live count, cached up to 10 seconds on the collector; versions past the 12 most played are summed under an overflow label (`other`, shifted if a real version has that name):
 
 ```json
 { "playing": 1243, "lan": 87, "versions": { "v2026.10.22": 1102, "other": 141 }, "platforms": { "linux": 301, "macos": 238, "windows": 704 } }
 ```
 
-The launcher reads it when it opens and every minute after, and shows "N playing now" on the Play page. It shows nothing when the server can't be reached, and reads nothing at all while no server is configured (the default). `HORIZON_TELEMETRY_URL=off` turns both off even with a server configured elsewhere; `HORIZON_NO_HEARTBEAT=1` keeps a single automated run out of the count.
-Once a minute the server writes down only those totals (playing, LAN, per platform; no session, version or address) for the history at [playhorizon.dev/stats](https://playhorizon.dev/stats): every minute for 7 days, then per hour (average and peak) for 90 days, then per day (average and peak) for good. `GET /v1/live/history?range=24h|7d|30d|all` serves it (`&series=official`: the official server's count instead, below):
+The launcher reads it when it opens and every minute after, and shows "N playing now" on the Play page. It shows nothing when the collector can't be reached. `HORIZON_TELEMETRY_URL=off` turns both off; `HORIZON_NO_HEARTBEAT=1` keeps a single automated run out of the count.
+Once a minute the upstream server writes down only those totals (playing, LAN, per platform; no session, version or address) for the history at [playhorizon.dev/stats](https://playhorizon.dev/stats): every minute for 7 days, then per hour (average and peak) for 90 days, then per day (average and peak) for good. `GET /v1/live/history?range=24h|7d|30d|all` serves it (`&series=official`: the official server's count instead, below). GoatTech's collector keeps the same minute (7 days) and hour (90 days) totals - and nothing longer - but serves no public history endpoint:
 
 ```json
 { "source": "players", "range": "24h", "step": 300, "from": 1793404800, "to": 1793491260,
@@ -103,7 +105,7 @@ Once a minute the server writes down only those totals (playing, LAN, per platfo
 
 The server also asks the official server (`horizon_telemetry::server_status::OFFICIAL_STATUS_ADDRESS`, its address with the port its SRV record gives, or `HORIZON_TELEMETRY_OFFICIAL_SERVER`) for its player count every minute, with the server-list status ping every client sends to show a server in its Multiplayer list, and keeps it the same way (`series=official`, playing only; a minute it didn't answer stays empty). Its TPS and MSPT come later, once its admin API is reachable from outside the machine.
 
-The launcher reads the count when it opens and every minute after, and shows "N playing now" on the Play page, exact, with thousands separators; clicking it opens playhorizon.dev/stats. Beside it, "M on the official SMP" is the official server's own count, from the same status ping the launcher sends once a minute (3-second timeout, nothing shown when it doesn't answer); clicking it opens the Servers page. It shows nothing when the server can't be reached. `HORIZON_TELEMETRY_URL=off` turns both off; `HORIZON_NO_HEARTBEAT=1` keeps a single automated run out of the count.
+The launcher reads the count when it opens and every minute after, and shows "N playing now" on the Play page (the collector's count, up to about 10 seconds stale), with thousands separators; clicking it opens playhorizon.dev/stats. Beside it, "M on the official SMP" is the official server's own count, from the same status ping the launcher sends once a minute (3-second timeout, nothing shown when it doesn't answer); clicking it opens the Servers page. It shows nothing when the server can't be reached. `HORIZON_TELEMETRY_URL=off` turns both off; `HORIZON_NO_HEARTBEAT=1` keeps a single automated run out of the count.
 
 ## Server
 

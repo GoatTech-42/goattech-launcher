@@ -46,10 +46,10 @@ fn kind_id(prefix: &str, kind: DataKind) -> &'static str {
 }
 
 /// Where a switch would be: the ping has none.
-/// The ping's state chip: "Always on" while a telemetry server is configured, otherwise
-/// "Off by default" (this build configures no server; see `horizon_telemetry::endpoint`).
+/// The ping's state chip: "Always on" - the ping goes to GoatTech's collector by default
+/// (`horizon_telemetry::live_endpoint`), unless `HORIZON_TELEMETRY_URL=off`.
 fn ping_state(t: &Theme) -> Div {
-    let label = if horizon_telemetry::endpoint().is_some() {
+    let label = if horizon_telemetry::live_endpoint().is_some() {
         tr("Always on")
     } else {
         tr("Off by default")

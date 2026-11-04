@@ -39,20 +39,41 @@ pub const SWITCHES: [(Kind, &str, &str); 4] = [
 /// Never sent, whatever the switches say.
 pub const NEVER: &str = "Never sent: your account name or UUID, world names, server addresses, chat, or your IP address. Each report is dated to the day, under a random install ID you can delete.";
 
-/// The anonymous "I'm playing" ping. In this build it is OFF BY DEFAULT: the game sends it
-/// only when a telemetry server is explicitly configured (`HORIZON_TELEMETRY_URL`); with none,
-/// no ping and no live count. When a server is configured it is sent whatever the switches
-/// say. Shown on the first-run question, in Settings, and once on the Play page (only while a
-/// server is configured).
+/// The anonymous "I'm playing" ping. In this build it is ALWAYS ON: the game sends it to
+/// GoatTech's own collector (`horizon_telemetry::LIVE_ENDPOINT`) whatever the switches say;
+/// `HORIZON_TELEMETRY_URL=off` turns it off. Shown on the first-run question, in Settings,
+/// and once on the Play page.
 pub const PING_NAME: &str = "\"I'm playing\" ping";
-pub const PING: &str = "When a telemetry server is configured, the game sends an anonymous \"I'm playing\" ping once a minute while you play, so the launcher can show how many people play right now. This build configures no server by default: the ping is not sent. The ping holds: a random number made when the game starts and forgotten when it closes, the version, your OS (Linux, macOS or Windows), and whether you have a world open to LAN or friends. It doesn't hold: your account, your install ID, world or server names, or anything you do in the game, and the server doesn't keep your IP address. With a server configured it is sent whatever the switches above say.";
+pub const PING: &str = "The game sends an anonymous \"I'm playing\" ping once a minute while you play, so the launcher can show how many people play right now. The ping is always on and goes to GoatTech's own counter (telemetry.goattech.us), which stores only each session's anonymous row while you play and removes it about an hour after you stop; cleanup can take longer if the service hits its daily limit. The ping holds: a random number made when the game starts and forgotten when it closes, the version, your OS (Linux, macOS or Windows), and whether you have a world open to LAN or friends. It doesn't hold: your account, your install ID, world or server names, or anything you do in the game, and the server doesn't keep your IP address. It is sent whatever the switches above say.";
 
-/// How many play Horizon now (exact), if the server says.
+/// How many play now (cached a few seconds), if GoatTech's collector says. The count and the ping share
+/// [`horizon_telemetry::live_endpoint`]: the collector by default, off with
+/// `HORIZON_TELEMETRY_URL=off`. Never the upload endpoint.
 pub fn playing_now() -> Option<u64> {
-    let endpoint = horizon_telemetry::endpoint()?;
+    let endpoint = count_endpoint()?;
     horizon_telemetry::live::fetch(&endpoint)
         .ok()
         .map(|count| count.playing)
+}
+
+/// Where the live count is read: the same place the ping goes.
+fn count_endpoint() -> Option<String> {
+    horizon_telemetry::live_endpoint()
+}
+
+#[cfg(test)]
+mod live_count_tests {
+    #[test]
+    fn the_count_reads_where_the_ping_goes() {
+        // Binds the consumer, not only the helper: with no override the count asks
+        // GoatTech's collector; `off` turns it off.
+        if std::env::var("HORIZON_TELEMETRY_URL").is_err() {
+            assert_eq!(
+                super::count_endpoint().as_deref(),
+                Some(horizon_telemetry::LIVE_ENDPOINT)
+            );
+        }
+    }
 }
 
 /// The page with the count over time and its peaks, on the website `links.json` names; None when
@@ -66,7 +87,7 @@ pub fn stats_url(website: &str) -> Option<String> {
 /// Sends [`playing_now`] to the window as `Msg::Playing` now and every minute, on its own
 /// thread. Nothing at all when sending is turned off.
 pub fn watch_playing(tx: std::sync::mpsc::Sender<backend::Msg>) {
-    if horizon_telemetry::endpoint().is_none() {
+    if horizon_telemetry::live_endpoint().is_none() {
         return;
     }
     std::thread::spawn(move || {

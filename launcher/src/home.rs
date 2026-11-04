@@ -162,10 +162,10 @@ impl Launcher {
         // Players who answered the first-run question before the ping existed read about it
         // once here.
         // Hidden while the sign-in modal is up: it would cover the notice's Got it.
-        // The notice describes the ping: with no telemetry server configured (the default)
-        // nothing pings, so there is nothing to tell.
+        // The notice describes the ping, which this build sends by default; hidden only
+        // when `HORIZON_TELEMETRY_URL=off` turns it off.
         if !self.settings.ping_notice_seen
-            && horizon_telemetry::endpoint().is_some()
+            && horizon_telemetry::live_endpoint().is_some()
             && !self.collection.consent.needs_asking()
             && !self.asking_owner()
         {

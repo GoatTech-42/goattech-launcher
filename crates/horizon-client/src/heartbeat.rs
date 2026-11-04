@@ -2,8 +2,8 @@
 //! launcher's "N playing now". While the game runs, a thread of its own sends a random session
 //! ID made here and kept only in memory, the version, the platform and whether a LAN or
 //! play-with-friends world is open, every minute and at once when that last one changes.
-//! It sends nothing while no server is configured (the default), when sending is turned off
-//! (`HORIZON_TELEMETRY_URL=off`), or with
+//! It goes to GoatTech's own collector by default (`horizon_telemetry::live_endpoint`),
+//! and sends nothing when sending is turned off (`HORIZON_TELEMETRY_URL=off`), or with
 //! `HORIZON_NO_HEARTBEAT=1` (automated runs).
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -25,7 +25,7 @@ pub fn start() {
     if PINGER.get().is_some() || std::env::var_os("HORIZON_NO_HEARTBEAT").is_some() {
         return;
     }
-    let Some(endpoint) = horizon_telemetry::endpoint() else {
+    let Some(endpoint) = horizon_telemetry::live_endpoint() else {
         return;
     };
     let spawned = std::thread::Builder::new()
