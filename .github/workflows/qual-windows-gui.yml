@@ -1,0 +1,147 @@
+name: qual windows gui 5f15edb69
+# One-off qualification, v3 (repaired per finite workflow review, round 2). Evidence question:
+# does the reviewed launcher GUI launch and present an owned, visible window on a real Windows
+# runner? Scope honestly: launch + owned-window pixels only. NOT interaction proof, NOT the >9
+# release review. No secrets, no cache, no publish, no main change.
+#
+# ONE-SHOT BINDING (external, by design): this file alone cannot enforce a single approved rig.
+# Procedure: the rig is COMMITTED LOCALLY first and its exact commit SHA is reported to Main;
+# Main/QA2 approve that exact SHA; only then is that same commit pushed, which is the only
+# event that can start this workflow (push to the one branch named below). Any later push runs
+# changed code and needs its own review; the writer's CAS check below also pins evidence to the
+# approved head.
+on:
+  push:
+    branches: [qual-windows-gui-5f15edb69]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qual-windows-gui-5f15edb69
+  cancel-in-progress: false
+
+env:
+  HORIZON_TELEMETRY_URL: "off"
+  CARGO_TERM_COLOR: never
+  REVIEWED_SOURCE_SHA: 5f15edb69b4665033dc771b3f93d47735da27dc9
+
+jobs:
+  capture:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    # Job-level binding: only this repo, only a push on the literal qual branch. No fork,
+    # no pull_request, no externally chosen ref.
+    if: >-
+      github.repository == 'GoatTech-42/goattech-launcher' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/qual-windows-gui-5f15edb69'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 5f15edb69b4665033dc771b3f93d47735da27dc9   # exact reviewed source, not the rig commit
+          persist-credentials: false
+      - name: Verify checked-out source identity
+        shell: pwsh
+        run: |
+          $head = (git rev-parse HEAD)
+          if ($head -ne "$env:REVIEWED_SOURCE_SHA") { throw "source mismatch: $head" }
+      - name: Build (debug)
+        working-directory: launcher
+        run: cargo build --locked
+      - name: Launch GUI, await owned visible window, capture owned window pixels
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.Drawing
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; namespace W { public struct R { public int Left; public int Top; public int Right; public int Bottom; } public static class U32 { [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out R r); [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h); [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h); } }'
+          $env:HORIZON_LAUNCHER_HOME = "$env:RUNNER_TEMP\horizon-launcher-gui"
+          $env:HORIZON_LAUNCHER_NO_SELF_UPDATE = '1'
+          $env:HORIZON_TELEMETRY_URL = 'off'
+          $exe = "$PWD\launcher\target\debug\horizon-launcher.exe"
+          $app = Start-Process -PassThru -FilePath $exe
+          $deadline = (Get-Date).AddMinutes(4)
+          $hwnd = [System.IntPtr]::Zero
+          try {
+            while ((Get-Date) -lt $deadline) {
+              $app.Refresh()
+              if ($app.HasExited) { throw "launcher exited during startup, code $($app.ExitCode)" }
+              $hwnd = $app.MainWindowHandle
+              if ($hwnd -ne [System.IntPtr]::Zero) { break }
+              Start-Sleep -Seconds 5
+            }
+            if ($hwnd -eq [System.IntPtr]::Zero) { throw "no owned main window within 4 minutes" }
+            $app.Refresh()
+            if ($app.HasExited) { throw "launcher exited before capture" }
+            if (-not [W.U32]::IsWindowVisible($hwnd)) { throw "owned window not visible" }
+            if ([W.U32]::IsIconic($hwnd)) { throw "owned window minimized" }
+            $r = New-Object W.R
+            if (-not [W.U32]::GetWindowRect($hwnd, [ref]$r)) { throw "GetWindowRect failed" }
+            $w = $r.Right - $r.Left; $h = $r.Bottom - $r.Top
+            if ($w -lt 100 -or $h -lt 100) { throw "owned window geometry implausible: ${w}x${h}" }
+            "GUI_ALIVE=True"
+            "OWNED_WINDOW_RECT=$($r.Left),$($r.Top) ${w}x${h}"
+            "OWNED_WINDOW_TITLE=$($app.MainWindowTitle)"
+            $bmp = New-Object System.Drawing.Bitmap $w, $h
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            try {
+              $app.Refresh()
+              if ($app.HasExited) { throw "launcher exited during capture" }
+              $g.CopyFromScreen($r.Left, $r.Top, 0, 0, $bmp.Size)
+              $bmp.Save("$PWD\qual-windows-gui.png")
+              "SCREENSHOT_SAVED=owned-window ${w}x${h} (occlusion possible: screen-region capture; pixels must still be inspected)"
+            } finally { $g.Dispose(); $bmp.Dispose() }
+          } finally {
+            if (-not $app.HasExited) { Stop-Process -Id $app.Id -Force }
+            $exited = $app.WaitForExit(15000)
+            "OWN_PROCESS_EXITED=$exited"
+            if (-not $exited) { throw "own launcher process did not exit within 15s of stop" }
+          }
+      - name: Hand pixels to the writer job (PNG only, internal artifact transport)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: qual-windows-gui-png
+          path: qual-windows-gui.png
+          retention-days: 1
+
+  write-evidence:
+    needs: capture
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write   # scoped to THIS job only; used solely to commit the PNG to the qual branch
+    if: >-
+      github.repository == 'GoatTech-42/goattech-launcher' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/qual-windows-gui-5f15edb69'
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: qual-windows-gui-png
+      - name: Commit ONLY the validated PNG to the qual branch (fast-forward only, CAS on run head)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Validate the payload before anything touches git: real PNG, sane size, one file.
+          test -f qual-windows-gui.png
+          test "$(od -An -tx1 -N4 qual-windows-gui.png | tr -d ' \n')" = "89504e47" || { echo "not a PNG"; exit 1; }
+          sz=$(stat -c%s qual-windows-gui.png); [ "$sz" -gt 1024 ] && [ "$sz" -lt 20000000 ] || { echo "PNG size implausible: $sz"; exit 1; }
+          # Token travels ONLY in a per-command HTTP header; no token in any URL, so nothing
+          # lands in .git/FETCH_HEAD, config, or refs. Repo URL itself carries no credential.
+          REPO_URL="https://github.com/GoatTech-42/goattech-launcher.git"
+          mkdir evidence && cd evidence
+          git init -q .
+          git -c http.extraHeader="Authorization: Bearer ${GH_TOKEN}" fetch --depth 1 "$REPO_URL" refs/heads/qual-windows-gui-5f15edb69
+          remote_head=$(git rev-parse FETCH_HEAD)
+          # The branch must still be exactly the approved rig commit this run was started from:
+          test "$remote_head" = "${{ github.sha }}" || { echo "branch moved since run start: $remote_head vs ${{ github.sha }}"; exit 1; }
+          git checkout -q FETCH_HEAD
+          cp ../qual-windows-gui.png .
+          git add qual-windows-gui.png
+          # Assert the staged change is exactly the one evidence path, nothing else:
+          test "$(git diff --cached --name-only)" = "qual-windows-gui.png" || { echo "staged diff is not exactly the PNG"; git diff --cached --name-only; exit 1; }
+          git -c user.name="qual-bot" -c user.email="qual-bot@localhost" commit -qm "Windows GUI owned-window pixel evidence for reviewed source 5f15edb69 (one-off qual)"
+          git -c http.extraHeader="Authorization: Bearer ${GH_TOKEN}" push "$REPO_URL" HEAD:refs/heads/qual-windows-gui-5f15edb69   # no force; non-FF rejected
+          # A GITHUB_TOKEN push does not trigger workflows, so this cannot re-run this rig.
