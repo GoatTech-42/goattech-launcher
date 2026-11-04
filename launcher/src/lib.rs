@@ -5,6 +5,7 @@ pub mod cli_tools;
 pub mod agents;
 pub mod backend;
 pub mod browser;
+pub mod build_import;
 pub mod datapacks;
 pub mod desktop;
 pub mod desktop_seams;
@@ -12,10 +13,13 @@ pub mod export;
 #[cfg(unix)]
 pub mod game_app;
 pub mod game_log;
+pub mod github;
 pub mod github_mods;
 pub mod heads;
 pub mod i18n;
 pub mod import;
+#[cfg(windows)]
+pub mod installer;
 pub mod instances;
 pub mod game_tools;
 pub mod java;
@@ -23,11 +27,14 @@ pub mod java_launch;
 pub mod launch;
 pub mod forge_install;
 pub mod loaders;
+#[cfg(target_os = "macos")]
+mod mac_update;
 pub mod minecraft_versions;
 pub mod modpacks;
 pub mod mcp;
 pub mod mojang;
 pub mod native_mods;
+pub mod native_status;
 pub mod nightly;
 pub mod other_launchers;
 pub mod packs;
