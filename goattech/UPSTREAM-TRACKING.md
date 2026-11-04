@@ -2,15 +2,30 @@
 
 Last MERGED upstream batch: 36f4bc00d (2026-10-31, reviewed + merged here).
 
-Pending batch (2026-11-03): the 2026-11-02 sync sits on branch
-`upstream-sync-20261102` (merge 46f093c90, upstream ba5ba8b00), with the
-qualification branch `qual-bin-suite-46f093c90`. It is NOT merged into `main`
-as of 2026-11-03. By merge titles it is a batch of upstream chore/ports PRs
-(vol-a client classes, vol-b game classes) plus native-hooks stamping;
-integration and the usual gates (lib + bin suites, gt-cli live proof) are
-still outstanding, so nothing from it is claimed here yet.
-Batch reviewed: 66 commits since 94b3b4aca; 6 launcher files. Landings that
-matter to GoatTech: native rebuilds now stay on the Horizon the instance plays
+Pending batch (2026-11-03, corrected counts): the 2026-11-02 sync sits on
+branch `upstream-sync-20261102` (merge 46f093c90, upstream ba5ba8b00), with
+the qualification branch `qual-bin-suite-46f093c90`. It is NOT merged into
+`main` as of 2026-11-03. True size of the batch: 5,816 commits (1,445
+first-parent PR merges) since the 2026-10-31 base 36f4bc00d; net delta
+against main's merge-base 954bd4698 is 1,694 files (+430,602/-28,872),
+including upstream's newly vendored third_party/naga. An earlier revision of
+this section said "66 commits since 94b3b4aca; 6 launcher files" - that line
+does not describe this batch by any reproducible count and is corrected here.
+Review state: independent finite SOURCE PASS on 46f093c90 (2026-11-02,
+merge-fidelity scope: 4-file/2,788-blob manifest, delimiter and i18n
+placeholder checks, conflict resolutions verified - not a per-commit review
+of upstream's own history); hosted suite recorded 549 pass / 0 fail (run
+41482712172). Author-side gates on the exact tree (2026-11-03, sandbox):
+lib 493 pass / 0 fail (8 ignored), bins 52 pass / 0 fail, fresh cli build,
+goattech/proof-m1.sh live proof OK - 545 observed locally vs 549 recorded
+hosted, the difference not reconciled by assumption. By merge titles the
+batch is upstream chore/ports PRs (vol-a client classes, vol-b game classes)
+plus native-hooks stamping. Still open before any merge: the
+pixels/interaction running-app gate on the batch tree, and finite review of
+the fresh conflict resolutions against current main on branch
+`integrate-nov2-batch-20261103` (11 files: telemetry docs, 7 lang files,
+heads.rs, instances_page.rs, main.rs).
+Batch landings that matter to GoatTech: Native rebuilds now stay on the Horizon the instance plays
 and inside its instance (647ec89bf: new base_for/--update, toolchain commands
 scrub RUSTFLAGS and CARGO_* so a player's ~/.cargo/config.toml can't change the
 flags, prune keeps the three newest builds), native builds use the fast profile
