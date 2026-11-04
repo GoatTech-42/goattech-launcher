@@ -51,10 +51,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$XDG_RUNTIME_DIR" "$XDG_PICTURES_DIR" "$HOME" && chmod 700 "$XDG_RUNTIME_DIR"
-          cage -- "$GITHUB_WORKSPACE/launcher/target/release/horizon-launcher" >"$RUNNER_TEMP/cage.log" 2>&1 &
+          setsid cage -- "$GITHUB_WORKSPACE/launcher/target/release/horizon-launcher" >"$RUNNER_TEMP/cage.log" 2>&1 &
           cage_pid=$!
           cleanup() {
-            kill "$cage_pid" 2>/dev/null || true
+            # cage runs in its own process group (setsid): signal the group so the launcher
+            # child terminates too; escalate to KILL after a bounded 5s wait.
+            kill -TERM -- -"$cage_pid" 2>/dev/null || kill "$cage_pid" 2>/dev/null || true
+            for i in 1 2 3 4 5; do kill -0 "$cage_pid" 2>/dev/null || break; sleep 1; done
+            kill -KILL -- -"$cage_pid" 2>/dev/null || true
             cp "$RUNNER_TEMP/cage.log" "$XDG_PICTURES_DIR/" 2>/dev/null || true
           }
           trap cleanup EXIT
