@@ -257,7 +257,9 @@ fn register(dir: &Path, exe: &Path, version: &str) -> io::Result<()> {
 }
 
 /// Uninstall copies that stepped aside in %TEMP% in earlier runs and are no longer in use.
-fn clean_temp() {
+/// Only %TEMP% is swept: the same wildcard in the install folder's parent could delete files
+/// the launcher does not own (a player's own `horizon-launcher-uninstall-*.exe` backup).
+fn clean_aside() {
     let own = format!("{ASIDE_PREFIX}{}.exe", std::process::id());
     let Ok(entries) = fs::read_dir(std::env::temp_dir()) else {
         return;
@@ -270,11 +272,59 @@ fn clean_temp() {
     }
 }
 
+/// Moves the running launcher out of `dir` so the folder can go: into %TEMP% when it is on the
+/// same drive, else beside `dir` as a hidden file (a rename never crosses volumes: os error 17).
+/// Windows deletes it at the next restart when the account may ask that (administrators);
+/// otherwise the hidden copy stays beside the install folder, unused, until the player
+/// removes it - it is never swept by wildcard, so only the launcher's own aside file is
+/// ever deleted, and a leftover is honest rather than removed by guessing ownership.
+fn step_aside(own: &Path, dir: &Path) -> io::Result<()> {
+    let name = format!("{ASIDE_PREFIX}{}.exe", std::process::id());
+    let temp = std::env::temp_dir();
+    let mut last = io::Error::new(io::ErrorKind::NotFound, "no folder to step aside to");
+    for place in crate::uninstall_aside::aside_dirs(&dir.to_string_lossy(), &temp.to_string_lossy())
+    {
+        let aside = Path::new(&place).join(&name);
+        match fs::rename(own, &aside) {
+            Ok(()) => {
+                if !same_path(Path::new(&place), &temp) {
+                    hide(&aside);
+                }
+                delete_at_restart(&aside);
+                return Ok(());
+            }
+            Err(e) => last = e,
+        }
+    }
+    Err(last)
+}
+
+fn wide(path: &Path) -> Vec<u16> {
+    use std::os::windows::ffi::OsStrExt;
+    path.as_os_str().encode_wide().chain([0]).collect()
+}
+
+fn hide(path: &Path) {
+    use windows_sys::Win32::Storage::FileSystem::{SetFileAttributesW, FILE_ATTRIBUTE_HIDDEN};
+    let path = wide(path);
+    // SAFETY: `path` is a NUL-terminated UTF-16 string that outlives the call.
+    unsafe { SetFileAttributesW(path.as_ptr(), FILE_ATTRIBUTE_HIDDEN) };
+}
+
+/// Best effort: without administrator rights Windows refuses; the aside copy then stays,
+/// unused, for the player to delete (no wildcard sweep ever guesses ownership).
+fn delete_at_restart(path: &Path) {
+    use windows_sys::Win32::Storage::FileSystem::{MoveFileExW, MOVEFILE_DELAY_UNTIL_REBOOT};
+    let path = wide(path);
+    // SAFETY: as in `hide`; a null new name means "delete".
+    unsafe { MoveFileExW(path.as_ptr(), std::ptr::null(), MOVEFILE_DELAY_UNTIL_REBOOT) };
+}
+
 /// Installs the launcher this process is into `options.dir`. Returns the installed `.exe`.
 pub fn install(options: &Options, progress: impl Fn(Step, f32)) -> Result<PathBuf, String> {
-    clean_temp();
     let source = std::env::current_exe().map_err(|e| e.to_string())?;
     let dir = options.dir.clone();
+    clean_aside();
     if dir.file_name().is_none() {
         return Err(format!("{} is not a folder to install in.", dir.display()));
     }
@@ -319,10 +369,10 @@ fn remove_all(path: &Path, left: &mut Vec<String>) {
 
 /// Takes the install away. Returns what could not be removed (a file in use, say).
 pub fn uninstall(remove_data: bool, progress: impl Fn(Step, f32)) -> Result<Vec<String>, String> {
-    clean_temp();
     let dir = registered()
         .ok_or("Horizon Launcher is not installed for this account.")?
         .dir;
+    clean_aside();
     let exe = dir.join(BINARY);
     let own = backend::exe_path().to_path_buf();
     let mut left = Vec::new();
@@ -366,11 +416,9 @@ pub fn uninstall(remove_data: bool, progress: impl Fn(Step, f32)) -> Result<Vec<
     }
 
     progress(Step::Removing, 0.55);
-    // The running file can be renamed but not deleted: it steps out of the folder into %TEMP%
-    // (the same volume), and the next setup or uninstall clears it ([`clean_temp`]).
+    // The running file can be renamed but not deleted: it steps out of the folder ([`step_aside`]).
     if own.starts_with(&dir) {
-        let aside = std::env::temp_dir().join(format!("{ASIDE_PREFIX}{}.exe", std::process::id()));
-        if let Err(e) = fs::rename(&own, &aside) {
+        if let Err(e) = step_aside(&own, &dir) {
             left.push(format!("{}: {e}", own.display()));
         }
     }
