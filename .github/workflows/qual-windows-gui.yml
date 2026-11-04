@@ -133,7 +133,8 @@ jobs:
           REPO_URL="https://github.com/GoatTech-42/goattech-launcher.git"
           mkdir evidence && cd evidence
           git init -q .
-          git -c http.extraHeader="Authorization: Bearer ${GH_TOKEN}" fetch --depth 1 "$REPO_URL" refs/heads/qual-windows-gui-5f15edb69
+          AUTH_HEADER="Authorization: Basic $(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"  # in-memory only; Git smartHTTP needs Basic x-access-token (Bearer is ignored -> username prompt, run 41769350436 write-evidence)
+          git -c http.extraHeader="$AUTH_HEADER" fetch --depth 1 "$REPO_URL" refs/heads/qual-windows-gui-5f15edb69
           remote_head=$(git rev-parse FETCH_HEAD)
           # The branch must still be exactly the approved rig commit this run was started from:
           test "$remote_head" = "${{ github.sha }}" || { echo "branch moved since run start: $remote_head vs ${{ github.sha }}"; exit 1; }
@@ -143,5 +144,5 @@ jobs:
           # Assert the staged change is exactly the one evidence path, nothing else:
           test "$(git diff --cached --name-only)" = "qual-windows-gui.png" || { echo "staged diff is not exactly the PNG"; git diff --cached --name-only; exit 1; }
           git -c user.name="qual-bot" -c user.email="qual-bot@localhost" commit -qm "Windows GUI owned-window pixel evidence for reviewed source 5f15edb69 (one-off qual)"
-          git -c http.extraHeader="Authorization: Bearer ${GH_TOKEN}" push "$REPO_URL" HEAD:refs/heads/qual-windows-gui-5f15edb69   # no force; non-FF rejected
+          git -c http.extraHeader="$AUTH_HEADER" push "$REPO_URL" HEAD:refs/heads/qual-windows-gui-5f15edb69   # no force; non-FF rejected
           # A GITHUB_TOKEN push does not trigger workflows, so this cannot re-run this rig.
