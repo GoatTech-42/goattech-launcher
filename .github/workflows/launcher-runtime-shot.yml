@@ -1,9 +1,20 @@
 name: launcher-runtime-shot
 # On-demand (this file changing on the integration branch, or manual dispatch), Linux-only,
-# GitHub-hosted runtime capture: builds the launcher and photographs real rendered frames under a
-# headless cage/wlroots compositor. No release, no publishing, no self-hosted runners, no secrets. The
-# artifact is review evidence only; it is not a running-app qualification by itself and not a >9
-# review. The renderer/compositor capture path is a hypothesis until actual pixels are inspected.
+# GitHub-hosted runtime capture and saved-state qualification: builds the launcher fresh from
+# the checked-out source (no artifact reuse), runs it under a headless cage/wlroots compositor,
+# captures the opening wordmark and the first-run consent dialog, answers consent through the
+# launcher's own CLI (the same answer() writer the dialog button calls), and checks the saved
+# answer and a saved setting across relaunches. A small-output run gives the consent dialog's
+# footer spacing at a reduced size (an adaptation observation, not a minimum-window test).
+# No accounts, no game/server launch, no purchases, telemetry endpoint off. The artifact is
+# review evidence only: not a >9 review, not a release. Rendering is configured for software
+# (headless wlroots + lavapipe ICD); the renderer the compositor and client actually select is
+# NOT verified by this run: no GPU, performance or animation-smoothness claims. The button's
+# click path itself is not exercised: no synthetic input route exists in this environment
+# (headless backend consumes no kernel uinput devices, and no supported virtual-pointer client
+# is packaged), so dismissal uses the CLI route that shares the writer
+# (launcher/src/telemetry.rs:174, collection.rs:127); the GUI-only side effect
+# ping_notice_seen (collection.rs:136-138) is likewise not exercised.
 
 on:
   workflow_dispatch:
@@ -33,59 +44,120 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - name: GPUI and compositor libraries (mirrors launcher.yml apt list + cage/grim/mesa)
+      - name: GPUI and compositor libraries (mirrors launcher.yml apt list + capture tools)
         run: |
           sudo apt-get update
           sudo apt-get install -y libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev cage grim wlr-randr mesa-vulkan-drivers vulkan-tools
       - name: Build launcher
         working-directory: launcher
         run: cargo build --release --locked
-      - name: Run and capture real frames
+      - name: Run, capture and qualify saved state
         env:
           XDG_RUNTIME_DIR: ${{ runner.temp }}/xdg
           XDG_PICTURES_DIR: ${{ runner.temp }}/captures
           WLR_BACKENDS: headless
           VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
           HORIZON_LAUNCHER_HOME: ${{ runner.temp }}/launcher-home
+          HORIZON_HOME: ${{ runner.temp }}/game-home
           HOME: ${{ runner.temp }}/shot-home
         run: |
           set -euo pipefail
           mkdir -p "$XDG_RUNTIME_DIR" "$XDG_PICTURES_DIR" "$HOME" && chmod 700 "$XDG_RUNTIME_DIR"
-          setsid cage -- "$GITHUB_WORKSPACE/launcher/target/release/horizon-launcher" >"$RUNNER_TEMP/cage.log" 2>&1 &
-          cage_pid=$!
-          cleanup() {
-            # cage runs in its own process group (setsid): signal the group so the launcher
-            # child terminates too; escalate to KILL after a bounded 5s wait.
+          BIN="$GITHUB_WORKSPACE/launcher/target/release/horizon-launcher"
+          start_cage() {
+            setsid cage -- "$BIN" >"$RUNNER_TEMP/cage-$1.log" 2>&1 &
+            cage_pid=$!
+          }
+          find_sock() {
+            sock=""
+            for i in $(seq 1 30); do
+              for cand in "$XDG_RUNTIME_DIR"/wayland-*; do
+                [ -S "$cand" ] && { sock=$(basename "$cand"); break; }
+              done
+              [ -n "$sock" ] && break
+              sleep 1
+            done
+            [ -n "$sock" ] || { echo "FAIL: compositor socket never appeared ($1)"; exit 1; }
+            echo "compositor socket ($1): $sock"
+          }
+          stop_cage() {
             kill -TERM -- -"$cage_pid" 2>/dev/null || kill "$cage_pid" 2>/dev/null || true
             for i in 1 2 3 4 5; do kill -0 "$cage_pid" 2>/dev/null || break; sleep 1; done
             kill -KILL -- -"$cage_pid" 2>/dev/null || true
-            cp "$RUNNER_TEMP/cage.log" "$XDG_PICTURES_DIR/" 2>/dev/null || true
+          }
+          live() { kill -0 "$cage_pid" 2>/dev/null || { echo "FAIL: launcher died ($1)"; exit 1; }; }
+          cap() {
+            WAYLAND_DISPLAY="$sock" timeout 20 grim "$XDG_PICTURES_DIR/$1" || { echo "FAIL: grim $1"; exit 1; }
+            [ -s "$XDG_PICTURES_DIR/$1" ] || { echo "FAIL: empty frame $1"; exit 1; }
+          }
+          cleanup() {
+            stop_cage
+            cp "$RUNNER_TEMP"/cage-*.log "$XDG_PICTURES_DIR/" 2>/dev/null || true
           }
           trap cleanup EXIT
-          # cage picks its socket with wl_display_add_socket_auto: discover the actual name,
-          # never assume it (its child gets it via env; standalone clients like grim need it set).
-          sock=""
-          for i in $(seq 1 30); do
-            for cand in "$XDG_RUNTIME_DIR"/wayland-*; do
-              [ -S "$cand" ] && { sock=$(basename "$cand"); break; }
-            done
-            [ -n "$sock" ] && break
-            sleep 1
-          done
-          [ -n "$sock" ] || { echo "FAIL: compositor socket never appeared"; exit 1; }
-          echo "compositor socket: $sock"
-          sleep 5
-          kill -0 "$cage_pid" 2>/dev/null || { echo "FAIL: cage exited right after start (see cage.log)"; exit 1; }
-          WAYLAND_DISPLAY="$sock" timeout 20 wlr-randr --output HEADLESS-1 --mode 1440x900 >>"$RUNNER_TEMP/cage.log" 2>&1 \
-            || echo "note: 1440x900 mode set failed; capturing at compositor default size" >>"$RUNNER_TEMP/cage.log"
-          for t in 1 2 3; do
-            sleep 30
-            kill -0 "$cage_pid" 2>/dev/null || { echo "FAIL: cage (and its launcher child) exited before attempt $t"; exit 1; }
-            WAYLAND_DISPLAY="$sock" timeout 20 grim "$XDG_PICTURES_DIR/wayland-screenshot-$t.png" || { echo "FAIL: grim attempt $t"; exit 1; }
-            [ -s "$XDG_PICTURES_DIR/wayland-screenshot-$t.png" ] || { echo "FAIL: empty frame on attempt $t"; exit 1; }
-            mv "$XDG_PICTURES_DIR/wayland-screenshot-$t.png" "$XDG_PICTURES_DIR/frame-$t.png"
-          done
-          echo "captured 3 frames"
+          CONSENT="$HORIZON_HOME/telemetry/consent.json"
+          # Phase 1, default state: opening wordmark first (it ends before consent can show,
+          # collection.rs asking_consent), then the first-run consent dialog.
+          start_cage first
+          find_sock first
+          sleep 1; live intro-1; cap frame-intro-1.png
+          sleep 1; live intro-2; cap frame-intro-2.png
+          sleep 2; live intro-3; cap frame-intro-3.png
+          sleep 6; live intro-4; cap frame-intro-4.png
+          sleep 8; live dialog;  cap frame-dialog.png
+          timeout 60 "$BIN" data status > "$XDG_PICTURES_DIR/data-status-default.txt" 2>&1 \
+            || echo "note: data status (default) nonzero" >> "$RUNNER_TEMP/cage-first.log"
+          [ ! -e "$CONSENT" ] || { echo "FAIL: consent.json exists before any answer"; exit 1; }
+          stop_cage
+          # Phase 2: answer "everything optional off" through the launcher's own CLI (same
+          # answer() writer as the dialog's "Keep optional data off" button).
+          timeout 60 "$BIN" data deny all > "$XDG_PICTURES_DIR/data-deny-all.txt" 2>&1 \
+            || { echo "FAIL: data deny all"; exit 1; }
+          [ -f "$CONSENT" ] || { echo "FAIL: consent.json missing after answer"; exit 1; }
+          jq -e '.version == 3 and (.answered | tonumber) > 0
+            and .choices.performance == false and .choices.crashes == false
+            and .choices.bugs == false and .choices.benchmarks == false
+            and ((.install_id // "") == "")' "$CONSENT" > /dev/null \
+            || { echo "FAIL: consent.json content wrong:"; cat "$CONSENT"; exit 1; }
+          cp "$CONSENT" "$XDG_PICTURES_DIR/consent-after-deny.json"
+          timeout 60 "$BIN" --json data status > "$XDG_PICTURES_DIR/data-status-after-deny.json" 2>&1 \
+            || echo "note: data status (after deny) nonzero" >> "$RUNNER_TEMP/cage-first.log"
+          # Phase 3, relaunch same homes: the dialog must not return and the saved answer must
+          # be untouched (frame inspected; file compared byte for byte).
+          start_cage relaunch
+          find_sock relaunch
+          sleep 1; live relaunch-intro; cap frame-relaunch-intro.png
+          sleep 12; live relaunch; cap frame-relaunch.png
+          cmp -s "$CONSENT" "$XDG_PICTURES_DIR/consent-after-deny.json" \
+            || { echo "FAIL: relaunch rewrote consent.json"; exit 1; }
+          cp "$CONSENT" "$XDG_PICTURES_DIR/consent-after-relaunch.json"
+          stop_cage
+          # Phase 4, settings truthfulness: turn the opening animation off through the CLI,
+          # then a relaunch must start on Home, not the wordmark (frames inspected).
+          timeout 60 "$BIN" settings opening-animation off > "$XDG_PICTURES_DIR/settings-set-opening-off.txt" 2>&1 \
+            || { echo "FAIL: settings opening-animation off"; exit 1; }
+          jq -e '.skip_opening == true' "$HORIZON_LAUNCHER_HOME/settings.json" > /dev/null \
+            || { echo "FAIL: settings.json skip_opening not true:"; cat "$HORIZON_LAUNCHER_HOME/settings.json"; exit 1; }
+          timeout 60 "$BIN" settings > "$XDG_PICTURES_DIR/settings-after-set.txt" 2>&1 \
+            || echo "note: settings list nonzero" >> "$RUNNER_TEMP/cage-relaunch.log"
+          start_cage settings
+          find_sock settings
+          sleep 2; live settings-early; cap frame-settings-off-early.png
+          sleep 10; live settings-settled; cap frame-settings-off-settled.png
+          stop_cage
+          # Phase 5, small-output consent dialog (footer spacing evidence; an adaptation
+          # observation at whatever mode was actually set, not a minimum-window test).
+          export HORIZON_HOME="$RUNNER_TEMP/game-home-small"
+          start_cage small
+          find_sock small
+          sleep 3
+          WAYLAND_DISPLAY="$sock" timeout 20 wlr-randr --output HEADLESS-1 --custom-mode 800x500 >>"$RUNNER_TEMP/cage-small.log" 2>&1 \
+            || WAYLAND_DISPLAY="$sock" timeout 20 wlr-randr --output HEADLESS-1 --mode 800x500 >>"$RUNNER_TEMP/cage-small.log" 2>&1 \
+            || echo "note: 800x500 mode-set failed; small-output dialog captured at the default mode" >> "$RUNNER_TEMP/cage-small.log"
+          WAYLAND_DISPLAY="$sock" timeout 20 wlr-randr > "$XDG_PICTURES_DIR/wlr-randr-small.txt" 2>&1 || true
+          sleep 10; live dialog-small; cap frame-dialog-small.png
+          stop_cage
+          echo "capture and qualification sequence complete"
           ls -la "$XDG_PICTURES_DIR"
       - name: Evidence manifest
         if: always()
