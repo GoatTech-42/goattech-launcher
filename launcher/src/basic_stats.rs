@@ -190,10 +190,14 @@ pub fn choice_status_word() -> u64 {
 /// The newest explicit choice's failed save, for the switch's row: whether the choice
 /// that failed was ON, and the error. `None` while a save is in flight or settled.
 pub fn choice_save_failed() -> Option<(bool, String)> {
+    // The lock first, the word second - the same order the worker publishes in - so a
+    // failed status and its error are always observed as one consistent unit: never a
+    // failure with an empty message, never a stale message for a newer status.
+    let guard = CHOICE_ERROR.lock().unwrap();
     let w = CHOICE_STATUS.load(Ordering::Acquire);
     match w & 0xff {
         code @ (2 | 3) => {
-            let msg = match &*CHOICE_ERROR.lock().unwrap() {
+            let msg = match &*guard {
                 Some((gen, msg)) if *gen == (w >> 8) => msg.clone(),
                 _ => String::new(),
             };
@@ -203,10 +207,44 @@ pub fn choice_save_failed() -> Option<(bool, String)> {
     }
 }
 
+/// What the switch's row may claim, from what is actually KNOWN: a save in flight is
+/// "turning" (no persisted claim), any failed newest choice with the session veto held
+/// is off for this session (the disk record is unknown - it may still say on), and only
+/// otherwise the row quotes the persisted record itself, read from disk now - never a
+/// long-lived GUI snapshot, which another process or a failed save can leave stale.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RowState {
+    /// A choice is being saved; the bool is its direction (true = turning on).
+    Saving(bool),
+    /// A choice failed and the session veto holds: off now, next launch unknown.
+    OffThisSession,
+    OnForInstall,
+    OffForInstall,
+}
+
+/// The row's state, with the choice the window believes is in flight (`chosen`).
+pub fn row_state(chosen: Option<bool>) -> RowState {
+    let w = CHOICE_STATUS.load(Ordering::Acquire);
+    match w & 0xff {
+        1 => RowState::Saving(chosen == Some(true)),
+        2 | 3 if VETO_GEN.load(Ordering::Acquire) != 0 => RowState::OffThisSession,
+        _ => match Settings::load().basic_summaries {
+            Some(true) => RowState::OnForInstall,
+            _ => RowState::OffForInstall,
+        },
+    }
+}
+
 /// One save's completion, for the worker and for tests: the veto and the status move
 /// only by compare-exchange keyed on this choice's own generation, so whatever the
 /// player clicked since this save started always wins.
 fn complete_choice(gen: u64, on: bool, result: std::io::Result<()>) {
+    // Everything the window can observe moves inside this one lock, and the reader takes
+    // the same lock before looking: a completion is published as one consistent unit, so
+    // a repaint between "status" and "error" can never show a failure without its
+    // message. The status itself still moves only by compare-exchange on the exact word
+    // the save started with, so a stale completion changes nothing a newer choice owns.
+    let mut guard = CHOICE_ERROR.lock().unwrap();
     match result {
         Ok(()) => {
             if on {
@@ -241,7 +279,7 @@ fn complete_choice(gen: u64, on: bool, result: std::io::Result<()>) {
                 )
                 .is_ok()
             {
-                *CHOICE_ERROR.lock().unwrap() = Some((gen, e.to_string()));
+                *guard = Some((gen, e.to_string()));
             }
         }
     }

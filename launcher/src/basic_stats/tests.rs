@@ -273,6 +273,108 @@ fn an_off_choice_applies_now_and_lands_after_a_held_lock() {
     std::env::remove_var("HORIZON_LAUNCHER_HOME");
 }
 
+/// Publication consistency, QA's v6 probe shape: an observer polling the row's failure
+/// view must NEVER see a failed status without its error - the completion publishes both
+/// as one unit, so the 80ms drain's repaint can only ever land on a complete state.
+#[test]
+fn a_failed_completion_is_published_as_one_consistent_unit() {
+    let _guard = SERIAL.lock().unwrap();
+    use std::sync::atomic::{AtomicBool as AB, Ordering as O};
+    let stop = std::sync::Arc::new(AB::new(false));
+    let stop2 = stop.clone();
+    let observer = std::thread::spawn(move || {
+        while !stop2.load(O::Relaxed) {
+            if let Some((_, error)) = choice_save_failed() {
+                assert!(!error.is_empty(), "a failed save was visible without its error");
+            }
+        }
+    });
+    for _ in 0..50 {
+        let g = CHOICE_GEN.fetch_add(1, Ordering::AcqRel) + 1;
+        CHOICE_STATUS.store(pack_status(g, 1), Ordering::Release);
+        complete_choice(
+            g,
+            false,
+            Err(std::io::Error::new(std::io::ErrorKind::Other, "disk full")),
+        );
+    }
+    stop.store(true, O::Relaxed);
+    observer.join().unwrap();
+    // Leave a settled newest state behind for the other tests.
+    let g = CHOICE_GEN.fetch_add(1, Ordering::AcqRel) + 1;
+    CHOICE_STATUS.store(pack_status(g, 1), Ordering::Release);
+    complete_choice(g, true, Ok(()));
+    assert!(choice_save_failed().is_none());
+}
+
+/// QA's failedOFF-then-failedON sequence: disk says ON throughout (every save fails on a
+/// held lock), the newest failure is the ON, and the veto still holds - the row must say
+/// "off for this session", never "off for this install", because the persisted record is
+/// still ON and the next launch would collect.
+#[test]
+fn a_failed_on_after_a_failed_off_leaves_the_row_truthful() {
+    let _guard = SERIAL.lock().unwrap();
+    let (launcher, _game) = dirs("rowtruth");
+    std::fs::create_dir_all(&launcher).unwrap();
+    std::env::set_var("HORIZON_LAUNCHER_HOME", &launcher);
+    let mut st = crate::backend::Settings::load();
+    st.basic_summaries = Some(true);
+    st.save_basic_choice().unwrap();
+    let held = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(launcher.join("settings.lock"))
+        .unwrap();
+    held.lock().unwrap();
+    // OFF: veto at once; the save fails on the held lock.
+    let mut off = crate::backend::Settings::load();
+    off.basic_summaries = Some(false);
+    record_choice_async(off);
+    let deadline = Instant::now() + std::time::Duration::from_secs(5);
+    while choice_save_failed().is_none() {
+        assert!(Instant::now() < deadline, "the stuck off was never reported");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    // ON retry: also fails. The newest failure is now the ON.
+    let mut on = crate::backend::Settings::load();
+    on.basic_summaries = Some(true);
+    record_choice_async(on);
+    let deadline = Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        if let Some((was_on, _)) = choice_save_failed() {
+            if was_on {
+                break;
+            }
+        }
+        assert!(Instant::now() < deadline, "the stuck on was never reported");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    // Disk untouched by both failures; collection is off HERE; the row must not claim
+    // "off for this install".
+    assert_eq!(crate::backend::Settings::load().basic_summaries, Some(true));
+    assert!(!enabled());
+    assert_eq!(
+        row_state(Some(true)),
+        RowState::OffThisSession,
+        "the row claimed an install state disk does not have"
+    );
+    // The lock frees, a fresh ON saves, and only then may the row say "on for this
+    // install".
+    drop(held);
+    let mut on = crate::backend::Settings::load();
+    on.basic_summaries = Some(true);
+    record_choice_async(on);
+    let deadline = Instant::now() + std::time::Duration::from_secs(5);
+    while !enabled() {
+        assert!(Instant::now() < deadline, "the retry never landed");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert_eq!(row_state(Some(true)), RowState::OnForInstall);
+    std::env::remove_var("HORIZON_LAUNCHER_HOME");
+}
+
 /// QA's v5 probe, in-repo and deterministic: a stale saved ON - chosen BEFORE a newer
 /// OFF - completes after the OFF was recorded. Its completion must neither clear the
 /// newer OFF's veto nor overwrite the newer choice's status. Driven straight through

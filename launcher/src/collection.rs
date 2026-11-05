@@ -168,7 +168,7 @@ impl Launcher {
     fn basic_row(&self, id: &'static str, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let failed = horizon_launcher::basic_stats::choice_save_failed();
-        let saving = horizon_launcher::basic_stats::choice_status_word() & 0xff == 1;
+        let row = horizon_launcher::basic_stats::row_state(self.settings.basic_summaries);
         div()
             .flex()
             .items_start()
@@ -193,30 +193,30 @@ impl Launcher {
                             .text_color(t.muted)
                             .child(tr(telemetry::BASIC_WHAT)),
                     )
-                    // The truth, in order: a save in flight is "turning", a failed save
-                    // is its effective state (a failed OFF still holds this session; a
-                    // failed ON never turned anything on), and only a settled choice is
-                    // "for this install" - never an optimistic claim while the disk may
-                    // disagree.
+                    // Only what is actually known (row_state): a save in flight is
+                    // "turning", a failed choice with the session veto held is off for
+                    // this session (the disk record is unknown), and anything else quotes
+                    // the persisted record read from disk NOW - never this window's own
+                    // snapshot, which a failed save or another process can leave stale.
                     .child(
                         text(theme::CAPTION)
                             .text_color(t.muted)
-                            .child(if saving {
-                                if self.settings.basic_summaries == Some(true) {
+                            .child(match row {
+                                horizon_launcher::basic_stats::RowState::Saving(true) => {
                                     tr("Turning on...")
-                                } else {
+                                }
+                                horizon_launcher::basic_stats::RowState::Saving(false) => {
                                     tr("Turning off...")
                                 }
-                            } else if let Some((was_on, _)) = &failed {
-                                if *was_on {
-                                    tr("Off for this install.")
-                                } else {
+                                horizon_launcher::basic_stats::RowState::OffThisSession => {
                                     tr("Off for this session.")
                                 }
-                            } else if self.settings.basic_summaries == Some(true) {
-                                tr("On for this install.")
-                            } else {
-                                tr("Off for this install.")
+                                horizon_launcher::basic_stats::RowState::OnForInstall => {
+                                    tr("On for this install.")
+                                }
+                                horizon_launcher::basic_stats::RowState::OffForInstall => {
+                                    tr("Off for this install.")
+                                }
                             }),
                     )
                     // The newest choice's save failed: what the player chose still holds
@@ -226,12 +226,12 @@ impl Launcher {
                         let (on, error) = failed.as_ref().unwrap();
                         d.child(text(theme::CAPTION).text_color(t.warn).child(if *on {
                             trf(
-                                "The choice could not be saved ({error}): basic summaries are still off.",
+                                "The choice could not be saved ({error}): basic summaries stay as they were.",
                                 &[("error", error)],
                             )
                         } else {
                             trf(
-                                "Basic summaries are off for the rest of this session, but the choice could not be saved ({error}): they will be on again the next time the launcher starts.",
+                                "Basic summaries are off for the rest of this session, but the choice could not be saved ({error}): they may be on again the next time the launcher starts.",
                                 &[("error", error)],
                             )
                         }))
