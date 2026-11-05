@@ -168,6 +168,7 @@
   "Tailscale is installed but not running. Open it and switch it on.": "Tailscale jest zainstalowany, ale nie działa. Otwórz go i włącz.",
   "← All servers": "← Wszystkie serwery",
   "{version} available": "Dostępna wersja {version}",
+  "this build does not replace itself": "ta kompilacja nie zastępuje się sama",
   "Restarting": "Ponowne uruchamianie",
   "Not prepared. Horizon can download Minecraft {version} from Mojang for your account, or use your own install.": "Nieprzygotowane. Horizon może pobrać Minecrafta {version} z Mojang dla twojego konta lub użyć twojej instalacji.",
   "On while playing": "On while playing",

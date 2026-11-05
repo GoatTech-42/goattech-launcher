@@ -31,6 +31,7 @@
   "Show the opening": "Açılış animasyonunu göster",
   "The wordmark, while the release list loads.": "Sürüm listesi yüklenirken logo.",
   "{version} available": "{version} mevcut",
+  "this build does not replace itself": "bu derleme kendini yenisiyle değiştirmez",
   "Up to date": "Güncel",
   "up to date": "güncel",
   "Checking…": "Kontrol ediliyor…",

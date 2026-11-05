@@ -3467,6 +3467,11 @@ impl Launcher {
                 trf("the update failed: {error}", &[("error", e)])
             ),
             SelfUpdate::Idle => match &self.updates.launcher {
+                Some(_) if !backend::self_update_allowed() => format!(
+                    "{}  ·  {}",
+                    backend::VERSION,
+                    tr("this build does not replace itself")
+                ),
                 Some(r) => format!(
                     "{}  ·  {}",
                     backend::VERSION,

@@ -2645,7 +2645,36 @@ fn releases_and_updates_with(
 
 /// A fresh release-list request for both kinds of update (plus older-launcher fallback if needed).
 pub fn check_updates() -> Result<Updates, String> {
+    if let Some(fake) = debug_fake_launcher_update() {
+        return Ok(fake);
+    }
     releases_and_updates(|_| {})
+}
+
+/// A fixture for screenshots and manual checks in development builds: with
+/// `HORIZON_LAUNCHER_DEBUG_FAKE_LAUNCHER_TAG` set to a tag, the check reports that launcher
+/// release as available and touches no network. Nothing is downloaded or replaced; release
+/// builds never read it.
+#[cfg(debug_assertions)]
+fn debug_fake_launcher_update() -> Option<Updates> {
+    let tag = std::env::var("HORIZON_LAUNCHER_DEBUG_FAKE_LAUNCHER_TAG").ok()?;
+    Some(Updates {
+        horizon: None,
+        launcher: Some(Release {
+            tag,
+            name: String::new(),
+            body: String::new(),
+            date: String::new(),
+            asset: None,
+            prerelease: false,
+            nightly: None,
+        }),
+    })
+}
+
+#[cfg(not(debug_assertions))]
+fn debug_fake_launcher_update() -> Option<Updates> {
+    None
 }
 
 /// Whether a version installed as an update becomes the selected one: when the player had none,
@@ -2752,9 +2781,21 @@ fn launcher_asset_running_from(appimage: bool) -> Option<&'static str> {
     }
 }
 
-/// Development builds and `HORIZON_LAUNCHER_NO_SELF_UPDATE` never replace themselves.
+/// Development builds and `HORIZON_LAUNCHER_NO_SELF_UPDATE` never replace themselves. Neither
+/// does a GoatTech build while its release feed is the upstream Horizon one ([`REPO`]): a
+/// self-update would silently put upstream's launcher in place of this one. Only the fork's
+/// own verified feed may ever re-enable replacement.
 pub fn self_update_allowed() -> bool {
-    !cfg!(debug_assertions) && std::env::var_os("HORIZON_LAUNCHER_NO_SELF_UPDATE").is_none()
+    !cfg!(debug_assertions)
+        && std::env::var_os("HORIZON_LAUNCHER_NO_SELF_UPDATE").is_none()
+        && replacement_feed(REPO)
+}
+
+/// The first condition a build must meet before it may replace itself: the feed it checks is
+/// its own. A string gate only, not a verified feed — signing, assets and readiness would each
+/// still have to be proven before any GoatTech feed existed.
+fn replacement_feed(repo: &str) -> bool {
+    repo == "GoatTech-42/goattech-launcher"
 }
 
 /// The version in `horizon-launcher --version`'s output (`horizon-launcher 0.1.5`).
@@ -2926,6 +2967,11 @@ fn replace_bundle(_new: &Path, _app: &Path) -> Result<(), String> {
 /// working; `restart` starts the new one. When the file there already is that release or
 /// a newer one (updated from the command line or another window), there is nothing to do.
 pub fn self_update(release: &Release, progress: impl Fn(f32)) -> Result<(), String> {
+    // The guard lives here, not only at the call sites: a build that may not replace itself
+    // must not reach the probe, the download or the place, whoever calls.
+    if !self_update_allowed() {
+        return Err("This build does not replace itself.".into());
+    }
     let (url, size) = release
         .asset
         .clone()
@@ -3620,6 +3666,36 @@ mod prepared_tests;
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn only_the_forks_own_feed_may_replace_it() {
+        assert!(!replacement_feed("horizon-rust/horizon"));
+        assert!(!replacement_feed("someone-else/launcher"));
+        // The fork's own string passes the literal gate — which is all this is: no verified
+        // GoatTech feed exists, and signing and asset readiness would be theirs to prove.
+        assert!(replacement_feed("GoatTech-42/goattech-launcher"));
+        // Today's builds have no such feed, so none of them replace themselves.
+        assert!(!replacement_feed(REPO));
+        assert!(!self_update_allowed());
+    }
+
+    #[test]
+    fn a_disallowed_self_update_stops_before_any_probe_or_download() {
+        // A missing guard or changed guard words fail this test: the asset URL points nowhere
+        // real, and the exact error matches the guard's own. Stopping before any IO comes from
+        // the guard's source position (self_update's first statement, before the probe and the
+        // download), which this test alone does not establish.
+        let release = Release {
+            tag: "launcher@9.9.9".into(),
+            name: String::new(),
+            body: String::new(),
+            date: String::new(),
+            asset: Some(("file:///definitely-not-a-real-place".into(), 1)),
+            prerelease: false,
+            nightly: None,
+        };
+        let err = self_update(&release, |_| {}).unwrap_err();
+        assert_eq!(err, "This build does not replace itself.");
+    }
     use super::*;
     use std::cmp::Ordering::*;
 

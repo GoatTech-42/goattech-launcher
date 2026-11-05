@@ -31,6 +31,7 @@
   "Show the opening": "起動アニメーションを表示",
   "The wordmark, while the release list loads.": "リリース一覧の読み込み中にロゴアニメーションを表示します。",
   "{version} available": "{version} が利用可能です",
+  "this build does not replace itself": "このビルドは自身を置き換えません",
   "Up to date": "最新の状態です",
   "up to date": "最新",
   "Checking…": "確認中…",

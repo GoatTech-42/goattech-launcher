@@ -168,6 +168,7 @@
   "Tailscale is installed but not running. Open it and switch it on.": "Tailscale 已安装但未运行。请打开并启用它。",
   "← All servers": "← 所有服务器",
   "{version} available": "{version} 可用",
+  "this build does not replace itself": "此构建不会替换自身",
   "Restarting": "正在重启",
   "Not prepared. Horizon can download Minecraft {version} from Mojang for your account, or use your own install.": "未准备。Horizon 可以为你的账户从 Mojang 下载 Minecraft {version}，也可以使用你已有的安装。",
   "On while playing": "On while playing",
