@@ -1,0 +1,251 @@
+name: windows-runtime-shot
+# REVIEW-ONLY candidate v3 (off-PC Windows GUI qualification for the launcher).
+# Windows counterpart of launcher-runtime-shot.yml, deliberately narrower.
+# Automation checks (what exit 0 asserts): the launcher process stays alive for the
+# whole capture phase, and a visible, non-minimized, owned main window of at least
+# 200x200 was observed at least once. Window state is RE-CHECKED and recorded per
+# frame; the per-frame lines in window-info.txt are the evidence - if every frame
+# was skipped or the window was later lost, that is what the log says, and the
+# final line says WINDOW-AFTER-INITIAL: unverified.
+# NOT asserted: rendering, pixels, input, consent, game launch, continuous window
+# presence. Frame pixel content is INCONCLUSIVE until a human/QA inspects the
+# log-exported frames - PrintWindow can return true with black output on some
+# swapchain windows. The graphics adapter GPUI selects on this runner is NOT
+# verified; no GPU, performance or animation claims. No accounts, no sign-in, no
+# telemetry (endpoint off), no self-update, no purchases. The run log of a public
+# repository is PUBLIC: the launcher runs on a fresh scratch profile (env homes
+# below), so nothing sensitive is expected in the window or the log.
+# NO-BILL design, scoped to THIS workflow on THIS public repo (no sibling
+# guarantee): it uses NO Actions artifact storage and NO Actions cache - the only
+# GitHub surfaces are runner compute (free for standard GitHub-hosted runners in
+# public repositories, per GitHub's billing doc) and the run log. Frames leave the runner as base64 blocks in the raw run log between
+# ###FRAME-BEGIN / ###FRAME-END markers; window-info is printed to the log and
+# the step summary. Decode a frame: copy its block, base64 -d > frame.png.
+# No account billing/budget state is relied on: there is nothing to bill.
+# Capture time-boxing is BEST-EFFORT: each PrintWindow runs in a child job with a
+# 30s wait, but Stop-Job against a thread stuck in a native call may itself block.
+# Hard bounds: 3 min on the capture step, 2 min on the export step, 90 min on the
+# whole job; a runner-forced kill at any bound can bypass the script's finally
+# cleanup.
+# Two triggers, both off-PC and free-tier:
+# - push of THIS workflow file to the DEDICATED diagnostic branch fires the run
+#   by itself. The branch carries only this file on top of the qualification
+#   ref, so the run builds exactly that ref's launcher. Branch isolation (full
+#   trigger inventory at cb11369, all 21 workflows): every other push trigger in
+#   the repo targets main, launcher*, pack-bench/**, or
+#   integrate-nov2-batch-20261103 - none matches diag-windows-runtime-20261105,
+#   and no workflow has an unfiltered push trigger. No pull request is opened
+#   from the branch, so no pull_request/pull_request_target workflow fires.
+#   Deleting the branch afterwards starts nothing (no deleted-branch triggers
+#   exist) and reverts the whole route.
+# - workflow_dispatch stays inert until the file reaches the DEFAULT branch
+#   (GitHub requirement); kept for later reuse.
+# Nothing else in the repo triggers this workflow: no schedule, no other paths,
+# no pull_request.
+
+on:
+  push:
+    branches: [diag-windows-runtime-20261105]
+    paths:
+      - '.github/workflows/windows-runtime-shot.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-runtime-shot-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HORIZON_TELEMETRY_URL: "off"
+  HORIZON_LAUNCHER_NO_SELF_UPDATE: "1"
+
+jobs:
+  capture:
+    name: windows runtime capture
+    runs-on: windows-latest
+    # Uncached cold build on a 4-core runner can take a while; compute is free
+    # for this public repo, the capture step still has its own 3-min bound.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      # No third-party toolchain action: rustup is preinstalled on windows-latest
+      # (same style as ci.yml), one less mutable pin than dtolnay/rust-toolchain.
+      - name: Rust toolchain
+        shell: pwsh
+        run: rustup toolchain install stable --profile minimal
+      - name: Build launcher
+        working-directory: launcher
+        run: cargo build --release --locked
+      - name: Run, capture frames, qualify window state
+        shell: pwsh
+        # Step-level hard bound per Main: a hung capture phase dies here in 3
+        # minutes instead of burning the 45-min job timeout. Runner-forced
+        # cancellation can bypass the script's finally cleanup (best-effort only).
+        timeout-minutes: 3
+        env:
+          HORIZON_LAUNCHER_HOME: ${{ runner.temp }}\launcher-home
+          HORIZON_HOME: ${{ runner.temp }}\game-home
+          CAP: ${{ runner.temp }}\captures
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force $env:CAP | Out-Null
+          $info = "$env:CAP\window-info.txt"
+          # C# as ONE single-quoted line: no here-string anywhere in this file.
+          $src = 'using System;using System.Runtime.InteropServices;public class WinCap{[DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr h,out RECT r);[DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr h);[DllImport("user32.dll")]public static extern bool IsIconic(IntPtr h);[DllImport("user32.dll")]public static extern bool PrintWindow(IntPtr h,IntPtr dc,uint flags);public struct RECT{public int Left,Top,Right,Bottom;}}'
+          Add-Type -TypeDefinition $src -ReferencedAssemblies System.Drawing
+          Add-Type -AssemblyName System.Drawing
+          $bin = "$PWD\launcher\target\release\horizon-launcher.exe"
+          $binHash = (Get-FileHash $bin -Algorithm SHA256).Hash
+          "source-commit: $env:GITHUB_SHA" | Out-File $info
+          "binary-sha256: $binHash" | Out-File $info -Append
+          $proc = Start-Process -FilePath $bin -PassThru
+          $checksPass = $false
+          try {
+            # Bounded wait for the process's main window (Process.MainWindowHandle:
+            # no EnumWindows callback, no delegate binding).
+            $hwnd = [IntPtr]::Zero
+            for ($i = 0; $i -lt 60 -and $hwnd -eq [IntPtr]::Zero; $i++) {
+              Start-Sleep -Seconds 1
+              $proc.Refresh()
+              if ($proc.HasExited) { throw "FAIL: launcher exited before a window (code $($proc.ExitCode))" }
+              $h = $proc.MainWindowHandle
+              if ($h -ne [IntPtr]::Zero -and [WinCap]::IsWindowVisible($h) -and -not [WinCap]::IsIconic($h)) {
+                $r = New-Object WinCap+RECT
+                if ([WinCap]::GetWindowRect($h, [ref]$r) -and ($r.Right - $r.Left) -ge 200 -and ($r.Bottom - $r.Top) -ge 200) {
+                  $hwnd = $h
+                  "initial-window: $($r.Right - $r.Left)x$($r.Bottom - $r.Top) hwnd=$hwnd title='$($proc.MainWindowTitle)'" | Out-File $info -Append
+                }
+              }
+            }
+            if ($hwnd -eq [IntPtr]::Zero) { throw "FAIL: no visible owned main window >=200x200 within 60s" }
+            # Three capture attempts. Window state is re-validated and recorded per
+            # frame; each PrintWindow runs in a child job with a BEST-EFFORT 30s
+            # wait (see header: Stop-Job on a native hang may itself block).
+            $okCount = 0; $seenCount = 0
+            for ($f = 1; $f -le 3; $f++) {
+              if ($f -gt 1) { Start-Sleep -Seconds 3 }
+              $proc.Refresh()
+              if ($proc.HasExited) { throw "FAIL: launcher died before frame $f (code $($proc.ExitCode))" }
+              $h = $proc.MainWindowHandle
+              if ($h -eq [IntPtr]::Zero) { "frame ${f}: SKIPPED main window handle lost" | Out-File $info -Append; continue }
+              $r = New-Object WinCap+RECT
+              $rectOk = [WinCap]::GetWindowRect($h, [ref]$r)
+              $w = if ($rectOk) { $r.Right - $r.Left } else { 0 }
+              $hgt = if ($rectOk) { $r.Bottom - $r.Top } else { 0 }
+              $vis = [WinCap]::IsWindowVisible($h); $iconic = [WinCap]::IsIconic($h)
+              $state = "visible=$vis iconic=$iconic geometry=${w}x${hgt}"
+              if (-not $rectOk -or -not $vis -or $iconic -or $w -lt 200 -or $hgt -lt 200) {
+                "frame ${f}: WINDOW-NOT-OK $state - capture skipped" | Out-File $info -Append; continue
+              }
+              # Geometry/pixel ceiling BEFORE any bitmap allocation: an absurd
+              # window must not allocate an unbounded bitmap.
+              if ($w -gt 3840 -or $hgt -gt 3840 -or [int64]$w * $hgt -gt 16777216) {
+                "frame ${f}: CAPTURE-SKIPPED-OVERSIZE $state (limits 3840px/16MP)" | Out-File $info -Append; continue
+              }
+              $seenCount++
+              $png = "$env:CAP\frame-$f.png"
+              # HWND crosses the job boundary as Int64, not IntPtr (serialization-safe).
+              $job = Start-Job -ArgumentList $h.ToInt64(), $w, $hgt, $png, $src -ScriptBlock {
+                param($hwnd64, $w, $hgt, $png, $src)
+                $ErrorActionPreference = 'Stop'
+                Add-Type -TypeDefinition $src -ReferencedAssemblies System.Drawing
+                Add-Type -AssemblyName System.Drawing
+                $bmp = New-Object System.Drawing.Bitmap $w, $hgt
+                try {
+                  $g = [System.Drawing.Graphics]::FromImage($bmp)
+                  $dc = [IntPtr]::Zero
+                  try {
+                    $dc = $g.GetHdc()
+                    $ok = [WinCap]::PrintWindow([IntPtr]$hwnd64, $dc, 2)
+                  } finally {
+                    if ($dc -ne [IntPtr]::Zero) { $g.ReleaseHdc($dc) }
+                    $g.Dispose()
+                  }
+                  if ($ok) { $bmp.Save($png, [System.Drawing.Imaging.ImageFormat]::Png) }
+                  "pw=$ok ${w}x${hgt}"
+                } finally {
+                  $bmp.Dispose()
+                }
+              }
+              $done = Wait-Job $job -Timeout 30
+              if (-not $done) {
+                # Best-effort stop: may block on a native-stuck thread (job timeout is the hard bound).
+                Stop-Job $job -ErrorAction SilentlyContinue | Out-Null
+                Remove-Job $job -Force -ErrorAction SilentlyContinue
+                "frame ${f}: CAPTURE-TIMEOUT (30s best-effort) $state" | Out-File $info -Append
+              } else {
+                $res = Receive-Job $job; Remove-Job $job -Force -ErrorAction SilentlyContinue
+                "frame ${f}: $res $state (PrintWindow true=API-accepted; pixels INCONCLUSIVE until inspected)" | Out-File $info -Append
+                if ($res -match 'pw=True') { $okCount++ }
+              }
+            }
+            $proc.Refresh()
+            if ($proc.HasExited) { throw "FAIL: launcher exited during captures (code $($proc.ExitCode))" }
+            # Automation checks only. Window claim is what the per-frame lines show.
+            "AUTOMATION-CHECKS: process-alive=whole-phase initial-visible-owned-window>=200x200=yes frames-window-ok=$seenCount/3 captures-accepted=$okCount/3" | Out-File $info -Append
+            if ($seenCount -eq 0) { "WINDOW-AFTER-INITIAL: unverified (every frame skipped)" | Out-File $info -Append }
+            "NOT-PROVEN: rendering/pixels/input/consent/game-launch/GPU/continuous-presence - frames require human inspection" | Out-File $info -Append
+            $checksPass = $true
+          } finally {
+            # Best-effort cleanup: any leftover capture jobs, then the launcher's main
+            # process only - children are not tracked and no tree cleanup is claimed.
+            Get-Job | Stop-Job -ErrorAction SilentlyContinue | Out-Null
+            Get-Job | Remove-Job -Force -ErrorAction SilentlyContinue
+            if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+          }
+          if (-not $checksPass) { exit 1 }
+      # Evidence transport with ZERO artifact storage: frames as base64 blocks in
+      # the raw run log, stats in the step summary. Runs even when the capture
+      # step failed or was killed - whatever frames exist get exported.
+      - name: Export evidence to log and summary (no artifact storage)
+        if: always()
+        shell: pwsh
+        timeout-minutes: 2
+        env:
+          CAP: ${{ runner.temp }}\captures
+        run: |
+          $ErrorActionPreference = 'Continue'
+          # Export ceilings, checked BEFORE reading each file: no unbounded
+          # ReadAllBytes/base64 into the log. Per-file raw limit 1,500,000 bytes;
+          # total ENCODED base64 characters across all frames 6,000,000.
+          $maxPngBytes = 1500000
+          $maxEncodedTotal = 6000000
+          $encodedTotal = 0
+          $info = "$env:CAP\window-info.txt"
+          if (Test-Path $info) {
+            Get-Content $info | ForEach-Object { Write-Output $_ }
+            Get-Content $info | ForEach-Object { Add-Content $env:GITHUB_STEP_SUMMARY "| $_ |" }
+            Add-Content $env:GITHUB_STEP_SUMMARY "`nFrames are base64 blocks in this run's raw log between ###FRAME-BEGIN and ###FRAME-END markers. Decode: copy a block, then ``base64 -d > frame.png``."
+          } else {
+            Write-Output "NO-EVIDENCE: window-info.txt missing (capture step died before writing)"
+            Add-Content $env:GITHUB_STEP_SUMMARY "NO-EVIDENCE: capture step produced no window-info - see job log."
+          }
+          $frames = @(Get-ChildItem "$env:CAP\frame-*.png" -ErrorAction SilentlyContinue)
+          if ($frames.Count -eq 0) { Write-Output "###FRAMES-NONE found=0 expected<=3 - no frame files present" }
+          elseif ($frames.Count -lt 3) { Write-Output "###FRAMES-INCOMPLETE found=$($frames.Count) expected=3" }
+          foreach ($png in $frames) {
+            $len = $png.Length
+            $enc = 4 * [Math]::Ceiling($len / 3)
+            if ($len -gt $maxPngBytes) {
+              Write-Output "###FRAME-SKIP $($png.Name) reason=oversize bytes=$len limit=$maxPngBytes"
+              continue
+            }
+            if ($encodedTotal + $enc -gt $maxEncodedTotal) {
+              Write-Output "###FRAME-SKIP $($png.Name) reason=total-ceiling encoded-would-be=$($encodedTotal + $enc) limit=$maxEncodedTotal"
+              continue
+            }
+            $bytes = [IO.File]::ReadAllBytes($png.FullName)
+            $sha = (Get-FileHash $png.FullName -Algorithm SHA256).Hash
+            Write-Output "###FRAME-BEGIN $($png.Name) sha256=$sha bytes=$($bytes.Length)"
+            $b64 = [Convert]::ToBase64String($bytes)
+            for ($i = 0; $i -lt $b64.Length; $i += 76) {
+              Write-Output $b64.Substring($i, [Math]::Min(76, $b64.Length - $i))
+            }
+            Write-Output "###FRAME-END $($png.Name)"
+            $encodedTotal += $enc
+          }
+          Write-Output "###EXPORT-SUMMARY frames-present=$($frames.Count) encoded-chars=$encodedTotal ceiling=$maxEncodedTotal"
