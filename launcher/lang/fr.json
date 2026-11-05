@@ -1044,5 +1044,6 @@
   "After each session: frame-time and tick-time statistics, peak memory and startup times, with your machine's specs (OS, CPU, GPU, memory, screen, battery) and the settings that change performance.": "After each session: frame-time and tick-time statistics, peak memory and startup times, with your machine's specs (OS, CPU, GPU, memory, screen, battery) and the settings that change performance.",
   "Once a minute while you play: an anonymous count, so the launcher can show how many people play right now. Sent whatever the switches say; only a configuration change turns it off. No account, no install ID, no world or server names - your session's anonymous row is removed about an hour after you stop.": "Once a minute while you play: an anonymous count, so the launcher can show how many people play right now. Sent whatever the switches say; only a configuration change turns it off. No account, no install ID, no world or server names - your session's anonymous row is removed about an hour after you stop.",
   "View details and example reports": "View details and example reports",
+  "Down and Up read through the examples.": "Parcourez les exemples avec les flèches bas et haut.",
   "Hide details and example reports": "Hide details and example reports"
 }

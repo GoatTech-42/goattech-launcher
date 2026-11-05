@@ -9,6 +9,7 @@ use horizon_telemetry::{Choices, Consent, Kind as DataKind};
 /// The five choice rows are direct children in this order; details sits after NEVER.
 pub(crate) const ASK_CHILD_BASIC: usize = 3;
 pub(crate) const ASK_CHILD_DETAILS: usize = 10;
+/// The example reports, right after the details row, once they show.
 pub(crate) const ASK_CHILD_JSON: usize = 11;
 
 pub(crate) struct Collection {
@@ -34,6 +35,13 @@ impl Collection {
     /// Scroll the question's body to its foot, where the details row and answers sit.
     pub(crate) fn body_to_bottom(&self) {
         self.body_scroll.handle.scroll_to_bottom();
+    }
+
+    /// Scroll the question's body so child `ix` is its first visible row. The request pends
+    /// until the child has bounds, so a region that is still being laid out is landed on once
+    /// it measures.
+    pub(crate) fn body_to_item_top(&self, ix: usize) {
+        self.body_scroll.handle.scroll_to_top_of_item(ix);
     }
 
     /// Scroll the question's body back to its first row.
@@ -162,8 +170,8 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
             .flex()
             .flex_col()
             .gap(px(2.))
-            .child(text(theme::CAPTION).text_color(t.ink).child(tr(name)))
-            .child(text(theme::CAPTION).text_color(t.muted).child(tr(what)))
+            .child(text(theme::UI).text_color(t.ink).child(tr(name)))
+            .child(text(theme::UI).text_color(t.ink_soft).child(tr(what)))
     };
     let kinds = telemetry::SWITCHES
         .iter()
@@ -173,10 +181,12 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
         .flex_col()
         .gap(px(8.))
         .child(
+            // How to read on, said where the reading starts.
             text(theme::CAPTION)
-                .text_color(t.muted)
-                .child(view.0.clone()),
+                .text_color(t.accent)
+                .child(tr("Down and Up read through the examples.")),
         )
+        .child(text(theme::UI).text_color(t.ink_soft).child(view.0.clone()))
         .child(
             div()
                 .flex()
@@ -472,11 +482,11 @@ impl Launcher {
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.toggle_view();
                     if this.collection.view.is_some() {
-                        // Opening grows the body far past the fold. In this GPUI fork a
-                        // pending scroll_to_bottom request is what lays the grown
-                        // region out again, so opening lands on its foot - the JSON
-                        // plate; Up reads back through the prose line by line.
-                        this.collection.body_to_bottom();
+                        // Opening grows the body far past the fold. The pending
+                        // scroll_to_top_of_item request is what lays the grown region out
+                        // again, and it lands the reader on the details' first line rather
+                        // than the JSON plate at the foot; Down reads on from there.
+                        this.collection.body_to_item_top(ASK_CHILD_JSON);
                     } else {
                         // Closing shrinks the body back; keep the row itself in view.
                         this.collection.body_reveal(ASK_CHILD_DETAILS);
