@@ -42,23 +42,22 @@ pub const SWITCHES: [(Kind, &str, &str); 4] = [
 pub const BASIC_NAME: &str = "Basic performance summaries";
 
 /// What it is, in plain words: every claim here is checked against `horizon_telemetry::basic`.
-/// The 7-day daily-counts sentence is the design's requirement on the collector, NOT a
-/// verified live policy: the collector is undeployed, and transmission stays gated until its
-/// deletion behavior is verified to match this copy exactly. If the deployed collector
-/// differs, this copy must change to the verified behavior before any send is enabled.
-pub const BASIC_WHAT: &str = "Once per game session: how long the game took to show its title and to load its first world, and how slow its slower frames get (a 95th-percentile frame time), each as a coarse range, with the Horizon release and your OS (Linux, macOS or Windows). No account, no install ID, nothing you do in the game. Sent only to GoatTech's own collector, which keeps daily counts per release and OS and deletes them after 7 days. Turn it off any time.";
+/// Retention describes the reviewed collector source, not verified deployed behavior.
+/// Production basic-summary release allowlists are empty. Before enabling a public release,
+/// qualify the deployed collector and update this disclosure if its behavior differs.
+pub const BASIC_WHAT: &str = "After an eligible game session ends normally: how long the game took to show its title and load its first world, and a 95th-percentile frame time, each as a coarse range, with the measured Horizon game release and your OS (Linux, macOS or Windows). No account, install ID or session ID. Sending is not enabled for a public release yet. When enabled, one send is attempted while the launcher is still open, only if this switch is on; failed reports are dropped, not saved or retried. Reports go only to GoatTech's own collector and add to daily counts of metric ranges per release and OS, not unique-player counts. Daily counts use a 7-day UTC-day cleanup schedule; service or database failures can delay deletion. Turn this option off any time; a request already in flight cannot be recalled.";
 
 /// One-line dialog captions: the first-run question shows these beside the switches and
 /// keeps the full wording (BASIC_WHAT, the SWITCHES entries, [`ping_text`]) one click away
 /// in "View details and example reports"; Settings keeps the full wording inline.
-pub const BASIC_SHORT: &str = "Once per game session: how fast the game started and how slow its slower frames get, as coarse ranges, with the Horizon release and your OS. No account, no install ID. GoatTech's own collector keeps daily counts per release and OS and deletes them after 7 days.";
+pub const BASIC_SHORT: &str = "Coarse ranges for startup, first-world load and slower frames, with the game release and OS. No account or ID. Sending is not enabled for a public release yet. When enabled: at most one attempt after an eligible normal session, if this option is on. Daily range counts use a 7-day UTC-day cleanup schedule; failures can delay deletion. Open details for more.";
 
 /// The performance-statistics row, short form (the full machine list stays in the detail view).
 pub const PERF_SHORT: &str = "After each session: frame-time and tick-time statistics, peak memory and startup times, with your machine's specs (OS, CPU, GPU, memory, screen, battery) and the settings that change performance.";
 
 /// The ping row on the first-run question, short form; accurate about configuration being
 /// the only off switch.
-pub const PING_SHORT: &str = "Once a minute while you play: an anonymous count, so the launcher can show how many people play right now. Sent whatever the switches say; only a configuration change turns it off. No account, no install ID, no world or server names - your session's anonymous row is removed about an hour after you stop.";
+pub const PING_SHORT: &str = "Once a minute while you play: a player-count ping, on by default regardless of the switches; only a configuration change turns it off. No account, install ID, world or server names. Session rows use an approximately one-hour cleanup schedule; aggregate minute counts are kept for 7 days and hourly peaks for 90 days. Cleanup failures can delay deletion. Open details for temporary IP use and other limits.";
 
 /// The dialog row caption for `kind`: the short form where a long one exists.
 pub fn short_what(kind: Kind) -> &'static str {
@@ -81,8 +80,8 @@ pub fn ping_short() -> &'static str {
     }
 }
 
-/// Never sent, whatever the switches say.
-pub const NEVER: &str = "Never sent: your account name or UUID, world names, server addresses, chat, or your IP address. The detailed optional reports are dated to the day and carry a random install ID you can delete; basic summaries carry no ID at all.";
+/// Payload fields are distinct from network metadata and player-written bug reports.
+pub const NEVER: &str = "The automatic report bodies do not include your account name or UUID, world names, server addresses, chat or IP address. Network requests still expose IP information to the receiving service; GoatTech's collector uses it temporarily in memory for rate limiting, not in its database. Detailed optional reports carry a day and a random install ID you can delete; basic summaries carry no ID. Bug-report text and any log you choose to attach need your review before sending.";
 
 /// The anonymous "I'm playing" ping. In this build it is ALWAYS ON: the game sends it to
 /// GoatTech's own collector (`horizon_telemetry::LIVE_ENDPOINT`) whatever the switches say;
@@ -103,7 +102,7 @@ pub fn ping_text() -> &'static str {
         PING_OFF
     }
 }
-pub const PING: &str = "The game sends an anonymous \"I'm playing\" ping once a minute while you play, so the launcher can show how many people play right now. The ping stays on while you play and goes to GoatTech's own counter (telemetry.goattech.us), which stores only each session's anonymous row while you play and removes it about an hour after you stop; cleanup can take longer if the service hits its daily limit. The ping holds: a random number made when the game starts and forgotten when it closes, the version, your OS (Linux, macOS or Windows), and whether you have a world open to LAN or friends. It doesn't hold: your account, your install ID, world or server names, or anything you do in the game, and the server doesn't keep your IP address. It is sent whatever the other choices say; only a configuration change (HORIZON_TELEMETRY_URL=off) turns it off.";
+pub const PING: &str = "The game sends a player-count ping once a minute while you play, plus when LAN or friends access changes. It goes to GoatTech's counter (telemetry.goattech.us) by default. Each ping includes a random session number made at game start, the game version, OS and whether a world is open to LAN or friends. It includes no account, install ID, world or server names. The collector stores that session row and last-ping time; it counts as active for two minutes after the last ping. Session rows are scheduled for cleanup about an hour after the last ping. Aggregate minute counts, including version and OS breakdowns, use a 7-day cleanup schedule; hourly player and LAN peaks use 90 days. Service or database failures can delay all cleanup. The collector receives network IP information and uses it only in an in-memory rate bucket, not its database. Keys clear on the next request after minute rollover or when the bucket reaches its limit; an idle worker can hold them longer. The ping is sent regardless of the switches. HORIZON_TELEMETRY_URL=off turns it off; another address overrides its destination. These are source-defined policies, not proof that a live collector is available or its deployed settings have been verified.";
 
 /// How many play now (cached a few seconds), if GoatTech's collector says. The count and the ping share
 /// [`horizon_telemetry::live_endpoint`]: the collector by default, off with

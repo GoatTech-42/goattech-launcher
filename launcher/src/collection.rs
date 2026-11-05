@@ -693,7 +693,7 @@ impl Launcher {
                     .max_w(px(600.))
                     .text_color(t.muted)
                     .child(tr(
-                        "Basic performance summaries are on by default on a new install; every other switch is off unless you turn it on. What each sends is below it; the privacy page on playhorizon.dev says how long it is kept.",
+                        "Basic performance summaries are on by default only on a genuinely new install; existing installs stay off unless you turn them on. Every other switch is off unless you turn it on. The player-count ping is separate from these switches. The details below describe each path and its source-defined retention; production basic-summary sending is not enabled yet.",
                     )),
             )
             .child(list)
