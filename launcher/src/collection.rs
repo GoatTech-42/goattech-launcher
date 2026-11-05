@@ -119,13 +119,20 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
 
 impl Launcher {
     /// Basic summaries off, for real: the recorded setting, the running game told to stop
-    /// collecting at once (its own buffer clears), and the launcher's session dropped, so a
-    /// canceled sample can never be resurrected by the switch coming back on.
+    /// collecting (its own buffer clears), and the launcher's session dropped, so a canceled
+    /// sample can never be resurrected by the switch coming back on. If the control line
+    /// could not be written the player hears it; nothing is sent either way, because the
+    /// launcher's session is gone.
     fn basic_off(&mut self) {
         self.settings.basic_summaries = Some(false);
         self.settings.save();
         if let Some(client) = &mut self.client {
-            client.send(horizon_launcher::basic_stats::CONTROL_OFF);
+            if !client.send(horizon_launcher::basic_stats::CONTROL_OFF) {
+                self.collection.note = Some(
+                    tr("The running game could not be told; it still sends nothing when it quits.")
+                        .to_owned(),
+                );
+            }
         }
         self.basic_session = None;
     }

@@ -3167,11 +3167,14 @@ pub struct Running {
 }
 
 impl Running {
-    pub fn send(&mut self, line: &str) {
-        if let Some(stdin) = &mut self.stdin {
-            let _ = writeln!(stdin, "{line}");
-            let _ = stdin.flush();
-        }
+    /// A line to the child's stdin. False when it could not be written (the child is gone
+    /// or the pipe broke): callers whose line matters say so, instead of assuming it landed.
+    pub fn send(&mut self, line: &str) -> bool {
+        let Some(stdin) = &mut self.stdin else {
+            return false;
+        };
+        use std::io::Write;
+        writeln!(stdin, "{line}").and_then(|()| stdin.flush()).is_ok()
     }
     pub fn kill(&self) {
         let _ = self.child.lock().unwrap().kill();
@@ -3453,18 +3456,63 @@ impl Settings {
     }
     pub fn save(&self) {
         // A write that stops halfway leaves settings.json unreadable, and `load` answers
-        // defaults for it: the file is replaced only once it is whole.
+        // defaults for it: the file is replaced only once it is whole. The write lock
+        // serializes this read-modify-write against the basic-summaries default's one-time
+        // patch (`basic_stats::init_for_gui`), so neither overwrites the other's choice.
         let dir = data_dir();
         let path = dir.join("settings.json");
-        let tmp = dir.join(format!("settings.{}.tmp", std::process::id()));
-        let written = fs::create_dir_all(&dir)
+        let made = fs::create_dir_all(&dir);
+        // No lock, no write: proceeding without it could overwrite a concurrent writer's
+        // choice (and collide on the scratch file), which is worse than one skipped save.
+        let Some(_guard) = settings_write_lock(&dir) else {
+            eprintln!("Horizon: settings.json is not saved: another settings write is stuck");
+            return;
+        };
+        let tmp = dir.join(format!(
+            "settings.{}.{}.tmp",
+            std::process::id(),
+            TMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        let written = made
             .and_then(|()| fs::write(&tmp, serde_json::to_string_pretty(self).unwrap()))
             .and_then(|()| fs::rename(&tmp, &path));
         if let Err(e) = written {
             let _ = fs::remove_file(&tmp);
             eprintln!("Horizon: settings.json is not saved: {e}");
         }
+        let _ = fs::remove_file(dir.join("settings.init.lock"));
     }
+}
+
+/// Unique scratch names for settings writers, even when one is misbehaving.
+static TMP_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// The settings write lock: create-new, with stale recovery. Every settings writer
+/// (typed saves and the basic default's patch) holds it across its read-modify-write, so
+/// cooperating writers serialize and a recorded choice is never lost to a stale snapshot.
+/// Held writes take microseconds; a lock that outlasts ten seconds is stuck, and the caller
+/// must NOT write without it.
+pub(crate) fn settings_write_lock(dir: &std::path::Path) -> Option<std::fs::File> {
+    let lock = dir.join("settings.init.lock");
+    for attempt in 0..100 {
+        match std::fs::OpenOptions::new().write(true).create_new(true).open(&lock) {
+            Ok(f) => return Some(f),
+            Err(_) => {
+                // A lock older than a minute is a crashed writer's: remove it, once.
+                let stale = std::fs::metadata(&lock)
+                    .and_then(|m| m.modified())
+                    .ok()
+                    .and_then(|t| t.elapsed().ok())
+                    .is_some_and(|age| age > std::time::Duration::from_secs(60));
+                if stale && attempt == 0 {
+                    let _ = std::fs::remove_file(&lock);
+                    continue;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        }
+    }
+    None
 }
 
 #[cfg(test)]

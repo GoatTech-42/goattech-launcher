@@ -20777,6 +20777,10 @@ pub fn run_with() -> Result<()> {
         horizon_threads::favour_current();
     }
     if options.execution_role.is_client() {
+        // Stdin is free now (`Options::read` consumed any --session-stdin account): the
+        // launcher's basic-summaries off-control watch. Client only - a dedicated server
+        // owns its stdin for console commands.
+        horizon_client::telemetry::watch_basic_control();
         horizon_threads::catch_stop_signals();
     }
     let started = Instant::now();

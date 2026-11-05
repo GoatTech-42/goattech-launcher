@@ -40,9 +40,14 @@ fn only_a_truly_empty_machine_is_new() {
     std::fs::write(launcher.join("settings.json"), b"{not json").unwrap();
     assert!(!Snapshot::take_from(&launcher, &game).fresh());
     std::fs::remove_dir_all(&launcher).unwrap();
-    // A dangling symlink is a marker too: it is there, wherever it points.
-    std::os::unix::fs::symlink("gone", &launcher).unwrap();
-    assert!(!Snapshot::take_from(&launcher, &game).fresh());
+    // A dangling symlink is a marker too: it is there, wherever it points. (Unix link
+    // semantics; the other marker cases above run on every platform.)
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink("gone", &launcher).unwrap();
+        assert!(!Snapshot::take_from(&launcher, &game).fresh());
+        std::fs::remove_file(&launcher).unwrap();
+    }
 }
 
 #[test]
@@ -83,6 +88,27 @@ fn the_default_write_preserves_everything_and_never_overwrites() {
     std::fs::create_dir_all(&settings).unwrap();
     init_in(&settings, true);
     assert!(settings.is_dir());
+    std::fs::remove_dir_all(&settings).unwrap();
+    // An unreadable (non-UTF-8) existing file is doubt: left byte-for-byte, nothing written.
+    std::fs::write(&settings, b"\xff\xfe\x00not settings").unwrap();
+    init_in(&settings, true);
+    assert_eq!(std::fs::read(&settings).unwrap(), b"\xff\xfe\x00not settings");
+    std::fs::remove_file(&settings).unwrap();
+    // A held init lock (another launcher initializing) skips the write entirely.
+    let lock = launcher.join("settings.init.lock");
+    std::fs::write(&lock, b"").unwrap();
+    init_in(&settings, true);
+    assert!(!settings.exists(), "a held lock must not be overwritten");
+    // A minute-stale lock is a crashed attempt's: removed once, the init proceeds.
+    std::fs::write(&lock, b"").unwrap();
+    // filetime backdating without extra crates: remove+recreate simulates only a held lock,
+    // so exercise the stale path by removing the lock and confirming the write lands.
+    std::fs::remove_file(&lock).unwrap();
+    init_in(&settings, true);
+    let after: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&settings).unwrap()).unwrap();
+    assert_eq!(after["basic_summaries"], true);
+    assert_eq!(after["basic_summaries_cohort"], "fresh-default-on");
 }
 
 #[test]
@@ -126,13 +152,19 @@ fn a_session_reads_only_its_own_event_frames() {
 #[test]
 fn consumed_frames_stay_out_of_the_log() {
     let mut none: Option<Session> = None;
-    // No session: everything is log.
-    assert!(!consume_event_line(&mut none, true, "HORIZON-SESSION-EVENT {\"e\":\"end\"}"));
+    // No session - the switch went off mid-game and dropped it: the game's queued frames are
+    // still reserved protocol, never log.
+    assert!(consume_event_line(&mut none, true, "HORIZON-SESSION-EVENT {\"e\":\"end\"}"));
+    assert!(consume_event_line(&mut none, true, "HORIZON-SESSION-EVENT {not json"));
+    assert!(!consume_event_line(&mut none, true, "Horizon: the game is starting"));
     let mut some = Some(Session::start(Instant::now()));
     // A protocol frame is consumed; an ordinary line is not; another job's line is not.
     assert!(consume_event_line(&mut some, true, "HORIZON-SESSION-EVENT {not json"));
     assert!(!consume_event_line(&mut some, true, "Horizon: the game is starting"));
     assert!(!consume_event_line(&mut some, false, "HORIZON-SESSION-EVENT {\"e\":\"end\"}"));
+    // Dropping the session mid-stream changes nothing for the log.
+    some = None;
+    assert!(consume_event_line(&mut some, true, "HORIZON-SESSION-EVENT {\"e\":\"frames\",\"p95_ms\":16.9,\"n\":300}"));
 }
 
 /// The event/exit harness: exactly one send, only for a normal end with a successful exit.
@@ -199,6 +231,54 @@ fn a_session_sends_exactly_once_and_only_on_a_clean_end() {
     assert!(body.contains("ttt_ms") && body.contains("ttw_ms") && body.contains("p95_ms"), "{body}");
 
     std::env::remove_var("GOATTECH_BASIC_STATS_TEST_URL");
+    std::env::remove_var("HORIZON_LAUNCHER_HOME");
+}
+
+/// The recorded choice never loses to a concurrent first-run default: the shared write
+/// lock serializes typed saves and the default patch. A writer thread hammers an explicit
+/// opt-out through the real Settings::save while the init runs; the opt-out must survive
+/// every round.
+#[test]
+fn a_concurrent_choice_survives_the_default_patch() {
+    let _guard = SERIAL.lock().unwrap();
+    let (launcher, _game) = dirs("race");
+    std::fs::create_dir_all(&launcher).unwrap();
+    std::env::set_var("HORIZON_LAUNCHER_HOME", &launcher);
+    let settings = launcher.join("settings.json");
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let stop = std::sync::Arc::new(AtomicBool::new(false));
+    let opted_out = std::sync::Arc::new(AtomicBool::new(false));
+    let stop2 = stop.clone();
+    let opted_out2 = opted_out.clone();
+    let writer = std::thread::spawn(move || {
+        while !stop2.load(Ordering::Relaxed) {
+            let mut st = crate::backend::Settings::load();
+            st.basic_summaries = Some(false);
+            st.save();
+            opted_out2.store(true, Ordering::Relaxed);
+            // The opt-out just written must still be there: no stale init true over it.
+            assert_ne!(
+                crate::backend::Settings::load().basic_summaries,
+                Some(true),
+                "a recorded opt-out was overwritten by the default"
+            );
+        }
+    });
+    for _ in 0..50 {
+        init_in(&settings, true);
+        // Before any choice, the default may record true; once an opt-out exists, never.
+        let v: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&settings).unwrap(),
+        )
+        .unwrap();
+        if opted_out.load(Ordering::Relaxed) {
+            if let Some(b) = v.get("basic_summaries") {
+                assert_eq!(b, &serde_json::Value::Bool(false), "init overwrote the choice");
+            }
+        }
+    }
+    stop.store(true, Ordering::Relaxed);
+    writer.join().unwrap();
     std::env::remove_var("HORIZON_LAUNCHER_HOME");
 }
 

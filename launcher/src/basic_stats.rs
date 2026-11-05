@@ -75,41 +75,72 @@ pub fn init_for_gui(snapshot: Snapshot) {
     init_in(&backend::data_dir().join("settings.json"), snapshot.fresh());
 }
 
-fn init_in(path: &Path, fresh: bool) {
-    let text = std::fs::read_to_string(path).unwrap_or_default();
-    let mut value: serde_json::Value = if text.trim().is_empty() {
+/// The file's object, when it may be patched: a missing file patches from empty; an
+/// unreadable or non-UTF-8 file, corrupt JSON, or a non-object is doubt - left exactly as it
+/// is, nothing written, the setting stays off. None also when the keys are decided already,
+/// in ANY form (a player's earlier choice, another launcher's write, a newer build's cohort):
+/// the default never re-runs and never overwrites.
+fn patchable(path: &Path) -> Option<serde_json::Map<String, serde_json::Value>> {
+    let text = match std::fs::read_to_string(path) {
+        Ok(t) => t,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(_) => return None,
+    };
+    let value: serde_json::Value = if text.trim().is_empty() {
         serde_json::json!({})
     } else {
-        // A corrupt file is doubt: leave it exactly as it is, and the setting stays off.
-        let Ok(v) = serde_json::from_str(&text) else { return };
-        v
+        serde_json::from_str(&text).ok()?
     };
-    let Some(fields) = value.as_object_mut() else { return };
-    // Decided already, in any form: never re-run the default, never overwrite a choice.
+    let fields = value.as_object()?;
     if fields.contains_key("basic_summaries") || fields.contains_key("basic_summaries_cohort") {
+        return None;
+    }
+    Some(fields.clone())
+}
+
+fn init_in(path: &Path, fresh: bool) {
+    let Some(dir) = path.parent() else { return };
+    // The folder first, so the lock file can exist at all (a genuinely new install has
+    // neither). A failure here means the write below fails too, and nothing changes.
+    if std::fs::create_dir_all(dir).is_err() {
         return;
     }
-    fields.insert("basic_summaries".to_owned(), serde_json::Value::Bool(fresh));
-    fields.insert(
-        "basic_summaries_cohort".to_owned(),
-        serde_json::Value::String(
-            if fresh {
-                "fresh-default-on"
-            } else {
-                "existing-default-off"
-            }
-            .to_owned(),
-        ),
-    );
-    // Whole-then-replace, like Settings::save: a half write never becomes the file.
-    let Some(dir) = path.parent() else { return };
-    let tmp = dir.join(format!("settings.{}.tmp", std::process::id()));
-    let written = std::fs::create_dir_all(dir)
-        .and_then(|()| std::fs::write(&tmp, serde_json::to_string_pretty(&value).unwrap()))
+    // The shared settings write lock serializes this patch against typed saves and other
+    // first-run inits. If it cannot be taken (another writer holds it), the default simply
+    // stays unwritten this launch - off - rather than risk overwriting a recorded choice.
+    let Some(_guard) = backend::settings_write_lock(dir) else { return };
+    // Under the lock: read and check NOW, so a write that landed between the first look and
+    // this one - another launcher recording the player's choice - always wins.
+    if let Some(mut fields) = patchable(path) {
+        fields.insert("basic_summaries".to_owned(), serde_json::Value::Bool(fresh));
+        fields.insert(
+            "basic_summaries_cohort".to_owned(),
+            serde_json::Value::String(
+                if fresh {
+                    "fresh-default-on"
+                } else {
+                    "existing-default-off"
+                }
+                .to_owned(),
+            ),
+        );
+        // Whole-then-replace, like Settings::save: a half write never becomes the file.
+        static TMP_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let tmp = dir.join(format!(
+            "settings.{}.{}.tmp",
+            std::process::id(),
+            TMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        let written = std::fs::write(
+            &tmp,
+            serde_json::to_string_pretty(&serde_json::Value::Object(fields)).unwrap(),
+        )
         .and_then(|()| std::fs::rename(&tmp, path));
-    if written.is_err() {
-        let _ = std::fs::remove_file(&tmp);
+        if written.is_err() {
+            let _ = std::fs::remove_file(&tmp);
+        }
     }
+    let _ = std::fs::remove_file(dir.join("settings.init.lock"));
 }
 
 /// Whether basic summaries are on: only an explicit `true` the window recorded. The CLI and
@@ -239,12 +270,20 @@ impl Session {
     }
 }
 
-/// One output line from a job: true when the line was a basic-summaries protocol frame for
-/// the running session - consumed, so it must never be appended to the user's log or to
-/// anything shared from it (the console page's Copy/Share). Ordinary log lines return false
-/// and flow to the log untouched.
+/// One output line from a job: true when the line carries the reserved protocol prefix -
+/// consumed, so it must never be appended to the user's log or to anything shared from it
+/// (the console page's Copy/Share). The prefix is stripped whether or not a session is still
+/// active: the switch going off drops the Session, not the frames the game had queued, and a
+/// frame after the drop is still machine protocol, never log. Only an active session parses.
+/// Ordinary log lines return false and flow to the log untouched.
 pub fn consume_event_line(session: &mut Option<Session>, job_is_client: bool, line: &str) -> bool {
-    job_is_client && session.as_mut().is_some_and(|s| s.on_line(line))
+    if !job_is_client || !line.starts_with(EVENT_PREFIX) {
+        return false;
+    }
+    if let Some(s) = session.as_mut() {
+        s.on_line(line);
+    }
+    true
 }
 
 /// The game command gets the events switch when a session will be consumed (on, and transport

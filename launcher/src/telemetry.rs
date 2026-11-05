@@ -46,7 +46,7 @@ pub const BASIC_NAME: &str = "Basic performance summaries";
 /// verified live policy: the collector is undeployed, and transmission stays gated until its
 /// deletion behavior is verified to match this copy exactly. If the deployed collector
 /// differs, this copy must change to the verified behavior before any send is enabled.
-pub const BASIC_WHAT: &str = "Once per game session: how long the game took to show its title and to load its first world, and how slow its slower frames get (a 95th-percentile frame time), each as a coarse range, with the Horizon release and your OS (Linux, macOS or Windows). No account, no install ID, nothing you do in the game. Sent only to GoatTech's own collector, which keeps daily counts per release and OS and deletes them after 7 days. Turn it off any time; a game already running stops collecting right away. A session that ends in a crash or a forced quit sends nothing.";
+pub const BASIC_WHAT: &str = "Once per game session: how long the game took to show its title and to load its first world, and how slow its slower frames get (a 95th-percentile frame time), each as a coarse range, with the Horizon release and your OS (Linux, macOS or Windows). No account, no install ID, nothing you do in the game. Sent only to GoatTech's own collector, which keeps daily counts per release and OS and deletes them after 7 days. Turn it off any time.";
 
 /// Never sent, whatever the switches say.
 pub const NEVER: &str = "Never sent: your account name or UUID, world names, server addresses, chat, or your IP address. The detailed optional reports are dated to the day and carry a random install ID you can delete; basic summaries carry no ID at all.";

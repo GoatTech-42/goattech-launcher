@@ -231,16 +231,26 @@ pub fn cancel_basic_session() {
     BASIC_CANCELLED.store(true, Ordering::Relaxed);
 }
 
-/// The session's part of the protocol with the launcher, started once at game start when the
-/// launcher asked for events: the game introduces itself (hello: its own release, which the
-/// report names and the launcher allowlists), then watches stdin for the launcher's control
-/// line turning collection off mid-game. Without the launcher's request this does nothing.
+/// The session's hello, once at game start when the launcher asked for events: the game
+/// introduces itself with its own release, which the report names and the launcher
+/// allowlists. Stdout only - it never touches stdin. Without the launcher's request this
+/// does nothing.
 pub fn begin_basic_session() {
     if !session_events() {
         return;
     }
     let v = serde_json::to_string(&version()).unwrap_or_else(|_| "\"dev\"".to_owned());
     session_event(&format!("{{\"e\":\"hello\",\"v\":{v}}}"));
+}
+
+/// The off-control watch: the launcher's control line on stdin stops collection mid-game.
+/// Started by the client ONLY, and only after `Options::read` has consumed any
+/// --session-stdin account JSON (stdin has one owner at a time); a dedicated server keeps
+/// its stdin for console commands and never starts this.
+pub fn watch_basic_control() {
+    if !session_events() {
+        return;
+    }
     std::thread::spawn(|| {
         use std::io::BufRead;
         for line in std::io::stdin().lock().lines().map_while(Result::ok) {
