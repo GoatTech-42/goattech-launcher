@@ -17,7 +17,7 @@ checkout with `gh`; it reads and merges the branches with git and never runs any
 
 Each nightly ships its exact source: horizon-source.tar.gz (`git archive` of the commit, signed with the builds) on
 the release, and the tag nightly-source/<date>-<short>, which no prune deletes. Native mods pin a nightly's commit
-(docs/native-mods.md), so that commit must stay downloadable after its release and build branch are gone.
+(docs/engine/native-mods.md), so that commit must stay downloadable after its release and build branch are gone.
 """
 from __future__ import annotations
 

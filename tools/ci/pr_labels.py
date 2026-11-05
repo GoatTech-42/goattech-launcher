@@ -8,7 +8,7 @@
 Kind: the box ticked in the template's "Kind" list. One label, added only when the pull request has no kind label yet;
 unticking the box that set it and ticking another swaps them. A label someone set by hand is never removed.
 `feature` keeps its release meaning (listed under New, docs/release-flow.md).
-Areas: from the paths the pull request changes (docs/architecture.md), at most 3, each with a tenth of the changed
+Areas: from the paths the pull request changes (docs/engine/architecture.md), at most 3, each with a tenth of the changed
 lines or more. Added, never removed.
 
 The workflow runs on `pull_request_target` from main: this script reads the event file and the API's list of changed
@@ -41,7 +41,7 @@ AREAS = [
     ("launcher", "Changes the launcher", r"^launcher/"),
     ("mods", "Area: mods, mod SDK, modpack porting",
      r"^crates/(?:horizon-mod|cargo-horizon-mod|horizon-port-pack)|" + _GAME
-     + r"(?:mods|mod_content|mod_list|native_\w+)\.rs$|^docs/(?:mods|native-mods|modpacks)"),
+     + r"(?:mods|mod_content|mod_list|native_\w+)\.rs$|^docs/engine/(?:mods|native-mods|modpacks)"),
     ("worldgen", "Area: world generation", r"^crates/horizon-world/src/worldgen/|/vanillagen\.rs$"),
     ("mobs", "Area: mobs, their AI, spawning and models",
      r"/mobs/|/mobs\.rs$|" + _GAME + r"(?:creatures|natural_spawning|spawners?|dragon|wither|villagers|piglins|golems"
@@ -52,7 +52,7 @@ AREAS = [
      r"|sprites|atlas_sources|mipmap|model_library)\.rs$"),
     ("server", "Area: dedicated and integrated server, hosting",
      r"^crates/horizon-server|/dedicated(?:\.rs$|/)|" + _GAME + r"(?:integrated|levels|server_travel)\.rs$"
-     r"|^docs/hosting"),
+     r"|^docs/engine/hosting"),
     ("multiplayer", "Area: protocol, LAN, multiplayer client, friends",
      r"^crates/(?:horizon-protocol|horizon-friends|horizon-relay)/|/lan/|" + _GAME + r"(?:lan\w*|remote\w*|net)\.rs$"),
     ("saves", "Area: saving and loading worlds",
@@ -73,7 +73,7 @@ AREAS = [
      r"^crates/horizon-theme/|/title(?:\.rs$|/)|" + _GAME + r"(?:\w+_ui|\w+_screen|screens|screen_draw|ui|hud\w*"
      r"|chat|tab_list|startup_menu|options|sign_edit|books|containers)\.rs$"),
     ("website", "Area: what playhorizon.dev reads from this repository",
-     r"^docs/api/|^roadmap/|^README\.md$|^launcher/links\.json$"),
+     r"^docs/engine/api/|^roadmap/|^README\.md$|^launcher/links\.json$"),
 ]
 AREA_RES = [(label, re.compile(paths)) for label, _, paths in AREAS]
 MAX_AREAS = 3

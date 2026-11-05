@@ -2,12 +2,12 @@ import re
 import unittest
 from pathlib import Path
 
-README = Path(__file__).resolve().parents[1] / 'README.md'
+AUDIT_PAGE = Path(__file__).resolve().parents[1] / 'docs' / 'engine' / 'upstream-parity-audit.md'
 
 
 class ParityTests(unittest.TestCase):
     def test_readme_percentage_matches_table(self):
-        text = README.read_text()
+        text = AUDIT_PAGE.read_text()
         heading = re.search(r'^### Java parity: (\d+)% \(upstream self-audit, (\d{4}-\d{2}-\d{2})\)$', text, re.MULTILINE)
         self.assertIsNotNone(heading, 'README parity heading must say it is the dated upstream self-audit')
         table = text[heading.end():].split('| Subsystem | Score | Main gaps |', 1)[1].split('\n\n', 1)[0]

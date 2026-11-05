@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The dedicated server's anticheat (docs/anticheat.md), end to end: a real `horizon-client --dedicated`
+"""The dedicated server's anticheat (docs/engine/anticheat.md), end to end: a real `horizon-client --dedicated`
 and horizon-bots, legit bots beside cheating ones.
 
     python3 tools/anticheat_e2e.py --bin-dir target/fast            # every check

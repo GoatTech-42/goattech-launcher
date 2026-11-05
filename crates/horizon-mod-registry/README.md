@@ -9,7 +9,7 @@ repository's CI with no pull request ("publish a GitHub release in <repo>", a 40
 (no `repo`) can still be sent as a file: the service runs the file's own checks
 (`horizon_mods::index::inspect`, the signature, the entry's fields), uploads it to the `staging` release as
 `<sha256>.<extension>` and opens a pull request adding or updating the entry. Formats and rules:
-[docs/api/mod-index.md](../../docs/api/mod-index.md).
+[docs/api/mod-index.md](../../docs/engine/api/mod-index.md).
 
 Signed-in players also rate published projects, 1 to 5 stars: one rating per GitHub account and project, which they can
 change, never their own project's. That is the only data it keeps, in one SQLite file (`REGISTRY_DB`); it only ever

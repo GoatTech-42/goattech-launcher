@@ -1,4 +1,4 @@
-# Horizon launcher
+# goattech launcher
 
 A small desktop app that installs Horizon builds, prepares them from your own copy of
 Minecraft, and starts the client or a dedicated server. Built with [GPUI Fast](https://github.com/longbridge/gpui-fast),
@@ -49,7 +49,7 @@ The opening, then Play ([clip](docs/opening.webm)):
   **Update all** and Remove ([docs/mod-browser.md](../docs/mod-browser.md)).
 - **Modpacks**: import a Java modpack (a Modrinth `.mrpack`, a CurseForge zip, or a Prism,
   MultiMC or CurseForge instance folder) and see its coverage report: per mod, ported, partial,
-  not yet or not needed, with the reason ([docs/modpacks.md](../docs/modpacks.md)). **Port**
+  not yet or not needed, with the reason ([docs/modpacks.md](../docs/engine/modpacks.md)). **Port**
   gets the jars of what this computer can port today (content mods with data and assets only)
   the player's own way: copied from a folder they have, or downloaded from the pack's own links
   or the same file on Modrinth's CDN, hash checked; files only CurseForge has come from your
@@ -71,7 +71,7 @@ The opening, then Play ([clip](docs/opening.webm)):
   list with dates and sizes, Restore with a confirmation, Back up automatically, and **Updates**:
   Check for updates, Update now with its automatic rollback, and how many older versions to
   keep). Changes the running game can take apply at once, the others say "Restart to apply".
-  Everything goes through `horizon-server` itself ([docs/hosting.md](../docs/hosting.md)):
+  Everything goes through `horizon-server` itself ([docs/hosting.md](../docs/engine/hosting.md)):
   the launcher copies a prepared version's programs and game files into `server-runtime/` laid
   out as `install.sh` does, runs `horizon-server init`, `config`, `start`, `backup`, `restore`,
   `update` and `service` there, and talks to a running server through its control API. Problems
@@ -119,7 +119,7 @@ The opening, then Play ([clip](docs/opening.webm)):
   `horizon-launcher instance import <file>`.
 - **Maximum memory**: a row on Home, per instance: a slider and a box that takes `4096`, `4gb`, or nothing
   for no limit (the default), saved at once. For Horizon it goes to the game as
-  `HORIZON_MEMORY_LIMIT_MB` ([what it does](../docs/native-client.md#ram-limit)); a Java instance's sets `-Xmx`.
+  `HORIZON_MEMORY_LIMIT_MB` ([what it does](../docs/engine/native-client.md#ram-limit)); a Java instance's sets `-Xmx`.
 - **Launch options**: Home's Instance row has **Launch…**: per instance, a shell command run in its
   folder before the game (the game starts only if it succeeds), a wrapper the game runs through
   (`nice -n 5`), and environment variables (`NAME=value OTHER="two words"`), kept in
@@ -435,7 +435,7 @@ The same server also plays the game: `play` starts it with a local control socke
 `creative`, `join` and `offscreen` are optional), and every `horizon-ctl` tool of the selected
 version is offered as `game_<name>`: `game_state`, `game_ui` (every widget of the open screen),
 `game_click`, `game_goto`, `game_break`, `game_inventory`, `game_screenshot` (an image) and the
-rest of [horizon-ctl's commands](../docs/horizon-ctl-commands.md). The launcher runs that
+rest of [horizon-ctl's commands](../docs/engine/horizon-ctl-commands.md). The launcher runs that
 version's `horizon-ctl mcp` and passes the calls through; while no game runs, they answer with an
 error saying to call `play`.
 

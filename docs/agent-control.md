@@ -11,7 +11,7 @@ The command lists are generated, so they can't drift:
 - [launcher-commands.md](launcher-commands.md): every `horizon-launcher` command, its arguments
   and its MCP tool. It comes from the CLI's clap definition (`cli_tools::markdown`), and the
   launcher test `the_launcher_reference_is_up_to_date` fails when it is stale or a tool is missing.
-- [horizon-ctl-commands.md](horizon-ctl-commands.md): every `horizon-ctl` command, its MCP tool
+- [horizon-ctl-commands.md](engine/horizon-ctl-commands.md): every `horizon-ctl` command, its MCP tool
   and its arguments. It comes from the command table (`horizon-ctl help --markdown`), and the
   test `the_generated_reference_is_up_to_date` fails when it is stale.
 

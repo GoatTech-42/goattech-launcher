@@ -1,5 +1,5 @@
 #!/bin/bash
-# Daily on the Mac mini, from launchd (tools/ci/dev.horizon.version-port.plist; docs/version-ports.md, "Detect"):
+# Daily on the Mac mini, from launchd (tools/ci/dev.horizon.version-port.plist; docs/engine/version-ports.md, "Detect"):
 # when Mojang releases a Minecraft version Horizon doesn't pin, port it as far as the report: prepare, diff,
 # regen (ports/NEW on the local branch port/NEW), every harness against it, the report, and publish's dry run.
 # It never publishes (version_port.py publish --yes stays a person's call) and never pushes.

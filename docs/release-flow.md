@@ -288,7 +288,7 @@ runs the game: GitHub's runners have neither a GPU worth the name nor the game f
 `tools/ci/nightly.py pick` writes them: what reached main since the previous Nightly (`### New`, label `feature`,
 and `### Fixed`, one line per pull request: its title, its number, the issues it closes; `release_train.bullet`),
 then the picked pull requests (`### Not merged yet`), `### Known issues` (the bullets of
-[docs/known-issues.md](known-issues.md)), thanks to outside contributors, the source commit and the disclaimer. The
+[docs/known-issues.md](engine/known-issues.md)), thanks to outside contributors, the source commit and the disclaimer. The
 title stays `Nightly <date> · <commit>`, which launchers and servers read the version from. Pull request titles
 are written for players, since they become the notes.
 
@@ -433,7 +433,7 @@ Every Nightly ships its exact source. Its notes name the commit; `horizon-source
 commit's `git archive`, signed with the builds in `SHA256SUMS`; and `nightly.py keep-source` tags the commit
 `nightly-source/<date>-<short>`. That tag is never pruned, unlike the `nightly-<date>` release and the
 `nightly/build-*` branch (7 days each), because native mods pin a Nightly's commit and the launcher downloads that
-commit's source to build them ([native-mods.md](native-mods.md)).
+commit's source to build them ([native-mods.md](engine/native-mods.md)).
 
 ### Trusted reviewers
 

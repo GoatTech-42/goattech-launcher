@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Index a game jar's classes for version diffs (docs/version-ports.md).
+"""Index a game jar's classes for version diffs (docs/engine/version-ports.md).
 
 Each class gets its superclass, interfaces, fields and methods; each method a hash of its bytecode in which
 every constant-pool reference is replaced by what it names and every branch target by an instruction index.

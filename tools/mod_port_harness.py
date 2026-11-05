@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Per-mod parity harness for ported mods (docs/modpacks.md, "The Java oracle and per-mod harnesses").
+"""Per-mod parity harness for ported mods (docs/engine/modpacks.md, "The Java oracle and per-mod harnesses").
 
     mod_port_harness.py --work WORK [--resources PREPARED] [--jars DIR --deps DIR] [MOD ...]
 

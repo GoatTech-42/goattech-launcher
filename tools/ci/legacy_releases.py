@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pins the SHA-256 of every release published before signing began (docs/security.md, "Signed updates").
+"""Pins the SHA-256 of every release published before signing began (docs/engine/security.md, "Signed updates").
 
     python3 tools/ci/legacy_releases.py           # rewrite crates/horizon-release-sign/legacy-releases.txt
     python3 tools/ci/legacy_releases.py --check   # exit 1 if the file is out of date
@@ -24,7 +24,7 @@ REPO = "horizon-rust/horizon"
 HEADER = """\
 # Releases published before signing began, with their archives' SHA-256 as GitHub computed them at upload:
 # `<tag> <asset> <sha256>` per line, written by tools/ci/legacy_releases.py. The launcher and horizon-server
-# install these releases only with exactly these files (docs/security.md, "Signed updates"); every later release
+# install these releases only with exactly these files (docs/engine/security.md, "Signed updates"); every later release
 # is checked against its signed SHA256SUMS instead. Changing this file needs Ludovic's review (.github/CODEOWNERS).
 """
 

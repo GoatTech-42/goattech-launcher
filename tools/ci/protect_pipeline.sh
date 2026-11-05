@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Makes main's branch protection require the code owners' review (docs/security.md): a pull request that
+# Makes main's branch protection require the code owners' review (docs/engine/security.md): a pull request that
 # changes a file .github/CODEOWNERS lists waits for Ludovic's approval; every other one still merges as soon as
 # `verify` passes (no approvals are required otherwise). Approvals are dismissed by a later push. Everything
 # else in the protection (the required `verify` from GitHub Actions, admins included) is kept as it is.

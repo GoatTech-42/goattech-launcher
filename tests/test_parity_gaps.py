@@ -5,7 +5,7 @@ from pathlib import Path
 
 from tools import parity_gaps as pg
 
-README = Path(__file__).resolve().parents[1] / "README.md"
+AUDIT_PAGE = Path(__file__).resolve().parents[1] / "docs" / "engine" / "upstream-parity-audit.md"
 
 
 def lists(*opens):
@@ -48,7 +48,7 @@ class ReadmeTests(unittest.TestCase):
                          "badge and block must carry the same snapshot date")
 
     def test_the_readme_agrees_with_itself(self):
-        text = README.read_text(encoding="utf-8")
+        text = AUDIT_PAGE.read_text(encoding="utf-8")
         total, counts = pg.written(text)
         self.assertEqual(len(counts), len(pg.ISSUES))
         self.assertEqual(total, sum(counts), "the README's gap total is the sum of its areas")

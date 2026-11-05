@@ -83,7 +83,7 @@ class AreaTests(unittest.TestCase):
             "crates/horizon-world/src/level/redstone.rs": "blocks",
             "crates/horizon-client/src/title/worlds.rs": "ui",
             "crates/horizon-client-render/src/options_ui.rs": "ui",
-            "docs/api/shaders.md": "website",
+            "docs/engine/api/shaders.md": "website",
             "roadmap/roadmap.toml": "website",
         }
         for path, area in cases.items():

@@ -2,7 +2,7 @@
 """Generate crates/horizon-core/src/version.rs: what the pinned Minecraft version states about itself in its
 client jar's version.json (name, protocol, data version, pack formats, Java, build time). Every Rust site that
 needs one of these facts reads it from there, so a version bump rewrites this one file
-(docs/version-ports.md, "Regenerate").
+(docs/engine/version-ports.md, "Regenerate").
 
   gen_version_consts.py [--jar CLIENT_JAR] [--out PATH] [--check]
 

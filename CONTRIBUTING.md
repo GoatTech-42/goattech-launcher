@@ -36,7 +36,7 @@ probe against Horizon, and compares their outputs. There are about 290 of them.
   `python3 tools/rea_vanilla.py method net.minecraft.world.level.block.DispenserBlock dispenseFrom`.
   Say in your pull request which vanilla classes and methods you followed.
 - **Gameplay changes come with a harness**, new or extended, so the next change can't silently break them.
-  [The parity workflow](docs/parity-workflow.md) shows how harnesses run; copy a nearby one.
+  [The parity workflow](docs/engine/parity-workflow.md) shows how harnesses run; copy a nearby one.
 - **Horizon's own features** (the launcher, the new menus) follow [the design system](docs/design-system.md) and are
   off by default wherever they would change the vanilla look.
 - **Everything players run is Rust.** Python and Java are fine for dev tools and harness drivers in `tools/`, never
@@ -129,7 +129,7 @@ Who reviews and merges: the Horizon Team, on CI for ordinary pull requests; risk
 generation, the launcher's updates) wait for a local proof first ([merging](docs/release-flow.md#merging)).
 
 Every merge to main is released automatically ([release flow](docs/release-flow.md)), so main always stays playable.
-How agents, checks, releases and signed updates keep this safe: [security](docs/security.md).
+How agents, checks, releases and signed updates keep this safe: [security](docs/engine/security.md).
 
 ## Parity checks on forks
 
