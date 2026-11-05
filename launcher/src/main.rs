@@ -279,6 +279,10 @@ struct Launcher {
     internet: internet::Internet,
     /// The window's own focus, so Tab reaches the controls when nothing else has the keyboard.
     root_focus: FocusHandle,
+    /// The consent question's keyboard set: while it asks, Tab cycles these and nothing else.
+    consent_keys: ConsentKeys,
+    /// Edge marker so an answered question hands the keyboard back to the window once.
+    consent_open: bool,
     /// Microsoft accounts (accounts.json), the sign-in under way and what it last showed.
     accounts: Accounts,
     auth_status: HashMap<String, account::session::Status>,
@@ -596,6 +600,8 @@ impl Launcher {
             servers: servers_page::Servers::new(),
             internet: internet::Internet::new(),
             root_focus: cx.focus_handle(),
+            consent_keys: ConsentKeys::new(cx),
+            consent_open: false,
             accounts: Accounts::load(),
             auth_status: HashMap::new(),
             auth_progress: HashMap::new(),
@@ -1924,6 +1930,101 @@ fn keyboard(el: Stateful<Div>, t: &Theme) -> Stateful<Div> {
             s
         }
     })
+}
+
+/// The consent question's focusable controls, in the order Tab walks them. The framework's tab
+/// groups order stops but never contain them, so while the question asks, the window's own Tab
+/// handling cycles exactly these handles and the launcher behind keeps the keyboard out.
+struct ConsentKeys {
+    /// The question's own surface, focused while it opens and after any blur.
+    container: FocusHandle,
+    basic: FocusHandle,
+    perf: FocusHandle,
+    crashes: FocusHandle,
+    bugs: FocusHandle,
+    benchmarks: FocusHandle,
+    details: FocusHandle,
+    keep_off: FocusHandle,
+    save: FocusHandle,
+}
+
+impl ConsentKeys {
+    fn new(cx: &mut Context<Launcher>) -> Self {
+        Self {
+            container: cx.focus_handle(),
+            basic: cx.focus_handle(),
+            perf: cx.focus_handle(),
+            crashes: cx.focus_handle(),
+            bugs: cx.focus_handle(),
+            benchmarks: cx.focus_handle(),
+            details: cx.focus_handle(),
+            keep_off: cx.focus_handle(),
+            save: cx.focus_handle(),
+        }
+    }
+
+    fn for_kind(&self, kind: horizon_telemetry::Kind) -> &FocusHandle {
+        match kind {
+            horizon_telemetry::Kind::Perf => &self.perf,
+            horizon_telemetry::Kind::Crash => &self.crashes,
+            horizon_telemetry::Kind::Bug => &self.bugs,
+            horizon_telemetry::Kind::Benchmark => &self.benchmarks,
+        }
+    }
+
+    fn order(&self) -> [&FocusHandle; 8] {
+        [
+            &self.basic,
+            &self.perf,
+            &self.crashes,
+            &self.bugs,
+            &self.benchmarks,
+            &self.details,
+            &self.keep_off,
+            &self.save,
+        ]
+    }
+
+    /// The consent body child to reveal when this control takes the keyboard, if it is one
+    /// of the scrolling rows; the footer buttons live outside the scroll and need none.
+    fn ask_child(&self, f: &FocusHandle) -> Option<usize> {
+        if *f == self.basic {
+            Some(collection::ASK_CHILD_BASIC)
+        } else if *f == self.perf {
+            Some(collection::ASK_CHILD_BASIC + 1)
+        } else if *f == self.crashes {
+            Some(collection::ASK_CHILD_BASIC + 2)
+        } else if *f == self.bugs {
+            Some(collection::ASK_CHILD_BASIC + 3)
+        } else if *f == self.benchmarks {
+            Some(collection::ASK_CHILD_BASIC + 4)
+        } else if *f == self.details {
+            Some(collection::ASK_CHILD_DETAILS)
+        } else {
+            None
+        }
+    }
+
+    fn contains(&self, f: &FocusHandle) -> bool {
+        *f == self.container || self.order().iter().any(|h| *h == f)
+    }
+
+    /// One step along the question's own controls, wrapping at both ends; from anywhere else
+    /// (a click, a blur) the first step lands on a known end instead of wherever the global
+    /// tab order would wander.
+    fn cycle(&self, back: bool, window: &mut Window, cx: &mut App) {
+        let order = self.order();
+        let cur = window
+            .focused(cx)
+            .and_then(|f| order.iter().position(|h| **h == f));
+        let next = match cur {
+            Some(i) if back => (i + order.len() - 1) % order.len(),
+            Some(i) => (i + 1) % order.len(),
+            None if back => order.len() - 1,
+            None => 0,
+        };
+        window.focus(order[next], cx);
+    }
 }
 
 /// A button: a block with a light bevel on top and a darker lip below, its label in the pixel
@@ -4736,6 +4837,32 @@ impl Render for Launcher {
             .on_key_down(cx.listener(|this, ev: &KeyDownEvent, window, cx| {
                 let k = &ev.keystroke;
                 match k.key.as_str() {
+                    // While the consent question covers the window, Tab walks its own controls
+                    // only (both directions, wrapping) and the launcher's Escape and arrow
+                    // shortcuts stay out of it. Nothing here answers the question.
+                    // While it asks, Up/Down read the open example reports.
+                    "up" | "down" if this.asking_consent() => {
+                        KEYBOARD.store(true, Ordering::Relaxed);
+                        this.collection.json_key_scroll(k.key.as_str() == "down");
+                    }
+                    "tab" if this.asking_consent() => {
+                        KEYBOARD.store(true, Ordering::Relaxed);
+                        this.consent_keys.cycle(k.modifiers.shift, window, cx);
+                        // Keep the focused control on screen by its own measured
+                        // position: every scrollable stop is a direct body child and is
+                        // revealed by its child index; the first row is the body's top.
+                        // The footer buttons live outside the scroll and need nothing.
+                        match window.focused(cx) {
+                            Some(f) if f == this.consent_keys.basic => this.collection.body_to_top(),
+                            Some(f) => {
+                                if let Some(ix) = this.consent_keys.ask_child(&f) {
+                                    this.collection.body_reveal(ix);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    "escape" | "left" | "right" if this.asking_consent() => {}
                     "tab" => {
                         KEYBOARD.store(true, Ordering::Relaxed);
                         if k.modifiers.shift {
@@ -4866,7 +4993,18 @@ impl Render for Launcher {
             }
         }
         if self.asking_consent() {
+            // The question holds the keyboard: focus lands inside it, and a blur (or a click
+            // that took it elsewhere) comes straight back on this render.
+            match window.focused(cx) {
+                Some(f) if self.consent_keys.contains(&f) => {}
+                _ => window.focus(&self.consent_keys.container, cx),
+            }
             root = root.child(self.consent_screen(cx));
+            self.consent_open = true;
+        } else if self.consent_open {
+            // Answered: hand the keyboard back to the window itself, once.
+            self.consent_open = false;
+            window.focus(&self.root_focus, cx);
         }
         if self.asking_owner() {
             root = root.child(self.owner_screen(cx));

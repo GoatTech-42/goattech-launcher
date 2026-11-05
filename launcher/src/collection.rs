@@ -5,6 +5,12 @@ use horizon_launcher::telemetry;
 use horizon_telemetry::{Choices, Consent, Kind as DataKind};
 
 /// What the window keeps about data collection.
+/// Direct-child indices in the consent body's scroll view, for keyboard scroll-follow.
+/// The five choice rows are direct children in this order; details sits after NEVER.
+pub(crate) const ASK_CHILD_BASIC: usize = 3;
+pub(crate) const ASK_CHILD_DETAILS: usize = 10;
+pub(crate) const ASK_CHILD_JSON: usize = 11;
+
 pub(crate) struct Collection {
     pub consent: Consent,
     body_scroll: Scrollbar,
@@ -19,6 +25,68 @@ pub(crate) struct Collection {
 }
 
 impl Collection {
+    /// Keep child `ix` of the question's body visible (deferred to the next layout, so
+    /// it measures the content as it will be then).
+    pub(crate) fn body_reveal(&self, ix: usize) {
+        self.body_scroll.handle.scroll_to_item(ix);
+    }
+
+    /// Scroll the question's body to its foot, where the details row and answers sit.
+    pub(crate) fn body_to_bottom(&self) {
+        self.body_scroll.handle.scroll_to_bottom();
+    }
+
+    /// Scroll the question's body back to its first row.
+    pub(crate) fn body_to_top(&self) {
+        self.body_scroll.handle.set_offset(gpui::point(px(0.), px(0.)));
+    }
+
+    /// The open example reports, read top to bottom under the keyboard: Down steps the
+    /// question's body a few lines at a time until its foot - where the JSON plate
+    /// sits - is on screen, then steps the plate's own lines; Up walks back the same
+    /// way, always stepping the region that is on screen: the body whenever it is away
+    /// from its foot (the plate is off screen then), the plate only while it shows at
+    /// the foot, then the body again. Every step derives from the two scroll handles'
+    /// actual offsets, so after a Tab away or a pointer scroll the next key moves the
+    /// visible region; the plate keeps its own place while it is off screen and a
+    /// reopened view starts it at its first line. The offsets are clamped by hand
+    /// because ScrollHandle::set_offset takes the offset as given (offsets grow
+    /// negative downward).
+    pub(crate) fn json_key_scroll(&self, down: bool) {
+        if self.view.is_none() {
+            return;
+        }
+        let body = &self.body_scroll.handle;
+        let plate = &self.json_scroll.handle;
+        let body_max = body.max_offset().y;
+        let at_foot = body.offset().y <= -body_max;
+        if down {
+            if !at_foot {
+                let mut off = body.offset();
+                off.y = (off.y - px(60.)).clamp(-body_max, px(0.));
+                body.set_offset(off);
+            } else {
+                let max = plate.max_offset().y;
+                let mut off = plate.offset();
+                off.y = (off.y - px(60.)).clamp(-max, px(0.));
+                plate.set_offset(off);
+            }
+        } else if !at_foot {
+            let mut off = body.offset();
+            off.y = (off.y + px(60.)).clamp(-body_max, px(0.));
+            body.set_offset(off);
+        } else if plate.offset().y < px(0.) {
+            let max = plate.max_offset().y;
+            let mut off = plate.offset();
+            off.y = (off.y + px(60.)).clamp(-max, px(0.));
+            plate.set_offset(off);
+        } else {
+            let mut off = body.offset();
+            off.y = (off.y + px(60.)).clamp(-body_max, px(0.));
+            body.set_offset(off);
+        }
+    }
+
     pub fn load() -> Self {
         Self {
             consent: telemetry::consent(),
@@ -170,9 +238,19 @@ impl Launcher {
     /// The basic-summaries row's own switch, on the first-run question and in Settings: the
     /// recorded setting, never the ping's flag and never a consent kind. Turning it off stops
     /// collection for a game already running and drops anything gathered.
-    fn basic_switch(&self, id: &'static str, cx: &mut Context<Self>) -> impl IntoElement {
+    fn basic_switch(
+        &self,
+        id: &'static str,
+        focus: Option<&FocusHandle>,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let on = self.settings.basic_summaries == Some(true);
-        switch(id, on, &self.theme).on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+        let sw = switch(id, on, &self.theme);
+        let sw = match focus {
+            Some(f) => sw.track_focus(f),
+            None => sw,
+        };
+        sw.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
             if on {
                 this.basic_off();
             } else {
@@ -196,6 +274,8 @@ impl Launcher {
             .items_start()
             .gap(px(16.))
             .py(px(10.))
+            .border_t_1()
+            .border_color(t.rule)
             .border_b_1()
             .border_color(t.rule)
             .child(
@@ -259,7 +339,7 @@ impl Launcher {
                         }))
                     }),
             )
-            .child(self.basic_switch(id, cx))
+            .child(self.basic_switch(id, Some(&self.consent_keys.basic), cx))
     }
 
     /// Whether the question covers the window: not answered for this consent version, and the
@@ -270,8 +350,14 @@ impl Launcher {
 
     fn answer_consent(&mut self, choices: Choices) {
         match telemetry::answer(choices) {
-            Ok(consent) => self.collection.consent = consent,
+            Ok(consent) => {
+                self.collection.consent = consent;
+                self.collection.view = None;
+                self.collection.note = None;
+            }
             Err(e) => {
+                // The consent file is not written and the question stays exactly as it
+                // was - open details included; only its foot gains the reason.
                 self.collection.note =
                     Some(trf("Could not save your choice: {error}", &[("error", &e)]))
             }
@@ -281,7 +367,6 @@ impl Launcher {
             self.settings.ping_notice_seen = true;
             let _ = self.settings.save();
         }
-        self.collection.view = None;
     }
 
     fn toggle_view(&mut self) {
@@ -289,6 +374,13 @@ impl Launcher {
             Some(_) => None,
             None => Some(telemetry::preview()),
         };
+        // A fresh preview reads from its first line, never an earlier visit's depth.
+        if self.collection.view.is_some() {
+            self.collection
+                .json_scroll
+                .handle
+                .set_offset(gpui::point(px(0.), px(0.)));
+        }
     }
 
     /// The question, centred over the launcher. Everything optional starts off; "Keep optional data off" is one
@@ -321,7 +413,9 @@ impl Launcher {
                                 .child(tr(telemetry::short_what(kind))),
                         ),
                 )
-                .child(switch(kind_id("ask", kind), on, &t).on_click(cx.listener(
+                .child(switch(kind_id("ask", kind), on, &t)
+                    .track_focus(self.consent_keys.for_kind(kind))
+                    .on_click(cx.listener(
                     move |this, _: &ClickEvent, _, cx| {
                         this.collection.draft.set(kind, !on);
                         cx.notify();
@@ -354,33 +448,41 @@ impl Launcher {
                     "The short version: on a new install, basic performance summaries start on; the four report kinds start off. \"Keep optional data off\" turns all five off in one click - the player-count ping is off in this configuration. Settings can change any choice later."
                 },
             )))
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .border_t_1()
-                    .border_color(t.rule)
-                    .child(basic)
-                    .children(rows)
-                    .child(ping_row(&t)),
-            )
+            .child(basic)
+            .children(rows)
+            .child(ping_row(&t))
             .child(text(theme::CAPTION).text_color(t.muted).child(tr(telemetry::NEVER)))
             .child(
-                div()
-                    .id("ask-view")
-                    .text_size(px(theme::UI.px))
-                    .text_color(t.accent)
-                    .cursor_pointer()
-                    .hover(|s| s.opacity(0.8))
-                    .child(tr(if viewing {
-                        "Hide details and example reports"
+                // Same keyboard reach as the switches: the full wording stays one Tab away.
+                keyboard(
+                    div()
+                        .id("ask-view")
+                        .text_size(px(theme::UI.px))
+                        .text_color(t.accent)
+                        .cursor_pointer()
+                        .hover(|s| s.opacity(0.8))
+                        .child(tr(if viewing {
+                            "Hide details and example reports"
+                        } else {
+                            "View details and example reports"
+                        })),
+                    &t,
+                )
+                .track_focus(&self.consent_keys.details)
+                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                    this.toggle_view();
+                    if this.collection.view.is_some() {
+                        // Opening grows the body far past the fold. In this GPUI fork a
+                        // pending scroll_to_bottom request is what lays the grown
+                        // region out again, so opening lands on its foot - the JSON
+                        // plate; Up reads back through the prose line by line.
+                        this.collection.body_to_bottom();
                     } else {
-                        "View details and example reports"
-                    }))
-                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                        this.toggle_view();
-                        cx.notify();
-                    })),
+                        // Closing shrinks the body back; keep the row itself in view.
+                        this.collection.body_reveal(ASK_CHILD_DETAILS);
+                    }
+                    cx.notify();
+                })),
             )
             .children(self.collection.view.as_ref().map(|v| json_view(v, &t, &self.collection.json_scroll)));
         let answers = div()
@@ -401,7 +503,9 @@ impl Launcher {
                 )
             }))
             .child(
-                button("ask-none", "Keep optional data off", Kind::Secondary, &t).on_click(cx.listener(
+                button("ask-none", "Keep optional data off", Kind::Secondary, &t)
+                    .track_focus(&self.consent_keys.keep_off)
+                    .on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.answer_consent(Choices::NONE);
                         // Everything optional means everything: basic summaries too. The
@@ -412,7 +516,9 @@ impl Launcher {
                 )),
             )
             .child(
-                button("ask-save", "Save choices", Kind::Primary, &t).on_click(cx.listener(
+                button("ask-save", "Save choices", Kind::Primary, &t)
+                    .track_focus(&self.consent_keys.save)
+                    .on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.answer_consent(this.collection.draft);
                         cx.notify();
@@ -429,9 +535,17 @@ impl Launcher {
             .border_1()
             .border_color(t.rule)
             .child(self.collection.body_scroll.wrap(body, &t))
+            // A failed save says so here, in the always-visible foot of the question.
+            .children(self.collection.note.clone().map(|n| {
+                div().px(px(16.)).pb(px(4.)).child(
+                    text(theme::CAPTION).text_color(t.warn).child(n),
+                )
+            }))
             .child(answers);
         div()
             .id("consent")
+            // Focused while the question asks; the window's Tab handling cycles inside it.
+            .track_focus(&self.consent_keys.container)
             .absolute()
             .top_0()
             .left_0()
@@ -456,7 +570,7 @@ impl Launcher {
             0,
             tr(telemetry::BASIC_NAME),
             Some(div().child(tr(telemetry::BASIC_WHAT)).into_any_element()),
-            Some(self.basic_switch("data-basic", cx).into_any_element()),
+            Some(self.basic_switch("data-basic", None, cx).into_any_element()),
             &t,
         );
         list = list.child(basic);
