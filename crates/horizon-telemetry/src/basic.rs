@@ -31,18 +31,66 @@ pub const MAX_BODY_BYTES: usize = 512;
 /// A p95 frame time is reported only over at least this many rendered frames.
 pub const MIN_P95_FRAMES: u64 = 240;
 
+/// The line prefix the game uses for its session events, only ever emitted when the launcher
+/// asked with [`EVENTS_ENV`]: a machine protocol on the game's own output pipe, never a log
+/// to scrape. Protocol frames are consumed by the launcher and never reach the user's log.
+pub const EVENT_PREFIX: &str = "HORIZON-SESSION-EVENT ";
+
+/// Set to `1` on the game's environment when a session's events will be consumed.
+pub const EVENTS_ENV: &str = "HORIZON_SESSION_EVENTS";
+
+/// The launcher writes this line to the game's stdin when the switch goes off mid-game: the
+/// game stops collecting at once and clears what it had gathered for the session.
+pub const CONTROL_OFF: &str = "HORIZON-SESSION-CONTROL off";
+
+/// A protocol frame longer than this is rejected (consumed, never parsed or logged).
+pub const MAX_EVENT_LINE: usize = 200;
+
+/// The fixture release a test report may name, and only in a debug build compiled with the
+/// `telemetry-test-seam` feature: a release build has no fixture and no seam, so only a real
+/// published release can ever build a report there.
+#[cfg(all(debug_assertions, feature = "telemetry-test-seam"))]
+pub const TEST_RELEASE: &str = "v0.0.0-test";
+
+/// The release a test may name, when the seam is compiled in; otherwise None.
+pub fn test_release() -> Option<&'static str> {
+    #[cfg(all(debug_assertions, feature = "telemetry-test-seam"))]
+    {
+        Some(TEST_RELEASE)
+    }
+    #[cfg(not(all(debug_assertions, feature = "telemetry-test-seam")))]
+    {
+        None
+    }
+}
+
 /// The one send's timeout: connect, send and answer together.
 pub const SEND_TIMEOUT: Duration = Duration::from_secs(3);
 
-/// The public GoatTech launcher releases a report may name: the running build's own tag must
-/// be one of these, so a dev build, an unpublished tag or a custom string never sends. The
-/// release process maintains this list; it is empty until the first public release, so nothing
-/// sends before one exists.
+/// The published public Horizon releases a report may name: the MEASURED game build's own
+/// release (reported in its session hello) must be one of these, so a dev build, an
+/// unpublished tag, a custom string or an arbitrary emitter never sends. The release process
+/// maintains this list; it is empty until the first public release, so nothing sends before
+/// one exists.
 pub const PUBLISHED_RELEASES: &[&str] = &[];
 
-/// Whether `tag` is a public release a report may name.
+/// Whether `tag` is a public release a report may name: the measured game build's own
+/// release (from its hello), which must be a published public Horizon release - a dev build,
+/// an unpublished tag, a custom string or another modded emitter never sends. The seam's
+/// fixture release is allowed only where the seam itself exists.
 pub fn release_allowed(tag: &str) -> bool {
-    PUBLISHED_RELEASES.contains(&tag)
+    if PUBLISHED_RELEASES.contains(&tag) {
+        return true;
+    }
+    #[cfg(all(debug_assertions, feature = "telemetry-test-seam"))]
+    {
+        tag == TEST_RELEASE
+    }
+    #[cfg(not(all(debug_assertions, feature = "telemetry-test-seam")))]
+    {
+        let _ = tag;
+        false
+    }
 }
 
 /// Whether `HORIZON_TELEMETRY_URL` vetoes all telemetry transport (`off`/`none`/`0`): the one
@@ -59,19 +107,24 @@ pub fn transport_vetoed() -> bool {
     vetoed(std::env::var("HORIZON_TELEMETRY_URL").ok().as_deref())
 }
 
-/// Where a report goes, if anywhere: [`ENDPOINT`], unless the transport veto is on. In debug
-/// builds with the `telemetry-test-seam` feature a loopback URL can stand in for it; a release
-/// build never reads that variable.
-pub fn endpoint() -> Option<String> {
+/// Where a report goes, and whether the debug-only loopback seam chose it.
+fn destination() -> Option<(String, bool)> {
     if transport_vetoed() {
         return None;
     }
     #[cfg(all(debug_assertions, feature = "telemetry-test-seam"))]
     if let Some(url) = seam_endpoint(std::env::var("GOATTECH_BASIC_STATS_TEST_URL").ok().as_deref())
     {
-        return Some(url);
+        return Some((url, true));
     }
-    Some(ENDPOINT.to_owned())
+    Some((ENDPOINT.to_owned(), false))
+}
+
+/// Where a report goes, if anywhere: [`ENDPOINT`], unless the transport veto is on. In debug
+/// builds with the `telemetry-test-seam` feature a loopback URL can stand in for it; a release
+/// build never reads that variable.
+pub fn endpoint() -> Option<String> {
+    destination().map(|(url, _)| url)
 }
 
 /// A test destination, when the seam is compiled in: loopback only, no credentials, so a test
@@ -97,8 +150,8 @@ fn seam_endpoint(var: Option<&str>) -> Option<String> {
     matches!(host, "127.0.0.1" | "localhost" | "::1").then(|| url.to_owned())
 }
 
-/// Why the fixed [`ENDPOINT`] is not what it must be, as a static check and a unit test.
-#[cfg(test)]
+/// Why a URL is not the fixed [`ENDPOINT`]: checked in the production send path itself, so
+/// no caller, refactor or mutant can route a report anywhere else.
 fn fixed_endpoint_error(url: &str) -> Option<&'static str> {
     let Some(rest) = url.strip_prefix("https://") else {
         return Some("https only");
@@ -311,10 +364,25 @@ impl Report {
     }
 }
 
-/// Sends one report, once, to `url` ([`endpoint`]'s answer): a bounded POST with no redirects
-/// followed, no cookies, no proxy, and no retry - a failure or refusal is simply dropped.
+/// The one send boundary. The destination is decided HERE, in the production path: the veto
+/// is read again at dispatch, the URL is the fixed collector endpoint - validated here, not
+/// trusted - and the debug-only loopback seam is the sole exception, compiled out of release
+/// builds. No caller supplies a URL.
 #[cfg(feature = "basic")]
-pub fn send_to(url: &str, report: &Report) -> Result<(), String> {
+pub fn send(report: &Report) -> Result<(), String> {
+    let (url, seam) = destination().ok_or("the transport veto is on")?;
+    if !seam
+        && let Some(why) = fixed_endpoint_error(&url)
+    {
+        return Err(format!("not the fixed collector endpoint: {why}"));
+    }
+    post(&url, report)
+}
+
+/// A bounded POST with no redirects followed, no cookies, no proxy, and no retry - a failure
+/// or refusal is simply dropped.
+#[cfg(feature = "basic")]
+fn post(url: &str, report: &Report) -> Result<(), String> {
     report.check().map_err(str::to_owned)?;
     let body = serde_json::to_vec(report).map_err(|e| e.to_string())?;
     // No cookie store is compiled in (the crate has no cookies feature), and no proxy is set:
@@ -473,10 +541,12 @@ mod tests {
         assert!(seam_endpoint(None).is_none());
     }
 
-    /// A 3xx is a drop, never a follow: the redirect target is never touched.
+    /// A 3xx is a drop, never a follow: the redirect target is never touched. The test goes
+    /// through the PRODUCTION [`send`] boundary (fixture release, loopback seam), so a mutant
+    /// agent that follows redirects fails here.
     #[cfg(all(debug_assertions, feature = "telemetry-test-seam"))]
     #[test]
-    fn redirects_are_not_followed() {
+    fn redirects_are_not_followed_through_send() {
         use std::io::{BufRead, BufReader, Write};
         use std::net::TcpListener;
         use std::sync::atomic::{AtomicUsize, Ordering};
@@ -491,10 +561,13 @@ mod tests {
                 drop(stream);
             }
         });
+        let got = std::sync::Arc::new(AtomicUsize::new(0));
         let source = TcpListener::bind("127.0.0.1:0").unwrap();
         let source_addr = source.local_addr().unwrap();
+        let got2 = std::sync::Arc::clone(&got);
         std::thread::spawn(move || {
             if let Ok((mut stream, _)) = source.accept() {
+                got2.fetch_add(1, Ordering::SeqCst);
                 let mut reader = BufReader::new(stream.try_clone().unwrap());
                 // Read the request head before answering.
                 for line in reader.lines().map_while(Result::ok) {
@@ -512,6 +585,35 @@ mod tests {
         });
         let url = format!("http://{source_addr}/v1/basic-stats");
         assert_eq!(seam_endpoint(Some(&url)).as_deref(), Some(url.as_str()));
+        unsafe { std::env::set_var("GOATTECH_BASIC_STATS_TEST_URL", &url) };
+        let report = Report::build(
+            TEST_RELEASE,
+            Some(Ttt::Lt500),
+            None,
+            None,
+        )
+        .expect("the fixture release builds a report under the seam");
+        let _ = send(&report);
+        unsafe { std::env::remove_var("GOATTECH_BASIC_STATS_TEST_URL") };
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        assert_eq!(got.load(Ordering::SeqCst), 1, "the request never reached the seam collector");
+        assert_eq!(hits.load(Ordering::SeqCst), 0, "the redirect target was hit");
+    }
+
+    /// Where the seam is not compiled - every release build - the variable is never read,
+    /// the fixture release is not allowed and a report naming it cannot send.
+    #[cfg(not(all(debug_assertions, feature = "telemetry-test-seam")))]
+    #[test]
+    fn the_seam_is_absent_where_it_is_not_compiled() {
+        // This test exists only where the seam is NOT compiled (default debug builds and,
+        // decisively, release-profile test runs): with the variable set, the endpoint is
+        // still the fixed collector's, the fixture release is not allowed, and send refuses.
+        unsafe { std::env::set_var("GOATTECH_BASIC_STATS_TEST_URL", "http://127.0.0.1:9/") };
+        if std::env::var("HORIZON_TELEMETRY_URL").is_err() {
+            assert_eq!(endpoint().as_deref(), Some(ENDPOINT));
+        }
+        assert!(test_release().is_none(), "no fixture release without the seam");
+        assert!(!release_allowed("v0.0.0-test"));
         let report = Report {
             schema: SCHEMA_ID.to_owned(),
             release: "v0.0.0-test".to_owned(),
@@ -520,32 +622,8 @@ mod tests {
             ttw_ms: None,
             p95_ms: None,
         };
-        // check() refuses the unpublished test tag, so build the body directly here: this
-        // test pins the HTTP behavior, not the allowlist.
-        let body = serde_json::to_vec(&report).unwrap();
-        let agent = ureq::AgentBuilder::new()
-            .timeout(std::time::Duration::from_secs(3))
-            .redirects(0)
-            .build();
-        let _ = agent
-            .post(&url)
-            .set("Content-Type", "application/json")
-            .send_bytes(&body);
-        std::thread::sleep(std::time::Duration::from_millis(200));
-        assert_eq!(hits.load(Ordering::SeqCst), 0, "the redirect target was hit");
-    }
-
-    /// A release build has no test seam at all: the variable is never read.
-    #[test]
-    fn a_release_build_cannot_be_redirected() {
-        if cfg!(debug_assertions) {
-            return; // the seam's own tests cover debug builds
-        }
-        // Only this test touches the variable, and in a release test run the seam tests are
-        // not compiled, so nothing else reads it concurrently.
-        unsafe { std::env::set_var("GOATTECH_BASIC_STATS_TEST_URL", "http://127.0.0.1:9/") };
-        if std::env::var("HORIZON_TELEMETRY_URL").is_err() {
-            assert_eq!(endpoint().as_deref(), Some(ENDPOINT));
-        }
+        #[cfg(feature = "basic")]
+        assert!(send(&report).is_err(), "an unpublished release never sends");
+        unsafe { std::env::remove_var("GOATTECH_BASIC_STATS_TEST_URL") };
     }
 }
