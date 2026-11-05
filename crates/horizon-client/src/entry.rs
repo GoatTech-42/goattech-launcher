@@ -14,6 +14,9 @@ pub fn main_with(mods: crate::mod_api::Mods) {
     }
     horizon_threads::configure_allocator();
     horizon_client::telemetry::mark_start();
+    // The launcher may have asked for this session's basic-summaries events (its hello and
+    // the off control line); a no-op unless it did.
+    horizon_client::telemetry::begin_basic_session();
     horizon_client::spans::startup::init(std::time::Instant::now());
     let args: Vec<String> = std::env::args().skip(1).collect();
     let game_args = args.iter().take_while(|a| *a != "--dedicated");

@@ -1214,23 +1214,26 @@ impl Launcher {
                 // Old versions log their session; it never reaches the window.
                 Msg::Line(_, line) if line.contains("Session ID is") => {}
                 Msg::Line(job, line) => {
-                    if job == Job::Client {
-                        if let Some(session) = &mut self.basic_session {
-                            session.on_line(&line);
+                    // A basic-summaries protocol frame is consumed by the session and never
+                    // reaches the user's log or anything shared from it (console Copy/Share).
+                    if !horizon_launcher::basic_stats::consume_event_line(
+                        &mut self.basic_session,
+                        job == Job::Client,
+                        &line,
+                    ) {
+                        if job == Job::Client && line.starts_with(perf::GAME_FIRST_FRAME) {
+                            if let Some(pressed) = self.play_pressed.take() {
+                                self.perf
+                                    .record_since("launcher.play_to_game_frame_ms", pressed);
+                            }
                         }
-                    }
-                    if job == Job::Client && line.starts_with(perf::GAME_FIRST_FRAME) {
-                        if let Some(pressed) = self.play_pressed.take() {
-                            self.perf
-                                .record_since("launcher.play_to_game_frame_ms", pressed);
-                        }
-                    }
-                    // The MCP server keeps its own server's log; the launcher's are the preparer's
-                    // and the game's.
-                    if job != Job::Server {
-                        self.prepare_log.push_back(line);
-                        if self.prepare_log.len() > LOG_LINES {
-                            self.prepare_log.pop_front();
+                        // The MCP server keeps its own server's log; the launcher's are the
+                        // preparer's and the game's.
+                        if job != Job::Server {
+                            self.prepare_log.push_back(line);
+                            if self.prepare_log.len() > LOG_LINES {
+                                self.prepare_log.pop_front();
+                            }
                         }
                     }
                 }
@@ -1264,7 +1267,9 @@ impl Launcher {
                         Job::Client => {
                             self.client = None;
                             if let Some(session) = self.basic_session.take() {
-                                session.session_ended();
+                                // A crash or a kill (an error exit, or no normal-end marker)
+                                // sends nothing; both gates are inside.
+                                session.session_ended(error.is_none());
                             }
                             self.come_back(cx);
                             // The game saved: last played, sizes and pictures changed.

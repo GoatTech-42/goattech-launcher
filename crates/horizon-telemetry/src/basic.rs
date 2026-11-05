@@ -152,6 +152,7 @@ fn seam_endpoint(var: Option<&str>) -> Option<String> {
 
 /// Why a URL is not the fixed [`ENDPOINT`]: checked in the production send path itself, so
 /// no caller, refactor or mutant can route a report anywhere else.
+#[cfg(any(test, feature = "basic"))]
 fn fixed_endpoint_error(url: &str) -> Option<&'static str> {
     let Some(rest) = url.strip_prefix("https://") else {
         return Some("https only");

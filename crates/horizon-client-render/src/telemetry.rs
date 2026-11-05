@@ -4,7 +4,7 @@
 //! game's only sending is the anonymous "I'm playing" ping, `heartbeat.rs`).
 //! Without the player's yes for that kind nothing is kept, and crash-reports/ stays local.
 use std::path::Path;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
@@ -216,13 +216,45 @@ pub fn keep_benchmark(home: &Path, report: &horizon_bench::Report) {
 /// Anything else on that pipe stays the game's log. The game never sends anything itself.
 pub fn session_events() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ON.get_or_init(|| std::env::var_os("HORIZON_SESSION_EVENTS").is_some_and(|v| v == "1"))
+    *ON.get_or_init(|| {
+        std::env::var_os(horizon_telemetry::basic::EVENTS_ENV).is_some_and(|v| v == "1")
+    }) && !BASIC_CANCELLED.load(Ordering::Relaxed)
+}
+
+/// The launcher turned the switch off mid-game: collection stops and stays stopped.
+static BASIC_CANCELLED: AtomicBool = AtomicBool::new(false);
+
+/// The switch went off mid-game (the launcher's control line): stop collecting at once and
+/// stay stopped; the session's buffer clears on the next frame ([`Session::frame`]) and no
+/// event - including the end marker - is emitted after this.
+pub fn cancel_basic_session() {
+    BASIC_CANCELLED.store(true, Ordering::Relaxed);
+}
+
+/// The session's part of the protocol with the launcher, started once at game start when the
+/// launcher asked for events: the game introduces itself (hello: its own release, which the
+/// report names and the launcher allowlists), then watches stdin for the launcher's control
+/// line turning collection off mid-game. Without the launcher's request this does nothing.
+pub fn begin_basic_session() {
+    if !session_events() {
+        return;
+    }
+    let v = serde_json::to_string(&version()).unwrap_or_else(|_| "\"dev\"".to_owned());
+    session_event(&format!("{{\"e\":\"hello\",\"v\":{v}}}"));
+    std::thread::spawn(|| {
+        use std::io::BufRead;
+        for line in std::io::stdin().lock().lines().map_while(Result::ok) {
+            if line.trim() == horizon_telemetry::basic::CONTROL_OFF {
+                cancel_basic_session();
+            }
+        }
+    });
 }
 
 /// One machine-readable event frame for the launcher, distinct from every log line.
 pub(crate) fn session_event(json: &str) {
     if session_events() {
-        println!("HORIZON-SESSION-EVENT {json}");
+        println!("{}{json}", horizon_telemetry::basic::EVENT_PREFIX);
     }
 }
 
@@ -293,7 +325,13 @@ impl Session {
             }
         }
         self.frames.record(ms);
-        self.basic_frames.record(ms);
+        // The basic-summaries histogram only fills while the launcher consumes the session
+        // and the switch has not gone off mid-game; a cancel clears what it had.
+        if session_events() {
+            self.basic_frames.record(ms);
+        } else if self.basic_frames.count() > 0 {
+            self.basic_frames = Timings::default();
+        }
         self.played_ms += ms;
     }
 
@@ -341,6 +379,9 @@ impl Session {
     /// The run's one basic-summaries frame event, for a normal exit (`Game::shut_down`): the
     /// p95 of every playing frame, with how many. The launcher applies its own minimum and
     /// range checks; a forced exit never gets here, and that session is simply lost.
+    /// The session's end, from the game's ordinary shutdown path only: the frames summary
+    /// when it qualifies, then the normal-end marker. A crash or a forced quit never reaches
+    /// here, so it never completes a session - and a canceled session emits nothing at all.
     pub fn emit_basic_frames(&self) {
         if !session_events() {
             return;
@@ -351,6 +392,7 @@ impl Session {
                 self.basic_frames.count()
             ));
         }
+        session_event("{\"e\":\"end\"}");
     }
 }
 

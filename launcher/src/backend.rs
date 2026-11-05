@@ -3417,6 +3417,17 @@ impl Settings {
             }) {
                 fields.remove("language");
             }
+            // Basic summaries fail closed: a value of the wrong shape is no setting (off),
+            // never a reason to lose every other setting.
+            if fields.get("basic_summaries").is_some_and(|b| !b.is_boolean()) {
+                fields.remove("basic_summaries");
+            }
+            if fields.get("basic_summaries_cohort").is_some_and(|c| {
+                !c.is_null()
+                    && serde_json::from_value::<crate::basic_stats::Cohort>(c.clone()).is_err()
+            }) {
+                fields.remove("basic_summaries_cohort");
+            }
         }
         serde_json::from_value(value).unwrap_or_default()
     }

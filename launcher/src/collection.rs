@@ -118,16 +118,29 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
 }
 
 impl Launcher {
+    /// Basic summaries off, for real: the recorded setting, the running game told to stop
+    /// collecting at once (its own buffer clears), and the launcher's session dropped, so a
+    /// canceled sample can never be resurrected by the switch coming back on.
+    fn basic_off(&mut self) {
+        self.settings.basic_summaries = Some(false);
+        self.settings.save();
+        if let Some(client) = &mut self.client {
+            client.send(horizon_launcher::basic_stats::CONTROL_OFF);
+        }
+        self.basic_session = None;
+    }
+
     /// The basic-summaries row's own switch, on the first-run question and in Settings: the
-    /// recorded setting, never the ping's flag and never a consent kind. Turning it off drops
-    /// anything the running session had gathered.
+    /// recorded setting, never the ping's flag and never a consent kind. Turning it off stops
+    /// collection for a game already running and drops anything gathered.
     fn basic_switch(&self, id: &'static str, cx: &mut Context<Self>) -> impl IntoElement {
         let on = self.settings.basic_summaries == Some(true);
         switch(id, on, &self.theme).on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-            this.settings.basic_summaries = Some(!on);
-            this.settings.save();
             if on {
-                this.basic_session = None;
+                this.basic_off();
+            } else {
+                this.settings.basic_summaries = Some(true);
+                this.settings.save();
             }
             cx.notify();
         }))
@@ -159,6 +172,16 @@ impl Launcher {
                         text(theme::CAPTION)
                             .text_color(t.muted)
                             .child(tr(telemetry::BASIC_WHAT)),
+                    )
+                    // The actual recorded state, never a blanket "on by default".
+                    .child(
+                        text(theme::CAPTION)
+                            .text_color(t.muted)
+                            .child(if self.settings.basic_summaries == Some(true) {
+                                tr("On for this install.")
+                            } else {
+                                tr("Off for this install.")
+                            }),
                     ),
             )
             .child(self.basic_switch(id, cx))
@@ -294,6 +317,9 @@ impl Launcher {
                 button("ask-none", "Keep optional data off", Kind::Secondary, &t).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.answer_consent(Choices::NONE);
+                        // Everything optional means everything: basic summaries too. The
+                        // "I'm playing" ping is not optional data and is untouched.
+                        this.basic_off();
                         cx.notify();
                     },
                 )),
