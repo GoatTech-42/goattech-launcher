@@ -44,16 +44,16 @@ the rust engine - the hard part - is upstream horizon's work. this fork keeps it
 
 you need rust (stable), python 3.10+, jdk 25, and on linux the alsa and udev headers (`libasound2-dev libudev-dev`).
 
-the launcher is its own cargo workspace:
+from the repository root:
 
 ```sh
-cd launcher && cargo run        # on nixos, nix-shell first
+# the launcher, its own cargo workspace
+cargo run --manifest-path launcher/Cargo.toml
 cargo test --manifest-path launcher/Cargo.toml
-```
+# on nixos: cd launcher && nix-shell, then plain cargo run / cargo test inside it
 
-the engine never downloads the game: it prepares its resources from your own copy of minecraft 26.3, then runs:
-
-```sh
+# the engine: it never downloads the game - it prepares its resources
+# from your own copy of minecraft 26.3, then runs
 cargo run --release -p horizon-prepare -- --prepare --server-jar ~/Downloads/server.jar
 cargo run --release -p horizon-client
 ```
