@@ -48,6 +48,39 @@ pub const BASIC_NAME: &str = "Basic performance summaries";
 /// differs, this copy must change to the verified behavior before any send is enabled.
 pub const BASIC_WHAT: &str = "Once per game session: how long the game took to show its title and to load its first world, and how slow its slower frames get (a 95th-percentile frame time), each as a coarse range, with the Horizon release and your OS (Linux, macOS or Windows). No account, no install ID, nothing you do in the game. Sent only to GoatTech's own collector, which keeps daily counts per release and OS and deletes them after 7 days. Turn it off any time.";
 
+/// One-line dialog captions: the first-run question shows these beside the switches and
+/// keeps the full wording (BASIC_WHAT, the SWITCHES entries, [`ping_text`]) one click away
+/// in "View details and example reports"; Settings keeps the full wording inline.
+pub const BASIC_SHORT: &str = "Once per game session: how fast the game started and how slow its slower frames get, as coarse ranges, with the Horizon release and your OS. No account, no install ID. GoatTech's own collector keeps daily counts per release and OS and deletes them after 7 days.";
+
+/// The performance-statistics row, short form (the full machine list stays in the detail view).
+pub const PERF_SHORT: &str = "After each session: frame-time and tick-time statistics, peak memory and startup times, with your machine's specs (OS, CPU, GPU, memory, screen, battery) and the settings that change performance.";
+
+/// The ping row on the first-run question, short form; accurate about configuration being
+/// the only off switch.
+pub const PING_SHORT: &str = "Once a minute while you play: an anonymous count, so the launcher can show how many people play right now. Sent whatever the switches say; only a configuration change turns it off. No account, no install ID, no world or server names - your session's anonymous row is removed about an hour after you stop.";
+
+/// The dialog row caption for `kind`: the short form where a long one exists.
+pub fn short_what(kind: Kind) -> &'static str {
+    match kind {
+        Kind::Perf => PERF_SHORT,
+        _ => SWITCHES
+            .iter()
+            .find(|&&(k, _, _)| k == kind)
+            .map(|&(_, _, w)| w)
+            .unwrap_or(""),
+    }
+}
+
+/// The dialog ping caption, endpoint-aware like [`ping_text`].
+pub fn ping_short() -> &'static str {
+    if horizon_telemetry::live_endpoint().is_some() {
+        PING_SHORT
+    } else {
+        PING_OFF
+    }
+}
+
 /// Never sent, whatever the switches say.
 pub const NEVER: &str = "Never sent: your account name or UUID, world names, server addresses, chat, or your IP address. The detailed optional reports are dated to the day and carry a random install ID you can delete; basic summaries carry no ID at all.";
 
@@ -70,7 +103,7 @@ pub fn ping_text() -> &'static str {
         PING_OFF
     }
 }
-pub const PING: &str = "The game sends an anonymous \"I'm playing\" ping once a minute while you play, so the launcher can show how many people play right now. The ping is always on and goes to GoatTech's own counter (telemetry.goattech.us), which stores only each session's anonymous row while you play and removes it about an hour after you stop; cleanup can take longer if the service hits its daily limit. The ping holds: a random number made when the game starts and forgotten when it closes, the version, your OS (Linux, macOS or Windows), and whether you have a world open to LAN or friends. It doesn't hold: your account, your install ID, world or server names, or anything you do in the game, and the server doesn't keep your IP address. It is sent whatever the switches above say.";
+pub const PING: &str = "The game sends an anonymous \"I'm playing\" ping once a minute while you play, so the launcher can show how many people play right now. The ping stays on while you play and goes to GoatTech's own counter (telemetry.goattech.us), which stores only each session's anonymous row while you play and removes it about an hour after you stop; cleanup can take longer if the service hits its daily limit. The ping holds: a random number made when the game starts and forgotten when it closes, the version, your OS (Linux, macOS or Windows), and whether you have a world open to LAN or friends. It doesn't hold: your account, your install ID, world or server names, or anything you do in the game, and the server doesn't keep your IP address. It is sent whatever the other choices say; only a configuration change (HORIZON_TELEMETRY_URL=off) turns it off.";
 
 /// How many play now (cached a few seconds), if GoatTech's collector says. The count and the ping share
 /// [`horizon_telemetry::live_endpoint`]: the collector by default, off with

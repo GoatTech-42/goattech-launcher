@@ -3440,6 +3440,7 @@ impl Launcher {
                 "Accounts, updates, and the launcher itself.",
                 &t,
             ))
+            .child(self.collection_section(cx))
             .child(
                 div()
                     .flex()
@@ -3568,7 +3569,6 @@ impl Launcher {
                         ))
                     }),
             )
-            .child(self.collection_section(cx))
             .children(self.agents_section(cx))
             .children(self.dev_options_section(cx))
     }

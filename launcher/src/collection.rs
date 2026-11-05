@@ -46,11 +46,11 @@ fn kind_id(prefix: &str, kind: DataKind) -> &'static str {
 }
 
 /// Where a switch would be: the ping has none.
-/// The ping's state chip: "Always on" - the ping goes to GoatTech's collector by default
+/// The ping's state chip: "On while playing" - the ping goes to GoatTech's collector by default
 /// (`horizon_telemetry::live_endpoint`), unless `HORIZON_TELEMETRY_URL=off`.
 fn ping_state(t: &Theme) -> Div {
     let label = if horizon_telemetry::live_endpoint().is_some() {
-        tr("Always on")
+        tr("On while playing")
     } else {
         tr("Off by default")
     };
@@ -81,14 +81,25 @@ fn ping_row(t: &Theme) -> Div {
                 .child(
                     text(theme::CAPTION)
                         .text_color(t.muted)
-                        .child(tr(telemetry::ping_text())),
+                        .child(tr(telemetry::ping_short())),
                 ),
         )
         .child(ping_state(t))
 }
 
-/// The exact JSON, in mono, scrolling inside a plate.
+/// The full wording for every kind, then the exact JSON, in mono, scrolling inside a plate.
 fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
+    let detail = |name: &'static str, what: &'static str| {
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(2.))
+            .child(text(theme::CAPTION).text_color(t.ink).child(tr(name)))
+            .child(text(theme::CAPTION).text_color(t.muted).child(tr(what)))
+    };
+    let kinds = telemetry::SWITCHES
+        .iter()
+        .map(|&(_, name, what)| detail(name, what).into_any_element());
     div()
         .flex()
         .flex_col()
@@ -97,6 +108,15 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
             text(theme::CAPTION)
                 .text_color(t.muted)
                 .child(view.0.clone()),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(10.))
+                .child(detail(telemetry::BASIC_NAME, telemetry::BASIC_WHAT).into_any_element())
+                .children(kinds)
+                .child(detail(telemetry::PING_NAME, telemetry::ping_text()).into_any_element()),
         )
         .child(
             scroll.wrap(
@@ -193,7 +213,7 @@ impl Launcher {
                     .child(
                         text(theme::CAPTION)
                             .text_color(t.muted)
-                            .child(tr(telemetry::BASIC_WHAT)),
+                            .child(tr(telemetry::BASIC_SHORT)),
                     )
                     // Only what is actually known (row_state): a save in flight is
                     // "turning", a failed choice with the session veto held is off for
@@ -278,7 +298,7 @@ impl Launcher {
         let draft = self.collection.draft;
         // Built first: the lazy `rows` below holds `cx` until `children(rows)` runs.
         let basic = self.basic_row("ask-basic", cx);
-        let rows = telemetry::SWITCHES.iter().map(|&(kind, name, what)| {
+        let rows = telemetry::SWITCHES.iter().map(|&(kind, name, _)| {
             let on = draft.allows(kind);
             div()
                 .flex()
@@ -295,7 +315,11 @@ impl Launcher {
                         .min_w_0()
                         .gap(px(2.))
                         .child(text(theme::UI).text_color(t.ink).child(tr(name)))
-                        .child(text(theme::CAPTION).text_color(t.muted).child(tr(what))),
+                        .child(
+                            text(theme::CAPTION)
+                                .text_color(t.muted)
+                                .child(tr(telemetry::short_what(kind))),
+                        ),
                 )
                 .child(switch(kind_id("ask", kind), on, &t).on_click(cx.listener(
                     move |this, _: &ClickEvent, _, cx| {
@@ -324,7 +348,11 @@ impl Launcher {
                     .child(tr("Help make GoatTech faster and steadier?")),
             )
             .child(text(theme::UI).text_color(t.muted).child(tr(
-                "Basic performance summaries are on by default - a few coarse numbers, listed below. Every other switch is off until you turn it on, and Settings can change any of them any time.",
+                if horizon_telemetry::live_endpoint().is_some() {
+                    "The short version: basic performance summaries start on; the four report kinds start off. \"Keep optional data off\" turns all five off in one click - the anonymous player-count ping runs while you play either way. Settings can change any choice later."
+                } else {
+                    "The short version: basic performance summaries start on; the four report kinds start off. \"Keep optional data off\" turns all five off in one click - the player-count ping is off in this configuration. Settings can change any choice later."
+                },
             )))
             .child(
                 div()
@@ -344,7 +372,11 @@ impl Launcher {
                     .text_color(t.accent)
                     .cursor_pointer()
                     .hover(|s| s.opacity(0.8))
-                    .child(tr(if viewing { "Hide what would be sent" } else { "View what would be sent" }))
+                    .child(tr(if viewing {
+                        "Hide details and example reports"
+                    } else {
+                        "View details and example reports"
+                    }))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.toggle_view();
                         cx.notify();
@@ -483,7 +515,7 @@ impl Launcher {
                     if self.collection.view.is_some() {
                         "Hide"
                     } else {
-                        "View what would be sent"
+                        "View details and example reports"
                     },
                     Kind::Ghost,
                     &t,

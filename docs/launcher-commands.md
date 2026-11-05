@@ -322,7 +322,7 @@ MCP: `data_deny`.
 
 ## `horizon-launcher data show`
 
-Print exactly what would be sent.
+Print the queued reports exactly as they would leave, or one example of each kind when nothing is waiting.
 
     horizon-launcher data show
 
