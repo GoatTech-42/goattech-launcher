@@ -349,9 +349,9 @@ impl Launcher {
             )
             .child(text(theme::UI).text_color(t.muted).child(tr(
                 if horizon_telemetry::live_endpoint().is_some() {
-                    "The short version: basic performance summaries start on; the four report kinds start off. \"Keep optional data off\" turns all five off in one click - the anonymous player-count ping runs while you play either way. Settings can change any choice later."
+                    "The short version: on a new install, basic performance summaries start on; the four report kinds start off. \"Keep optional data off\" turns all five off in one click - the anonymous player-count ping runs while you play either way. Settings can change any choice later."
                 } else {
-                    "The short version: basic performance summaries start on; the four report kinds start off. \"Keep optional data off\" turns all five off in one click - the player-count ping is off in this configuration. Settings can change any choice later."
+                    "The short version: on a new install, basic performance summaries start on; the four report kinds start off. \"Keep optional data off\" turns all five off in one click - the player-count ping is off in this configuration. Settings can change any choice later."
                 },
             )))
             .child(
