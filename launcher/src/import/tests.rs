@@ -1,5 +1,5 @@
 use super::*;
-use crate::export::{export, Format};
+use crate::export::{Format, export};
 use std::io::Write;
 use std::time::Duration;
 
@@ -213,7 +213,9 @@ fn an_export_comes_back_as_an_instance_and_nothing_escapes_its_folder() {
     fs::remove_dir_all(&dir).unwrap();
 }
 
-fn java_maker(root: &Path) -> impl Fn(&str, &str, crate::loaders::Loader) -> Result<Instance, String> + '_ {
+fn java_maker(
+    root: &Path,
+) -> impl Fn(&str, &str, crate::loaders::Loader) -> Result<Instance, String> + '_ {
     move |name: &str, minecraft: &str, loader: crate::loaders::Loader| {
         let home = root.join(crate::modpacks::slug(name));
         if home.exists() {
@@ -351,8 +353,14 @@ fn a_forge_pack_says_so_instead_of_importing_broken() {
     .unwrap_err();
     assert!(err.contains("neoforge 21.1.0"), "{err}");
     assert!(err.contains(".mrpack"), "{err}");
-    assert!(err.contains("importing Forge or NeoForge .mrpack files is not supported"), "{err}");
-    assert!(err.contains("A new Java instance can install neoforge itself"), "{err}");
+    assert!(
+        err.contains("importing Forge or NeoForge .mrpack files is not supported"),
+        "{err}"
+    );
+    assert!(
+        err.contains("A new Java instance can install neoforge itself"),
+        "{err}"
+    );
     let _ = fs::remove_dir_all(&root);
 }
 
@@ -360,7 +368,10 @@ fn a_forge_pack_says_so_instead_of_importing_broken() {
 fn an_archive_unpacking_past_the_limit_is_refused_mid_fill() {
     let root = scratch("cap");
     let archive = root.join("over.zip");
-    zip_file(&archive, &[("options.txt", b"12345"), ("config/a.txt", b"67890")]);
+    zip_file(
+        &archive,
+        &[("options.txt", b"12345"), ("config/a.txt", b"67890")],
+    );
     let mut zip = open(&archive).unwrap();
     let home = root.join("inst");
     // A tiny limit stands in for 8 GiB: the budget is enforced on what actually unpacks,
@@ -391,7 +402,10 @@ fn a_single_huge_entry_is_cut_off_before_it_lands() {
 fn an_archive_within_the_limit_unpacks_all_of_it() {
     let root = scratch("cap-ok");
     let archive = root.join("fine.zip");
-    zip_file(&archive, &[("options.txt", b"12345"), ("config/a.txt", b"67890")]);
+    zip_file(
+        &archive,
+        &[("options.txt", b"12345"), ("config/a.txt", b"67890")],
+    );
     let mut zip = open(&archive).unwrap();
     let home = root.join("inst");
     fill_with(&mut zip, None, &home, &|_, _| {}, &target, 10).unwrap();

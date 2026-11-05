@@ -2,7 +2,7 @@
 //! instance's Minecraft version and loader, put in its `mods/` and `resourcepacks/` as they are
 //! (nothing is ported). The instance's `mod-browser.json` lists them, as for Horizon's folder.
 use super::installed::{self, Entry, Installed, Step};
-use super::{details, Kind, Project, Query, Source, Version};
+use super::{Kind, Project, Query, Source, Version, details};
 use std::fs;
 use std::path::Path;
 
@@ -210,10 +210,13 @@ pub fn set_on(home: &Path, entry: &Entry, on: bool) -> Result<(), String> {
     let jar = match entry.touch(home) {
         installed::Touch::Here(jar) => jar,
         installed::Touch::Gone => {
-            return Err(format!("{} isn't there to turn on or off.", entry.title))
+            return Err(format!("{} isn't there to turn on or off.", entry.title));
         }
         installed::Touch::Unsafe => {
-            return Err(format!("{} isn't a place the browser may touch.", entry.file))
+            return Err(format!(
+                "{} isn't a place the browser may touch.",
+                entry.file
+            ));
         }
     };
     let mut off = jar.clone().into_os_string();
@@ -261,7 +264,10 @@ pub fn remove(home: &Path, name: &str) -> Result<Entry, String> {
         }
         installed::Touch::Gone => {}
         installed::Touch::Unsafe => {
-            return Err(format!("{} isn't a place the browser may remove.", entry.file))
+            return Err(format!(
+                "{} isn't a place the browser may remove.",
+                entry.file
+            ));
         }
     }
     installed

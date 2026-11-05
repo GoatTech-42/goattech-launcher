@@ -8,8 +8,9 @@
 //! Installing copies the carried-over folder mod into `horizon-mods/<mod id>/` beside
 //! `options.txt` and turns it on in `horizon-mods.txt`, where the game's Options > Mods reads it.
 use super::{
+    FileRef, Kind, Project, Source, Support, Version,
     installed::{Entry, Touch},
-    pick, FileRef, Kind, Project, Source, Support, Version,
+    pick,
 };
 use horizon_port_pack::check::{self, Check, Verdict};
 use std::fs;
@@ -304,7 +305,10 @@ pub fn remove(home: &Path, entry: &Entry) -> Result<(), String> {
         },
         Touch::Gone => {}
         Touch::Unsafe => {
-            return Err(format!("{} isn't a place the browser may remove.", entry.file))
+            return Err(format!(
+                "{} isn't a place the browser may remove.",
+                entry.file
+            ));
         }
     }
     set_enabled(home, id, false)

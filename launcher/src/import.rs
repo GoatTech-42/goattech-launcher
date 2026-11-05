@@ -12,7 +12,7 @@
 //!
 //! Only what an instance holds is taken from a shared zip ([`crate::export::FILES`],
 //! [`crate::export::FOLDERS`], `saves/`), and every path is checked to stay inside its folder.
-use crate::browser::{download, FileRef};
+use crate::browser::{FileRef, download};
 use crate::export::{FILES, FOLDERS};
 use crate::instances::{self, Instance};
 use crate::packs;
@@ -93,7 +93,7 @@ pub fn what(file: &Path) -> Result<Dropped, String> {
         _ => {
             return Err(format!(
                 "{name} can't be imported: drop a .mrpack, a .zip or a .hshader."
-            ))
+            ));
         }
     }
     let zip = open(file)?;
@@ -210,7 +210,9 @@ fn java_target(home: &Path, relative: &str) -> Option<PathBuf> {
 }
 
 /// A loader a `.mrpack` asks for, as its `dependencies` name it.
-fn pack_loader(deps: &serde_json::Map<String, serde_json::Value>) -> Result<Option<(String, String)>, String> {
+fn pack_loader(
+    deps: &serde_json::Map<String, serde_json::Value>,
+) -> Result<Option<(String, String)>, String> {
     for (key, kind) in [("fabric-loader", "fabric"), ("quilt-loader", "quilt")] {
         if let Some(version) = deps.get(key).and_then(|v| v.as_str()) {
             return Ok(Some((kind.to_string(), version.to_string())));
@@ -252,13 +254,12 @@ pub fn import_java_instance_with(
     let minecraft = deps["minecraft"]
         .as_str()
         .ok_or_else(|| format!("Its {INDEX} names no Minecraft version."))?;
-    let loader = pack_loader(deps)?
-        .ok_or_else(|| {
-            format!(
-                "{} has no mod loader: import it as a shared instance instead.",
-                name_of(file)
-            )
-        })?;
+    let loader = pack_loader(deps)?.ok_or_else(|| {
+        format!(
+            "{} has no mod loader: import it as a shared instance instead.",
+            name_of(file)
+        )
+    })?;
     let version = resolve(minecraft)?;
     let loader = choose(&loader.0, &version, &loader.1)?;
     let stem = file
@@ -279,7 +280,14 @@ pub fn import_java_instance_with(
         .find_map(|name| create(&name, &version, loader.clone()).ok())
         .ok_or_else(|| format!("Could not make an instance called {base}."))?;
     let home = instance.home.clone();
-    if let Err(e) = fill_with(&mut zip, Some(&index), &home, progress, &java_target, MAX_IMPORT) {
+    if let Err(e) = fill_with(
+        &mut zip,
+        Some(&index),
+        &home,
+        progress,
+        &java_target,
+        MAX_IMPORT,
+    ) {
         let _ = fs::remove_dir_all(&home);
         return Err(e);
     }
@@ -287,10 +295,7 @@ pub fn import_java_instance_with(
 }
 
 /// [`import_java_instance_with`] against Mojang's and the loader's own services.
-pub fn import_java_instance(
-    file: &Path,
-    progress: &dyn Fn(&str, f32),
-) -> Result<Instance, String> {
+pub fn import_java_instance(file: &Path, progress: &dyn Fn(&str, f32)) -> Result<Instance, String> {
     import_java_instance_with(
         file,
         progress,

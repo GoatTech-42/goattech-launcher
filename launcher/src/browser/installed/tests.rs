@@ -1,5 +1,5 @@
 use super::*;
-use crate::browser::{download, FileRef, Query, GAME};
+use crate::browser::{FileRef, GAME, Query, download};
 use sha2::Digest;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -214,9 +214,11 @@ fn nothing_is_installed_when_a_check_fails() {
     assert!(home.join("resourcepacks/good-1.zip").exists());
 
     let pack = project("pack", Kind::Modpack);
-    assert!(plan(&fake, &pack, false)
-        .unwrap_err()
-        .contains("imported, not installed"));
+    assert!(
+        plan(&fake, &pack, false)
+            .unwrap_err()
+            .contains("imported, not installed")
+    );
     fs::remove_dir_all(&home).unwrap();
 }
 
@@ -299,9 +301,11 @@ fn java_mods_are_ported_turned_on_refused_on_clashes_and_removed() {
         "mod.ruby:true\n"
     );
     // The jar isn't kept, its check is.
-    assert!(!home
-        .join("mod-browser/checks-1/.downloads/ruby-1.zip")
-        .exists());
+    assert!(
+        !home
+            .join("mod-browser/checks-1/.downloads/ruby-1.zip")
+            .exists()
+    );
 
     let clash = install(&fake, &fake.project("gem").unwrap(), false, &home, NONE).unwrap_err();
     assert!(clash.contains("shares its id or namespace"), "{clash}");
@@ -397,9 +401,11 @@ fn data_packs_go_into_a_world_when_something_in_them_runs() {
     );
     assert!(world.join("datapacks/tools-2.0.zip").is_file());
     // Nothing of it in the browser's own list.
-    assert!(Installed::load(world.parent().unwrap().parent().unwrap())
-        .entries
-        .is_empty());
+    assert!(
+        Installed::load(world.parent().unwrap().parent().unwrap())
+            .entries
+            .is_empty()
+    );
     let again = install_datapack(&fake, &tools, false, &world, off).unwrap();
     assert_eq!(again.pack.file, "tools-2.0 (2).zip");
 
@@ -483,12 +489,15 @@ fn a_planted_manifest_keeps_only_files_inside_the_install_folders() {
         ],
     );
     let loaded = Installed::load(&home);
-    let kept: Vec<&str> = loaded
-        .entries
-        .iter()
-        .map(|e| e.file.as_str())
-        .collect();
-    assert_eq!(kept, ["mods/keep.jar", "horizon-mods/port", "horizon-native-mods/n"]);
+    let kept: Vec<&str> = loaded.entries.iter().map(|e| e.file.as_str()).collect();
+    assert_eq!(
+        kept,
+        [
+            "mods/keep.jar",
+            "horizon-mods/port",
+            "horizon-native-mods/n"
+        ]
+    );
     let _ = fs::remove_dir_all(&home);
 }
 
@@ -527,16 +536,35 @@ fn a_symlinked_folder_never_lets_a_removal_out() {
     // And a real file in a real folder still resolves.
     fs::create_dir_all(home.join("mods/real")).unwrap();
     fs::write(home.join("mods/real/keep.jar"), b"x").unwrap();
-    listed(&home, &["horizon-mods/prey.jar", "mods/sub/prey.jar", "mods/real/keep.jar"]);
+    listed(
+        &home,
+        &[
+            "horizon-mods/prey.jar",
+            "mods/sub/prey.jar",
+            "mods/real/keep.jar",
+        ],
+    );
     let loaded = Installed::load(&home);
     // All three entries pass the lexical load filter, but resolving the two through a symlink
     // must see where the path lands and refuse to name it.
     assert_eq!(loaded.entries.len(), 3);
-    assert!(matches!(loaded.entries[0].touch(&home), Touch::Unsafe), "symlinked install folder");
-    assert!(matches!(loaded.entries[1].touch(&home), Touch::Unsafe), "symlinked nested folder");
-    assert!(matches!(loaded.entries[2].touch(&home), Touch::Here(_)), "real file");
+    assert!(
+        matches!(loaded.entries[0].touch(&home), Touch::Unsafe),
+        "symlinked install folder"
+    );
+    assert!(
+        matches!(loaded.entries[1].touch(&home), Touch::Unsafe),
+        "symlinked nested folder"
+    );
+    assert!(
+        matches!(loaded.entries[2].touch(&home), Touch::Here(_)),
+        "real file"
+    );
     let err = remove(&home, "p").unwrap_err();
-    assert!(err.contains("isn't a place the browser may remove"), "{err}");
+    assert!(
+        err.contains("isn't a place the browser may remove"),
+        "{err}"
+    );
     assert_eq!(fs::read(&prey).unwrap(), b"not the browser's");
     let _ = fs::remove_dir_all(&home);
     let _ = fs::remove_dir_all(&outside);
@@ -565,7 +593,8 @@ fn a_missing_folder_makes_a_stale_entry_a_no_op_to_remove() {
 #[test]
 fn an_unreadable_folder_is_not_absence() {
     use std::os::unix::fs::PermissionsExt;
-    let home = std::env::temp_dir().join(format!("horizon-installed-denied-{}", std::process::id()));
+    let home =
+        std::env::temp_dir().join(format!("horizon-installed-denied-{}", std::process::id()));
     let _ = fs::remove_dir_all(&home);
     let nested = home.join("resourcepacks/sub");
     fs::create_dir_all(&nested).unwrap();
@@ -573,10 +602,21 @@ fn an_unreadable_folder_is_not_absence() {
     listed_as(&home, Kind::ResourcePack, &["resourcepacks/sub/pack.zip"]);
     // The folder above the file's parent can't be read: nothing is proven about the file,
     // so removal refuses and KEEPS the entry instead of dropping it as gone.
-    fs::set_permissions(home.join("resourcepacks"), fs::Permissions::from_mode(0o000)).unwrap();
+    fs::set_permissions(
+        home.join("resourcepacks"),
+        fs::Permissions::from_mode(0o000),
+    )
+    .unwrap();
     let denied = remove(&home, "p").unwrap_err();
-    fs::set_permissions(home.join("resourcepacks"), fs::Permissions::from_mode(0o755)).unwrap();
-    assert!(denied.contains("isn't a place the browser may remove"), "{denied}");
+    fs::set_permissions(
+        home.join("resourcepacks"),
+        fs::Permissions::from_mode(0o755),
+    )
+    .unwrap();
+    assert!(
+        denied.contains("isn't a place the browser may remove"),
+        "{denied}"
+    );
     assert_eq!(Installed::load(&home).entries.len(), 1);
     assert!(nested.join("pack.zip").exists());
     let _ = fs::remove_dir_all(&home);
@@ -599,7 +639,12 @@ fn a_native_mods_leftover_never_lets_a_removal_out() {
     fs::write(home.join("horizon-native-mods/evil.hnmod"), b"x").unwrap();
     // ...but the Java-mods folder its `.hmod` leftover would sit in is a door out.
     std::os::unix::fs::symlink(&outside, home.join("horizon-mods")).unwrap();
-    listed_full(&home, SourceId::Horizon, Kind::Mod, &["horizon-native-mods/evil.hnmod"]);
+    listed_full(
+        &home,
+        SourceId::Horizon,
+        Kind::Mod,
+        &["horizon-native-mods/evil.hnmod"],
+    );
     // The entry's own file goes; the leftover outside is not touched.
     remove(&home, "p").unwrap();
     assert_eq!(fs::read(&prey).unwrap(), b"not the browser's");
@@ -611,13 +656,19 @@ fn a_native_mods_leftover_never_lets_a_removal_out() {
 
 #[test]
 fn a_native_mods_contained_leftover_is_removed_with_its_entry() {
-    let home = std::env::temp_dir().join(format!("horizon-installed-hmod-ok-{}", std::process::id()));
+    let home =
+        std::env::temp_dir().join(format!("horizon-installed-hmod-ok-{}", std::process::id()));
     let _ = fs::remove_dir_all(&home);
     fs::create_dir_all(home.join("horizon-native-mods")).unwrap();
     fs::create_dir_all(home.join("horizon-mods")).unwrap();
     fs::write(home.join("horizon-native-mods/evil.hnmod"), b"x").unwrap();
     fs::write(home.join("horizon-mods/evil.hmod"), b"leftover").unwrap();
-    listed_full(&home, SourceId::Horizon, Kind::Mod, &["horizon-native-mods/evil.hnmod"]);
+    listed_full(
+        &home,
+        SourceId::Horizon,
+        Kind::Mod,
+        &["horizon-native-mods/evil.hnmod"],
+    );
     remove(&home, "p").unwrap();
     assert!(!home.join("horizon-native-mods/evil.hnmod").exists());
     assert!(!home.join("horizon-mods/evil.hmod").exists());
@@ -647,7 +698,14 @@ fn in_folders_marks_the_shapes() {
     ] {
         assert!(!in_folders(bad), "{bad}");
     }
-    for good in ["mods/a.jar", "resourcepacks/p.zip", "shaderpacks/s.zip", "horizon-mods/m", "horizon-native-mods/n", "mods/a/b.jar"] {
+    for good in [
+        "mods/a.jar",
+        "resourcepacks/p.zip",
+        "shaderpacks/s.zip",
+        "horizon-mods/m",
+        "horizon-native-mods/n",
+        "mods/a/b.jar",
+    ] {
         assert!(in_folders(good), "{good}");
     }
 }

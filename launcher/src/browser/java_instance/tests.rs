@@ -1,5 +1,5 @@
 use super::*;
-use crate::browser::{download, modrinth, FileRef, SourceId};
+use crate::browser::{FileRef, SourceId, download, modrinth};
 use sha2::Digest;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -119,7 +119,8 @@ const NONE: &dyn Fn(&str, f32) = &|_, _| {};
 
 #[test]
 fn a_mod_whose_folder_is_gone_is_not_toggled() {
-    let home = std::env::temp_dir().join(format!("horizon-java-instance-gone-{}", std::process::id()));
+    let home =
+        std::env::temp_dir().join(format!("horizon-java-instance-gone-{}", std::process::id()));
     let _ = fs::remove_dir_all(&home);
     fs::create_dir_all(&home).unwrap();
     let entry = Entry {
@@ -177,12 +178,16 @@ fn picks_the_newest_file_for_the_version_and_loader() {
             .number,
         "3"
     );
-    assert!(target("1.21.1", Some("neoforge"))
-        .pick(Kind::Mod, versions)
-        .is_none());
-    assert!(target("1.20.1", Some("fabric"))
-        .pick(Kind::Mod, versions)
-        .is_none());
+    assert!(
+        target("1.21.1", Some("neoforge"))
+            .pick(Kind::Mod, versions)
+            .is_none()
+    );
+    assert!(
+        target("1.20.1", Some("fabric"))
+            .pick(Kind::Mod, versions)
+            .is_none()
+    );
     assert!(target("1.21.1", None).pick(Kind::Mod, versions).is_none());
 
     let mut packs = Fake::default();
@@ -195,12 +200,16 @@ fn picks_the_newest_file_for_the_version_and_loader() {
         &[],
     );
     let versions = &packs.versions["faithful"];
-    assert!(target("1.21.1", None)
-        .pick(Kind::ResourcePack, versions)
-        .is_some());
-    assert!(target("1.21.4", None)
-        .pick(Kind::ResourcePack, versions)
-        .is_none());
+    assert!(
+        target("1.21.1", None)
+            .pick(Kind::ResourcePack, versions)
+            .is_some()
+    );
+    assert!(
+        target("1.21.4", None)
+            .pick(Kind::ResourcePack, versions)
+            .is_none()
+    );
 }
 
 #[test]
