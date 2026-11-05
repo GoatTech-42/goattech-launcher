@@ -23,7 +23,11 @@ impl Launcher {
         let name = instance
             .as_ref()
             .map_or(
-                if tag.is_empty() { "Minecraft" } else { "Horizon" },
+                if tag.is_empty() {
+                    "Minecraft"
+                } else {
+                    "Horizon"
+                },
                 |i| i.name.as_str(),
             )
             .to_string();
@@ -40,14 +44,12 @@ impl Launcher {
                 facts.push(format!("Minecraft {}", j.minecraft));
             }
             None if !tag.is_empty() => {
-                facts.push(
-                    format!(
-                        "Horizon {}",
-                        horizon_launcher::nightly::label(tag)
-                            .or_else(|| horizon_launcher::build_import::label(tag))
-                            .unwrap_or_else(|| tag.trim_start_matches('v').to_string())
-                    ),
-                );
+                facts.push(format!(
+                    "Horizon {}",
+                    horizon_launcher::nightly::label(tag)
+                        .or_else(|| horizon_launcher::build_import::label(tag))
+                        .unwrap_or_else(|| tag.trim_start_matches('v').to_string())
+                ));
                 facts.push(format!("Minecraft {game}"));
             }
             None => {}
@@ -207,7 +209,6 @@ impl Launcher {
         hero
     }
 
-
     /// Home's top bar (the concept): the wordmark and version at the left, New instance and the
     /// account at the right.
     pub(super) fn home_topbar(&mut self, cx: &mut Context<Self>) -> Div {
@@ -308,11 +309,7 @@ impl Launcher {
                     .gap(px(10.))
                     .child(
                         shell::action("topbar-new-instance", shell::Action::Raised, &t)
-                            .child(
-                                div()
-                                    .relative()
-                                    .child(blocks::icon("plus", 16., c(n.ink))),
-                            )
+                            .child(div().relative().child(blocks::icon("plus", 16., c(n.ink))))
                             .child(shell::label(tr("New instance").to_string()))
                             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                                 this.open_instance_dialog(None, cx);
@@ -340,7 +337,12 @@ impl Launcher {
             // never the launcher's version.
             let sub = match &instance.java {
                 Some(j) => match &j.loader {
-                    Some(l) => format!("Minecraft {} · {} {}", j.minecraft, l.kind.name(), l.version),
+                    Some(l) => format!(
+                        "Minecraft {} · {} {}",
+                        j.minecraft,
+                        l.kind.name(),
+                        l.version
+                    ),
                     None => format!("Minecraft {}", j.minecraft),
                 },
                 None => self
@@ -487,7 +489,9 @@ impl Launcher {
             if png.dimensions() != (64, 64) {
                 return None;
             }
-            Some(player_model::render_posed_hi(&png, yaw, pitch, &pose, slim, dev_w, dev_h))
+            Some(player_model::render_posed_hi(
+                &png, yaw, pitch, &pose, slim, dev_w, dev_h,
+            ))
         });
         let real = pixels.is_some();
         let pixels = pixels.or_else(|| {
@@ -515,17 +519,23 @@ impl Launcher {
                     .w(px(player_model::W as f32 * 8.))
                     .h(px(player_model::H as f32 * 8.))
                     .cursor(gpui::CursorStyle::PointingHand)
-                    .on_mouse_down(gpui::MouseButton::Left, cx.listener(|this, event: &gpui::MouseDownEvent, _, cx| {
-                        this.stage_drag.begin((event.position.x.into(), event.position.y.into()));
-                        cx.notify();
-                    }))
+                    .on_mouse_down(
+                        gpui::MouseButton::Left,
+                        cx.listener(|this, event: &gpui::MouseDownEvent, _, cx| {
+                            this.stage_drag
+                                .begin((event.position.x.into(), event.position.y.into()));
+                            cx.notify();
+                        }),
+                    )
                     .child(gpui::img(i).w_full().h_full()),
             );
         }
         if real {
             stage
         } else {
-            stage.child(shell::text(night::CAPTION, c(n.muted)).child(tr("Preview player").to_string()))
+            stage.child(
+                shell::text(night::CAPTION, c(n.muted)).child(tr("Preview player").to_string()),
+            )
         }
     }
 
@@ -585,36 +595,34 @@ impl Launcher {
         let press = play_press(ready, self.owner, self.preparing || running);
         let live = !matches!(press, PlayPress::Nothing);
         // The concept's Play wears the instance's facts as a small second line.
-        let mut play = action("play", Action::Main, &t)
-            .min_w(px(320.))
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .items_center()
-                    .gap(px(3.))
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap(px(10.))
-                            .child(
-                                div()
-                                    .relative()
-                                    .child(blocks::icon("play", 20., c(t.night.on_accent))),
-                            )
-                            .child(label(
-                                tr(if running { "Running" } else { "LAUNCH" }).to_string(),
-                            )),
+        let mut play = action("play", Action::Main, &t).min_w(px(320.)).child(
+            div()
+                .flex()
+                .flex_col()
+                .items_center()
+                .gap(px(3.))
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(10.))
+                        .child(div().relative().child(blocks::icon(
+                            "play",
+                            20.,
+                            c(t.night.on_accent),
+                        )))
+                        .child(label(
+                            tr(if running { "Running" } else { "LAUNCH" }).to_string(),
+                        )),
+                )
+                .when(!subtitle.is_empty(), |d| {
+                    d.child(
+                        shell::text(theme::MICRO, c(t.night.on_accent))
+                            .text_size(px(10.))
+                            .child(subtitle.to_uppercase()),
                     )
-                    .when(!subtitle.is_empty(), |d| {
-                        d.child(
-                            shell::text(theme::MICRO, c(t.night.on_accent))
-                                .text_size(px(10.))
-                                .child(subtitle.to_uppercase()),
-                        )
-                    }),
-            );
+                }),
+        );
         match press {
             PlayPress::Nothing => play = play.opacity(0.6).cursor_default().tab_stop(false),
             PlayPress::Play => {
@@ -649,51 +657,47 @@ impl Launcher {
                     .bottom(px(-3.)),
             )
             .child(play)
-            .child(
-                keyboard(
-                    track_hover(
-                        div()
-                            .id("play-versions")
-                            .relative()
-                            .flex()
-                            .flex_none()
-                            .items_center()
-                            .justify_center()
-                            .h(px(night::PLAY))
-                            .w(px(56.))
-                            .ml(px(3.))
-                            .opacity(if live { 1. } else { 0.45 })
-                            .cursor_pointer()
-                            .child(
-                                crate::plate::cut(
-                                    night::PIXEL_CORNER,
-                                    1,
-                                    Some(alpha(t.night.stroke, 0.30)),
-                                    None,
-                                )
-                                .absolute()
-                                .top_0()
-                                .left_0()
-                                .size_full(),
+            .child(keyboard(
+                track_hover(
+                    div()
+                        .id("play-versions")
+                        .relative()
+                        .flex()
+                        .flex_none()
+                        .items_center()
+                        .justify_center()
+                        .h(px(night::PLAY))
+                        .w(px(56.))
+                        .ml(px(3.))
+                        .opacity(if live { 1. } else { 0.45 })
+                        .cursor_pointer()
+                        .child(
+                            crate::plate::cut(
+                                night::PIXEL_CORNER,
+                                1,
+                                Some(alpha(t.night.stroke, 0.30)),
+                                None,
                             )
-                            .child(
-                                div().relative().child(blocks::icon(
-                                    "chevron-down",
-                                    20.,
-                                    c(t.night.on_accent),
-                                )),
-                            )
-                            .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
-                                if !this.closed_by_this_press(event) {
-                                    this.picker_open = !this.picker_open;
-                                }
-                                cx.notify();
-                            })),
-                        SharedString::from("play-versions"),
-                    ),
-                    &t,
+                            .absolute()
+                            .top_0()
+                            .left_0()
+                            .size_full(),
+                        )
+                        .child(div().relative().child(blocks::icon(
+                            "chevron-down",
+                            20.,
+                            c(t.night.on_accent),
+                        )))
+                        .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
+                            if !this.closed_by_this_press(event) {
+                                this.picker_open = !this.picker_open;
+                            }
+                            cx.notify();
+                        })),
+                    SharedString::from("play-versions"),
                 ),
-            );
+                &t,
+            ));
         if let Some(menu) = self.picker_menu(cx) {
             split = split.child(menu);
         }

@@ -1,6 +1,5 @@
 //! `horizon-launcher <subcommand>`: the same steps as the window, from a terminal. Every
 //! command goes through `backend`; this file only parses arguments and prints.
-use clap::{Parser, Subcommand};
 use crate::account::{self, Accounts};
 use crate::backend::{self, Release};
 use crate::build_import;
@@ -12,6 +11,7 @@ use crate::native_mods;
 use crate::native_status;
 use crate::other_launchers;
 use crate::server_list;
+use clap::{Parser, Subcommand};
 use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -1414,7 +1414,8 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 None => {
                     let all = instances::list();
                     let saved = backend::Settings::load().instance;
-                    if instances::needs_first_pick(&all, saved.as_deref(), backend::any_prepared()) {
+                    if instances::needs_first_pick(&all, saved.as_deref(), backend::any_prepared())
+                    {
                         return Err(
                             "No instance yet: create one first (`instance new`), then `play`."
                                 .into(),
@@ -1739,7 +1740,9 @@ fn java(action: JavaCmd, as_json: bool) -> Result<(), String> {
             if as_json {
                 json(serde_json::json!(all));
             } else if all.is_empty() {
-                println!("No Java yet. GoatTech Launcher downloads Mojang's when an instance needs it.");
+                println!(
+                    "No Java yet. GoatTech Launcher downloads Mojang's when an instance needs it."
+                );
             } else {
                 for r in &all {
                     let from = match r.source {
@@ -2784,9 +2787,7 @@ fn other_json(f: &other_launchers::Found) -> serde_json::Value {
 
 /// Runs the instance's post-exit command in this terminal, if it has one, and waits for it.
 fn after_exit(instance: &instances::Instance, vars: &[(&'static str, std::ffi::OsString)]) {
-    let Some(mut cmd) =
-        crate::launch::after_exit(&instance.launch, &instance.home, vars)
-    else {
+    let Some(mut cmd) = crate::launch::after_exit(&instance.launch, &instance.home, vars) else {
         return;
     };
     match cmd.status() {

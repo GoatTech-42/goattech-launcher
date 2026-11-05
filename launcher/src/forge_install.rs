@@ -92,7 +92,11 @@ pub fn install(
     )
     .map_err(|e| format!("{name}'s installed profile: {e}"))?;
     let mut kept = 0usize;
-    keep_libraries(&scratch.join("libraries"), &dir.join("libraries"), &mut kept)?;
+    keep_libraries(
+        &scratch.join("libraries"),
+        &dir.join("libraries"),
+        &mut kept,
+    )?;
     if let Some(libraries) = version["libraries"].as_array_mut() {
         for library in libraries.iter_mut() {
             if library["downloads"]["artifact"]["path"].is_string() {
@@ -114,7 +118,10 @@ pub fn install(
         &serde_json::to_vec_pretty(&version).map_err(|e| e.to_string())?,
     )?;
     let _ = fs::remove_dir_all(&scratch);
-    log(format!("Installed {name} {} ({kept} libraries)", loader.version));
+    log(format!(
+        "Installed {name} {} ({kept} libraries)",
+        loader.version
+    ));
     Ok(id)
 }
 
@@ -137,8 +144,7 @@ fn minecraft_minor(minecraft: &str) -> Option<u64> {
 /// The installer jar's `install_profile.json`: its profile's id and the whole profile.
 fn install_profile(jar: &Path) -> Result<(String, Value), String> {
     let file = fs::File::open(jar).map_err(|e| format!("{}: {e}", jar.display()))?;
-    let mut zip =
-        zip::ZipArchive::new(file).map_err(|e| format!("{}: {e}", jar.display()))?;
+    let mut zip = zip::ZipArchive::new(file).map_err(|e| format!("{}: {e}", jar.display()))?;
     let mut text = String::new();
     zip.by_name("install_profile.json")
         .map_err(|e| format!("{}: install_profile.json: {e}", jar.display()))?
@@ -184,9 +190,11 @@ fn run_installer(
         }
     }
     let version: Value = serde_json::from_slice(
-        &fs::read(dir.join("versions").join(crate::mojang::relative(minecraft)?).join(format!(
-            "{minecraft}.json"
-        )))
+        &fs::read(
+            dir.join("versions")
+                .join(crate::mojang::relative(minecraft)?)
+                .join(format!("{minecraft}.json")),
+        )
         .map_err(|e| format!("Minecraft {minecraft} is not downloaded yet ({e})"))?,
     )
     .map_err(|e| e.to_string())?;
@@ -204,7 +212,9 @@ fn run_installer(
             crate::java::install(&need, log)?
         }
     };
-    log(format!("Running {name}'s installer (this downloads and patches the game)"));
+    log(format!(
+        "Running {name}'s installer (this downloads and patches the game)"
+    ));
     // Each installer's own spelling: NeoForge's jopt-simple takes the dashed form, Forge's
     // SimpleInstaller only the camelCase one (live-verified against both installers).
     let mode = match kind {

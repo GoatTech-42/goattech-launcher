@@ -313,14 +313,17 @@ pub fn delete_my_data() -> Result<String, String> {
     if consent.install_id.is_empty() {
         // An empty local ID proves nothing about the past (metadata could have been reset):
         // state only what is true here now.
-        return Ok("This install has no telemetry ID recorded, and nothing is waiting to be sent.".into());
+        return Ok(
+            "This install has no telemetry ID recorded, and nothing is waiting to be sent.".into(),
+        );
     }
     let Some(url) = horizon_telemetry::endpoint() else {
         return Ok(concat!(
             "No telemetry server is configured, so no server was asked. The items waiting here ",
             "are deleted. Your install ID is kept: if anything was sent before, set ",
             "HORIZON_TELEMETRY_URL to that server and ask again."
-        ).into());
+        )
+        .into());
     };
     upload::delete_remote(&url, &consent.install_id)
         .map_err(|e| format!("The server could not be reached ({e}). Try again later."))?;
@@ -577,7 +580,10 @@ mod tests {
         assert!(message.contains("deleted"), "{message}");
 
         let after = Consent::load(&dir);
-        assert_eq!(after.install_id, kept, "install ID must survive a local-only delete");
+        assert_eq!(
+            after.install_id, kept,
+            "install ID must survive a local-only delete"
+        );
 
         std::env::remove_var("HORIZON_HOME");
         std::fs::remove_dir_all(&dir).ok();

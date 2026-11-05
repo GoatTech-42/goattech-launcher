@@ -1,5 +1,5 @@
 use super::*;
-use crate::browser::{FileRef, GAME, Query, download};
+use crate::browser::{download, FileRef, Query, GAME};
 use sha2::Digest;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -214,11 +214,9 @@ fn nothing_is_installed_when_a_check_fails() {
     assert!(home.join("resourcepacks/good-1.zip").exists());
 
     let pack = project("pack", Kind::Modpack);
-    assert!(
-        plan(&fake, &pack, false)
-            .unwrap_err()
-            .contains("imported, not installed")
-    );
+    assert!(plan(&fake, &pack, false)
+        .unwrap_err()
+        .contains("imported, not installed"));
     fs::remove_dir_all(&home).unwrap();
 }
 
@@ -301,11 +299,9 @@ fn java_mods_are_ported_turned_on_refused_on_clashes_and_removed() {
         "mod.ruby:true\n"
     );
     // The jar isn't kept, its check is.
-    assert!(
-        !home
-            .join("mod-browser/checks-1/.downloads/ruby-1.zip")
-            .exists()
-    );
+    assert!(!home
+        .join("mod-browser/checks-1/.downloads/ruby-1.zip")
+        .exists());
 
     let clash = install(&fake, &fake.project("gem").unwrap(), false, &home, NONE).unwrap_err();
     assert!(clash.contains("shares its id or namespace"), "{clash}");
@@ -401,11 +397,9 @@ fn data_packs_go_into_a_world_when_something_in_them_runs() {
     );
     assert!(world.join("datapacks/tools-2.0.zip").is_file());
     // Nothing of it in the browser's own list.
-    assert!(
-        Installed::load(world.parent().unwrap().parent().unwrap())
-            .entries
-            .is_empty()
-    );
+    assert!(Installed::load(world.parent().unwrap().parent().unwrap())
+        .entries
+        .is_empty());
     let again = install_datapack(&fake, &tools, false, &world, off).unwrap();
     assert_eq!(again.pack.file, "tools-2.0 (2).zip");
 

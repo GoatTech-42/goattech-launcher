@@ -273,10 +273,7 @@ pub fn fit_png(bytes: Vec<u8>, side: u32, max_side: u32, max_alloc: u64) -> Opti
 pub fn read_capped(path: &Path, limit: u64) -> Option<Vec<u8>> {
     let mut file = fs::File::open(path).ok()?;
     let mut bytes = Vec::new();
-    file.by_ref()
-        .take(limit + 1)
-        .read_to_end(&mut bytes)
-        .ok()?;
+    file.by_ref().take(limit + 1).read_to_end(&mut bytes).ok()?;
     (bytes.len() as u64 <= limit).then_some(bytes)
 }
 

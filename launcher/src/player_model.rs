@@ -32,13 +32,14 @@ struct Part {
 impl Part {
     fn faces(&self, inflate: f32) -> [(bool, Face); 6] {
         let (x0, y0, z0) = (self.x0 - inflate, self.y0 - inflate, self.z0 - inflate);
-        let (w, h, d) = (self.w + 2. * inflate, self.h + 2. * inflate, self.d + 2. * inflate);
+        let (w, h, d) = (
+            self.w + 2. * inflate,
+            self.h + 2. * inflate,
+            self.d + 2. * inflate,
+        );
         let (wi, hi, di) = (self.w as usize, self.h as usize, self.d as usize);
-        let face = |o: [f32; 3], u: [f32; 3], v: [f32; 3], tex: (usize, usize, usize, usize)| Face {
-            o,
-            u,
-            v,
-            tex,
+        let face = |o: [f32; 3], u: [f32; 3], v: [f32; 3], tex: (usize, usize, usize, usize)| {
+            Face { o, u, v, tex }
         };
         [
             // front: z near, u +x, v -y
@@ -122,17 +123,83 @@ impl Part {
 fn parts(slim: bool) -> [Part; 6] {
     let mut parts = [
         // right leg (viewer's left), x -4..0
-        Part { x0: -4., y0: 0., z0: -2., w: 4., h: 12., d: 4., bx: 0, by: 16, ox: 0, oy: 32 },
+        Part {
+            x0: -4.,
+            y0: 0.,
+            z0: -2.,
+            w: 4.,
+            h: 12.,
+            d: 4.,
+            bx: 0,
+            by: 16,
+            ox: 0,
+            oy: 32,
+        },
         // left leg, x 0..4
-        Part { x0: 0., y0: 0., z0: -2., w: 4., h: 12., d: 4., bx: 16, by: 48, ox: 0, oy: 48 },
+        Part {
+            x0: 0.,
+            y0: 0.,
+            z0: -2.,
+            w: 4.,
+            h: 12.,
+            d: 4.,
+            bx: 16,
+            by: 48,
+            ox: 0,
+            oy: 48,
+        },
         // body, x -4..4
-        Part { x0: -4., y0: 12., z0: -2., w: 8., h: 12., d: 4., bx: 16, by: 16, ox: 16, oy: 32 },
+        Part {
+            x0: -4.,
+            y0: 12.,
+            z0: -2.,
+            w: 8.,
+            h: 12.,
+            d: 4.,
+            bx: 16,
+            by: 16,
+            ox: 16,
+            oy: 32,
+        },
         // right arm, x -8..-4
-        Part { x0: -8., y0: 12., z0: -2., w: 4., h: 12., d: 4., bx: 40, by: 16, ox: 40, oy: 32 },
+        Part {
+            x0: -8.,
+            y0: 12.,
+            z0: -2.,
+            w: 4.,
+            h: 12.,
+            d: 4.,
+            bx: 40,
+            by: 16,
+            ox: 40,
+            oy: 32,
+        },
         // left arm, x 4..8
-        Part { x0: 4., y0: 12., z0: -2., w: 4., h: 12., d: 4., bx: 32, by: 48, ox: 48, oy: 48 },
+        Part {
+            x0: 4.,
+            y0: 12.,
+            z0: -2.,
+            w: 4.,
+            h: 12.,
+            d: 4.,
+            bx: 32,
+            by: 48,
+            ox: 48,
+            oy: 48,
+        },
         // head
-        Part { x0: -4., y0: 24., z0: -4., w: 8., h: 8., d: 8., bx: 0, by: 0, ox: 32, oy: 0 },
+        Part {
+            x0: -4.,
+            y0: 24.,
+            z0: -4.,
+            w: 8.,
+            h: 8.,
+            d: 8.,
+            bx: 0,
+            by: 0,
+            ox: 32,
+            oy: 0,
+        },
     ];
     if slim {
         parts[3].x0 = -7.;
@@ -141,7 +208,6 @@ fn parts(slim: bool) -> [Part; 6] {
     }
     parts
 }
-
 
 /// A limb pose: swing angles (radians around X at the shoulder/hip) and the head's yaw.
 /// Positive swing moves the limb forward (toward the viewer).
@@ -230,7 +296,13 @@ fn render_model(skin: &image::RgbaImage, yaw: f32, slim: bool) -> Vec<[u8; 4]> {
 
 /// The model at `yaw` and `pitch` in `pose`, at the small W x H grid (tests and callers that
 /// want model-texel resolution). The on-screen stage uses `render_posed_hi`.
-pub fn render_posed(skin: &image::RgbaImage, yaw: f32, pitch: f32, pose: &Pose, slim: bool) -> Vec<[u8; 4]> {
+pub fn render_posed(
+    skin: &image::RgbaImage,
+    yaw: f32,
+    pitch: f32,
+    pose: &Pose,
+    slim: bool,
+) -> Vec<[u8; 4]> {
     render_grid(skin, yaw, pitch, pose, slim, W, H, false)
 }
 
@@ -247,7 +319,16 @@ pub fn render_posed_hi(
     out_w: usize,
     out_h: usize,
 ) -> Vec<[u8; 4]> {
-    render_grid(skin, yaw, pitch, pose, slim, out_w.max(1), out_h.max(1), true)
+    render_grid(
+        skin,
+        yaw,
+        pitch,
+        pose,
+        slim,
+        out_w.max(1),
+        out_h.max(1),
+        true,
+    )
 }
 
 fn render_grid(
@@ -328,10 +409,26 @@ fn render_grid(
             (oxs + sv.0, oys + sv.1),
             (oxs + su.0 + sv.0, oys + su.1 + sv.1),
         ];
-        let min_x = corners.iter().map(|c| c.0).fold(f32::INFINITY, f32::min).floor() as i32;
-        let max_x = corners.iter().map(|c| c.0).fold(f32::NEG_INFINITY, f32::max).ceil() as i32;
-        let min_y = corners.iter().map(|c| c.1).fold(f32::INFINITY, f32::min).floor() as i32;
-        let max_y = corners.iter().map(|c| c.1).fold(f32::NEG_INFINITY, f32::max).ceil() as i32;
+        let min_x = corners
+            .iter()
+            .map(|c| c.0)
+            .fold(f32::INFINITY, f32::min)
+            .floor() as i32;
+        let max_x = corners
+            .iter()
+            .map(|c| c.0)
+            .fold(f32::NEG_INFINITY, f32::max)
+            .ceil() as i32;
+        let min_y = corners
+            .iter()
+            .map(|c| c.1)
+            .fold(f32::INFINITY, f32::min)
+            .floor() as i32;
+        let max_y = corners
+            .iter()
+            .map(|c| c.1)
+            .fold(f32::NEG_INFINITY, f32::max)
+            .ceil() as i32;
         for py in min_y.max(0)..max_y.min(out_h as i32) {
             for px in min_x.max(0)..max_x.min(out_w as i32) {
                 // Pixel center in face coordinates: o + a*u + b*v, a/b in 0..1.
@@ -350,7 +447,9 @@ fn render_grid(
                 // raster staircase does not.
                 let tu = ((a * tw) as usize).min(f.tex.2 - 1);
                 let tv = ((b * th) as usize).min(f.tex.3 - 1);
-                let c = skin.get_pixel((f.tex.0 + tu) as u32, (f.tex.1 + tv) as u32).0;
+                let c = skin
+                    .get_pixel((f.tex.0 + tu) as u32, (f.tex.1 + tv) as u32)
+                    .0;
                 if c[3] == 0 {
                     continue;
                 }
@@ -378,7 +477,11 @@ fn render_grid(
     };
     for layer in 0..2 {
         for (i, part) in all.iter().enumerate() {
-            let mut faces = if layer == 0 { part.faces(0.) } else { part.overlay_faces() };
+            let mut faces = if layer == 0 {
+                part.faces(0.)
+            } else {
+                part.overlay_faces()
+            };
             let (a, around_y) = angle(i);
             if a != 0. {
                 let piv = pivot(i, part);
@@ -489,9 +592,7 @@ mod tests {
         let coarse_b = render_posed(&skin, -0.57, 0.21, &pose, false);
         let hi_a = render_posed_hi(&skin, -0.59, 0.21, &pose, false, W * 8, H * 8);
         let hi_b = render_posed_hi(&skin, -0.57, 0.21, &pose, false, W * 8, H * 8);
-        let diff = |a: &[[u8; 4]], b: &[[u8; 4]]| {
-            a.iter().zip(b).filter(|(x, y)| x != y).count()
-        };
+        let diff = |a: &[[u8; 4]], b: &[[u8; 4]]| a.iter().zip(b).filter(|(x, y)| x != y).count();
         let coarse_diff = diff(&coarse_a, &coarse_b);
         let hi_diff = diff(&hi_a, &hi_b);
         assert!(
@@ -512,9 +613,15 @@ mod tests {
     fn hi_res_shading_makes_a_flat_skin_read_as_3d() {
         let skin = image::RgbaImage::from_pixel(64, 64, image::Rgba([90, 140, 200, 255]));
         let buf = render_posed_hi(&skin, -0.5, 0.21, &Pose::default(), false, W * 8, H * 8);
-        let tones: std::collections::HashSet<_> =
-            buf.iter().filter(|p| p[3] > 0).map(|p| (p[0], p[1], p[2])).collect();
-        assert!(tones.len() >= 2, "a turned model should show more than one face tone");
+        let tones: std::collections::HashSet<_> = buf
+            .iter()
+            .filter(|p| p[3] > 0)
+            .map(|p| (p[0], p[1], p[2]))
+            .collect();
+        assert!(
+            tones.len() >= 2,
+            "a turned model should show more than one face tone"
+        );
         // And the tones stay close to the skin color: shading is a hint, not a repaint.
         assert!(tones.iter().all(|&(r, g, b)| {
             (70..=100).contains(&r) && (110..=150).contains(&g) && (160..=200).contains(&b)
@@ -555,10 +662,21 @@ mod tests {
         // row, not bx + 2*depth. QA: body w8 d4 sampled texel 24 instead of 28; slim
         // arm w3 d4 sampled 48 instead of 47. Head w8 d8 was unaffected.
         let wide = parts(false);
-        assert_eq!(wide[2].faces(0.)[5].1.tex, (16 + 4 + 8, 16, 8, 4), "body bottom");
-        assert_eq!(wide[5].faces(0.)[5].1.tex, (0 + 8 + 8, 0, 8, 8), "head bottom");
+        assert_eq!(
+            wide[2].faces(0.)[5].1.tex,
+            (16 + 4 + 8, 16, 8, 4),
+            "body bottom"
+        );
+        assert_eq!(
+            wide[5].faces(0.)[5].1.tex,
+            (0 + 8 + 8, 0, 8, 8),
+            "head bottom"
+        );
         let slim = parts(true);
-        assert_eq!(slim[3].faces(0.)[5].1.tex, (40 + 4 + 3, 16, 3, 4), "slim arm bottom");
+        assert_eq!(
+            slim[3].faces(0.)[5].1.tex,
+            (40 + 4 + 3, 16, 3, 4),
+            "slim arm bottom"
+        );
     }
 }
-

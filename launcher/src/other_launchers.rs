@@ -172,7 +172,10 @@ pub fn prism_instance(dir: &Path, launcher: &'static str) -> Option<Found> {
         name,
         minecraft: Some(minecraft),
         loader,
-        notes: cfg.as_deref().and_then(|t| ini_value(t, "notes")).map(|n| qt_unescape(&n)),
+        notes: cfg
+            .as_deref()
+            .and_then(|t| ini_value(t, "notes"))
+            .map(|n| qt_unescape(&n)),
         icon: prism_icon(dir, cfg.as_deref()),
         game,
         shared: false,
@@ -377,7 +380,10 @@ fn read_curseforge_json(found: &mut Found) {
     if let Some(v) = json["gameVersion"].as_str().filter(|s| !s.is_empty()) {
         found.minecraft = Some(v.to_string());
     }
-    if let Some((kind, version)) = json["baseModLoader"]["name"].as_str().and_then(|n| n.split_once('-')) {
+    if let Some((kind, version)) = json["baseModLoader"]["name"]
+        .as_str()
+        .and_then(|n| n.split_once('-'))
+    {
         if let Some(kind) = ["fabric", "quilt", "forge", "neoforge"]
             .into_iter()
             .find(|k| *k == kind)
@@ -717,7 +723,9 @@ pub fn import(
     };
     if with_mods {
         if let Some(why) = mods_blocked(found) {
-            return Err(format!("{why} Copy everything but the mods with --no-mods."));
+            return Err(format!(
+                "{why} Copy everything but the mods with --no-mods."
+            ));
         }
     }
     let versions = crate::minecraft_versions::load()?;

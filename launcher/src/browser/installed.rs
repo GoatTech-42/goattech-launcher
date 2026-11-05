@@ -4,7 +4,7 @@
 //! and each Java mod it ported into `horizon-mods/`: where it came from, its version and its
 //! checksum. Files the player put there themselves are never touched: the browser only replaces
 //! or removes what it lists.
-use super::{Kind, Project, Source, SourceId, Support, Version, pick, safe_name};
+use super::{pick, safe_name, Kind, Project, Source, SourceId, Support, Version};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Component, Path, PathBuf};

@@ -432,7 +432,10 @@ fn prism_notes_carry_to_the_imported_instance() {
     let made = import(&found[0], "noted-copy", Some("1.21.1"), false).unwrap();
     let listed = crate::instances::list();
     let again = listed.iter().find(|i| i.id == made.id).unwrap();
-    assert_eq!(again.notes.as_deref(), Some("first line\nsecond C:\\path\\x"));
+    assert_eq!(
+        again.notes.as_deref(),
+        Some("first line\nsecond C:\\path\\x")
+    );
     let _ = crate::instances::delete(&made.id);
     let _ = fs::remove_dir_all(&root);
 }
@@ -464,7 +467,10 @@ fn import_without_notes_leaves_them_unset() {
 fn prism_icons_carry() {
     let root = scratch("prism-icons");
     let pack = root.join("instances/Pack");
-    write(&pack.join("instance.cfg"), "[General]\nname=Pack\niconKey=custom\n");
+    write(
+        &pack.join("instance.cfg"),
+        "[General]\nname=Pack\niconKey=custom\n",
+    );
     write(
         &pack.join("mmc-pack.json"),
         &json!({"components": [{"uid": "net.minecraft", "version": "1.21.1"}]}).to_string(),
@@ -473,7 +479,10 @@ fn prism_icons_carry() {
     write(&root.join("icons/custom.png"), "icon");
     // Its own icon.png wins over the iconKey.
     let own = root.join("instances/Own");
-    write(&own.join("instance.cfg"), "[General]\nname=Own\niconKey=custom\n");
+    write(
+        &own.join("instance.cfg"),
+        "[General]\nname=Own\niconKey=custom\n",
+    );
     write(
         &own.join("mmc-pack.json"),
         &json!({"components": [{"uid": "net.minecraft", "version": "1.21.1"}]}).to_string(),
@@ -563,7 +572,8 @@ fn a_forge_instance_carries_its_loader_and_mods() {
     write(
         &pack.join("mmc-pack.json"),
         &json!({"components": [{"uid": "net.minecraft", "version": "1.20.1"},
-            {"uid": "net.minecraftforge", "version": "47.2.0"}]}).to_string(),
+            {"uid": "net.minecraftforge", "version": "47.2.0"}]})
+        .to_string(),
     );
     write(&pack.join("minecraft/options.txt"), "opts");
     write(&pack.join("minecraft/mods/a.jar"), "jar");
@@ -596,7 +606,8 @@ fn a_legacy_neoforge_instance_carries_its_loader_and_mods() {
     write(
         &pack.join("mmc-pack.json"),
         &json!({"components": [{"uid": "net.minecraft", "version": "1.20.1"},
-            {"uid": "net.neoforged", "version": "47.1.106"}]}).to_string(),
+            {"uid": "net.neoforged", "version": "47.1.106"}]})
+        .to_string(),
     );
     write(&pack.join("minecraft/options.txt"), "opts");
     write(&pack.join("minecraft/mods/a.jar"), "jar");

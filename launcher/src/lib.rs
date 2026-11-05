@@ -1,19 +1,21 @@
 //! The launcher's core, shared by the GUI, the CLI and the MCP server.
 pub mod account;
-pub mod cli;
-pub mod cli_tools;
 pub mod agents;
 pub mod backend;
 pub mod basic_stats;
 pub mod browser;
 pub mod build_import;
+pub mod cli;
+pub mod cli_tools;
 pub mod datapacks;
 pub mod desktop;
 pub mod desktop_seams;
 pub mod export;
+pub mod forge_install;
 #[cfg(unix)]
 pub mod game_app;
 pub mod game_log;
+pub mod game_tools;
 pub mod github;
 pub mod github_mods;
 pub mod heads;
@@ -22,17 +24,15 @@ pub mod import;
 #[cfg(windows)]
 pub mod installer;
 pub mod instances;
-pub mod game_tools;
 pub mod java;
 pub mod java_launch;
 pub mod launch;
-pub mod forge_install;
 pub mod loaders;
 #[cfg(target_os = "macos")]
 mod mac_update;
+pub mod mcp;
 pub mod minecraft_versions;
 pub mod modpacks;
-pub mod mcp;
 pub mod mojang;
 pub mod native_mods;
 pub mod native_status;

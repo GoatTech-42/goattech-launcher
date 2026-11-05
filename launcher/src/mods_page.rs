@@ -138,7 +138,6 @@ impl Mods {
         }
     }
 
-
     pub(super) fn new(cx: &mut App) -> Self {
         let (tx, rx) = channel();
         let page = std::env::var("HORIZON_LAUNCHER_PAGE");
@@ -1047,7 +1046,11 @@ impl Launcher {
                     instance.name
                 )
             };
-            return Some(text(theme::CAPTION).text_color(self.theme.muted).child(line));
+            return Some(
+                text(theme::CAPTION)
+                    .text_color(self.theme.muted)
+                    .child(line),
+            );
         }
         if self.instances.list.len() < 2 {
             return None;

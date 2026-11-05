@@ -1,5 +1,5 @@
 use super::*;
-use crate::export::{Format, export};
+use crate::export::{export, Format};
 use std::io::Write;
 use std::time::Duration;
 

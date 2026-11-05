@@ -42,7 +42,11 @@ fn only_installed_or_prepared_versions_count() {
     assert!(!any_prepared_in(&versions));
     let res = v1.join(".local/horizon-client/26.3");
     fs::create_dir_all(&res).unwrap();
-    fs::write(v1.join("research-lock.json"), r#"{"minecraft":{"version":"26.3"}}"#).unwrap();
+    fs::write(
+        v1.join("research-lock.json"),
+        r#"{"minecraft":{"version":"26.3"}}"#,
+    )
+    .unwrap();
     fs::write(res.join(RESOURCES_MANIFEST), "{}").unwrap();
     assert!(any_prepared_in(&versions));
 }

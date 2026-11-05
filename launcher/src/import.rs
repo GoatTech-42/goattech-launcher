@@ -12,7 +12,7 @@
 //!
 //! Only what an instance holds is taken from a shared zip ([`crate::export::FILES`],
 //! [`crate::export::FOLDERS`], `saves/`), and every path is checked to stay inside its folder.
-use crate::browser::{FileRef, download};
+use crate::browser::{download, FileRef};
 use crate::export::{FILES, FOLDERS};
 use crate::instances::{self, Instance};
 use crate::packs;

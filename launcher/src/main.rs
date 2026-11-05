@@ -5,7 +5,6 @@
 
 mod agents_page;
 mod art;
-mod player_model;
 mod blocks;
 mod collection;
 mod console;
@@ -35,6 +34,7 @@ mod native_log_page;
 mod new_instance;
 mod owner_page;
 mod packs_page;
+mod player_model;
 // Kept compiled, never rendered (ad-free): upstream attribution and its assets stay.
 #[allow(dead_code)]
 mod partner;
@@ -57,7 +57,6 @@ mod titlebar;
 mod while_playing;
 mod worlds_page;
 
-use horizon_launcher::{cli, perf};
 use gpui::{
     actions, div, ease_out_quint, prelude::*, px, relative, size, Animation, AnimationExt,
     AnyElement, App, Bounds, ClickEvent, Context, Div, ElementId, FocusHandle, FontWeight, Hsla,
@@ -73,6 +72,7 @@ use horizon_launcher::java;
 use horizon_launcher::native_mods;
 use horizon_launcher::native_status;
 use horizon_launcher::telemetry;
+use horizon_launcher::{cli, perf};
 use scrollbar::Scrollbar;
 use std::borrow::Cow;
 use std::collections::{HashMap, VecDeque};
@@ -2152,20 +2152,15 @@ fn switch(id: impl Into<SharedString>, on: bool, t: &Theme) -> Stateful<Div> {
     let t = *t;
     let id: SharedString = id.into();
     let face = if on { t.on_face } else { t.muted };
-    let knob = div()
-        .absolute()
-        .top(px(2.))
-        .size(px(16.))
-        .bg(face)
-        .child(
-            div()
-                .absolute()
-                .bottom_0()
-                .left_0()
-                .right_0()
-                .h(px(2.))
-                .bg(if on { t.face_lip } else { t.lip }),
-        );
+    let knob = div().absolute().top(px(2.)).size(px(16.)).bg(face).child(
+        div()
+            .absolute()
+            .bottom_0()
+            .left_0()
+            .right_0()
+            .h(px(2.))
+            .bg(if on { t.face_lip } else { t.lip }),
+    );
     // The knob slides where the switch flips, and holds still under Reduce motion.
     let knob = match reduce_motion() {
         true => knob.left(px(if on { 22. } else { 2. })).into_any_element(),
@@ -3200,23 +3195,18 @@ impl Launcher {
             .overflow_hidden()
             .children(picture.into_iter().flatten())
             .child(
-                div()
-                    .relative()
-                    .flex()
-                    .items_end()
-                    .gap(px(32.))
-                    .child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .flex()
-                            .flex_col()
-                            .gap(px(28.))
-                            .child(hero)
-                            // The preparation's steps right under Play, where the player looks
-                            // after pressing it, not below the fold (#666).
-                            .children(steps),
-                    )
+                div().relative().flex().items_end().gap(px(32.)).child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .flex()
+                        .flex_col()
+                        .gap(px(28.))
+                        .child(hero)
+                        // The preparation's steps right under Play, where the player looks
+                        // after pressing it, not below the fold (#666).
+                        .children(steps),
+                ),
             );
         let topbar = self.home_topbar(cx);
         let next = self.playing_next(cx);
@@ -4858,7 +4848,9 @@ impl Render for Launcher {
                         // revealed by its child index; the first row is the body's top.
                         // The footer buttons live outside the scroll and need nothing.
                         match window.focused(cx) {
-                            Some(f) if f == this.consent_keys.basic => this.collection.body_to_top(),
+                            Some(f) if f == this.consent_keys.basic => {
+                                this.collection.body_to_top()
+                            }
                             Some(f) => {
                                 if let Some(ix) = this.consent_keys.ask_child(&f) {
                                     this.collection.body_reveal(ix);
@@ -4910,39 +4902,34 @@ impl Render for Launcher {
                     .top(px(theme::RISE * (1. - ui)))
                     .child(sidebar)
                     .child(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .flex_1()
-                            .min_w_0()
-                            .child(
-                                self.content_scroll
-                                    .wrap(
-                                        div()
-                                            .id("content")
-                                            .relative()
-                                            .flex_1()
-                                            .min_h_0()
-                                            .overflow_y_scroll()
-                                            .child(
-                                                div()
-                                                    .flex()
-                                                    .w_full()
-                                                    .min_w_0()
-                                                    .px(px(theme::PAGE_GUTTER))
-                                                    .pt(px(if self.page == Page::Play {
-                                                        0.
-                                                    } else {
-                                                        28.
-                                                    }))
-                                                    .pb(px(48.))
-                                                    .child(content),
-                                            ),
-                                        &t,
-                                    )
-                                    .flex_1()
-                                    .min_h_0(),
-                            ),
+                        div().flex().flex_col().flex_1().min_w_0().child(
+                            self.content_scroll
+                                .wrap(
+                                    div()
+                                        .id("content")
+                                        .relative()
+                                        .flex_1()
+                                        .min_h_0()
+                                        .overflow_y_scroll()
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .w_full()
+                                                .min_w_0()
+                                                .px(px(theme::PAGE_GUTTER))
+                                                .pt(px(if self.page == Page::Play {
+                                                    0.
+                                                } else {
+                                                    28.
+                                                }))
+                                                .pb(px(48.))
+                                                .child(content),
+                                        ),
+                                    &t,
+                                )
+                                .flex_1()
+                                .min_h_0(),
+                        ),
                     ),
             );
         // Drag-to-turn on the home stage, tracked at the window root: GPUI
@@ -4969,16 +4956,22 @@ impl Render for Launcher {
                     Track::Idle => {}
                 }
             }))
-            .on_mouse_up(gpui::MouseButton::Left, cx.listener(|this, _: &gpui::MouseUpEvent, _, cx| {
-                if this.stage_drag.release() {
-                    cx.notify();
-                }
-            }))
-            .on_mouse_up_out(gpui::MouseButton::Left, cx.listener(|this, _: &gpui::MouseUpEvent, _, cx| {
-                if this.stage_drag.release() {
-                    cx.notify();
-                }
-            }));
+            .on_mouse_up(
+                gpui::MouseButton::Left,
+                cx.listener(|this, _: &gpui::MouseUpEvent, _, cx| {
+                    if this.stage_drag.release() {
+                        cx.notify();
+                    }
+                }),
+            )
+            .on_mouse_up_out(
+                gpui::MouseButton::Left,
+                cx.listener(|this, _: &gpui::MouseUpEvent, _, cx| {
+                    if this.stage_drag.release() {
+                        cx.notify();
+                    }
+                }),
+            );
         if self.page == Page::Servers {
             if let Some(dialog) = self.create_dialog(cx) {
                 root = root.child(dialog);
@@ -5287,7 +5280,9 @@ mod tests {
         assert!(matches!(d.track((100., 100.), true), Track::Idle));
         assert!(matches!(d.track((400., 100.), true), Track::Idle));
         d.begin((100., 100.));
-        assert!(matches!(d.track((120., 110.), true), Track::Turn(dx, dy) if dx == 20. && dy == 10.));
+        assert!(
+            matches!(d.track((120., 110.), true), Track::Turn(dx, dy) if dx == 20. && dy == 10.)
+        );
     }
 
     #[test]

@@ -497,10 +497,16 @@ fn an_explicit_pick_of_the_rust_game_is_honored_and_visible() {
     // The built-in's own id saved - as select() and the window now write it: the pick wins
     // over the Java fallback everywhere, and the first-pick ask sees it and stays quiet.
     let all = list_in(&home, &data);
-    assert_eq!(picked(&all, Some(DEFAULT)).map(|i| i.id.as_str()), Some(DEFAULT));
+    assert_eq!(
+        picked(&all, Some(DEFAULT)).map(|i| i.id.as_str()),
+        Some(DEFAULT)
+    );
     assert!(!needs_first_pick(&all, Some(DEFAULT), false));
     // Never picked still falls to Java, and a stale id does too.
-    assert_eq!(picked(&all, None).map(|i| i.id.as_str()), Some(java.id.as_str()));
+    assert_eq!(
+        picked(&all, None).map(|i| i.id.as_str()),
+        Some(java.id.as_str())
+    );
     assert_eq!(
         picked(&all, Some("gone")).map(|i| i.id.as_str()),
         Some(java.id.as_str())

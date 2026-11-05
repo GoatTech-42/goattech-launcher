@@ -153,16 +153,12 @@ impl Launcher {
                 (NewKind::Horizon, "Horizon", "Horizon (Rust)"),
             ]
             .map(|(kind, id, label)| {
-                shell::tab(
-                    format!("new-kind-{id}"),
-                    tr(label),
-                    now == Some(kind),
-                    &t,
+                shell::tab(format!("new-kind-{id}"), tr(label), now == Some(kind), &t).on_click(
+                    cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        this.pick_kind(kind, cx);
+                        cx.notify();
+                    }),
                 )
-                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                    this.pick_kind(kind, cx);
-                    cx.notify();
-                }))
             }),
         )
     }

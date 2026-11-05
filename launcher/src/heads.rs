@@ -36,7 +36,6 @@ pub fn parse_uuid(text: &str) -> Option<u128> {
     (hex.len() == 32).then(|| u128::from_str_radix(&hex, 16).ok())?
 }
 
-
 /// Same player UUID in any mix of dashed, undashed, or letter case.
 /// Never true when either side is invalid: None never equals None.
 pub fn same_uuid(a: &str, b: &str) -> bool {

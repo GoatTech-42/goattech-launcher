@@ -30,7 +30,9 @@ impl Kind {
             "quilt" => Ok(Kind::Quilt),
             "forge" => Ok(Kind::Forge),
             "neoforge" => Ok(Kind::NeoForge),
-            _ => Err(format!("No mod loader {name:?}: fabric, quilt, forge or neoforge.")),
+            _ => Err(format!(
+                "No mod loader {name:?}: fabric, quilt, forge or neoforge."
+            )),
         }
     }
 
@@ -73,8 +75,14 @@ impl Kind {
     /// Whether its profile comes from an installer jar's Maven artifact (Forge, NeoForge).
     pub(crate) fn maven(self) -> Option<(&'static str, &'static str)> {
         match self {
-            Kind::Forge => Some(("https://maven.minecraftforge.net", "net/minecraftforge/forge")),
-            Kind::NeoForge => Some(("https://maven.neoforged.net/releases", "net/neoforged/neoforge")),
+            Kind::Forge => Some((
+                "https://maven.minecraftforge.net",
+                "net/minecraftforge/forge",
+            )),
+            Kind::NeoForge => Some((
+                "https://maven.neoforged.net/releases",
+                "net/neoforged/neoforge",
+            )),
             _ => None,
         }
     }
@@ -84,7 +92,10 @@ impl Kind {
     /// (`neoforge_legacy`); every other Minecraft version uses the artifact `maven` names.
     pub(crate) fn maven_for(self, minecraft: &str) -> Option<(&'static str, &'static str)> {
         if matches!(self, Kind::NeoForge) && neoforge_legacy(minecraft) {
-            return Some(("https://maven.neoforged.net/releases", "net/neoforged/forge"));
+            return Some((
+                "https://maven.neoforged.net/releases",
+                "net/neoforged/forge",
+            ));
         }
         self.maven()
     }
@@ -341,7 +352,11 @@ fn neoforge_prefix(minecraft: &str) -> Result<String, String> {
 /// `<minecraft>-<build>` (`1.21.1-52.1.20`, a tagged build like `-prune` is not stable);
 /// NeoForge `<prefix><build>` with betas carrying a `-` (`21.1.94-beta`), except its legacy
 /// 1.20.1 builds, named like Forge's (`neoforge_legacy`).
-pub fn parse_maven_versions(kind: Kind, text: &str, minecraft: &str) -> Result<Vec<Listed>, String> {
+pub fn parse_maven_versions(
+    kind: Kind,
+    text: &str,
+    minecraft: &str,
+) -> Result<Vec<Listed>, String> {
     let prefix = match kind {
         Kind::Forge => format!("{minecraft}-"),
         Kind::NeoForge if neoforge_legacy(minecraft) => format!("{minecraft}-"),
@@ -414,7 +429,12 @@ mod maven_tests {
         let versions: Vec<&str> = listed.iter().map(|l| l.version.as_str()).collect();
         assert_eq!(
             versions,
-            vec!["1.21.1-52.1.20", "1.21.1-52.1.19", "1.21.1-52.1.18", "1.21.1-52.0.0-prune"]
+            vec![
+                "1.21.1-52.1.20",
+                "1.21.1-52.1.19",
+                "1.21.1-52.1.18",
+                "1.21.1-52.0.0-prune"
+            ]
         );
         assert!(listed[0].stable && listed[1].stable && listed[2].stable);
         assert!(!listed[3].stable, "a tagged build is not stable");
@@ -446,7 +466,10 @@ mod maven_tests {
             ]
         );
         assert!(listed.iter().all(|l| l.stable));
-        assert_eq!(pick(Kind::NeoForge, &listed, None).unwrap(), "1.20.1-47.1.106");
+        assert_eq!(
+            pick(Kind::NeoForge, &listed, None).unwrap(),
+            "1.20.1-47.1.106"
+        );
     }
 
     #[test]
@@ -469,7 +492,10 @@ mod maven_tests {
             maven_version(Kind::NeoForge, "1.20.1", "1.20.1-47.1.106"),
             "1.20.1-47.1.106"
         );
-        assert_eq!(maven_version(Kind::NeoForge, "1.21.1", "21.1.94"), "21.1.94");
+        assert_eq!(
+            maven_version(Kind::NeoForge, "1.21.1", "21.1.94"),
+            "21.1.94"
+        );
         // Fabric and Quilt versions come from their own services, untouched.
         assert_eq!(maven_version(Kind::Fabric, "1.21.1", "0.16.9"), "0.16.9");
     }
@@ -478,7 +504,10 @@ mod maven_tests {
     fn neoforge_versions_drop_the_leading_one() {
         let listed = parse_maven_versions(Kind::NeoForge, NEO_META, "1.21.1").unwrap();
         let versions: Vec<&str> = listed.iter().map(|l| l.version.as_str()).collect();
-        assert_eq!(versions, vec!["21.1.300-beta", "21.1.265", "21.1.264", "21.1.263"]);
+        assert_eq!(
+            versions,
+            vec!["21.1.300-beta", "21.1.265", "21.1.264", "21.1.263"]
+        );
         assert!(listed[1].stable && !listed[0].stable);
         // The newest stable is what `latest` picks.
         assert_eq!(pick(Kind::NeoForge, &listed, None).unwrap(), "21.1.265");

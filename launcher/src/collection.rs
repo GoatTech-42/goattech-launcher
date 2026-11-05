@@ -46,7 +46,9 @@ impl Collection {
 
     /// Scroll the question's body back to its first row.
     pub(crate) fn body_to_top(&self) {
-        self.body_scroll.handle.set_offset(gpui::point(px(0.), px(0.)));
+        self.body_scroll
+            .handle
+            .set_offset(gpui::point(px(0.), px(0.)));
     }
 
     /// The open example reports, read top to bottom under the keyboard: Down steps the
@@ -423,14 +425,14 @@ impl Launcher {
                                 .child(tr(telemetry::short_what(kind))),
                         ),
                 )
-                .child(switch(kind_id("ask", kind), on, &t)
-                    .track_focus(self.consent_keys.for_kind(kind))
-                    .on_click(cx.listener(
-                    move |this, _: &ClickEvent, _, cx| {
-                        this.collection.draft.set(kind, !on);
-                        cx.notify();
-                    },
-                )))
+                .child(
+                    switch(kind_id("ask", kind), on, &t)
+                        .track_focus(self.consent_keys.for_kind(kind))
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            this.collection.draft.set(kind, !on);
+                            cx.notify();
+                        })),
+                )
         });
         let viewing = self.collection.view.is_some();
         // The body scrolls inside the card, so the answers stay at its foot however short the
@@ -515,25 +517,21 @@ impl Launcher {
             .child(
                 button("ask-none", "Keep optional data off", Kind::Secondary, &t)
                     .track_focus(&self.consent_keys.keep_off)
-                    .on_click(cx.listener(
-                    |this, _: &ClickEvent, _, cx| {
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.answer_consent(Choices::NONE);
                         // Everything optional means everything: basic summaries too. The
                         // "I'm playing" ping is not optional data and is untouched.
                         this.basic_off();
                         cx.notify();
-                    },
-                )),
+                    })),
             )
             .child(
                 button("ask-save", "Save choices", Kind::Primary, &t)
                     .track_focus(&self.consent_keys.save)
-                    .on_click(cx.listener(
-                    |this, _: &ClickEvent, _, cx| {
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.answer_consent(this.collection.draft);
                         cx.notify();
-                    },
-                )),
+                    })),
             );
         let card = plate(&t)
             .flex()
@@ -547,9 +545,10 @@ impl Launcher {
             .child(self.collection.body_scroll.wrap(body, &t))
             // A failed save says so here, in the always-visible foot of the question.
             .children(self.collection.note.clone().map(|n| {
-                div().px(px(16.)).pb(px(4.)).child(
-                    text(theme::CAPTION).text_color(t.warn).child(n),
-                )
+                div()
+                    .px(px(16.))
+                    .pb(px(4.))
+                    .child(text(theme::CAPTION).text_color(t.warn).child(n))
             }))
             .child(answers);
         div()

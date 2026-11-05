@@ -90,7 +90,6 @@ pub fn row(id: impl Into<SharedString>, selected_now: bool, t: &Theme) -> Statef
     keyboard(track_hover(d, id), t)
 }
 
-
 /// A heading over a group of rows ("Instances", a group's name, "Servers"), with room for a
 /// button on its right.
 pub fn heading(label: impl Into<SharedString>, t: &Theme) -> Div {
@@ -183,7 +182,6 @@ pub fn nav_item(
         t,
     )
 }
-
 
 /// A stop on the slim icon rail (the concept's NoRisk-style rail): the icon over its pixel
 /// label in a square; the active page is a white square with a chunky bottom lip.

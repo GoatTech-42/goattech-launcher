@@ -495,7 +495,9 @@ pub fn picked<'a>(all: &'a [Instance], saved: Option<&str>) -> Option<&'a Instan
 
 /// `selected`'s fallback, testable: what [`picked`] borrows.
 fn selected_in(all: &[Instance], saved: Option<&str>) -> Instance {
-    picked(all, saved).cloned().unwrap_or_else(|| all[0].clone())
+    picked(all, saved)
+        .cloned()
+        .unwrap_or_else(|| all[0].clone())
 }
 
 pub fn select(query: &str) -> Result<Instance, String> {

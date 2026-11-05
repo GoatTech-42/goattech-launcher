@@ -87,9 +87,7 @@ impl Launcher {
         // A picture or banner may have come or gone with the change.
         self.instances
             .icons
-            .retain(|(key, _, _), _| {
-                !key.starts_with("picture:") && !key.starts_with("banner:")
-            });
+            .retain(|(key, _, _), _| !key.starts_with("picture:") && !key.starts_with("banner:"));
     }
 
     /// The instance Play starts: the player's pick, else the first Java instance, else
@@ -313,9 +311,7 @@ impl Launcher {
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .child(format!("{} - {}", f.name, f.launcher)),
                         )
-                        .child(
-                            shell::text(theme::night::CAPTION, shell::c(n.muted)).child(plays),
-                        );
+                        .child(shell::text(theme::night::CAPTION, shell::c(n.muted)).child(plays));
                     if let Some(why) = blocked {
                         text_col = text_col.child(
                             shell::text(theme::night::CAPTION, shell::c(n.muted))
@@ -361,7 +357,12 @@ impl Launcher {
                 this.scan_other_launchers(cx);
             }));
         }
-        let mut footer = div().flex().items_center().gap(px(12.)).mt(px(10.)).child(find);
+        let mut footer = div()
+            .flex()
+            .items_center()
+            .gap(px(12.))
+            .mt(px(10.))
+            .child(find);
         if let Some(e) = &self.instances.others_error {
             footer = footer
                 .child(shell::text(theme::night::CAPTION, shell::c(n.muted)).child(e.clone()));
@@ -389,7 +390,14 @@ impl Launcher {
                             ),
                     ),
             )
-            .child(div().flex().flex_col().gap(px(10.)).mt(px(10.)).children(rows))
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(10.))
+                    .mt(px(10.))
+                    .children(rows),
+            )
             .child(footer)
     }
 
@@ -568,20 +576,16 @@ impl Launcher {
                                 )
                                 .h(px(30.))
                                 .child(shell::label(tr("Open").to_string()))
-                                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                                    this.select_instance(&open);
-                                    this.go(Page::Play);
-                                    cx.notify();
-                                })),
+                                .on_click(cx.listener(
+                                    move |this, _: &ClickEvent, _, cx| {
+                                        this.select_instance(&open);
+                                        this.go(Page::Play);
+                                        cx.notify();
+                                    },
+                                )),
                             ),
                     )
-                    .child(
-                        div()
-                            .flex()
-                            .flex_wrap()
-                            .gap(px(6.))
-                            .children(chips),
-                    )
+                    .child(div().flex().flex_wrap().gap(px(6.)).children(chips))
                     .child(
                         shell::text(theme::night::CAPTION, shell::c(n.muted))
                             .font_family(theme::MONO)
@@ -601,19 +605,21 @@ impl Launcher {
                                 .child(blocks::icon("play", 14., shell::c(n.ink))),
                         )
                         .child(shell::label(tr("Play").to_string()))
-                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                            this.select_instance(&play);
-                            match play_press(ready, this.owner, false) {
-                                PlayPress::Nothing => {}
-                                PlayPress::Play => this.play(),
-                                PlayPress::PrepareThenPlay => {
-                                    this.play_when_prepared = this.selected().cloned();
-                                    this.prepare(backend::MinecraftFrom::Install);
+                        .on_click(cx.listener(
+                            move |this, _: &ClickEvent, _, cx| {
+                                this.select_instance(&play);
+                                match play_press(ready, this.owner, false) {
+                                    PlayPress::Nothing => {}
+                                    PlayPress::Play => this.play(),
+                                    PlayPress::PrepareThenPlay => {
+                                        this.play_when_prepared = this.selected().cloned();
+                                        this.prepare(backend::MinecraftFrom::Install);
+                                    }
                                 }
-                            }
-                            this.go(Page::Play);
-                            cx.notify();
-                        })),
+                                this.go(Page::Play);
+                                cx.notify();
+                            },
+                        )),
                     ),
             )
             .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
@@ -665,7 +671,12 @@ impl Launcher {
         });
         self.servers.text(Field::InstanceVersion).set(String::new());
         // A fresh dialog opens on Vanilla: its versions load now, not after a tab click.
-        if self.instances.dialog.as_ref().is_some_and(|d| d.editing.is_none()) {
+        if self
+            .instances
+            .dialog
+            .as_ref()
+            .is_some_and(|d| d.editing.is_none())
+        {
             self.ensure_versions(cx);
         }
     }
@@ -691,7 +702,11 @@ impl Launcher {
             .value(Field::InstanceJavaHome)
             .trim()
             .to_string();
-        let jvm_args_raw = self.servers.value(Field::InstanceJvmArgs).trim().to_string();
+        let jvm_args_raw = self
+            .servers
+            .value(Field::InstanceJvmArgs)
+            .trim()
+            .to_string();
         let Some(d) = self.instances.dialog.as_mut().filter(|d| !d.busy) else {
             return;
         };
@@ -700,10 +715,7 @@ impl Launcher {
             .picture
             .as_ref()
             .map(|p| p.as_ref().map(|c| c.png.clone()));
-        let banner = d
-            .banner
-            .as_ref()
-            .map(|b| b.as_ref().map(|c| c.png.clone()));
+        let banner = d.banner.as_ref().map(|b| b.as_ref().map(|c| c.png.clone()));
         let editing = d.editing.clone();
         let copy = selected.filter(|_| d.copy);
         // A new Java instance: what it plays, and its name when none is typed.
@@ -950,9 +962,12 @@ impl Launcher {
                 self.field(Field::InstanceJavaHome, "Automatic pick", 400., cx)
                     .into_any_element(),
             ));
-            body = body.child(text(theme::CAPTION).text_color(t.muted).child(
-                "The Java that runs it. Empty: the launcher picks one for its Minecraft.".to_string(),
-            ));
+            body = body.child(
+                text(theme::CAPTION).text_color(t.muted).child(
+                    "The Java that runs it. Empty: the launcher picks one for its Minecraft."
+                        .to_string(),
+                ),
+            );
             body = body.child(row(
                 "JVM arguments",
                 self.field(Field::InstanceJvmArgs, "None", 400., cx)

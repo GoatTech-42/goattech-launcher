@@ -183,11 +183,20 @@ fn neoforge_installs_for_real() {
     std::fs::write(vdir.join("1.21.1.json"), &json).unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&json).unwrap();
     let client = parsed["downloads"]["client"]["url"].as_str().unwrap();
-    std::fs::write(vdir.join("1.21.1.jar"), crate::backend::get_bytes(client).unwrap()).unwrap();
+    std::fs::write(
+        vdir.join("1.21.1.jar"),
+        crate::backend::get_bytes(client).unwrap(),
+    )
+    .unwrap();
     let loader = choose("neoforge", "1.21.1", None).unwrap();
-    let start = install(&loader, "1.21.1", &dir, &crate::backend::get_bytes, &|l| println!("{l}"))
-        .unwrap();
-    let json = dir.join("versions").join(&start).join(format!("{start}.json"));
+    let start = install(&loader, "1.21.1", &dir, &crate::backend::get_bytes, &|l| {
+        println!("{l}")
+    })
+    .unwrap();
+    let json = dir
+        .join("versions")
+        .join(&start)
+        .join(format!("{start}.json"));
     let profile: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&json).unwrap()).unwrap();
     let libraries = profile["libraries"].as_array().unwrap();
@@ -215,7 +224,12 @@ fn neoforge_installs_for_real() {
     let resolved =
         crate::java_launch::resolve(crate::java_launch::read(&json).unwrap(), &dir).unwrap();
     assert!(resolved["mainClass"].is_string());
-    assert!(crate::java_launch::classpath(&resolved, &dir, "linux").unwrap().len() > 50);
+    assert!(
+        crate::java_launch::classpath(&resolved, &dir, "linux")
+            .unwrap()
+            .len()
+            > 50
+    );
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -232,11 +246,20 @@ fn forge_installs_for_real() {
     std::fs::write(vdir.join("1.21.1.json"), &json).unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&json).unwrap();
     let client = parsed["downloads"]["client"]["url"].as_str().unwrap();
-    std::fs::write(vdir.join("1.21.1.jar"), crate::backend::get_bytes(client).unwrap()).unwrap();
+    std::fs::write(
+        vdir.join("1.21.1.jar"),
+        crate::backend::get_bytes(client).unwrap(),
+    )
+    .unwrap();
     let loader = choose("forge", "1.21.1", None).unwrap();
-    let start = install(&loader, "1.21.1", &dir, &crate::backend::get_bytes, &|l| println!("{l}"))
-        .unwrap();
-    let json = dir.join("versions").join(&start).join(format!("{start}.json"));
+    let start = install(&loader, "1.21.1", &dir, &crate::backend::get_bytes, &|l| {
+        println!("{l}")
+    })
+    .unwrap();
+    let json = dir
+        .join("versions")
+        .join(&start)
+        .join(format!("{start}.json"));
     let profile: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&json).unwrap()).unwrap();
     let cp = crate::java_launch::classpath(&profile, &dir, "linux").unwrap();
@@ -247,7 +270,12 @@ fn forge_installs_for_real() {
     let resolved =
         crate::java_launch::resolve(crate::java_launch::read(&json).unwrap(), &dir).unwrap();
     assert!(resolved["mainClass"].is_string());
-    assert!(crate::java_launch::classpath(&resolved, &dir, "linux").unwrap().len() > 50);
+    assert!(
+        crate::java_launch::classpath(&resolved, &dir, "linux")
+            .unwrap()
+            .len()
+            > 50
+    );
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -256,7 +284,8 @@ fn forge_installs_for_real() {
 #[test]
 #[ignore = "downloads NeoForge's legacy installer and Java for real"]
 fn legacy_neoforge_installs_for_real() {
-    let dir = std::env::temp_dir().join(format!("horizon-it-neoforge-legacy-{}", std::process::id()));
+    let dir =
+        std::env::temp_dir().join(format!("horizon-it-neoforge-legacy-{}", std::process::id()));
     let listed = crate::minecraft_versions::load().unwrap();
     let v = listed.find("1.20.1").unwrap();
     let vdir = dir.join("versions").join("1.20.1");
@@ -265,12 +294,21 @@ fn legacy_neoforge_installs_for_real() {
     std::fs::write(vdir.join("1.20.1.json"), &json).unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&json).unwrap();
     let client = parsed["downloads"]["client"]["url"].as_str().unwrap();
-    std::fs::write(vdir.join("1.20.1.jar"), crate::backend::get_bytes(client).unwrap()).unwrap();
+    std::fs::write(
+        vdir.join("1.20.1.jar"),
+        crate::backend::get_bytes(client).unwrap(),
+    )
+    .unwrap();
     let loader = choose("neoforge", "1.20.1", None).unwrap();
     assert_eq!(loader.version, "1.20.1-47.1.106");
-    let start = install(&loader, "1.20.1", &dir, &crate::backend::get_bytes, &|l| println!("{l}"))
-        .unwrap();
-    let json = dir.join("versions").join(&start).join(format!("{start}.json"));
+    let start = install(&loader, "1.20.1", &dir, &crate::backend::get_bytes, &|l| {
+        println!("{l}")
+    })
+    .unwrap();
+    let json = dir
+        .join("versions")
+        .join(&start)
+        .join(format!("{start}.json"));
     let profile: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&json).unwrap()).unwrap();
     let cp = crate::java_launch::classpath(&profile, &dir, "linux").unwrap();

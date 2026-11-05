@@ -27,7 +27,9 @@ impl Default for Accent {
 }
 
 /// [`Accent::ALL`]'s names, in its order.
-const NAMES: [&str; 8] = ["violet", "blue", "teal", "green", "amber", "red", "pink", "mono"];
+const NAMES: [&str; 8] = [
+    "violet", "blue", "teal", "green", "amber", "red", "pink", "mono",
+];
 
 impl Accent {
     pub const VIOLET: Accent = Accent {

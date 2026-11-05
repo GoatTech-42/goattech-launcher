@@ -31,9 +31,13 @@ impl Launcher {
         let key = format!("picture:{}", instance.id);
         // A shared/imported instance's icon.png never went through the picker: capped read,
         // then fitted's bounded decode.
-        self.icon_image(key, size, true, || {
-            images::read_capped(&file, MAX_PICTURE_FILE)
-        }, false)
+        self.icon_image(
+            key,
+            size,
+            true,
+            || images::read_capped(&file, MAX_PICTURE_FILE),
+            false,
+        )
     }
 
     /// The instance's chosen banner, drawn `width` points wide, when it has a readable one;
@@ -46,9 +50,13 @@ impl Launcher {
     ) -> Option<Arc<RenderImage>> {
         let file = instance.home.join(instances::BANNER);
         let key = format!("banner:{}", instance.id);
-        self.icon_image(key, width, true, || {
-            images::read_capped(&file, MAX_PICTURE_FILE)
-        }, false)
+        self.icon_image(
+            key,
+            width,
+            true,
+            || images::read_capped(&file, MAX_PICTURE_FILE),
+            false,
+        )
     }
 
     /// What an instance shows when nothing was chosen for it.
@@ -74,12 +82,22 @@ impl Launcher {
         }
         if instance.java.is_some() {
             let grass = self.vanilla_icon()?;
-            return self.icon_image("mark:grass".into(), size, false, || {
-                std::fs::read(grass).ok()
-            }, false);
+            return self.icon_image(
+                "mark:grass".into(),
+                size,
+                false,
+                || std::fs::read(grass).ok(),
+                false,
+            );
         }
         let horizon = || Some(horizon_theme::ICON_PNG.to_vec());
-        self.icon_image("mark:horizon".into(), size, false, horizon, self.theme.night.mono)
+        self.icon_image(
+            "mark:horizon".into(),
+            size,
+            false,
+            horizon,
+            self.theme.night.mono,
+        )
     }
 
     /// A mod loader's logo by its id (`fabric`, `quilt`, `forge`, `neoforge`): None while a

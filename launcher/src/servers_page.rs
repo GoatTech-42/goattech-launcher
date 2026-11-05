@@ -1065,17 +1065,24 @@ impl Launcher {
     /// compare parsed UUIDs, never raw strings.
     pub(super) fn head(&mut self, uuid: &str, size: f32) -> Div {
         let resources = servers::game_files(&servers::runtime_root(), "26.3");
-        let account_skin = self.accounts.accounts.iter().find(|a| heads::same_uuid(&a.uuid, uuid))
-            .and_then(|a| a.skin.as_ref()).and_then(|(url, _)| horizon_launcher::skins::texture_url(url));
-        let actual = account_skin.and_then(|url| self.mods_image(&url, 64))
+        let account_skin = self
+            .accounts
+            .accounts
+            .iter()
+            .find(|a| heads::same_uuid(&a.uuid, uuid))
+            .and_then(|a| a.skin.as_ref())
+            .and_then(|(url, _)| horizon_launcher::skins::texture_url(url));
+        let actual = account_skin
+            .and_then(|url| self.mods_image(&url, 64))
             .and_then(|p| horizon_launcher::browser::images::read_capped(&p, 1 << 20))
             .and_then(|bytes| heads::face(&bytes));
-        let face = actual.or_else(|| self
-            .servers
-            .faces
-            .entry(uuid.to_string())
-            .or_insert_with(|| heads::default_face(&resources, uuid))
-            .clone());
+        let face = actual.or_else(|| {
+            self.servers
+                .faces
+                .entry(uuid.to_string())
+                .or_insert_with(|| heads::default_face(&resources, uuid))
+                .clone()
+        });
         // One nearest-baked image at the window scale: per-texel divs at fractional sizes
         // rounded into dark vertical seams between columns (Luke's corner-head report).
         let mut d = div()

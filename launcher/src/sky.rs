@@ -198,7 +198,11 @@ const DAWN_ART: Colors = Colors {
 
 fn art(n: &Night) -> &'static Colors {
     if n.dark {
-        if n.mono { &NIGHT_ART_MONO } else { &NIGHT_ART }
+        if n.mono {
+            &NIGHT_ART_MONO
+        } else {
+            &NIGHT_ART
+        }
     } else {
         &DAWN_ART
     }
@@ -364,45 +368,44 @@ impl Sky {
         let foot = h;
         let sun_w = (SUN_RADIUS * 2) as f32 * LAND;
         if !n.mono {
-        sky = sky.child(
-            img(layers.sun.clone())
-                .absolute()
-                .left(px(snap(w * SUN_X - sun_w / 2.)))
-                .top(px(foot - (SUN_RISE + SUN_RADIUS) as f32 * LAND))
-                .w(px(sun_w))
-                .h(px(SUN_RADIUS as f32 * LAND)),
-        );
+            sky = sky.child(
+                img(layers.sun.clone())
+                    .absolute()
+                    .left(px(snap(w * SUN_X - sun_w / 2.)))
+                    .top(px(foot - (SUN_RISE + SUN_RADIUS) as f32 * LAND))
+                    .w(px(sun_w))
+                    .h(px(SUN_RADIUS as f32 * LAND)),
+            );
         }
         if !n.mono {
-        for (line, image, lift) in [(&FAR, &layers.far, 2.), (&NEAR, &layers.near, 0.)] {
-            let period = line.runs.iter().map(|r| r.0).sum::<usize>() as f32 * LAND;
-            let top = foot - (line.rows as f32 + lift) * LAND;
-            // The far line starts half a period in, so the two never repeat in step.
-            let mut x = if lift > 0. { -period / 2. } else { 0. };
-            while x < w {
-                sky = sky.child(
-                    img(image.clone())
-                        .absolute()
-                        .left(px(x))
-                        .top(px(top))
-                        .w(px(period))
-                        .h(px(line.rows as f32 * LAND)),
-                );
-                x += period;
+            for (line, image, lift) in [(&FAR, &layers.far, 2.), (&NEAR, &layers.near, 0.)] {
+                let period = line.runs.iter().map(|r| r.0).sum::<usize>() as f32 * LAND;
+                let top = foot - (line.rows as f32 + lift) * LAND;
+                // The far line starts half a period in, so the two never repeat in step.
+                let mut x = if lift > 0. { -period / 2. } else { 0. };
+                while x < w {
+                    sky = sky.child(
+                        img(image.clone())
+                            .absolute()
+                            .left(px(x))
+                            .top(px(top))
+                            .w(px(period))
+                            .h(px(line.rows as f32 * LAND)),
+                    );
+                    x += period;
+                }
+                if lift > 0. {
+                    sky = sky.child(
+                        div()
+                            .absolute()
+                            .left_0()
+                            .w_full()
+                            .top(px(foot - lift * LAND))
+                            .h(px(lift * LAND))
+                            .bg(rgb(art.far)),
+                    );
+                }
             }
-            if lift > 0. {
-                sky = sky.child(
-                    div()
-                        .absolute()
-                        .left_0()
-                        .w_full()
-                        .top(px(foot - lift * LAND))
-                        .h(px(lift * LAND))
-                        .bg(rgb(art.far)),
-                );
-            }
-        }
-
         }
         let next = self.clock.running.is_some().then(|| {
             let clouds = CLOUDS.iter().map(|l| until_next(t * l.speed) / l.speed);
@@ -424,7 +427,11 @@ impl Sky {
         let key = ((dark, mono), (scale * 100.).round() as u32);
         if !matches!(&self.baked, Some((k, _)) if *k == key) {
             let art = if dark {
-                if mono { &NIGHT_ART_MONO } else { &NIGHT_ART }
+                if mono {
+                    &NIGHT_ART_MONO
+                } else {
+                    &NIGHT_ART
+                }
             } else {
                 &DAWN_ART
             };
