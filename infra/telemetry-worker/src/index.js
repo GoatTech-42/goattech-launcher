@@ -1,4 +1,5 @@
-// GoatTech telemetry collector: anonymous "I'm playing" ping + live count only.
+// GoatTech telemetry collector: anonymous "I'm playing" ping + live count, and
+// once-per-game-session basic performance summaries (coarse bucket labels only).
 // No batch uploads, no hub, no exports, no history endpoints.
 // Privacy: the client IP is read only as the key of a transient in-memory rate
 // bucket (isolate-local; dropped lazily at minute rollover, hard-capped). It is
@@ -13,6 +14,24 @@ const CACHE_MS = 10000;        // public count cache, isolate-local
 const MINUTE_KEEP = 7 * 24 * 3600;
 const HOUR_KEEP = 90 * 24 * 3600;
 const TOP_VERSIONS = 12;
+const BASIC_KEEP = 7 * 24 * 3600; // basic daily counts are deleted after 7 days
+const BASIC_SCHEMA = "goattech-basic-stats/1";
+// The published public releases a report may name, mirroring the client's
+// PUBLISHED_RELEASES (crates/horizon-telemetry/src/basic.rs) and maintained in
+// lockstep with it by the release process: EMPTY until the first approved
+// release, so nothing is accepted before one exists - exactly when the client
+// sends nothing. An exact list, not a shape: no tag-shaped string can carry an
+// ID or a measurement into storage, and cardinality is bounded by real
+// releases. There is deliberately no env or config override: production reads
+// this list and nothing else. Tests inject their fixture releases by rewriting
+// this const in the source copy they run (see test/route-check.cjs).
+const PUBLISHED_RELEASES = [];
+// The three coarse bucket vocabularies, mirrored from the client's report
+// contract (crates/horizon-telemetry/src/basic.rs). A label outside them is a
+// 400; the measurement itself never appears in either place.
+const TTT_BUCKETS = new Set(["lt500", "500_1000", "1000_2000", "2000_4000", "4000_8000", "8000_16000", "ge16000"]);
+const TTW_BUCKETS = new Set(["lt1000", "1000_3000", "3000_6000", "6000_12000", "12000_30000", "ge30000"]);
+const P95_BUCKETS = new Set(["lt8_4", "8_4_16_7", "16_7_33_4", "33_4_66_7", "66_7_100_0", "ge100_0"]);
 
 const buckets = new Map(); // isolate-local only: ip -> n; never persisted
 let bucketMin = -1;
@@ -127,28 +146,71 @@ async function handlePost(request, env) {
   return new Response(null, { status: 204 });
 }
 
+// One report per game session: the format marker, the public release and OS,
+// and whichever coarse buckets the session produced (at least one). The same
+// shape the client validates before sending; anything else is a 400, including
+// extra keys. Counts land in basic_daily keyed by UTC day - no timestamps, no
+// IDs, nothing per-session is ever stored.
+async function handleBasicStats(request, env) {
+  const text = await readCapped(request, BODY_CAP); // the client's own 512-byte cap
+  if (text === null) return new Response(null, { status: 413 });
+  let report;
+  try { report = JSON.parse(text); } catch { return new Response(null, { status: 400 }); }
+  const KEYS = ["schema", "release", "os", "ttt_ms", "ttw_ms", "p95_ms"];
+  if (
+    typeof report !== "object" || report === null || Array.isArray(report) ||
+    Object.keys(report).some((k) => !KEYS.includes(k)) ||
+    report.schema !== BASIC_SCHEMA ||
+    typeof report.release !== "string" ||
+    !(report.os === "windows" || report.os === "macos" || report.os === "linux")
+  ) return new Response(null, { status: 400 });
+  // Only an explicitly published release is stored - before any DB write.
+  if (!PUBLISHED_RELEASES.includes(report.release)) return new Response(null, { status: 400 });
+  const present = [];
+  for (const [metric, allowed] of [["ttt_ms", TTT_BUCKETS], ["ttw_ms", TTW_BUCKETS], ["p95_ms", P95_BUCKETS]]) {
+    const v = report[metric];
+    if (v === undefined) continue;
+    if (typeof v !== "string" || !allowed.has(v)) return new Response(null, { status: 400 });
+    present.push([metric, v]);
+  }
+  if (present.length === 0) return new Response(null, { status: 400 }); // an empty report is not sent
+  const day = new Date().toISOString().slice(0, 10); // the UTC day the count belongs to
+  await env.DB.batch(present.map(([metric, bucket]) =>
+    env.DB.prepare(
+      `INSERT INTO basic_daily (day, release, os, metric, bucket, count)
+       VALUES (?1, ?2, ?3, ?4, ?5, 1)
+       ON CONFLICT (day, release, os, metric, bucket) DO UPDATE SET count = count + 1`
+    ).bind(day, report.release, report.os, metric, bucket)
+  ));
+  return new Response(null, { status: 204 });
+}
+
 async function cron(env) {
   const nowSec = Math.floor(Date.now() / 1000);
   const minute = nowSec - (nowSec % 60);
-  const c = await countNow(env.DB, nowSec);
-  if (c.playing > 0) {
-    await env.DB.prepare(
-      `INSERT OR REPLACE INTO minute_totals (minute, playing, lan, versions, platforms)
-       VALUES (?1, ?2, ?3, ?4, ?5)`
-    ).bind(minute, c.playing, c.lan, JSON.stringify(c.versions), JSON.stringify(c.platforms)).run();
-  }
-  const hour = minute - (minute % 3600);
-  if (minute === hour) {
-    const prev = hour - 3600;
-    const { results } = await env.DB.prepare(
-      `SELECT MAX(playing) AS p, MAX(lan) AS l FROM minute_totals WHERE minute >= ?1 AND minute < ?2`
-    ).bind(prev, hour).all();
-    if (results[0] && results[0].p != null) {
+  // The snapshot is best-effort: a failed count must never suppress the privacy
+  // cleanup below, which runs in its own step while deletes are still viable.
+  try {
+    const c = await countNow(env.DB, nowSec);
+    if (c.playing > 0) {
       await env.DB.prepare(
-        `INSERT OR REPLACE INTO hour_totals (hour, playing_max, lan_max) VALUES (?1, ?2, ?3)`
-      ).bind(prev, results[0].p, results[0].l).run();
+        `INSERT OR REPLACE INTO minute_totals (minute, playing, lan, versions, platforms)
+         VALUES (?1, ?2, ?3, ?4, ?5)`
+      ).bind(minute, c.playing, c.lan, JSON.stringify(c.versions), JSON.stringify(c.platforms)).run();
     }
-  }
+    const hour = minute - (minute % 3600);
+    if (minute === hour) {
+      const prev = hour - 3600;
+      const { results } = await env.DB.prepare(
+        `SELECT MAX(playing) AS p, MAX(lan) AS l FROM minute_totals WHERE minute >= ?1 AND minute < ?2`
+      ).bind(prev, hour).all();
+      if (results[0] && results[0].p != null) {
+        await env.DB.prepare(
+          `INSERT OR REPLACE INTO hour_totals (hour, playing_max, lan_max) VALUES (?1, ?2, ?3)`
+        ).bind(prev, results[0].p, results[0].l).run();
+      }
+    }
+  } catch { /* a lost snapshot is a lost minute, never a lost cleanup */ }
   // Expiry and retention. If these deletes fail (daily quota spent), expired rows
   // remain stored but never inflate the count (every read filters seen_at), and a
   // later successful cron cleans them up.
@@ -156,6 +218,15 @@ async function cron(env) {
     env.DB.prepare("DELETE FROM sessions WHERE seen_at < ?1").bind(nowSec - SESSION_TTL_SEC),
     env.DB.prepare("DELETE FROM minute_totals WHERE minute < ?1").bind(nowSec - MINUTE_KEEP),
     env.DB.prepare("DELETE FROM hour_totals WHERE hour < ?1").bind(nowSec - HOUR_KEEP),
+    // The 7-day promise in the consent copy, keyed by the same UTC day the
+    // counts are filed under: the cutoff day is deleted inclusively, so the
+    // oldest data a kept row can hold is just under 7 days (a row filed at
+    // 00:00 goes at 00:00 seven days later, and the next successful cron -
+    // normally a minute - does the deleting).
+    // Best-effort like the rest: a failed delete leaves rows no endpoint
+    // serves, and the next successful cron cleans them.
+    env.DB.prepare("DELETE FROM basic_daily WHERE day <= ?1")
+      .bind(new Date((nowSec - BASIC_KEEP) * 1000).toISOString().slice(0, 10)),
   ]);
 }
 
@@ -173,6 +244,7 @@ export default {
       const ip = request.headers.get("CF-Connecting-IP") || "anon";
       if (limited(ip)) return new Response(null, { status: 429 });
       if (url.pathname === "/v1/live" && request.method === "POST") return await handlePost(request, env);
+      if (url.pathname === "/v1/basic-stats" && request.method === "POST") return await handleBasicStats(request, env);
       if (url.pathname === "/v1/live" && request.method === "GET") {
         const now = Date.now();
         if (countCache.body && now - countCache.at < CACHE_MS) {
