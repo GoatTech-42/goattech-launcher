@@ -7,14 +7,14 @@
 //! from the snapshot taken at the very start of `main`, before anything writes.
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Mutex, OnceLock, mpsc};
+use std::sync::{mpsc, Mutex, OnceLock};
 use std::time::Instant;
 
-use horizon_telemetry::basic::{self, P95, Report, Ttt, Ttw};
+use horizon_telemetry::basic::{self, Report, Ttt, Ttw, P95};
 
 use crate::backend::{self, Settings};
 
-pub use horizon_telemetry::basic::{CONTROL_OFF, EVENT_PREFIX, EVENTS_ENV, MAX_EVENT_LINE};
+pub use horizon_telemetry::basic::{CONTROL_OFF, EVENTS_ENV, EVENT_PREFIX, MAX_EVENT_LINE};
 
 /// What the very start of `main` saw, before anything (installer, cleanup, settings, CLI)
 /// could create or change it: whether this is a genuinely new install. Any doubt - an
@@ -43,9 +43,7 @@ impl Snapshot {
                 Err(_) => false,
             }
         }
-        let fresh = absent(launcher_dir)
-            && absent(game_dir)
-            && absent(&game_dir.join("telemetry"));
+        let fresh = absent(launcher_dir) && absent(game_dir) && absent(&game_dir.join("telemetry"));
         Self { fresh }
     }
 
@@ -110,7 +108,9 @@ fn init_in(path: &Path, fresh: bool) {
     // The shared settings write lock serializes this patch against typed saves and other
     // first-run inits. If it cannot be taken (another writer holds it), the default simply
     // stays unwritten this launch - off - rather than risk overwriting a recorded choice.
-    let Some(_guard) = backend::settings_write_lock(dir) else { return };
+    let Some(_guard) = backend::settings_write_lock(dir) else {
+        return;
+    };
     // Under the lock: read and check NOW, so a write that landed between the first look and
     // this one - another launcher recording the player's choice - always wins.
     if let Some(mut fields) = patchable(path) {
@@ -253,12 +253,7 @@ fn complete_choice(gen: u64, on: bool, result: std::io::Result<()>) {
                 // the read and here.
                 let veto = VETO_GEN.load(Ordering::Acquire);
                 if veto < gen {
-                    let _ = VETO_GEN.compare_exchange(
-                        veto,
-                        0,
-                        Ordering::AcqRel,
-                        Ordering::Acquire,
-                    );
+                    let _ = VETO_GEN.compare_exchange(veto, 0, Ordering::AcqRel, Ordering::Acquire);
                 }
             }
             let _ = CHOICE_STATUS.compare_exchange(

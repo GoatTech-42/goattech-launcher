@@ -2,10 +2,7 @@ use super::*;
 use std::path::PathBuf;
 
 fn dirs(name: &str) -> (PathBuf, PathBuf) {
-    let base = std::env::temp_dir().join(format!(
-        "horizon-basic-{name}-{}",
-        std::process::id()
-    ));
+    let base = std::env::temp_dir().join(format!("horizon-basic-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
     (base.join("launcher"), base.join("game"))
 }
@@ -16,7 +13,9 @@ static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn hello(s: &mut Session, release: &str) {
     let v = serde_json::to_string(release).unwrap();
-    s.on_line(&format!("HORIZON-SESSION-EVENT {{\"e\":\"hello\",\"v\":{v}}}"));
+    s.on_line(&format!(
+        "HORIZON-SESSION-EVENT {{\"e\":\"hello\",\"v\":{v}}}"
+    ));
 }
 
 #[test]
@@ -56,20 +55,30 @@ fn the_default_write_preserves_everything_and_never_overwrites() {
     let settings = launcher.join("settings.json");
     std::fs::create_dir_all(&launcher).unwrap();
     // Unknown and unrelated keys survive the patch verbatim.
-    std::fs::write(&settings, r#"{"future_thing": {"a": 1}, "custom": "keep me"}"#).unwrap();
+    std::fs::write(
+        &settings,
+        r#"{"future_thing": {"a": 1}, "custom": "keep me"}"#,
+    )
+    .unwrap();
     init_in(&settings, Snapshot::take_from(&launcher, &game).fresh());
     let after: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&settings).unwrap()).unwrap();
     assert_eq!(after["custom"], "keep me");
     assert_eq!(after["future_thing"]["a"], 1);
-    assert_eq!(after["basic_summaries"], false, "an existing install defaults off");
+    assert_eq!(
+        after["basic_summaries"], false,
+        "an existing install defaults off"
+    );
     assert_eq!(after["basic_summaries_cohort"], "existing-default-off");
     // An existing choice in any form is never overwritten - an opt-out survives even a fresh
     // snapshot, and a concurrent first launch that wrote first wins.
     init_in(&settings, true);
     let after: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&settings).unwrap()).unwrap();
-    assert_eq!(after["basic_summaries"], false, "the recorded value was overwritten");
+    assert_eq!(
+        after["basic_summaries"], false,
+        "the recorded value was overwritten"
+    );
     assert_eq!(after["basic_summaries_cohort"], "existing-default-off");
     // A cohort this build can't parse is left alone too.
     std::fs::write(&settings, r#"{"basic_summaries_cohort": "future-cohort"}"#).unwrap();
@@ -77,7 +86,10 @@ fn the_default_write_preserves_everything_and_never_overwrites() {
     let after: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&settings).unwrap()).unwrap();
     assert_eq!(after["basic_summaries_cohort"], "future-cohort");
-    assert!(after.get("basic_summaries").is_none(), "doubt must not write a value");
+    assert!(
+        after.get("basic_summaries").is_none(),
+        "doubt must not write a value"
+    );
     // A corrupt file is left byte-for-byte as it is.
     std::fs::write(&settings, b"{not json").unwrap();
     init_in(&settings, true);
@@ -92,7 +104,10 @@ fn the_default_write_preserves_everything_and_never_overwrites() {
     // An unreadable (non-UTF-8) existing file is doubt: left byte-for-byte, nothing written.
     std::fs::write(&settings, b"\xff\xfe\x00not settings").unwrap();
     init_in(&settings, true);
-    assert_eq!(std::fs::read(&settings).unwrap(), b"\xff\xfe\x00not settings");
+    assert_eq!(
+        std::fs::read(&settings).unwrap(),
+        b"\xff\xfe\x00not settings"
+    );
     std::fs::remove_file(&settings).unwrap();
     // A held OS write lock (another writer mid-save) skips the patch entirely; once it is
     // released (drop, or the kernel after a crash) the write lands.
@@ -134,12 +149,19 @@ fn an_unrelated_save_preserves_the_recorded_basic_choice() {
     let mut b = crate::backend::Settings::load();
     b.basic_summaries = Some(false);
     b.save_basic_choice().unwrap();
-    assert_eq!(crate::backend::Settings::load().basic_summaries, Some(false));
+    assert_eq!(
+        crate::backend::Settings::load().basic_summaries,
+        Some(false)
+    );
     // A saves an unrelated change from its stale snapshot: the recorded false survives.
     a.skip_opening = true;
     a.save().unwrap();
     let after = crate::backend::Settings::load();
-    assert_eq!(after.basic_summaries, Some(false), "a stale save resurrected the opt-in");
+    assert_eq!(
+        after.basic_summaries,
+        Some(false),
+        "a stale save resurrected the opt-in"
+    );
     assert!(after.skip_opening, "the unrelated change was lost");
     // But when A's user actually flips the basic switch, that explicit choice wins.
     a.basic_summaries = Some(true);
@@ -166,7 +188,11 @@ fn an_unrelated_save_refuses_uncertain_existing_bytes() {
         basic_summaries: Some(true),
         ..crate::backend::Settings::load()
     };
-    for bad in [b"\xffnot-json".as_slice(), b"[1,2]".as_slice(), b"\"str\"".as_slice()] {
+    for bad in [
+        b"\xffnot-json".as_slice(),
+        b"[1,2]".as_slice(),
+        b"\"str\"".as_slice(),
+    ] {
         std::fs::write(&settings, bad).unwrap();
         assert!(
             stale.save().is_err(),
@@ -197,11 +223,13 @@ fn an_unrelated_save_records_no_choice_when_none_is_on_disk() {
     let mut stale = crate::backend::Settings::load();
     stale.basic_summaries = Some(true); // a stale in-memory opt-in
     stale.save().unwrap();
-    let v: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(launcher.join("settings.json")).unwrap(),
-    )
-    .unwrap();
-    assert!(v.get("basic_summaries").is_none(), "an unrelated save invented a choice: {v}");
+    let v: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(launcher.join("settings.json")).unwrap())
+            .unwrap();
+    assert!(
+        v.get("basic_summaries").is_none(),
+        "an unrelated save invented a choice: {v}"
+    );
     assert!(v.get("basic_summaries_cohort").is_none(), "{v}");
     std::env::remove_var("HORIZON_LAUNCHER_HOME");
 }
@@ -238,15 +266,16 @@ fn an_off_choice_applies_now_and_lands_after_a_held_lock() {
         started.elapsed() < std::time::Duration::from_millis(500),
         "the click blocked on the stuck lock"
     );
-    assert!(!enabled(), "the veto did not apply while the save was stuck");
+    assert!(
+        !enabled(),
+        "the veto did not apply while the save was stuck"
+    );
     // Free the lock well inside the worker's bounded wait: the queued save lands.
     drop(held);
     let deadline = Instant::now() + std::time::Duration::from_secs(5);
     loop {
-        let v: serde_json::Value = serde_json::from_str(
-            &std::fs::read_to_string(&settings).unwrap(),
-        )
-        .unwrap();
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&settings).unwrap()).unwrap();
         if v.get("basic_summaries") == Some(&serde_json::Value::Bool(false)) {
             break;
         }
@@ -265,7 +294,10 @@ fn an_off_choice_applies_now_and_lands_after_a_held_lock() {
     record_choice_async(on2);
     let deadline = Instant::now() + std::time::Duration::from_secs(5);
     while !enabled() {
-        assert!(Instant::now() < deadline, "the newest saved on never lifted the veto");
+        assert!(
+            Instant::now() < deadline,
+            "the newest saved on never lifted the veto"
+        );
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     assert_eq!(crate::backend::Settings::load().basic_summaries, Some(true));
@@ -285,7 +317,10 @@ fn a_failed_completion_is_published_as_one_consistent_unit() {
     let observer = std::thread::spawn(move || {
         while !stop2.load(O::Relaxed) {
             if let Some((_, error)) = choice_save_failed() {
-                assert!(!error.is_empty(), "a failed save was visible without its error");
+                assert!(
+                    !error.is_empty(),
+                    "a failed save was visible without its error"
+                );
             }
         }
     });
@@ -334,7 +369,10 @@ fn a_failed_on_after_a_failed_off_leaves_the_row_truthful() {
     record_choice_async(off);
     let deadline = Instant::now() + std::time::Duration::from_secs(5);
     while choice_save_failed().is_none() {
-        assert!(Instant::now() < deadline, "the stuck off was never reported");
+        assert!(
+            Instant::now() < deadline,
+            "the stuck off was never reported"
+        );
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     // ON retry: also fails. The newest failure is now the ON.
@@ -408,16 +446,27 @@ fn a_stale_saved_on_never_clears_a_newer_off() {
         Err(std::io::Error::new(std::io::ErrorKind::Other, "stale")),
     );
     assert_eq!(CHOICE_STATUS.load(Ordering::Acquire), pack_status(g_off, 1));
-    assert!(choice_save_failed().is_none(), "a stale failure surfaced as the newest");
+    assert!(
+        choice_save_failed().is_none(),
+        "a stale failure surfaced as the newest"
+    );
     // The OFF's own completion settles its own word; the veto it set stays.
     complete_choice(g_off, false, Ok(()));
     assert_eq!(CHOICE_STATUS.load(Ordering::Acquire), pack_status(g_off, 0));
-    assert_eq!(VETO_GEN.load(Ordering::Acquire), g_off, "an off's save lifted its own veto");
+    assert_eq!(
+        VETO_GEN.load(Ordering::Acquire),
+        g_off,
+        "an off's save lifted its own veto"
+    );
     // And a NEWER saved ON does lift it - the disk now carries the newest choice.
     let g_on2 = CHOICE_GEN.fetch_add(1, Ordering::AcqRel) + 1;
     CHOICE_STATUS.store(pack_status(g_on2, 1), Ordering::Release);
     complete_choice(g_on2, true, Ok(()));
-    assert_eq!(VETO_GEN.load(Ordering::Acquire), 0, "the newest saved on kept the veto");
+    assert_eq!(
+        VETO_GEN.load(Ordering::Acquire),
+        0,
+        "the newest saved on kept the veto"
+    );
     assert_eq!(CHOICE_STATUS.load(Ordering::Acquire), pack_status(g_on2, 0));
 }
 
@@ -448,14 +497,24 @@ fn a_failed_off_save_is_surfaced_and_stays_off() {
     // The worker's wait is bounded (~1s): outlast it, so the save fails for real.
     let deadline = Instant::now() + std::time::Duration::from_secs(5);
     while choice_save_failed().is_none() {
-        assert!(Instant::now() < deadline, "the stuck save was never reported");
+        assert!(
+            Instant::now() < deadline,
+            "the stuck save was never reported"
+        );
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     let (was_on, error) = choice_save_failed().unwrap();
     assert!(!was_on, "the failed choice was the off");
     assert!(!error.is_empty());
-    assert!(!enabled(), "a failed off save left collection on in this process");
-    assert_eq!(crate::backend::Settings::load().basic_summaries, Some(true), "disk changed?");
+    assert!(
+        !enabled(),
+        "a failed off save left collection on in this process"
+    );
+    assert_eq!(
+        crate::backend::Settings::load().basic_summaries,
+        Some(true),
+        "disk changed?"
+    );
     drop(held);
     // The retry lands; a saved ON then lifts the veto, leaving a clean state.
     let mut off = crate::backend::Settings::load();
@@ -516,17 +575,45 @@ fn consumed_frames_stay_out_of_the_log() {
     let mut none: Option<Session> = None;
     // No session - the switch went off mid-game and dropped it: the game's queued frames are
     // still reserved protocol, never log.
-    assert!(consume_event_line(&mut none, true, "HORIZON-SESSION-EVENT {\"e\":\"end\"}"));
-    assert!(consume_event_line(&mut none, true, "HORIZON-SESSION-EVENT {not json"));
-    assert!(!consume_event_line(&mut none, true, "Horizon: the game is starting"));
+    assert!(consume_event_line(
+        &mut none,
+        true,
+        "HORIZON-SESSION-EVENT {\"e\":\"end\"}"
+    ));
+    assert!(consume_event_line(
+        &mut none,
+        true,
+        "HORIZON-SESSION-EVENT {not json"
+    ));
+    assert!(!consume_event_line(
+        &mut none,
+        true,
+        "Horizon: the game is starting"
+    ));
     let mut some = Some(Session::start(Instant::now()));
     // A protocol frame is consumed; an ordinary line is not; another job's line is not.
-    assert!(consume_event_line(&mut some, true, "HORIZON-SESSION-EVENT {not json"));
-    assert!(!consume_event_line(&mut some, true, "Horizon: the game is starting"));
-    assert!(!consume_event_line(&mut some, false, "HORIZON-SESSION-EVENT {\"e\":\"end\"}"));
+    assert!(consume_event_line(
+        &mut some,
+        true,
+        "HORIZON-SESSION-EVENT {not json"
+    ));
+    assert!(!consume_event_line(
+        &mut some,
+        true,
+        "Horizon: the game is starting"
+    ));
+    assert!(!consume_event_line(
+        &mut some,
+        false,
+        "HORIZON-SESSION-EVENT {\"e\":\"end\"}"
+    ));
     // Dropping the session mid-stream changes nothing for the log.
     some = None;
-    assert!(consume_event_line(&mut some, true, "HORIZON-SESSION-EVENT {\"e\":\"frames\",\"p95_ms\":16.9,\"n\":300}"));
+    assert!(consume_event_line(
+        &mut some,
+        true,
+        "HORIZON-SESSION-EVENT {\"e\":\"frames\",\"p95_ms\":16.9,\"n\":300}"
+    ));
 }
 
 /// The event/exit harness: exactly one send, only for a normal end with a successful exit.
@@ -574,12 +661,18 @@ fn a_session_sends_exactly_once_and_only_on_a_clean_end() {
     // A kill (no end marker), a successful exit: nothing.
     let mut killed = Session::start(Instant::now());
     full(&mut killed);
-    assert!(killed.finish(true).is_none(), "a killed session made a report");
+    assert!(
+        killed.finish(true).is_none(),
+        "a killed session made a report"
+    );
     // An error exit after a normal end: nothing.
     let mut errored = Session::start(Instant::now());
     full(&mut errored);
     errored.on_line("HORIZON-SESSION-EVENT {\"e\":\"end\"}");
-    assert!(errored.finish(false).is_none(), "an error exit made a report");
+    assert!(
+        errored.finish(false).is_none(),
+        "an error exit made a report"
+    );
     // A normal end with a successful exit: exactly one report, named for the measured build.
     let mut clean = Session::start(Instant::now());
     full(&mut clean);
@@ -590,7 +683,10 @@ fn a_session_sends_exactly_once_and_only_on_a_clean_end() {
         .recv_timeout(std::time::Duration::from_secs(5))
         .expect("the clean session's report never arrived");
     assert!(body.contains("\"release\":\"v0.0.0-test\""), "{body}");
-    assert!(body.contains("ttt_ms") && body.contains("ttw_ms") && body.contains("p95_ms"), "{body}");
+    assert!(
+        body.contains("ttt_ms") && body.contains("ttw_ms") && body.contains("p95_ms"),
+        "{body}"
+    );
 
     std::env::remove_var("GOATTECH_BASIC_STATS_TEST_URL");
     std::env::remove_var("HORIZON_LAUNCHER_HOME");
@@ -636,12 +732,14 @@ fn a_concurrent_choice_survives_the_default_patch() {
         // ever read false again, while a file read BEFORE the flag flips may still be the
         // default patch - that ordering is a test artifact, not an init overwrite.
         if opted_out.load(Ordering::Relaxed) {
-            let v: serde_json::Value = serde_json::from_str(
-                &std::fs::read_to_string(&settings).unwrap(),
-            )
-            .unwrap();
+            let v: serde_json::Value =
+                serde_json::from_str(&std::fs::read_to_string(&settings).unwrap()).unwrap();
             if let Some(b) = v.get("basic_summaries") {
-                assert_eq!(b, &serde_json::Value::Bool(false), "init overwrote the choice");
+                assert_eq!(
+                    b,
+                    &serde_json::Value::Bool(false),
+                    "init overwrote the choice"
+                );
             }
         }
     }
@@ -666,9 +764,16 @@ fn off_means_no_report_ever_and_a_drop_cannot_be_undone() {
     // A canceled sample is the dropped Session itself; there is nothing to resurrect when
     // the switch comes back on (the consume in session_ended is the only send path).
     drop(s);
-    std::fs::write(launcher.join("settings.json"), r#"{"basic_summaries": true}"#).unwrap();
+    std::fs::write(
+        launcher.join("settings.json"),
+        r#"{"basic_summaries": true}"#,
+    )
+    .unwrap();
     assert!(enabled());
     let fresh = Session::start(Instant::now());
-    assert!(fresh.finish(true).is_none(), "a new session carried old measurements");
+    assert!(
+        fresh.finish(true).is_none(),
+        "a new session carried old measurements"
+    );
     std::env::remove_var("HORIZON_LAUNCHER_HOME");
 }

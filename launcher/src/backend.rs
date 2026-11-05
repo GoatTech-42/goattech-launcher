@@ -3175,7 +3175,9 @@ impl Running {
         let Some(stdin) = guard.as_mut() else {
             return false;
         };
-        writeln!(stdin, "{line}").and_then(|()| stdin.flush()).is_ok()
+        writeln!(stdin, "{line}")
+            .and_then(|()| stdin.flush())
+            .is_ok()
     }
 
     /// The shared stdin, for a line that must not go out on the caller's thread (the
@@ -3191,7 +3193,9 @@ impl Running {
         let Some(stdin) = guard.as_mut() else {
             return false;
         };
-        writeln!(stdin, "{line}").and_then(|()| stdin.flush()).is_ok()
+        writeln!(stdin, "{line}")
+            .and_then(|()| stdin.flush())
+            .is_ok()
     }
     pub fn kill(&self) {
         let _ = self.child.lock().unwrap().kill();
@@ -3442,7 +3446,10 @@ impl Settings {
             }
             // Basic summaries fail closed: a value of the wrong shape is no setting (off),
             // never a reason to lose every other setting.
-            if fields.get("basic_summaries").is_some_and(|b| !b.is_boolean()) {
+            if fields
+                .get("basic_summaries")
+                .is_some_and(|b| !b.is_boolean())
+            {
                 fields.remove("basic_summaries");
             }
             if fields.get("basic_summaries_cohort").is_some_and(|c| {
