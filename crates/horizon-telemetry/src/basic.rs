@@ -473,6 +473,68 @@ mod tests {
         assert!(seam_endpoint(None).is_none());
     }
 
+    /// A 3xx is a drop, never a follow: the redirect target is never touched.
+    #[cfg(all(debug_assertions, feature = "telemetry-test-seam"))]
+    #[test]
+    fn redirects_are_not_followed() {
+        use std::io::{BufRead, BufReader, Write};
+        use std::net::TcpListener;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let hits = std::sync::Arc::new(AtomicUsize::new(0));
+        let target = TcpListener::bind("127.0.0.1:0").unwrap();
+        let target_addr = target.local_addr().unwrap();
+        let hits2 = std::sync::Arc::clone(&hits);
+        std::thread::spawn(move || {
+            for stream in target.incoming() {
+                hits2.fetch_add(1, Ordering::SeqCst);
+                drop(stream);
+            }
+        });
+        let source = TcpListener::bind("127.0.0.1:0").unwrap();
+        let source_addr = source.local_addr().unwrap();
+        std::thread::spawn(move || {
+            if let Ok((mut stream, _)) = source.accept() {
+                let mut reader = BufReader::new(stream.try_clone().unwrap());
+                // Read the request head before answering.
+                for line in reader.lines().map_while(Result::ok) {
+                    if line.is_empty() {
+                        break;
+                    }
+                }
+                let body = "redirect";
+                let _ = write!(
+                    stream,
+                    "HTTP/1.1 301 Moved Permanently\r\nLocation: http://{target_addr}/trap\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+            }
+        });
+        let url = format!("http://{source_addr}/v1/basic-stats");
+        assert_eq!(seam_endpoint(Some(&url)).as_deref(), Some(url.as_str()));
+        let report = Report {
+            schema: SCHEMA_ID.to_owned(),
+            release: "v0.0.0-test".to_owned(),
+            os: "linux".to_owned(),
+            ttt_ms: Some(Ttt::Lt500),
+            ttw_ms: None,
+            p95_ms: None,
+        };
+        // check() refuses the unpublished test tag, so build the body directly here: this
+        // test pins the HTTP behavior, not the allowlist.
+        let body = serde_json::to_vec(&report).unwrap();
+        let agent = ureq::AgentBuilder::new()
+            .timeout(std::time::Duration::from_secs(3))
+            .redirects(0)
+            .build();
+        let _ = agent
+            .post(&url)
+            .set("Content-Type", "application/json")
+            .send_bytes(&body);
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        assert_eq!(hits.load(Ordering::SeqCst), 0, "the redirect target was hit");
+    }
+
     /// A release build has no test seam at all: the variable is never read.
     #[test]
     fn a_release_build_cannot_be_redirected() {

@@ -6,8 +6,6 @@
 //! recorded setting and treat its absence as off. Only the window runs [`init_for_gui`], once,
 //! from the snapshot taken at the very start of `main`, before anything writes.
 use std::path::Path;
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use horizon_telemetry::basic::{self, P95, Report, Ttt, Ttw};
@@ -103,11 +101,6 @@ pub struct Session {
     title: Option<Ttt>,
     world: Option<Ttw>,
     p95: Option<P95>,
-    /// The one send for this session went out (or was attempted): there is no second.
-    sent: AtomicBool,
-    /// What would be sent, between the game ending and the send thread picking it up. Turning
-    /// the switch off clears it; nothing here ever touches disk.
-    pending: Mutex<Option<Report>>,
 }
 
 impl Session {
@@ -118,8 +111,6 @@ impl Session {
             title: None,
             world: None,
             p95: None,
-            sent: AtomicBool::new(false),
-            pending: Mutex::new(None),
         }
     }
 
@@ -152,15 +143,17 @@ impl Session {
                 let p95 = fields.get("p95_ms").and_then(|v| v.as_f64());
                 let n = fields.get("n").and_then(|v| v.as_u64()).unwrap_or(0);
                 if n >= basic::MIN_P95_FRAMES {
-                    self.p95 = p95.and_then(P95::from_frame_ms);
+                    if let Some(bucket) = p95.and_then(P95::from_frame_ms) {
+                        self.p95 = Some(bucket);
+                    }
                 }
             }
             _ => {}
         }
     }
 
-    /// The game ended. The report it makes, if any: at least one measurement, a published
-    /// release, a named OS. Off means no report was ever assembled.
+    /// The report this session makes, if any: the switch on, at least one measurement, a
+    /// published release, a named OS. Off means no report was ever assembled.
     pub fn finish(&self) -> Option<Report> {
         if !enabled() {
             return None;
@@ -168,38 +161,25 @@ impl Session {
         Report::build(backend::VERSION, self.title, self.world, self.p95)
     }
 
-    /// The game ended while the launcher is alive: at most one send attempt, on its own
-    /// thread, never joined, so it cannot delay shutdown. The setting is read again right
-    /// before dispatch; in flight cannot be unsent. No report (off, or nothing measured)
-    /// sends nothing.
-    pub fn session_ended(self: &std::sync::Arc<Self>) {
+    /// The game ended while the launcher is alive: the one send attempt. A Session is consumed
+    /// here, and the launcher makes one per game run, so a second send is structurally
+    /// impossible; turning the switch off drops the Session itself. The send thread reads the
+    /// setting once more right before dispatch (an in-flight request cannot be unsent), is
+    /// never joined and never delays shutdown. No report (off, or nothing measured) sends
+    /// nothing, and a failure or refusal is dropped: no retry, no outbox, nothing on disk.
+    pub fn session_ended(self) {
         let Some(report) = self.finish() else {
             return;
         };
-        // At most once, whatever races: a second caller finds the flag set.
-        if self.sent.swap(true, Ordering::SeqCst) {
-            return;
-        }
-        // The switch could have flipped after the game ended: read it again at dispatch.
-        if !enabled() {
-            return;
-        }
         let Some(url) = basic::endpoint() else {
             return; // the transport veto is on
         };
-        *self.pending.lock().unwrap() = Some(report);
-        let this = std::sync::Arc::clone(self);
         std::thread::spawn(move || {
-            let report = this.pending.lock().unwrap().take();
-            if let Some(report) = report {
+            // The switch could have flipped between the game ending and now.
+            if enabled() {
                 let _ = basic::send_to(&url, &report);
             }
         });
-    }
-
-    /// The switch was turned off: anything queued is dropped at once.
-    pub fn cancel_pending(&self) {
-        *self.pending.lock().unwrap() = None;
     }
 }
 
@@ -275,12 +255,11 @@ mod tests {
     }
 
     #[test]
-    fn at_most_one_send_per_session() {
-        let s = std::sync::Arc::new(Session::start(Instant::now()));
-        s.sent.store(true, Ordering::SeqCst);
-        // A second attempt after the flag is a no-op regardless of a report.
-        let again = std::sync::Arc::clone(&s);
-        again.session_ended();
-        assert!(s.pending.lock().unwrap().is_none());
+    fn a_session_sends_at_most_once_by_construction() {
+        // session_ended consumes the Session: a second attempt cannot be expressed. The
+        // launcher holds at most one per game run and dropping it (the switch going off)
+        // cancels anything not yet sent.
+        let s = Session::start(Instant::now());
+        drop(s);
     }
 }

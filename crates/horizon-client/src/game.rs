@@ -18009,6 +18009,9 @@ impl Game<'_> {
     /// The loop ended: close the pads' output, save the world, write the perf report.
     pub(super) fn shut_down(&mut self) {
         self.pad_close_output();
+        // A normal exit reports the run's frame times to the launcher, if it asked
+        // (`HORIZON_SESSION_EVENTS`); a forced exit never gets here and sends nothing.
+        self.perf.emit_basic_frames();
         if let Err(e) = self.save_for_exit() {
             log::warn!("Horizon: failed to save the world on exit: {e}");
         }

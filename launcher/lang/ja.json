@@ -321,7 +321,6 @@
   "Always on": "常に有効",
   "Could not save your choice: {error}": "選択を保存できませんでした：{error}",
   "Data collection": "データ収集",
-  "Horizon can send a few things to its developers. Each switch is off until you turn it on, and Settings can change it any time.": "Horizonは開発者にいくつかのデータを送信できます。各スイッチは手動で有効にするまでオフであり、設定でいつでも変更できます。",
   "Hide what would be sent": "送信内容を表示しない",
   "View what would be sent": "送信内容を表示",
   "Keep optional data off": "任意データはオフのままにする",
@@ -333,7 +332,6 @@
   "Delete everything?": "すべて削除しますか？",
   "Delete my data": "私のデータを削除",
   "Your data": "あなたのデータ",
-  "Each switch is off unless you turn it on. What it sends is below it; the privacy page on playhorizon.dev says how long it is kept.": "各スイッチは手動で有効にするまでオフです。送信される内容は下部に記載されています。保持期間については playhorizon.dev のプライバシーページをご覧ください。",
   "Performance statistics": "パフォーマンス統計",
   "After each session: frame-time percentiles and a 14-bucket histogram, tick times, peak memory and startup times, with your machine (OS, CPU and its cores and clocks, memory size, GPU, its memory and driver, drive type, screen size and refresh rate, laptop or desktop, on battery or not) and the settings that change performance.": "各セッション後：フレーム時間のパーセンタイルと14ビンのヒストグラム、ティック時間、ピークメモリ使用量、起動時間。さらにマシンスペック（OS、CPUとそのコア数・クロック数、メモリ容量、GPUとそのメモリ・ドライバー、ドライブ種類、画面サイズ・リフレッシュレート、ノートPCかデスクトップか、バッテリー駆動かどうか）およびパフォーマンスに影響する設定情報を含みます。",
   "Crash reports": "クラッシュレポート",
@@ -848,5 +846,9 @@
   "Software is chosen inside each Java instance - vanilla, Fabric, Quilt, Forge or NeoForge.": "ソフトウェアは各Javaインスタンス内で選択します - バニラ、Fabric、Quilt、Forge、NeoForge。",
   "The game ended without a crash report. If you report the problem, attach latest.log from the logs folder and say what you were doing.": "ゲームがクラッシュレポートなしで終了しました。問題を報告する際は、logsフォルダ内のlatest.logを添付し、何をしていたかを説明してください。",
   "The game sends an anonymous \"I'm playing\" ping once a minute while you play, so the launcher can show how many people play right now. The ping is always on and goes to GoatTech's own counter (telemetry.goattech.us), which stores only each session's anonymous row while you play and removes it about an hour after you stop; cleanup can take longer if the service hits its daily limit. The ping holds: a random number made when the game starts and forgotten when it closes, the version, your OS (Linux, macOS or Windows), and whether you have a world open to LAN or friends. It doesn't hold: your account, your install ID, world or server names, or anything you do in the game, and the server doesn't keep your IP address. It is sent whatever the switches above say.": "ゲームはプレイ中に毎分匿名の「プレイ中」ピングを送信し、ランチャーが現在のプレイヤー数を表示できるようにします。ピングは常にオンで、GoatTech独自のカウンター（telemetry.goattech.us）に送信されます。このカウンターはプレイ中のみ各セッションの匿名行を保存し、プレイ終了後約1時間で削除します。サービスが1日の上限に達した場合、クリーンアップはさらに遅れることがあります。ピングに含まれる情報：ゲーム開始時に生成され終了時に破棄されるランダム番号、バージョン、OS（Linux、macOS、Windows）、LANまたはフレンド向けにワールドを公開しているかどうか。含まれない情報：アカウント、インストールID、ワールド名、サーバー名、ゲーム内での行動。サーバーはIPアドレスを保持しません。上記のスイッチの状態に関わらず送信されます。",
-  "The anonymous player-count ping is off in this configuration: no ping is sent and no live player count is shown. The optional switches work the same either way.": "この構成では匿名のプレイヤー数 ping はオフです: ping は送信されず、ライブのプレイヤー数も表示されません。任意のスイッチはどちらの場合も同じように動作します。"
+  "The anonymous player-count ping is off in this configuration: no ping is sent and no live player count is shown. The optional switches work the same either way.": "この構成では匿名のプレイヤー数 ping はオフです: ping は送信されず、ライブのプレイヤー数も表示されません。任意のスイッチはどちらの場合も同じように動作します。",
+  "Basic performance summaries": "Basic performance summaries",
+  "Once per game session: how long the game took to show its title and to load its first world, and its usual frame time (the 95th percentile), each as a coarse range, with the launcher release and your OS (Linux, macOS or Windows). No account, no install ID, nothing you do in the game. Sent only to GoatTech's own collector, which keeps daily counts per release and OS and deletes them after 7 days. On by default on a new install; turn it off any time. A session that ends in a crash or a forced quit sends nothing.": "Once per game session: how long the game took to show its title and to load its first world, and its usual frame time (the 95th percentile), each as a coarse range, with the launcher release and your OS (Linux, macOS or Windows). No account, no install ID, nothing you do in the game. Sent only to GoatTech's own collector, which keeps daily counts per release and OS and deletes them after 7 days. On by default on a new install; turn it off any time. A session that ends in a crash or a forced quit sends nothing.",
+  "Basic performance summaries are on by default - a few coarse numbers, listed below. Every other switch is off until you turn it on, and Settings can change any of them any time.": "Basic performance summaries are on by default - a few coarse numbers, listed below. Every other switch is off until you turn it on, and Settings can change any of them any time.",
+  "Basic performance summaries are on by default on a new install; every other switch is off unless you turn it on. What each sends is below it; the privacy page on playhorizon.dev says how long it is kept.": "Basic performance summaries are on by default on a new install; every other switch is off unless you turn it on. What each sends is below it; the privacy page on playhorizon.dev says how long it is kept."
 }

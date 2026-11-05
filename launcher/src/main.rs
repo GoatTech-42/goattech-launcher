@@ -317,6 +317,8 @@ struct Launcher {
     quick_play: Option<(&'static str, String)>,
     /// The instance the running game plays and when it started: its play time grows on exit.
     client_run: Option<(String, Instant)>,
+    /// The running game's basic-summaries session, when the switch is on (`basic_stats`).
+    basic_session: Option<horizon_launcher::basic_stats::Session>,
     /// The running game's instance variables, for its post-exit command.
     client_vars: horizon_launcher::launch::Vars,
     /// Settings' Game arguments field: the line, whether it has focus, and its focus handle.
@@ -614,6 +616,7 @@ impl Launcher {
             joining: None,
             quick_play: None,
             client_run: None,
+            basic_session: None,
             client_vars: Vec::new(),
             collection: collection::Collection::load(),
             agents: agents_page::AgentsUi::default(),
@@ -988,6 +991,7 @@ impl Launcher {
                     match spawned {
                         Ok(r) => {
                             self.client = Some(r);
+                            self.basic_session = None; // no session events on the Java path
                             self.client_home = Some(home);
                             self.client_run = Some((id, Instant::now()));
                             self.client_error = account::take_unsaved();
@@ -1078,11 +1082,17 @@ impl Launcher {
                         cmd.envs(self.client_vars.iter().map(|(k, v)| (k, v)));
                         let launch = instance.map(|i| i.launch).unwrap_or_default();
                         horizon_launcher::launch::limit_memory(&mut cmd, &launch);
-                        let cmd = horizon_launcher::launch::wrap(cmd, &launch);
+                        let mut cmd = horizon_launcher::launch::wrap(cmd, &launch);
                         self.client_home = cmd.get_current_dir().map(|d| d.to_path_buf());
+                        // The game emits its session events only when asked here.
+                        let events = horizon_launcher::basic_stats::command_with_events(&mut cmd);
+                        let started = Instant::now();
                         match backend::spawn(Job::Client, cmd, self.tx.clone()) {
                             Ok(r) => {
                                 self.client = Some(r);
+                                self.basic_session = events.then(|| {
+                                    horizon_launcher::basic_stats::Session::start(started)
+                                });
                                 self.client_run = run.map(|id| (id, Instant::now()));
                                 self.step_aside(cx);
                             }
@@ -1204,6 +1214,11 @@ impl Launcher {
                 // Old versions log their session; it never reaches the window.
                 Msg::Line(_, line) if line.contains("Session ID is") => {}
                 Msg::Line(job, line) => {
+                    if job == Job::Client {
+                        if let Some(session) = &mut self.basic_session {
+                            session.on_line(&line);
+                        }
+                    }
                     if job == Job::Client && line.starts_with(perf::GAME_FIRST_FRAME) {
                         if let Some(pressed) = self.play_pressed.take() {
                             self.perf
@@ -1248,6 +1263,9 @@ impl Launcher {
                         }
                         Job::Client => {
                             self.client = None;
+                            if let Some(session) = self.basic_session.take() {
+                                session.session_ended();
+                            }
                             self.come_back(cx);
                             // The game saved: last played, sizes and pictures changed.
                             self.worlds.stale();
@@ -5005,6 +5023,9 @@ fn menus() -> Vec<Menu> {
 }
 
 fn main() {
+    // The basic-summaries default needs to know what was here before anything (installer,
+    // cleanup, settings, CLI) could create or change it. Read-only.
+    let basic_snapshot = horizon_launcher::basic_stats::Snapshot::take();
     if let Err(error) = console::attach_for_cli() {
         eprintln!("Could not restore the launcher's terminal streams: {error}");
         std::process::exit(1);
@@ -5028,7 +5049,7 @@ fn main() {
     }
     gpui_platform::application()
         .with_assets(blocks::Assets)
-        .run(|cx: &mut App| {
+        .run(move |cx: &mut App| {
             cx.text_system()
                 .add_fonts(vec![
                     Cow::Borrowed(horizon_theme::fonts::GEIST_MONO),
@@ -5061,6 +5082,9 @@ fn main() {
                 setup_page::open(mode, cx);
                 return;
             }
+            // Only the window applies the basic-summaries default, once, from the snapshot
+            // taken before anything wrote. The CLI, status, completions and MCP never do.
+            horizon_launcher::basic_stats::init_for_gui(basic_snapshot);
             let bounds = Bounds::centered(None, size(px(1180.), px(760.)), cx);
             cx.open_window(
                 WindowOptions {

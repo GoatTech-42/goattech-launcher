@@ -118,6 +118,52 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
 }
 
 impl Launcher {
+    /// The basic-summaries row's own switch, on the first-run question and in Settings: the
+    /// recorded setting, never the ping's flag and never a consent kind. Turning it off drops
+    /// anything the running session had gathered.
+    fn basic_switch(&self, id: &'static str, cx: &mut Context<Self>) -> impl IntoElement {
+        let on = self.settings.basic_summaries == Some(true);
+        switch(id, on, &self.theme).on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+            this.settings.basic_summaries = Some(!on);
+            this.settings.save();
+            if on {
+                this.basic_session = None;
+            }
+            cx.notify();
+        }))
+    }
+
+    /// The basic row, laid out as the switches' rows, with its real switch.
+    fn basic_row(&self, id: &'static str, cx: &mut Context<Self>) -> Div {
+        let t = self.theme;
+        div()
+            .flex()
+            .items_start()
+            .gap(px(16.))
+            .py(px(10.))
+            .border_b_1()
+            .border_color(t.rule)
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(2.))
+                    .child(
+                        text(theme::UI)
+                            .text_color(t.ink)
+                            .child(tr(telemetry::BASIC_NAME)),
+                    )
+                    .child(
+                        text(theme::CAPTION)
+                            .text_color(t.muted)
+                            .child(tr(telemetry::BASIC_WHAT)),
+                    ),
+            )
+            .child(self.basic_switch(id, cx))
+    }
+
     /// Whether the question covers the window: not answered for this consent version, and the
     /// opening is over.
     pub(crate) fn asking_consent(&self) -> bool {
@@ -152,6 +198,8 @@ impl Launcher {
     pub(crate) fn consent_screen(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
         let t = self.theme;
         let draft = self.collection.draft;
+        // Built first: the lazy `rows` below holds `cx` until `children(rows)` runs.
+        let basic = self.basic_row("ask-basic", cx);
         let rows = telemetry::SWITCHES.iter().map(|&(kind, name, what)| {
             let on = draft.allows(kind);
             div()
@@ -198,7 +246,7 @@ impl Launcher {
                     .child(tr("Help make GoatTech faster and steadier?")),
             )
             .child(text(theme::UI).text_color(t.muted).child(tr(
-                "Horizon can send a few things to its developers. Each switch is off until you turn it on, and Settings can change it any time.",
+                "Basic performance summaries are on by default - a few coarse numbers, listed below. Every other switch is off until you turn it on, and Settings can change any of them any time.",
             )))
             .child(
                 div()
@@ -206,6 +254,7 @@ impl Launcher {
                     .flex_col()
                     .border_t_1()
                     .border_color(t.rule)
+                    .child(basic)
                     .children(rows)
                     .child(ping_row(&t)),
             )
@@ -290,6 +339,14 @@ impl Launcher {
         let t = self.theme;
         let consent = self.collection.consent.clone();
         let mut list = div().flex().flex_col().border_t_1().border_color(t.rule);
+        let basic = index_row(
+            0,
+            tr(telemetry::BASIC_NAME),
+            Some(div().child(tr(telemetry::BASIC_WHAT)).into_any_element()),
+            Some(self.basic_switch("data-basic", cx).into_any_element()),
+            &t,
+        );
+        list = list.child(basic);
         for (i, &(kind, name, what)) in telemetry::SWITCHES.iter().enumerate() {
             let on = !consent.needs_asking() && consent.choices.allows(kind);
             let toggle = switch(kind_id("data", kind), on, &t).on_click(cx.listener(
@@ -405,7 +462,7 @@ impl Launcher {
                     .max_w(px(600.))
                     .text_color(t.muted)
                     .child(tr(
-                        "Each switch is off unless you turn it on. What it sends is below it; the privacy page on playhorizon.dev says how long it is kept.",
+                        "Basic performance summaries are on by default on a new install; every other switch is off unless you turn it on. What each sends is below it; the privacy page on playhorizon.dev says how long it is kept.",
                     )),
             )
             .child(list)

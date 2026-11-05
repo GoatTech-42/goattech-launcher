@@ -211,11 +211,29 @@ pub fn keep_benchmark(home: &Path, report: &horizon_bench::Report) {
     }
 }
 
+/// Whether the launcher asked for session events: it sets `HORIZON_SESSION_EVENTS=1` when it
+/// starts the game with basic summaries on, and reads the events on the game's output pipe.
+/// Anything else on that pipe stays the game's log. The game never sends anything itself.
+pub fn session_events() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("HORIZON_SESSION_EVENTS").is_some_and(|v| v == "1"))
+}
+
+/// One machine-readable event frame for the launcher, distinct from every log line.
+pub(crate) fn session_event(json: &str) {
+    if session_events() {
+        println!("HORIZON-SESSION-EVENT {json}");
+    }
+}
+
 /// One play session's performance, from entering a world to leaving it: frame and tick
 /// times as [`Timings`] (fixed size whatever the length), never the frames themselves.
 #[derive(Default)]
 pub struct Session {
     frames: Timings,
+    /// The whole run's playing frames, kept across sessions ([`Session::finish`] resets the
+    /// rest): the basic-summaries p95 covers first world to exit. Fixed size, like `frames`.
+    basic_frames: Timings,
     ticks: Timings,
     played_ms: f32,
     to_title_ms: Option<u32>,
@@ -235,6 +253,7 @@ impl Session {
             // The frame itself: the menu bundle can be ready seconds before
             // the renderer that draws it (pipelines compiling on a slow driver).
             self.to_title_ms = STARTED.get().map(|s| s.elapsed().as_millis() as u32);
+            session_event("{\"e\":\"title\"}");
         }
     }
 
@@ -270,9 +289,11 @@ impl Session {
             crate::spans::startup::mark("world.first_frame");
             if self.to_world_ms.is_none() {
                 self.to_world_ms = Some(opening.elapsed().as_millis() as u32);
+                session_event("{\"e\":\"world\"}");
             }
         }
         self.frames.record(ms);
+        self.basic_frames.record(ms);
         self.played_ms += ms;
     }
 
@@ -312,8 +333,24 @@ impl Session {
         }
         *self = Self {
             title_measured: self.title_measured,
+            basic_frames: std::mem::take(&mut self.basic_frames),
             ..Self::default()
         };
+    }
+
+    /// The run's one basic-summaries frame event, for a normal exit (`Game::shut_down`): the
+    /// p95 of every playing frame, with how many. The launcher applies its own minimum and
+    /// range checks; a forced exit never gets here, and that session is simply lost.
+    pub fn emit_basic_frames(&self) {
+        if !session_events() {
+            return;
+        }
+        if let Some(p95) = self.basic_frames.percentile_ms(0.95) {
+            session_event(&format!(
+                "{{\"e\":\"frames\",\"p95_ms\":{p95:.1},\"n\":{}}}",
+                self.basic_frames.count()
+            ));
+        }
     }
 }
 

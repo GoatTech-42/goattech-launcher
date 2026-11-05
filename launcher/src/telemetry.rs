@@ -36,6 +36,14 @@ pub const SWITCHES: [(Kind, &str, &str); 4] = [
     ),
 ];
 
+/// Basic performance summaries (`crate::basic_stats`): independent of the four optional kinds
+/// above and of the ping's flag - its own switch, on by default only on a genuinely new
+/// install, recorded explicitly by the window's one-time init.
+pub const BASIC_NAME: &str = "Basic performance summaries";
+
+/// What it is, in plain words: every claim here is checked against `horizon_telemetry::basic`.
+pub const BASIC_WHAT: &str = "Once per game session: how long the game took to show its title and to load its first world, and its usual frame time (the 95th percentile), each as a coarse range, with the launcher release and your OS (Linux, macOS or Windows). No account, no install ID, nothing you do in the game. Sent only to GoatTech's own collector, which keeps daily counts per release and OS and deletes them after 7 days. On by default on a new install; turn it off any time. A session that ends in a crash or a forced quit sends nothing.";
+
 /// Never sent, whatever the switches say.
 pub const NEVER: &str = "Never sent: your account name or UUID, world names, server addresses, chat, or your IP address. Each report is dated to the day, under a random install ID you can delete.";
 
