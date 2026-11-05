@@ -113,8 +113,11 @@ fn destination() -> Option<(String, bool)> {
         return None;
     }
     #[cfg(all(debug_assertions, feature = "telemetry-test-seam"))]
-    if let Some(url) = seam_endpoint(std::env::var("GOATTECH_BASIC_STATS_TEST_URL").ok().as_deref())
-    {
+    if let Some(url) = seam_endpoint(
+        std::env::var("GOATTECH_BASIC_STATS_TEST_URL")
+            .ok()
+            .as_deref(),
+    ) {
         return Some((url, true));
     }
     Some((ENDPOINT.to_owned(), false))
@@ -163,8 +166,7 @@ fn fixed_endpoint_error(url: &str) -> Option<&'static str> {
     if url.contains(['?', '#']) {
         return Some("no query or fragment");
     }
-    let Some((authority, path)) = rest.split_once('/').map(|(a, p)| (a, format!("/{p}")))
-    else {
+    let Some((authority, path)) = rest.split_once('/').map(|(a, p)| (a, format!("/{p}"))) else {
         return Some("the one path");
     };
     let (host, port) = match authority.split_once(':') {
@@ -372,9 +374,7 @@ impl Report {
 #[cfg(feature = "basic")]
 pub fn send(report: &Report) -> Result<(), String> {
     let (url, seam) = destination().ok_or("the transport veto is on")?;
-    if !seam
-        && let Some(why) = fixed_endpoint_error(&url)
-    {
+    if !seam && let Some(why) = fixed_endpoint_error(&url) {
         return Err(format!("not the fixed collector endpoint: {why}"));
     }
     post(&url, report)
@@ -412,7 +412,13 @@ mod tests {
             assert!(vetoed(Some(v)), "{v}");
         }
         assert!(vetoed(Some("off "))); // trims to "off"
-        for v in [None, Some(""), Some("  "), Some("1"), Some("https://evil.example")] {
+        for v in [
+            None,
+            Some(""),
+            Some("  "),
+            Some("1"),
+            Some("https://evil.example"),
+        ] {
             assert!(!vetoed(v), "{v:?}");
         }
         // A URL is never a destination for these reports, veto or not.
@@ -423,13 +429,20 @@ mod tests {
     fn the_fixed_endpoint_is_exactly_the_collector() {
         assert_eq!(fixed_endpoint_error(ENDPOINT), None);
         assert!(fixed_endpoint_error("http://telemetry.goattech.us/v1/basic-stats").is_some());
-        assert!(fixed_endpoint_error("https://telemetry.goattech.us:8443/v1/basic-stats").is_some());
-        assert!(fixed_endpoint_error("https://user@telemetry.goattech.us/v1/basic-stats").is_some());
+        assert!(
+            fixed_endpoint_error("https://telemetry.goattech.us:8443/v1/basic-stats").is_some()
+        );
+        assert!(
+            fixed_endpoint_error("https://user@telemetry.goattech.us/v1/basic-stats").is_some()
+        );
         assert!(fixed_endpoint_error("https://telemetry.goattech.us/v1/basic-stats?x=1").is_some());
         assert!(fixed_endpoint_error("https://telemetry.goattech.us/v1/basic-stats#f").is_some());
         assert!(fixed_endpoint_error("https://evil.example/v1/basic-stats").is_some());
         assert!(fixed_endpoint_error("https://telemetry.goattech.us/v1/other").is_some());
-        assert_eq!(fixed_endpoint_error("https://telemetry.goattech.us:443/v1/basic-stats"), None);
+        assert_eq!(
+            fixed_endpoint_error("https://telemetry.goattech.us:443/v1/basic-stats"),
+            None
+        );
     }
 
     #[test]
@@ -494,7 +507,12 @@ mod tests {
     #[test]
     fn a_report_names_exactly_its_keys() {
         let json = serde_json::to_value(report()).unwrap();
-        let mut keys: Vec<&str> = json.as_object().unwrap().keys().map(|k| k.as_str()).collect();
+        let mut keys: Vec<&str> = json
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(|k| k.as_str())
+            .collect();
         keys.sort_unstable();
         assert_eq!(keys, ["os", "release", "schema", "ttt_ms"]);
         assert_eq!(json["ttt_ms"], "1000_2000");
@@ -512,7 +530,11 @@ mod tests {
         let mut empty = report();
         empty.ttt_ms = None;
         assert!(empty.check().is_err());
-        let full = Report { ttw_ms: Some(Ttw::Ge30000), p95_ms: Some(P95::Ge100), ..report() };
+        let full = Report {
+            ttw_ms: Some(Ttw::Ge30000),
+            p95_ms: Some(P95::Ge100),
+            ..report()
+        };
         // The allowlist is empty before the first release, so check() refuses on release here;
         // size is what this test pins.
         let body = serde_json::to_vec(&full).unwrap();
@@ -587,18 +609,21 @@ mod tests {
         let url = format!("http://{source_addr}/v1/basic-stats");
         assert_eq!(seam_endpoint(Some(&url)).as_deref(), Some(url.as_str()));
         unsafe { std::env::set_var("GOATTECH_BASIC_STATS_TEST_URL", &url) };
-        let report = Report::build(
-            TEST_RELEASE,
-            Some(Ttt::Lt500),
-            None,
-            None,
-        )
-        .expect("the fixture release builds a report under the seam");
+        let report = Report::build(TEST_RELEASE, Some(Ttt::Lt500), None, None)
+            .expect("the fixture release builds a report under the seam");
         let _ = send(&report);
         unsafe { std::env::remove_var("GOATTECH_BASIC_STATS_TEST_URL") };
         std::thread::sleep(std::time::Duration::from_millis(200));
-        assert_eq!(got.load(Ordering::SeqCst), 1, "the request never reached the seam collector");
-        assert_eq!(hits.load(Ordering::SeqCst), 0, "the redirect target was hit");
+        assert_eq!(
+            got.load(Ordering::SeqCst),
+            1,
+            "the request never reached the seam collector"
+        );
+        assert_eq!(
+            hits.load(Ordering::SeqCst),
+            0,
+            "the redirect target was hit"
+        );
     }
 
     /// Where the seam is not compiled - every release build - the variable is never read,
@@ -613,7 +638,10 @@ mod tests {
         if std::env::var("HORIZON_TELEMETRY_URL").is_err() {
             assert_eq!(endpoint().as_deref(), Some(ENDPOINT));
         }
-        assert!(test_release().is_none(), "no fixture release without the seam");
+        assert!(
+            test_release().is_none(),
+            "no fixture release without the seam"
+        );
         assert!(!release_allowed("v0.0.0-test"));
         let _report = Report {
             schema: SCHEMA_ID.to_owned(),
@@ -624,7 +652,10 @@ mod tests {
             p95_ms: None,
         };
         #[cfg(feature = "basic")]
-        assert!(send(&_report).is_err(), "an unpublished release never sends");
+        assert!(
+            send(&_report).is_err(),
+            "an unpublished release never sends"
+        );
         unsafe { std::env::remove_var("GOATTECH_BASIC_STATS_TEST_URL") };
     }
 }

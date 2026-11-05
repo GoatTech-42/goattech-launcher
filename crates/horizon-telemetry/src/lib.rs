@@ -61,7 +61,11 @@ pub const LIVE_ENDPOINT: &str = "https://telemetry.goattech.us";
 /// value overrides the address (tests, self-hosting). Only the ping and the count read
 /// this - consented uploads keep using [`endpoint`], unset by default.
 pub fn live_endpoint() -> Option<String> {
-    match std::env::var("HORIZON_TELEMETRY_URL").ok().as_deref().map(str::trim) {
+    match std::env::var("HORIZON_TELEMETRY_URL")
+        .ok()
+        .as_deref()
+        .map(str::trim)
+    {
         Some("off") | Some("none") | Some("0") => None,
         Some(url) if !url.is_empty() => Some(url.trim_end_matches('/').to_owned()),
         _ => Some(LIVE_ENDPOINT.to_owned()),
