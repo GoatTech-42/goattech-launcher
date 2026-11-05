@@ -92,6 +92,8 @@ pub fn row(id: impl Into<SharedString>, selected_now: bool, t: &Theme) -> Statef
 
 /// A heading over a group of rows ("Instances", a group's name, "Servers"), with room for a
 /// button on its right.
+/// Kit member for in-progress pages; clippy sees no caller yet.
+#[allow(dead_code)]
 pub fn heading(label: impl Into<SharedString>, t: &Theme) -> Div {
     div()
         .flex()
@@ -139,6 +141,8 @@ pub fn tab(id: impl Into<SharedString>, label: &str, active: bool, t: &Theme) ->
 
 /// A page in the sidebar's nav (concept shell): its icon and name, 34 high. The current page
 /// sits on a plate in full ink; the rest stay in the faint step until hovered.
+/// Kit member for in-progress pages; clippy sees no caller yet.
+#[allow(dead_code)]
 pub fn nav_item(
     id: impl Into<SharedString>,
     icon: &'static str,
@@ -249,6 +253,8 @@ pub fn chip_tag(label: impl Into<SharedString>, t: &Theme) -> Div {
 }
 
 /// A square button with one icon (Settings, the sidebar's `+`), cut in one step.
+/// Kit member for in-progress pages; clippy sees no caller yet.
+#[allow(dead_code)]
 pub fn icon_button(
     id: impl Into<SharedString>,
     icon: &'static str,
@@ -287,6 +293,8 @@ pub fn icon_button(
 
 /// The account chip's plate: `card` cut in one step with its stroke, for the picture and two
 /// lines that go in as children.
+/// Kit member for in-progress pages; clippy sees no caller yet.
+#[allow(dead_code)]
 pub fn chip(id: impl Into<SharedString>, t: &Theme) -> Stateful<Div> {
     let id = id.into();
     let n = t.night;

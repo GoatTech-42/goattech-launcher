@@ -160,6 +160,8 @@ fn install_profile(jar: &Path) -> Result<(String, Value), String> {
 }
 
 /// Runs the installer headless in `scratch`: `java -jar installer.jar --install-client .`
+// Eight parameters dress one headless install; bundling them into a struct would add a type for one call site.
+#[allow(clippy::too_many_arguments)]
 fn run_installer(
     jar: &Path,
     kind: crate::loaders::Kind,

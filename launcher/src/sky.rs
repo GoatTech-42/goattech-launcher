@@ -274,9 +274,12 @@ struct Layers {
     sun: Arc<RenderImage>,
 }
 
+/// A baked backdrop: the appearance and scale it was baked for, and its layers.
+type Baked = (((bool, bool), u32), Layers);
+
 #[derive(Default)]
 pub struct Sky {
-    baked: Option<(((bool, bool), u32), Layers)>,
+    baked: Option<Baked>,
     /// Images replaced by a new appearance or scale, still in the window's sprite atlas.
     replaced: Vec<Arc<RenderImage>>,
     clock: Clock,

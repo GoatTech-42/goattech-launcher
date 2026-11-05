@@ -286,16 +286,19 @@ pub const H: usize = 44;
 
 /// The fixture player at `yaw` (radians, positive turns the player's left side toward the
 /// viewer) with a slight downward pitch: straight-alpha RGBA, transparent background.
+#[cfg(test)]
 pub fn render(skin: &image::RgbaImage, yaw: f32) -> Vec<[u8; 4]> {
     render_model(skin, yaw, false)
 }
 
+#[cfg(test)]
 fn render_model(skin: &image::RgbaImage, yaw: f32, slim: bool) -> Vec<[u8; 4]> {
     render_posed(skin, yaw, 0.21, &Pose::default(), slim)
 }
 
 /// The model at `yaw` and `pitch` in `pose`, at the small W x H grid (tests and callers that
 /// want model-texel resolution). The on-screen stage uses `render_posed_hi`.
+#[cfg(test)]
 pub fn render_posed(
     skin: &image::RgbaImage,
     yaw: f32,
@@ -331,6 +334,8 @@ pub fn render_posed_hi(
     )
 }
 
+// The one rasterizer, behind the fixed-size stage call and the tests' texel-size calls.
+#[allow(clippy::too_many_arguments)]
 fn render_grid(
     skin: &image::RgbaImage,
     yaw: f32,
@@ -509,6 +514,7 @@ pub fn fixture() -> Option<image::RgbaImage> {
 }
 
 /// Render an account model; unsupported layouts keep the labelled fallback.
+#[cfg(test)]
 pub fn render_account(skin: &image::RgbaImage, yaw: f32, slim: bool) -> Option<Vec<[u8; 4]>> {
     if skin.dimensions() != (64, 64) {
         return None;
@@ -557,8 +563,10 @@ mod tests {
     fn posed_limbs_change_the_silhouette() {
         let skin = fixture().expect("fixture skin");
         let plain = render_posed(&skin, 0., 0.21, &Pose::default(), false);
-        let mut waving = Pose::default();
-        waving.arm_r = std::f32::consts::PI;
+        let waving = Pose {
+            arm_r: std::f32::consts::PI,
+            ..Pose::default()
+        };
         let waved = render_posed(&skin, 0., 0.21, &waving, false);
         assert_ne!(plain, waved, "a raised arm must change the picture");
     }
@@ -570,8 +578,10 @@ mod tests {
             let buf = render_posed(&skin, 0., 0.21, pose, false);
             (0..super::H).find(|&y| (0..super::W).any(|x| buf[y * super::W + x][3] > 0))
         };
-        let mut waving = Pose::default();
-        waving.arm_r = std::f32::consts::PI;
+        let waving = Pose {
+            arm_r: std::f32::consts::PI,
+            ..Pose::default()
+        };
         let up = top_row(&waving).expect("raised arm is visible");
         let down = top_row(&Pose::default()).expect("head is visible");
         assert!(
@@ -667,11 +677,7 @@ mod tests {
             (16 + 4 + 8, 16, 8, 4),
             "body bottom"
         );
-        assert_eq!(
-            wide[5].faces(0.)[5].1.tex,
-            (0 + 8 + 8, 0, 8, 8),
-            "head bottom"
-        );
+        assert_eq!(wide[5].faces(0.)[5].1.tex, (8 + 8, 0, 8, 8), "head bottom");
         let slim = parts(true);
         assert_eq!(
             slim[3].faces(0.)[5].1.tex,

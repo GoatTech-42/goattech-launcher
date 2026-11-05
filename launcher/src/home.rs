@@ -706,6 +706,8 @@ impl Launcher {
 
     /// What else the instance offers, under the hero card while it is not preparing: its
     /// version (Horizon), its mods, its folder.
+    // Wired up with the social row it belongs to.
+    #[allow(dead_code)]
     pub(super) fn home_actions(&self, _java: bool, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let folder = self.selected_instance().map(|i| i.home.clone());
@@ -734,6 +736,8 @@ impl Launcher {
 
     /// The concept Home's "you" card, while nobody plays as a Microsoft account: a preview
     /// stands in until sign-in. A signed-in player already has the sidebar's account card.
+    // Wired up with the social row it belongs to.
+    #[allow(dead_code)]
     pub(super) fn you_card(&self, cx: &mut Context<Self>) -> Option<Div> {
         if matches!(self.accounts.player(), account::Player::Microsoft(_)) {
             return None;
@@ -784,6 +788,8 @@ impl Launcher {
     }
 
     /// Below the banner (concept Home): "What's new" - the three newest releases - and "Jump
+    // Wired up with the social row it belongs to.
+    #[allow(dead_code)]
     pub(super) fn home_card(&self, tag: &str, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let n = t.night;
@@ -841,6 +847,8 @@ impl Launcher {
     }
 
     /// The invite code field and Join.
+    // Wired up with the social row it belongs to.
+    #[allow(dead_code)]
     fn friend_box(&self, can_play: bool, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let n = t.night;

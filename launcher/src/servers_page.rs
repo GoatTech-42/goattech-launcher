@@ -163,10 +163,14 @@ pub(super) struct Create {
 /// What the sidebar shows of the Servers page: its list once the page has read it, and whether
 /// a server answers.
 impl Servers {
+    // Sidebar status, drawn once the sidebar's server row lands.
+    #[allow(dead_code)]
     pub(super) fn sidebar_list(&self) -> Option<&[Entry]> {
         self.loaded.then_some(&self.list[..])
     }
 
+    // Sidebar status, drawn once the sidebar's server row lands.
+    #[allow(dead_code)]
     pub(super) fn is_up(&self, dir: &std::path::Path) -> bool {
         self.statuses.get(dir).is_some_and(|s| s.phase == "running")
     }

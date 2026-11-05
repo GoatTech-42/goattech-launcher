@@ -313,6 +313,7 @@ struct Launcher {
     play_when_prepared: Option<String>,
     /// Join a friend: the code typed on the Play page, and the one the game
     /// starting now joins.
+    #[allow(dead_code)] // read once the join-a-friend flow lands
     friend_code: line_edit::LineEdit,
     friend_focused: bool,
     friend_focus: FocusHandle,
@@ -2006,7 +2007,7 @@ impl ConsentKeys {
     }
 
     fn contains(&self, f: &FocusHandle) -> bool {
-        *f == self.container || self.order().iter().any(|h| *h == f)
+        *f == self.container || self.order().contains(&f)
     }
 
     /// One step along the question's own controls, wrapping at both ends; from anywhere else
@@ -2768,6 +2769,8 @@ impl Launcher {
         closed_by_press(self.menu_closed_at.take(), event)
     }
 
+    // The version button, placed when the play header's row takes it.
+    #[allow(dead_code)]
     fn picker(&self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         // "Nightly · ba6344a", a release's tag: the menu lists the full tags.
@@ -2909,7 +2912,7 @@ impl Launcher {
                         cx.notify();
                     })),
             );
-            return Some(gpui::deferred(menu).with_priority(1));
+            Some(gpui::deferred(menu).with_priority(1))
         }
     }
 
@@ -4178,6 +4181,8 @@ impl Launcher {
         }
     }
 
+    // Joins the typed friend code; called once the flow's button lands.
+    #[allow(dead_code)]
     fn join_friend(&mut self) {
         if horizon_friends::invite::parse(self.friend_code.text()).is_none() {
             return;

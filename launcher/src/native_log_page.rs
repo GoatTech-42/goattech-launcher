@@ -110,6 +110,8 @@ impl NativeLog {
 
 impl Launcher {
     /// The top bar's Build log opens the panel; its button shows only while a log exists.
+    // The top bar's Build log button calls this once it is wired.
+    #[allow(dead_code)]
     pub(super) fn native_log_open(&mut self) {
         self.native_log.open = true;
         self.native_log.note = None;

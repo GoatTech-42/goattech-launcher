@@ -32,11 +32,6 @@ impl Collection {
         self.body_scroll.handle.scroll_to_item(ix);
     }
 
-    /// Scroll the question's body to its foot, where the details row and answers sit.
-    pub(crate) fn body_to_bottom(&self) {
-        self.body_scroll.handle.scroll_to_bottom();
-    }
-
     /// Scroll the question's body so child `ix` is its first visible row. The request pends
     /// until the child has bounds, so a region that is still being laid out is landed on once
     /// it measures.

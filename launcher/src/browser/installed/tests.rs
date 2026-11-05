@@ -457,10 +457,7 @@ fn listed_full(home: &Path, source: SourceId, kind: Kind, files: &[&str]) {
             namespaces: Vec::new(),
         })
         .collect();
-    let listed = Installed {
-        entries,
-        ..Default::default()
-    };
+    let listed = Installed { entries };
     listed.save(home).unwrap();
 }
 
