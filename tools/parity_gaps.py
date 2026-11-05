@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date
 import subprocess
 import sys
 from pathlib import Path
@@ -26,7 +27,16 @@ REPO = "horizon-rust/horizon"
 ISSUES = list(range(3512, 3522))
 # The block is one paragraph, found by its first words: no HTML comment markers, which the website would print.
 LINE = re.compile(r"^\*\*Player-visible gaps: (\d+) open\*\*.*$", re.M)
-BADGE = re.compile(r"(https://img\.shields\.io/badge/player--visible%20gaps-)(\d+)(%20open-)")
+BADGE = re.compile(r'  <a href="#project-status"><img src="https://img\.shields\.io/badge/upstream%20gaps%20([a-z]{3}%20\d{1,2}%20\d{4})%20snapshot-(\d+)(%20open-F0795A" alt="[^"]*"></a>)')
+
+
+def badge_label(still: int, on: "date | None" = None) -> str:
+    """The gaps badge's markdown, dated so it reads as a snapshot, not a live claim."""
+    on = on or date.today()
+    mon, day, year = on.strftime("%b").lower(), on.day, on.year
+    return (f'  <a href="#project-status"><img src="https://img.shields.io/badge/upstream%20gaps%20{mon}'
+            f'%20{day}%20{year}%20snapshot-{still}%20open-F0795A" alt="Upstream gaps, {mon} {day} {year} '
+            f'snapshot"></a>\n')
 OPEN_ROW = re.compile(r"^\s*[-*] \[ \] ", re.M)
 DONE_ROW = re.compile(r"^\s*[-*] \[[xX]\] ", re.M)
 AREA = re.compile(r"port gaps:\s*(.+?)\s*\(\d+\)\s*$")
@@ -63,8 +73,8 @@ def block(lists: list[dict]) -> str:
                       for l in sorted(lists, key=lambda l: -l["open"]))
     return (f"**Player-visible gaps: {still} open** of the {total} the [port ledger](tools/port_ledger.py) found, "
             "reading every vanilla 26.3 method against Horizon's code: vanilla behaviour a player would notice that "
-            f"Horizon doesn't have yet. By area: {parts}. This number goes down as gaps close "
-            "(`tools/parity_gaps.py`); the harness results below say that what is tested matches.")
+            f"Horizon doesn't have yet. By area: {parts}. Counts from upstream's tracker on "
+            f"{date.today().isoformat()}; this number goes down as gaps close (`tools/parity_gaps.py`).")
 
 
 def written(text: str) -> tuple[int, list[int]] | None:
@@ -82,11 +92,11 @@ def rewrite(text: str, new_block: str, still: int) -> str:
     else:
         text = text.replace("## Project status\n\n", f"## Project status\n\n{new_block}\n\n", 1)
     if BADGE.search(text):
-        return BADGE.sub(lambda m: f"{m.group(1)}{still}{m.group(3)}", text)
-    parity = re.search(r'  <img src="https://img\.shields\.io/badge/vanilla%20parity-[^\n]*\n', text)
-    badge = (f'  <a href="#project-status"><img src="https://img.shields.io/badge/player--visible%20gaps-{still}'
-             f'%20open-F0795A" alt="Player-visible gaps open"></a>\n')
-    return text[:parity.end()] + badge + text[parity.end():] if parity else text
+        # A refresh re-dates as well as re-counts: the whole badge line is replaced, so a
+        # new count can never ride on the old snapshot's date (or a stale alt).
+        return BADGE.sub(lambda _: badge_label(still).rstrip("\n"), text)
+    parity = re.search(r'  <img src="https://img\.shields\.io/badge/upstream%20tested%20parity[^\n]*\n', text)
+    return text[:parity.end()] + badge_label(still) + text[parity.end():] if parity else text
 
 
 def main(argv: list[str]) -> int:
