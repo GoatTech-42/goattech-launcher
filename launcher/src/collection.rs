@@ -139,7 +139,9 @@ impl Launcher {
                     &stdin,
                     horizon_launcher::basic_stats::CONTROL_OFF,
                 ) {
-                    eprintln!("Horizon: the running game could not be told basic summaries are off");
+                    eprintln!(
+                        "Horizon: the running game could not be told basic summaries are off"
+                    );
                 }
             });
         }
