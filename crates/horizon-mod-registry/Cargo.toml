@@ -5,7 +5,7 @@ edition = "2024"
 license = "MIT"
 rust-version = "1.90"
 publish = false
-description = "The registry's submission service: GitHub sign-in, the file's checks, staging, and a pull request (docs/api/mod-index.md)"
+description = "The registry's submission service: GitHub sign-in, the file's checks, staging, and a pull request (docs/engine/api/mod-index.md)"
 
 # Its own workspace, as the telemetry server's: the game's workspace never builds a web server.
 [workspace]

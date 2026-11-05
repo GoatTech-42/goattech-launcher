@@ -1,4 +1,4 @@
-//! Horizon's far ring (docs/hosting.md), off by default: past a dedicated server's view distance, up to
+//! Horizon's far ring (docs/engine/hosting.md), off by default: past a dedicated server's view distance, up to
 //! its `max_view_distance`, each player is sent the chunks the world has saved. They are read on threads
 //! of their own and dropped once sent: nothing is generated, loaded or ticked for them, and only their
 //! positions stay (the player's `sent_chunks`). Bodies sent are kept a while for players walking back. A

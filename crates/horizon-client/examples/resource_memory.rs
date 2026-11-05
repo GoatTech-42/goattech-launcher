@@ -1,5 +1,5 @@
 //! Resident memory of each resource loader, in the game's start order: what a
-//! larger registry (content mods, docs/modpacks.md) costs, loader by loader.
+//! larger registry (content mods, docs/engine/modpacks.md) costs, loader by loader.
 //!
 //! resource_memory RESOURCES
 //!

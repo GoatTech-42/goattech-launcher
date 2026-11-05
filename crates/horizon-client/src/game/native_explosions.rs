@@ -1,4 +1,4 @@
-//! Explosions for native server mods (docs/native-mods.md, "Explosions"): a mod
+//! Explosions for native server mods (docs/engine/native-mods.md, "Explosions"): a mod
 //! sets one off as `Level.explode` does, in the level in place, which it names
 //! by its `dimension` (`minecraft:overworld`) as `native_set_block` does.
 use super::{Game, explosion::BlockInteraction};

@@ -532,7 +532,7 @@ impl StageKind {
     /// Everything the pack's files may use, declared before them.
     pub fn prelude(self) -> String {
         let mut out =
-            String::from("// Horizon shader API prelude (docs/api/shaders-reference.md)\n");
+            String::from("// Horizon shader API prelude (docs/engine/api/shaders-reference.md)\n");
         out += &Frame::WGSL.wgsl();
         out += &self.input().wgsl();
         if self == StageKind::Material {

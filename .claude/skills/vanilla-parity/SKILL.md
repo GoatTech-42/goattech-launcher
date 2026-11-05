@@ -7,7 +7,7 @@ description: Fix a Horizon bug or gap so it behaves 1:1 like vanilla 26.3, start
 
 The port ledger pairs every vanilla method with the Rust fn that ports it (or says it is missing, or needs
 no port) and lists where a port isn't wired like vanilla. Ask it first; grep only for what it can't answer.
-Full reference: `docs/port-ledger.md`.
+Full reference: `docs/engine/port-ledger.md`.
 
 ## 0. Have a fresh ledger
 
@@ -63,7 +63,7 @@ no new stale citation. If you ported a method the verdict map called `missing`, 
 `tools/port_map/*.tsv` to `port` with the fn (`file.rs::Owner::fn`) and run
 `python3 tools/port_ledger.py map-check tools/port_map/<file>.tsv`.
 
-Then the usual: the harness for the area (`docs/architecture.md`), `cargo check`/tests per `AGENTS.md`, and
+Then the usual: the harness for the area (`docs/engine/architecture.md`), `cargo check`/tests per `AGENTS.md`, and
 a small PR that says which vanilla method it now matches.
 
 ## Finding work

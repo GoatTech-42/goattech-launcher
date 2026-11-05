@@ -216,7 +216,7 @@ pub const BIOME_STRATEGY: Strategy = Strategy::biomes(8);
 
 /// Bits of the block states' global palette: 16 for vanilla's 35,723 states
 /// (what vanilla servers and clients send), more when content mods add states
-/// past 65,536 (docs/modpacks.md). Set once, before the first chunk.
+/// past 65,536 (docs/engine/modpacks.md). Set once, before the first chunk.
 static BLOCK_BITS: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(16);
 
 /// Block states are `PalettedContainer`s over the registry: vanilla's 16-bit

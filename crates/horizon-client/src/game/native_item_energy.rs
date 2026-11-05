@@ -1,4 +1,4 @@
-//! Energy held by item stacks for native mods (docs/native-mods.md): a mod's
+//! Energy held by item stacks for native mods (docs/engine/native-mods.md): a mod's
 //! batteries and charged tools (`native_item_energy_buffer`), read, filled
 //! and drained. Vanilla has no energy; the contract is NeoForge's
 //! `Capabilities.Energy.ITEM`, an `EnergyHandler` reached through an

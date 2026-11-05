@@ -15,13 +15,13 @@ pub const WASM: &str = "mod.wasm";
 pub const API: &str = "0.1";
 /// The manifest `api` lines this build loads. 0.2 is 0.1 plus content:
 /// `assets/` and `data/` in the `.hmod`, with blocks, items, creative tabs, mob effects,
-/// entity types and menu types declared in `data/<id>/horizon/` (docs/mods.md). Code still links API 0.1.
+/// entity types and menu types declared in `data/<id>/horizon/` (docs/engine/mods.md). Code still links API 0.1.
 /// 0.3 is a server mod (experimental): the `horizon-server-mod` world.
 pub const APIS: [&str; 3] = [API, "0.2", SERVER_API];
 /// The line of server mods, experimental: `side = "server"`.
 pub const SERVER_API: &str = "0.3";
 /// Namespaces no mod may claim: vanilla's, the convention tags' (mods add
-/// to those, docs/mods.md) and the game's own.
+/// to those, docs/engine/mods.md) and the game's own.
 const RESERVED_NAMESPACES: [&str; 3] = ["minecraft", "c", "horizon"];
 /// A mod's data (capability `storage`), in `horizon-mods/` beside the mods
 /// (`find` never mistakes it for a mod: it has no manifest).
@@ -54,7 +54,7 @@ pub struct Manifest {
     pub namespaces: Vec<String>,
     /// The experimental capabilities the mod opts into (`["ui"]`): each one
     /// it lists in `capabilities` must be named here too, since it may change
-    /// in any release (docs/api/stability.md). One no longer experimental is
+    /// in any release (docs/engine/api/stability.md). One no longer experimental is
     /// accepted here, so the manifest keeps loading once it is promoted.
     #[serde(default)]
     pub experimental: Vec<Capability>,

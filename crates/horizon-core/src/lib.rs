@@ -1,7 +1,7 @@
 //! Horizon's initial simulation primitives, targeting the Minecraft Java Edition version in [`version`].
 //!
 //! This is not a playable game. Differential checks cover only the operations
-//! listed in docs/rust-parity.md; the rest of vanilla remains unimplemented.
+//! listed in docs/engine/rust-parity.md; the rest of vanilla remains unimplemented.
 #![forbid(unsafe_code)]
 
 pub mod biome;

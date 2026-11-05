@@ -356,7 +356,7 @@ def run_side(label, command, directory, client):
         server.stop()
     transcript = (directory.parent / f'{label}-client.txt').read_text(encoding='utf-8').splitlines()
     # Horizon's anticheat, on by default, ends each server tick with a play ping for its movement
-    # prediction (docs/anticheat.md); vanilla's server sends none, and a client only answers them.
+    # prediction (docs/engine/anticheat.md); vanilla's server sends none, and a client only answers them.
     transcript = [l for l in transcript if not PLAY_PING.match(l)]
     return (['legacy-ping ' + legacy] + transcript + ['console ' + l for l in console_lines(server.lines)]
             + ['file ' + l for l in server_files(directory)])

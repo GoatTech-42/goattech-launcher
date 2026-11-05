@@ -1,6 +1,6 @@
 //! Modpacks: import a Java modpack (a Modrinth `.mrpack`, a CurseForge zip, an instance folder),
 //! show what Horizon runs of it, port that on this computer from the player's own downloads, and
-//! play it as a profile of its own (docs/modpacks.md).
+//! play it as a profile of its own (docs/engine/modpacks.md).
 //!
 //! Each pack lives in `ports/<slug>/` in the game's home: the work folder `horizon-port-pack`
 //! writes (pack.json, inventory, the jars, the carried-over mods, the coverage report) and

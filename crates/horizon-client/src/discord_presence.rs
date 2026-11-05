@@ -1,5 +1,5 @@
 //! Discord Rich Presence: "Playing Horizon" on the player's Discord profile, with what they are
-//! doing (docs/native-client.md). A thread of its own talks to the Discord app on this computer
+//! doing (docs/engine/native-client.md). A thread of its own talks to the Discord app on this computer
 //! through its local IPC socket (Discord's RPC docs: `discord-ipc-N`, frames of opcode u32 LE +
 //! length u32 LE + JSON). The game only calls [`set`] each frame: a change wakes the thread,
 //! which connects when Discord runs, retries every 15 s when it doesn't, keeps under Discord's

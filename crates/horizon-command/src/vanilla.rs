@@ -615,7 +615,7 @@ pub fn set_dedicated_commands(on: bool) {
 /// Whether this process's server has Horizon's own commands (`/pregen`). Off
 /// by default, so `/help` and the command tree are vanilla's; a dedicated
 /// server turns them on with `horizon-pregen=true` in server.properties, the
-/// game with `--pregen` (docs/pregeneration.md).
+/// game with `--pregen` (docs/engine/pregeneration.md).
 static HORIZON_COMMANDS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 /// Turns Horizon's own commands on or off for the trees `game_dispatcher`
 /// returns from now on.
@@ -641,7 +641,7 @@ pub(crate) fn game_tree(dev: bool, horizon: bool, dedicated: bool) -> &'static D
     }
 }
 /// Commands vanilla doesn't have, after its own: `/pregen`
-/// (docs/pregeneration.md).
+/// (docs/engine/pregeneration.md).
 fn horizon_commands(d: &mut Dispatcher, root: usize) {
     let pregen = d.literal(root, "pregen");
     d.requires(pregen, GAMEMASTERS);

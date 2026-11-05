@@ -1,4 +1,4 @@
-//! Block states past vanilla's 16-bit global palette (docs/modpacks.md):
+//! Block states past vanilla's 16-bit global palette (docs/engine/modpacks.md):
 //! content mods can take the registry past 65,536 states. Its own test binary,
 //! since the palette width is set once for the whole process.
 

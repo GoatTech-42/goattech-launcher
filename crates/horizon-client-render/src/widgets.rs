@@ -56,7 +56,7 @@ pub struct Widget {
     pub kind: Kind,
 }
 
-/// What a controller does with a focus target (docs/controllers.md, "Focus
+/// What a controller does with a focus target (docs/engine/controllers.md, "Focus
 /// navigation").
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Kind {

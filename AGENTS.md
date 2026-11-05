@@ -2,7 +2,7 @@
 
 Minecraft: Java Edition 26.3 rewritten in Rust (wgpu). Vanilla is the specification wherever it has the
 feature. Read [CONTRIBUTING.md](CONTRIBUTING.md) once; this page tells you where things are.
-Feature → files → harness for the most-changed areas: [docs/architecture.md](docs/engine/architecture.md).
+Feature → files → harness for the most-changed areas: [docs/engine/architecture.md](docs/engine/architecture.md).
 
 ## Rules that bite
 
@@ -52,14 +52,14 @@ Game workspace (root `Cargo.toml`); `launcher/` and `crates/horizon-telemetry-se
 | `horizon-protocol` | Network protocol 777: codecs, framing, encryption, `packets/{handshake,status,login,configuration,play}.rs`, `entity_data.rs` |
 | `horizon-assets` | Resource decoding: block-state and item models, baking, atlases |
 | `horizon-prepare` | Builds `.local/horizon-client/26.3` from the player's own Minecraft install (runs the Java exporters) |
-| `horizon-server` | `horizon-server`: `server.toml`, CLI, supervisor of the headless game ([docs/hosting.md](docs/engine/hosting.md)) |
+| `horizon-server` | `horizon-server`: `server.toml`, CLI, supervisor of the headless game ([docs/engine/hosting.md](docs/engine/hosting.md)) |
 | `horizon-server-files` | `server.properties`, eula, ops/whitelist/bans, usercache |
-| `horizon-anticheat` | The dedicated server's anticheat, off by default: `[anticheat]` settings, violation levels, the checks' rules; the hub runs them (`lan/anticheat.rs`) ([docs/anticheat.md](docs/engine/anticheat.md)) |
-| `horizon-friends`, `horizon-relay` | Play with Friends: invite codes, encrypted tunnel, the relay ([docs/play-with-friends.md](docs/engine/play-with-friends.md)) |
-| `horizon-mods`, `cargo-horizon-mod` | Content mods (`.hmod`: manifest, content fence, no code), the registry index and `.hpack`, and `cargo horizon-mod` (`new`, `build`, `run`, `check`, `registry`) ([docs/mods.md](docs/engine/mods.md)). Code mods are native, built by the launcher ([docs/native-mods.md](docs/engine/native-mods.md)) |
-| `horizon-port-pack` | Porting Java modpacks ([docs/modpacks.md](docs/engine/modpacks.md)) |
+| `horizon-anticheat` | The dedicated server's anticheat, off by default: `[anticheat]` settings, violation levels, the checks' rules; the hub runs them (`lan/anticheat.rs`) ([docs/engine/anticheat.md](docs/engine/anticheat.md)) |
+| `horizon-friends`, `horizon-relay` | Play with Friends: invite codes, encrypted tunnel, the relay ([docs/engine/play-with-friends.md](docs/engine/play-with-friends.md)) |
+| `horizon-mods`, `cargo-horizon-mod` | Content mods (`.hmod`: manifest, content fence, no code), the registry index and `.hpack`, and `cargo horizon-mod` (`new`, `build`, `run`, `check`, `registry`) ([docs/engine/mods.md](docs/engine/mods.md)). Code mods are native, built by the launcher ([docs/engine/native-mods.md](docs/engine/native-mods.md)) |
+| `horizon-port-pack` | Porting Java modpacks ([docs/engine/modpacks.md](docs/engine/modpacks.md)) |
 | `horizon-optifine` | OptiFine-format pack files below every feature that reads them: `.properties`, the name/range/block matchers, paths and `optifine/` folders, and custom entity models (`cem/`: `.jem`/`.jpm` parsing and baking) |
-| `horizon-shader-api` | Horizon's own WGSL shader packs ([docs/api/shaders.md](docs/engine/api/shaders.md)): `horizon-shaders.toml`, the `.hshader` package; shared by the game, the launcher and the registry |
+| `horizon-shader-api` | Horizon's own WGSL shader packs ([docs/engine/api/shaders.md](docs/engine/api/shaders.md)): `horizon-shaders.toml`, the `.hshader` package; shared by the game, the launcher and the registry |
 | `horizon-shaders` | Shader packs (the `shaders/` folder format), rebuilt clean-room from a written spec of the format; no wgpu |
 | `horizon-theme` | Design tokens and fonts for the launcher, the game's own menus and the website |
 | `horizon-telemetry`, `horizon-telemetry-server`, `horizon-bench` | Opt-in data collection, its ingest server, the benchmark report format |
@@ -69,7 +69,7 @@ Game workspace (root `Cargo.toml`); `launcher/` and `crates/horizon-telemetry-se
 Other top-level folders: `tools/` (harnesses and dev scripts), `tests/` (Python unit tests: `python3 -m
 unittest discover -s tests`), `mods/horizon/src/test/java/dev/horizonlab/parity/` (Java oracles),
 `docs/`, `.github/workflows/`. The website (playhorizon.dev) is the private horizon-rust/horizon-site: its build
-reads `README.md`, `launcher/links.json`, `docs/api/`, `roadmap/roadmap.json` and `crates/horizon-theme/tokens.css` from main.
+reads `README.md`, `launcher/links.json`, `docs/engine/api/`, `roadmap/roadmap.json` and `crates/horizon-theme/tokens.css` from main.
 
 ## Write tests with signal
 
@@ -97,7 +97,7 @@ python3 tools/agent_control_e2e.py         # horizon-ctl / MCP end to end
 ```
 
 - Harnesses and the game need the vanilla data in `.local/` (`minecraft/`, `horizon-client/26.3`, `datagen/`,
-  `tools/`): see [docs/parity-workflow.md](docs/engine/parity-workflow.md). Without it, pr_ready lists the
+  `tools/`): see [docs/engine/parity-workflow.md](docs/engine/parity-workflow.md). Without it, pr_ready lists the
   harnesses for CI.
 - A harness = `tools/test_<name>_parity.py` (324 of them) + a Java oracle (`mods/horizon/src/test/java/dev/horizonlab/parity/Vanilla*Oracle.java`)
   + a Rust probe: `crates/<crate>/examples/<name>_{probe,fixture}.rs` (horizon-world 175, horizon-client 104),
@@ -106,7 +106,7 @@ python3 tools/agent_control_e2e.py         # horizon-ctl / MCP end to end
 - Developing a native mod? Run `horizon-launcher settings native-profile dev` once. `dev` builds the game crate
   unoptimized: a mod edit rebuilds about 6× faster than with `performance`, while game logic runs up to about twice as
   slow. Use it while developing, not for playing; `performance` stays the default for players and releases
-  ([docs/native-mods.md](docs/engine/native-mods.md)).
+  ([docs/engine/native-mods.md](docs/engine/native-mods.md)).
 - Probes build into `.local/parity-target/`; harnesses find binaries via `lab.cargo_target()`, never `target/`.
 - Harness selection uses Cargo dep-info and reachable-code narrowing (`tools/parity_reach.py`).
   `horizon-client-lib` builds the control tool and client probes without gameplay; their dep-info
@@ -118,17 +118,17 @@ python3 tools/agent_control_e2e.py         # horizon-ctl / MCP end to end
 - Run and drive the game (starts the `horizon-client` beside `horizon-ctl`; other arguments go to the game):
   `target/fast/horizon-ctl --socket $PWD/ctl.sock launch --world W --creative --offscreen --wait --resources $PWD/.local/horizon-client/26.3`,
   then `horizon-ctl --socket … state|keys|turn|command|screenshot|quit`
-  ([docs/horizon-ctl-commands.md](docs/engine/horizon-ctl-commands.md)).
+  ([docs/engine/horizon-ctl-commands.md](docs/engine/horizon-ctl-commands.md)).
 
 ## Vanilla reference
 
 - Start parity work from the port ledger, not grep: `python3 tools/port_ledger.py issue N` (or `where
   Class.method`, `what file:line`), and `check --base origin/main` before the PR. How:
-  [.claude/skills/vanilla-parity/SKILL.md](.claude/skills/vanilla-parity/SKILL.md), [docs/port-ledger.md](docs/engine/port-ledger.md).
+  [.claude/skills/vanilla-parity/SKILL.md](.claude/skills/vanilla-parity/SKILL.md), [docs/engine/port-ledger.md](docs/engine/port-ledger.md).
 - Decompiled sources: `.local/minecraft/26.3/sources/{client,server}/` (`python3 tools/lab.py decompile`).
 - Bytecode queries (callers through lambdas, every overload):
   `python3 tools/rea_vanilla.py method net.minecraft.world.level.block.DispenserBlock dispenseFrom`
-  ([docs/decompilation-status.md](docs/engine/decompilation-status.md)).
+  ([docs/engine/decompilation-status.md](docs/engine/decompilation-status.md)).
 - A harness runs the oracle against the real 26.3 jars and the Rust probe on the same inputs, then compares
   their JSON. Oracle runs are cached by `tools/parity_shim.py`; `--fresh` reruns them.
 - Mirror vanilla's `Math` calls with `horizon_core::jmath`, and vanilla's RNG with `horizon_core::random`:
@@ -205,8 +205,8 @@ python3 tools/parity.py dedicated_server server_entities server_player_damage
 
 ## Docs worth knowing
 
-[docs/parity-workflow.md](docs/engine/parity-workflow.md) (runner, gate, shards, scopes) ·
-[docs/native-client.md](docs/engine/native-client.md) (options, controls, horizon-ctl) ·
-[docs/server-levels.md](docs/engine/server-levels.md) (levels per dimension) ·
-[docs/rust-parity.md](docs/engine/rust-parity.md) (what is ported) · [docs/known-issues.md](docs/engine/known-issues.md) ·
+[docs/engine/parity-workflow.md](docs/engine/parity-workflow.md) (runner, gate, shards, scopes) ·
+[docs/engine/native-client.md](docs/engine/native-client.md) (options, controls, horizon-ctl) ·
+[docs/engine/server-levels.md](docs/engine/server-levels.md) (levels per dimension) ·
+[docs/engine/rust-parity.md](docs/engine/rust-parity.md) (what is ported) · [docs/engine/known-issues.md](docs/engine/known-issues.md) ·
 [docs/release-flow.md](docs/release-flow.md) · [docs/README.md](docs/README.md) (index).

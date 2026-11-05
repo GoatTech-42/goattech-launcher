@@ -1,5 +1,5 @@
 //! `horizon-relay`: listens on `$PORT` (7000 when unset; `RELAY_BIND` for one
-//! address), limits from the `RELAY_*` variables (docs/play-with-friends.md).
+//! address), limits from the `RELAY_*` variables (docs/engine/play-with-friends.md).
 //! Prints counts every five minutes, nothing else.
 use horizon_relay::{Config, Relay};
 use std::{net::TcpListener, time::Duration};

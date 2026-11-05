@@ -1,6 +1,6 @@
 # Horizon's server against vanilla 26.3: mixed bots (2026-10-18)
 
-The first benchmark from docs/server.md section 10 (item 4): the same bots on Horizon's dedicated server, as
+The first benchmark from docs/engine/server.md section 10 (item 4): the same bots on Horizon's dedicated server, as
 `install.sh` installs it today, and on vanilla 26.3's, one server at a time on the same quiet machine.
 There were 1, 10, 25 and 50 bots, all with the `mixed` behaviour.
 
@@ -119,7 +119,7 @@ the Nix store, so the run set `LD_LIBRARY_PATH` to them (see #898).
 
 - An equal-work `mixed` pass (`--explore-speed` at a rate both servers keep up with), then 100 bots.
 - The same run on a bigger machine, so neither server is CPU-bound at 25 to 50 bots.
-- Paper and Fabric + Lithium (docs/server.md section 9).
+- Paper and Fabric + Lithium (docs/engine/server.md section 9).
 - At 50 players Horizon's tick is longer than vanilla's while it generates and sends far more. The
   profile of the 2026-10-17 run (streaming and block entity ticks growing with players) is
   perf-server's to take on.

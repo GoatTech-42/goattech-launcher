@@ -1,5 +1,5 @@
 //! HUD boxes in the corners: the minimap's place and mods' panels, small
-//! boxes in GUI pixels stacked per corner (`docs/extras.md`).
+//! boxes in GUI pixels stacked per corner (`docs/engine/extras.md`).
 use crate::{
     extras::Corner,
     hud::{HudAtlas, HudBatch, Rect, rgba},

@@ -1,4 +1,4 @@
-//! Mobs for native server mods (docs/native-mods.md, "Mobs", API 37): spawn one,
+//! Mobs for native server mods (docs/engine/native-mods.md, "Mobs", API 37): spawn one,
 //! read the mobs of the level in place, and move, hurt or remove one by its id.
 //! They act where the world is simulated, never on a client's copy, and only on
 //! the level in place, which each names by its `dimension` (`minecraft:overworld`)

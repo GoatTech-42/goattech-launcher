@@ -1,4 +1,4 @@
-//! The DualSense's output report, built by hand (docs/controllers.md "DualSense output"): the
+//! The DualSense's output report, built by hand (docs/engine/controllers.md "DualSense output"): the
 //! compatible-vibration motors, the adaptive triggers, the lightbar and the player LEDs. Gilrs
 //! keeps reading the pad; this crate only writes to it, over hidapi ([`device`]).
 //! On iOS the crate builds without hidapi, which has no backend there: [`Link`] never opens.

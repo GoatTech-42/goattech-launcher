@@ -1,4 +1,4 @@
-//! Data files of native mods (docs/native-mods.md, "Data files"). A bundle's `data/` folder is
+//! Data files of native mods (docs/engine/native-mods.md, "Data files"). A bundle's `data/` folder is
 //! staged as `native-data/<mod id>/` at the root of the workspace the launcher builds, and
 //! [`native_data!`](crate::native_data) compiles one of its files into the game. What a mod's
 //! post-build step writes at build time is read at run time from [`built`].

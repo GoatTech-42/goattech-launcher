@@ -123,7 +123,7 @@ class Rules(unittest.TestCase):
                                                                            shipped_in="soon")))
 
     def test_links_are_issues_urls_or_repository_paths(self):
-        self.assertEqual(self.problems(links=["#4", "https://playhorizon.dev", "docs/benchmark.md"]), [])
+        self.assertEqual(self.problems(links=["#4", "https://playhorizon.dev", "docs/engine/benchmark.md"]), [])
         self.assertTrue(any("link" in p for p in self.problems(links=["docs/nothing-here.md"])))
         self.assertTrue(any("link" in p for p in self.problems(links=["http://example.com"])))
 

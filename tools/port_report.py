@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """The port report: a version diff (tools/version_port.py diff) turned into ranked, area-sized work items
-(docs/version-ports.md, "The port report").
+(docs/engine/version-ports.md, "The port report").
 
 Ranks:
   1  blocks the switch: version facts, packets, the save format (DataFixers), data component types, report
@@ -28,7 +28,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL = "net/minecraft/network/protocol/"
 DATAFIX = "net/minecraft/util/datafix/"
-# Generated tables, what makes them stale, and how to regenerate them (docs/version-ports.md, "Regenerate").
+# Generated tables, what makes them stale, and how to regenerate them (docs/engine/version-ports.md, "Regenerate").
 GENERATORS = [
     ("crates/horizon-core/src/version.rs", "python3 tools/gen_version_consts.py", lambda d: bool(d["facts"])),
     ("crates/horizon-protocol/src/ids.rs", "python3 tools/generate_packet_ids.py",

@@ -1,5 +1,5 @@
 //! Controllers: Horizon's own feature (vanilla 26.3 has no gamepad input).
-//! The default layout is Bedrock Edition's; see docs/controllers.md.
+//! The default layout is Bedrock Edition's; see docs/engine/controllers.md.
 //!
 //! This module is the backend-free part: positional buttons, the action
 //! bindings, deadzones and the look curve, button edges from successive pad
@@ -313,7 +313,7 @@ impl GlyphStyle {
     }
 }
 
-/// How a controller drives menus (docs/controllers.md, "Menus and
+/// How a controller drives menus (docs/engine/controllers.md, "Menus and
 /// inventories").
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum MenuNav {
@@ -385,7 +385,7 @@ pub fn steam_keyboard(choice: TextKeyboard) -> bool {
 pub struct PadSettings {
     pub enabled: bool,
     pub vibration: bool,
-    /// A DualSense's triggers push back (Horizon's; docs/controllers.md).
+    /// A DualSense's triggers push back (Horizon's; docs/engine/controllers.md).
     pub adaptive_triggers: bool,
     pub lightbar: Lightbar,
     /// 0..1; 0.5 is the default speed, 1 twice that.
@@ -1016,7 +1016,7 @@ impl Rumble {
     }
 }
 
-/// What a trigger feels like on a DualSense, from what its action is doing (docs/controllers.md
+/// What a trigger feels like on a DualSense, from what its action is doing (docs/engine/controllers.md
 /// "Adaptive triggers" for the choices). Only the pad's official modes: Nielk1's notes warn the
 /// others may leave the firmware.
 #[derive(Clone, Copy, Debug, PartialEq)]

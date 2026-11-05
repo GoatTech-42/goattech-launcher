@@ -6,10 +6,10 @@ use std::{collections::BTreeMap, io::Read, path::Path};
 pub const MANIFEST: &str = "horizon-native.json";
 
 /// Why a native mod may not carry `mod.wasm`: WebAssembly mods don't run any more.
-pub const WASM_GONE: &str = "mod.wasm: WebAssembly mods don't run any more, port the code to a native mod (docs/native-mods.md)";
+pub const WASM_GONE: &str = "mod.wasm: WebAssembly mods don't run any more, port the code to a native mod (docs/engine/native-mods.md)";
 
 /// Whether `path` names a native mod's file: an `.hnmod`, or a `.hmod` holding native code
-/// (one file for content and code, docs/native-mods.md).
+/// (one file for content and code, docs/engine/native-mods.md).
 pub fn is_file(path: &Path) -> bool {
     path.extension()
         .is_some_and(|e| e == "hnmod" || e == "hmod")

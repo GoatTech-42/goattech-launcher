@@ -1,4 +1,4 @@
-//! The material stage of Horizon's own shader packs (docs/shaders.md): the pack's `material`
+//! The material stage of Horizon's own shader packs (docs/engine/shaders.md): the pack's `material`
 //! function gives the lit colour of each point of a block's surface, before the alpha test and
 //! fog. Terrain still draws with Horizon's meshes, culling and draw lists; only its pipelines
 //! change. Their shader is the pack's stage (`CheckedStage::source`), then a copy of

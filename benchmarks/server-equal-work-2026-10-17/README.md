@@ -2,7 +2,7 @@
 
 The same bots on Horizon's dedicated server and on vanilla 26.3's, one server at a time, on the same
 machine, with the work each server does made the same before the numbers are compared. This replaces the
-first run in docs/server.md section 9, where the work wasn't equal.
+first run in docs/engine/server.md section 9, where the work wasn't equal.
 
 ## What was made equal
 

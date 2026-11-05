@@ -351,7 +351,7 @@ def plan(args, base, changed, crates_of, libraries, dependencies):
     """The checks for these changed files, in the order they run."""
     rust = any(workspace_rust(path) for path in changed)
     launcher = any(launcher_rust(path) for path in changed)
-    # The Python tests also hold ROADMAP.md to roadmap/roadmap.toml (tests/test_roadmap.py).
+    # The Python tests also hold docs/engine/ROADMAP.md to roadmap/roadmap.toml (tests/test_roadmap.py).
     crates = touched_crates(changed, crates_of) if rust else []
     # An unrecognised Rust path must not silently skip validation.
     if rust and crates == []:

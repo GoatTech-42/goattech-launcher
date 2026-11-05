@@ -23,7 +23,7 @@ fn stack_size(value: &Value, max: i64) -> Option<i64> {
     value.as_f64().map(|n| (n as i64).clamp(1, max))
 }
 
-/// Hook point for native mods (docs/native-mods.md, listed in `native-hooks.json`
+/// Hook point for native mods (docs/engine/native-mods.md, listed in `native-hooks.json`
 /// with those of `horizon-client/src/game/native_hooks.rs`): `components` holds
 /// `item`'s default components in `items.json`'s form (`"minecraft:max_stack_size": 16`,
 /// `"minecraft:food": {"nutrition": 4, "saturation": 2.4}`); insert or replace one to

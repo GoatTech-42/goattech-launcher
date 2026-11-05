@@ -1,4 +1,4 @@
-//! The post stage of Horizon's own shader packs (docs/shaders.md): each `[[post]]` pass is a
+//! The post stage of Horizon's own shader packs (docs/engine/shaders.md): each `[[post]]` pass is a
 //! full-screen pipeline built from its checked naga module (`horizon_shader_api::check`), with
 //! the pack's options as pipeline constants. A pass reads bind group 3: the frame, the world's
 //! colour and depth, the previous pass's output and two samplers. Passes before the last write
@@ -1056,7 +1056,7 @@ fn wetness(wetness: f32, rain: f32, dt: f32) -> f32 {
     rain + (wetness - rain) * 0.5f32.powf(dt / half_life)
 }
 
-/// The frame as packs read it (docs/api/shaders-reference.md), from the renderer's `Frame`.
+/// The frame as packs read it (docs/engine/api/shaders-reference.md), from the renderer's `Frame`.
 pub fn frame_inputs(
     frame: &Frame,
     size: [u32; 2],

@@ -28,7 +28,7 @@ run-name: nightly build${{ inputs.request && format(' (request {0})', inputs.req
 #   the tag. Like sign, it never executes what build produced.
 # - The source ships with the build: `pick` writes horizon-source.tar.gz with `git archive` (git objects again, nothing
 #   run), `sign` signs it with the builds, and `publish` attaches it and tags the commit nightly-source/<date>-<short>
-#   for good (the dated release and the build branch go after 7 days; native mods pin the commit: docs/native-mods.md).
+#   for good (the dated release and the build branch go after 7 days; native mods pin the commit: docs/engine/native-mods.md).
 #   gh workflow run "nightly build"                     # now (skips when the pick is the same commit as last night's)
 #   gh workflow run "nightly build" -f force=true       # build and publish even if unchanged
 #   gh workflow run "nightly build" -f dry_run=true     # build and sign with a throwaway key, publish nothing

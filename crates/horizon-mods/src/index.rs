@@ -1,4 +1,4 @@
-//! The mod registry's index, `index.json` (docs/api/mod-index.md): every
+//! The mod registry's index, `index.json` (docs/engine/api/mod-index.md): every
 //! reviewed mod and modpack, its versions, the file of each with its size,
 //! SHA-256 and minisign signature, and the files taken down. The launcher
 //! reads it to browse and install, the website to show it, and the
@@ -44,14 +44,14 @@ pub enum Kind {
     /// A `.hmod` of content only.
     Mod,
     /// A source-only native mixin bundle, compiled into an isolated game build. Published as an
-    /// `.hnmod` until launchers and the game read native `.hmod`s (#5865, docs/api/mod-files.md).
+    /// `.hnmod` until launchers and the game read native `.hmod`s (#5865, docs/engine/api/mod-files.md).
     NativeMod,
     /// A `.hpack`: registry mods played together as a profile.
     Modpack,
     /// A resource pack (`.zip` with `pack.mcmeta`) made or tested for Horizon.
     ResourcePack,
     /// A Horizon shader pack (`.hshader`, the native WGSL format of
-    /// docs/shaders.md; not the shaders/-folder packs, which stay on Modrinth).
+    /// docs/engine/shaders.md; not the shaders/-folder packs, which stay on Modrinth).
     Shader,
     Other(String),
 }

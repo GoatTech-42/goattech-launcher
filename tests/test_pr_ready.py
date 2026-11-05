@@ -232,7 +232,7 @@ class PrReadyTests(unittest.TestCase):
     def test_scope_warns_on_size_and_mixed_areas(self):
         self.assertEqual(pr_ready.scope_warnings({"crates/horizon-client/src/game.rs", "tools/test_food_parity.py",
                                                   "mods/horizon/src/test/java/dev/horizonlab/parity/X.java",
-                                                  "docs/native-client.md"}, 120), [])
+                                                  "docs/engine/native-client.md"}, 120), [])
         self.assertEqual(pr_ready.scope_warnings({"crates/horizon-theme/src/lib.rs", "launcher/src/theme.rs"}, 10), [])
         warnings = pr_ready.scope_warnings({"crates/horizon-client/src/game.rs", "launcher/src/main.rs",
                                             ".github/workflows/ci.yml"}, 900)

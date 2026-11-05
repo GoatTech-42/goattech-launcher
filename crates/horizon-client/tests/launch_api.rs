@@ -1,4 +1,4 @@
-//! The Launch API's promises about how `horizon-client` ends (docs/api/launch.md), checked on
+//! The Launch API's promises about how `horizon-client` ends (docs/engine/api/launch.md), checked on
 //! the real program: `--launch-api` prints JSON and exits 0, a refused command line exits 2
 //! without a crash report, and an error exits 1 with the report's path as the last stderr line,
 //! with `--home` and `--game-dir` taken relative to where the game was started.

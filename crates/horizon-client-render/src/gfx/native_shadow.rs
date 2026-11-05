@@ -1,4 +1,4 @@
-//! The shadow map of Horizon's own shader packs (`[shadow]`, docs/shaders.md): each frame the
+//! The shadow map of Horizon's own shader packs (`[shadow]`, docs/engine/shaders.md): each frame the
 //! solid terrain and entities the light (the sun by day, the moon by night) sees are drawn into a square depth
 //! map, which the material and post stages read as `shadow_map`; translucent terrain goes over a
 //! copy of it, `shadow_map_translucent`, with its colour in `shadow_color`. The shadow camera is the one

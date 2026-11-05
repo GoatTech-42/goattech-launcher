@@ -1,5 +1,5 @@
 //! `horizon-prepare --check`: whether prepared resources are complete and current for this
-//! preparer, without Java and without the game files (docs/api/launch.md). A preparation stamps
+//! preparer, without Java and without the game files (docs/engine/api/launch.md). A preparation stamps
 //! its folder with the `OUTPUT_VERSION` that made it (`STAMP`); tools/prepare_output.py leaves the
 //! stamp out of the output's digest, so it never asks for a new `OUTPUT_VERSION`.
 

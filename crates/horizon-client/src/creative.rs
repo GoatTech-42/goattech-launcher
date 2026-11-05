@@ -119,7 +119,7 @@ impl Names {
                 .unwrap_or_default()
         };
         let mut map = read("minecraft");
-        // Content mods' names (docs/modpacks.md); none in a vanilla root.
+        // Content mods' names (docs/engine/modpacks.md); none in a vanilla root.
         for namespace in crate::mod_content::namespaces(root) {
             map.extend(read(&namespace));
         }

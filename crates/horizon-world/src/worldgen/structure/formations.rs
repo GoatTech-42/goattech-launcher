@@ -1,5 +1,5 @@
 //! Formations' SimpleStructure (`horizon:formations`, which
-//! `horizon-port-pack` writes for its `formations:simple`; docs/modpacks.md):
+//! `horizon-port-pack` writes for its `formations:simple`; docs/engine/modpacks.md):
 //! one pool element at a random spot of the chunk, at a height its
 //! placement finds in the noise columns under the element's corners and
 //! centre ([`StartContext::noise_column`]).

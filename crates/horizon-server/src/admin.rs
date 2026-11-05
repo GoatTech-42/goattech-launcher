@@ -1,4 +1,4 @@
-//! The control API's admin endpoints (docs/api/server.md): who is online and on vanilla's lists, the
+//! The control API's admin endpoints (docs/engine/api/server.md): who is online and on vanilla's lists, the
 //! moderation actions, and the metrics as text for a monitoring tool.
 //!
 //! An action runs the vanilla console command on the running game (kick, ban, ban-ip, pardon, pardon-ip,

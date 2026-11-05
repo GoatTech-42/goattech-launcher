@@ -1,4 +1,4 @@
-// The Horizon server panel (docs/server.md, section 6). It polls the control API once a second through
+// The Horizon server panel (docs/engine/server.md, section 6). It polls the control API once a second through
 // the panel's session; every change is a POST with the X-Horizon header. Text from the server is only
 // ever set with textContent.
 "use strict";

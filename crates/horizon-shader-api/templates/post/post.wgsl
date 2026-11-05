@@ -1,5 +1,5 @@
 // Runs once per pixel of the world's picture, under the hand and the HUD.
-// Reference: docs/api/shaders-reference.md (the inputs, `frame` and the helpers).
+// Reference: docs/engine/api/shaders-reference.md (the inputs, `frame` and the helpers).
 override saturation: f32 = 1.15;
 
 fn post(input: PostInput) -> vec4<f32> {

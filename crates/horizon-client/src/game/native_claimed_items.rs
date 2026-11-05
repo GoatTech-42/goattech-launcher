@@ -1,4 +1,4 @@
-//! A client mod's view and its own items (docs/native-mods.md, "A client mod's view and items"): the
+//! A client mod's view and its own items (docs/engine/native-mods.md, "A client mod's view and items"): the
 //! first block along the view, across the distant terrain past the loaded chunks, and items whose
 //! right-click is the mod's alone, heard as use events the mod polls.
 use super::Game;

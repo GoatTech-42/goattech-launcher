@@ -1,4 +1,4 @@
-//! Native mods installed from a GitHub link (docs/native-mods.md, "Install from GitHub"), so an
+//! Native mods installed from a GitHub link (docs/engine/native-mods.md, "Install from GitHub"), so an
 //! author can ship a version without a registry pull request. The link names a repository (its
 //! latest release), a release tag, a branch or tag (`tree/`) or a commit. It is resolved through
 //! GitHub's public API to an exact **release asset** (a `.hnmod`, kept by its SHA-256) or an exact

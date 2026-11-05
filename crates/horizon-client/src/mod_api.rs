@@ -1,7 +1,7 @@
 //! Trait mods implement `Hooks` and link into the game executable.
 //! The executable passes the ordered `Mods` to `entry::main_with`.
 //! Trait mods are process-wide, like mixin module statics.
-//! Hooks use `&self + Send + Sync` for shared and reentrant calls; see `docs/native-mods.md`.
+//! Hooks use `&self + Send + Sync` for shared and reentrant calls; see `docs/engine/native-mods.md`.
 //! Generate the trait and dispatch with `cargo run -p xtask -- mod-api`.
 use std::sync::{Arc, OnceLock};
 

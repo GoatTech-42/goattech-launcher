@@ -1,6 +1,6 @@
 //! Attachment sync: the values of a native mod's synced attachments, sent by a
 //! Horizon server to the Horizon clients that see their holder
-//! (docs/native-mods.md, "Server attachments").
+//! (docs/engine/native-mods.md, "Server attachments").
 //!
 //! A payload is the holder (a varint kind and its fields), whether the
 //! client's copy of the holder is replaced, then each change: the attachment's

@@ -1,4 +1,4 @@
-//! Backups and restore (docs/server.md, section 7). A backup is one zip in `backups/`: the world folder and
+//! Backups and restore (docs/engine/server.md, section 7). A backup is one zip in `backups/`: the world folder and
 //! the server's settings and lists. On a running server the game first saves everything and stops writing
 //! (`save-off`, `save-all`), and writes again once the zip is done (`save-on`), so players stay online.
 //! A restore puts the backup's world in place of the current one, which is moved aside, never deleted.

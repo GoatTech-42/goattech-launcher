@@ -1,4 +1,4 @@
-//! A portable Rust toolchain of the launcher's own, for native mods (docs/native-mods.md), which
+//! A portable Rust toolchain of the launcher's own, for native mods (docs/engine/native-mods.md), which
 //! compile the game. levzzz5154 (2026-10-27): players combine many native mods per build, so they
 //! build on their own computer, and the launcher brings the compiler.
 //!
@@ -477,7 +477,7 @@ fn link(full: bool) -> Result<(), String> {
 /// (the linker; `ring` and `hidapi` compile C) with the C library's headers and, for the game
 /// only (`full`), `pkg-config` and the development files of ALSA (`alsa-sys`, sound) and
 /// libudev (`libudev-sys` and `hidapi`, controllers), which those crates look up with it. The
-/// headless server build links none of those (`--no-default-features`, docs/server.md).
+/// headless server build links none of those (`--no-default-features`, docs/engine/server.md).
 /// Desktop distributions ship the libraries but not these files, and SteamOS has GCC without
 /// the C library's headers (`stdint.h` not found in `ring`, #4770), so a build without them
 /// failed minutes in. `ok` runs a check; `os` is `/etc/os-release`, which picks the install

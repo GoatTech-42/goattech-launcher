@@ -1,4 +1,4 @@
-# Installs horizon-server (docs/server.md) on Windows: the current Horizon Nightly (the only build Horizon ships;
+# Installs horizon-server (docs/engine/server.md) on Windows: the current Horizon Nightly (the only build Horizon ships;
 # GitHub's latest release while there is none), downloaded from GitHub Releases and checked against the SHA-256
 # GitHub publishes for it.
 #
@@ -18,7 +18,7 @@ $ProgressPreference = "SilentlyContinue"
 $Repo = "horizon-rust/horizon"
 $Asset = "horizon-windows-x64.zip"
 if ($env:PROCESSOR_ARCHITECTURE -ne "AMD64") {
-    throw "No Horizon release for Windows on $env:PROCESSOR_ARCHITECTURE yet: build it from source (docs/server.md)"
+    throw "No Horizon release for Windows on $env:PROCESSOR_ARCHITECTURE yet: build it from source (docs/engine/server.md)"
 }
 
 function Get-Release([string]$Path) {
@@ -82,7 +82,7 @@ try {
     Write-Host "Installed Horizon $Tag in $Target."
     if (-not (Get-ChildItem -Path $GameFiles -ErrorAction SilentlyContinue)) {
         Write-Host "Next, prepare the game files from your own Minecraft 26.3 (it needs Java 25 and the game installed"
-        Write-Host "once by the official launcher; see docs/server.md):"
+        Write-Host "once by the official launcher; see docs/engine/server.md):"
         Write-Host "  horizon-prepare --prepare --server-jar C:\path\to\server.jar"
     }
     Write-Host "Then set up a server: mkdir my-server; cd my-server; horizon-server init"

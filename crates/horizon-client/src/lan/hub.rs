@@ -179,7 +179,7 @@ pub enum HostEvent {
         sender: u128,
         text: String,
     },
-    /// A player's text the chat filter refused (docs/chat-filter.md): relayed to nobody, for the
+    /// A player's text the chat filter refused (docs/engine/chat-filter.md): relayed to nobody, for the
     /// game to log and to carry out `action`.
     ChatFiltered {
         sender: u128,

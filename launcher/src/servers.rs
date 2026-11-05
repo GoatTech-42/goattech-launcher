@@ -1,5 +1,5 @@
 //! Servers hosted from the launcher. Every server is a `horizon-server` folder and the launcher drives
-//! `horizon-server` (docs/server.md in the repository) rather than its own copy of the logic: `init`,
+//! `horizon-server` (docs/engine/server.md in the repository) rather than its own copy of the logic: `init`,
 //! `start`, `stop`, `config set`, `backup`, `restore`, `update`, `service`, and the control API the running
 //! supervisor serves on 127.0.0.1 for the live status, the log and console commands.
 //!

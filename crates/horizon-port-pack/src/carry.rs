@@ -631,7 +631,7 @@ fn unreadable(name: &str, bytes: &mut Vec<u8>) -> Option<String> {
         },
     };
     // A vanilla or convention tag that replaces is kept: the game honours it
-    // as a data pack's, with a warning (docs/mods.md). A tag of the mod's own
+    // as a data pack's, with a warning (docs/engine/mods.md). A tag of the mod's own
     // that replaces: no pack before it defines the tag, so it is the same tag
     // added to (Towns and Towers' biome tags).
     let shared_tag = name.starts_with("data/minecraft/tags/") || name.starts_with("data/c/tags/");

@@ -61,7 +61,7 @@ research-lock.json pins. Releases use a runtime; development or changed exporter
 compile-exporters builds and validates a release bundle from the already imported pinned jars.
 The resources go to <root>/.local/horizon-client/<version>, or --output; pass that to
 horizon-client --resources. Exit codes: 0 done, 1 failed (or --check found gaps), 2 a refused
-command line (docs/api/launch.md).
+command line (docs/engine/api/launch.md).
 
 horizon-prepare panorama repairs the classic menu background in existing resources without Java.
 horizon-prepare fonts adds the GNU Unifont glyphs (characters the bitmap fonts lack) the same way.
@@ -295,7 +295,7 @@ fn complete_resources(
     ))
 }
 
-/// `{"key": "text"}` on one line: `--progress json`'s `message` and `error` (docs/api/launch.md).
+/// `{"key": "text"}` on one line: `--progress json`'s `message` and `error` (docs/engine/api/launch.md).
 fn json_line(key: &str, text: &str) -> String {
     let mut out = format!("{{\"{key}\": ");
     horizon_prepare::pyjson::write_string(&mut out, text);
@@ -332,7 +332,7 @@ fn check_resources(options: &horizon_prepare::Options) -> ExitCode {
 mod tests {
     use super::*;
 
-    /// `--progress json`'s three lines as docs/api/launch.md promises them: a launcher parses
+    /// `--progress json`'s three lines as docs/engine/api/launch.md promises them: a launcher parses
     /// them, so a refactor must not change them silently.
     #[test]
     fn progress_json_lines_keep_their_shape() {

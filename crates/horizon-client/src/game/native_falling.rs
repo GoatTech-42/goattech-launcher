@@ -1,4 +1,4 @@
-//! Falling blocks for native server mods (docs/native-mods.md, "Falling
+//! Falling blocks for native server mods (docs/engine/native-mods.md, "Falling
 //! blocks"): a mod throws a block as a `FallingBlockEntity` that flies, lands
 //! and places itself (or drops as an item) as sand does. It acts where the
 //! world is simulated, in the level in place, which it names by its

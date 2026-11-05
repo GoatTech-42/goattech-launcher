@@ -2,7 +2,7 @@
 //! relay-visible half of an invite code); guests resolve it; the relay
 //! pairs each guest's connection with a fresh one from the host and copies
 //! bytes between them. Those bytes are the end-to-end encrypted session
-//! (docs/play-with-friends.md): the relay can't read them, only count them.
+//! (docs/engine/play-with-friends.md): the relay can't read them, only count them.
 //! State is in memory; nothing about players is logged.
 pub mod limits;
 

@@ -1,5 +1,5 @@
 //! Processors for structures built under the sea, carried as data from
-//! Better Ocean Monuments' Java processors (docs/modpacks.md):
+//! Better Ocean Monuments' Java processors (docs/engine/modpacks.md):
 //! - `horizon:flood_air`: the template's air below sea level becomes water
 //!   (its AirProcessor; the monuments' templates are mostly air);
 //! - `horizon:waterlog`: below sea level, blocks that can be waterlogged

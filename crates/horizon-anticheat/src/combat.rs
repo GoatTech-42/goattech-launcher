@@ -1,4 +1,4 @@
-//! Combat: attacks vanilla's client can't send (docs/anticheat.md).
+//! Combat: attacks vanilla's client can't send (docs/engine/anticheat.md).
 //!
 //! Vanilla's client sends ServerboundAttackPacket from one place only, `Minecraft.startAttack`, run from
 //! `handleKeybinds` once per client tick. It attacks the entity of the tick's `hitResult`, which

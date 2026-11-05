@@ -1,4 +1,4 @@
-//! `horizon-server init`: the first run (docs/server.md, section 3). It asks about the EULA, the world, the
+//! `horizon-server init`: the first run (docs/engine/server.md, section 3). It asks about the EULA, the world, the
 //! port and who may join, imports an existing `server.properties`, finds the game, and writes `server.toml`.
 //! Every question has a flag, so it also runs unattended (Docker, scripts).
 

@@ -1,4 +1,4 @@
-//! Mods in the game (`docs/mods.md`): content mods' blocks, items, data and
+//! Mods in the game (`docs/engine/mods.md`): content mods' blocks, items, data and
 //! assets (`content_root`), and the Mods page's rows. Code mods are native
 //! (`native_hooks.rs`); WebAssembly code mods don't run any more.
 use super::Game;
@@ -64,7 +64,7 @@ pub(super) fn register_standalone_models() {
 }
 
 /// `root` with the content mods that are on layered over it
-/// (docs/modpacks.md): their blocks, items, data and assets. Read once at
+/// (docs/engine/modpacks.md): their blocks, items, data and assets. Read once at
 /// start, before the resources load; a mod whose content is refused is left
 /// out here and its row on the Mods page says why.
 pub(super) fn content_root(

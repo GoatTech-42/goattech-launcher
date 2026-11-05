@@ -1,6 +1,6 @@
 //! Every item and recipe the game knows, made once for the mods that read
 //! them (native mods' `native_recipes`, capability `recipes` of WebAssembly
-//! mods, docs/mods.md), and the recipe book's known displays; placing a
+//! mods, docs/engine/mods.md), and the recipe book's known displays; placing a
 //! recipe and creative gifts. The recipes are the window's own data — the
 //! content root's — with the server's recipes of the types its native mods
 //! had it send (`horizon:recipe_content`) in their place, while the known

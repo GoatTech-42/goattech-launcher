@@ -1,5 +1,5 @@
-//! `cargo horizon-mod`: make Horizon content mods (`docs/modpacks.md`): blocks,
-//! items, data and assets, no code. Code mods are native (docs/native-mods.md).
+//! `cargo horizon-mod`: make Horizon content mods (`docs/engine/modpacks.md`): blocks,
+//! items, data and assets, no code. Code mods are native (docs/engine/native-mods.md).
 //!
 //! - `new <path> [--name "Name"]`: a content mod from the template.
 //! - `build`: the `.hmod` in `target/horizon-mod/`, with the mod's `assets/`
@@ -116,7 +116,7 @@ fn new(args: &[String]) -> Result<(), String> {
     ];
     if flag(args, "--template").is_some_and(|t| t != "content") {
         return Err(
-            "only content mods are made here: code mods are native (docs/native-mods.md)".into(),
+            "only content mods are made here: code mods are native (docs/engine/native-mods.md)".into(),
         );
     }
     for (file, text) in files {
@@ -148,7 +148,7 @@ fn build_in(root: &Path) -> Result<PathBuf, String> {
         .map_err(|e| format!("{MANIFEST}: {e} (run this in a mod's folder)"))?;
     let manifest = Manifest::parse(&manifest_text)?;
     if root.join("Cargo.toml").exists() {
-        return Err("a Cargo.toml: code mods are native now (docs/native-mods.md)".into());
+        return Err("a Cargo.toml: code mods are native now (docs/engine/native-mods.md)".into());
     }
     if !manifest.capabilities.contains(&Capability::Registries) {
         return Err(format!(

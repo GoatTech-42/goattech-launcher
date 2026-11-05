@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Port a new Minecraft release to Horizon: detect it, prepare it, diff it against the pinned one
-(docs/version-ports.md).
+(docs/engine/version-ports.md).
 
     version_port.py detect [--snapshots]          what Mojang released that Horizon doesn't pin
     version_port.py prepare VERSION               download, verify, run the data generator, read its facts,

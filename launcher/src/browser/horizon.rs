@@ -1,4 +1,4 @@
-//! Horizon's own registry (docs/api/mod-index.md): mods, modpacks and resource packs made for
+//! Horizon's own registry (docs/engine/api/mod-index.md): mods, modpacks and resource packs made for
 //! Horizon, reviewed as pull requests in horizon-rust/horizon-mods. One file lists them all,
 //! `index.json`; every download is checked against it before it reaches the game folder
 //! (`horizon_mods::index::check_file`: size, SHA-256, the author's signature, the file's own

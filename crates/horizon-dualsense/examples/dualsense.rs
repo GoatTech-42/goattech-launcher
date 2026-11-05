@@ -224,7 +224,7 @@ fn leds(pad: &mut DualSense) {
 
 fn triggers(pad: &mut DualSense) {
     use horizon_dualsense::trigger;
-    // The game's feels (docs/controllers.md "Adaptive triggers"); each holds two seconds so a
+    // The game's feels (docs/engine/controllers.md "Adaptive triggers"); each holds two seconds so a
     // hand on the pad can feel it.
     for (name, effect) in [
         ("bow drawn halfway", trigger::feedback(1, 4)),

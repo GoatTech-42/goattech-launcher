@@ -1,4 +1,4 @@
-//! The anticheat on a dedicated server's hub (docs/anticheat.md): the checks run where the hub handles
+//! The anticheat on a dedicated server's hub (docs/engine/anticheat.md): the checks run where the hub handles
 //! what players send, and a flag is carried out here (send back, alert, kick, or a ban the game adds to
 //! `banned-players.json`: [`HostEvent::Ban`]). The rules and the
 //! violation levels are `horizon_anticheat`'s. A dedicated server has it on by default; the hub holds

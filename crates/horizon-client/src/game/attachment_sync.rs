@@ -1,4 +1,4 @@
-//! Attachment sync (docs/native-mods.md, "Server attachments"): the server
+//! Attachment sync (docs/engine/native-mods.md, "Server attachments"): the server
 //! sends the synced values of the holders a level pass lent to mods, and whole
 //! snapshots to the players who started seeing a holder; a client keeps them.
 use super::{Game, lan::LanHost};

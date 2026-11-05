@@ -1,4 +1,4 @@
-//! The web panel (docs/server.md, section 6): one page embedded in the binary, served by the supervisor on
+//! The web panel (docs/engine/server.md, section 6): one page embedded in the binary, served by the supervisor on
 //! `[panel] bind` (127.0.0.1:8130 by default; a tailnet address to reach it from the owner's devices). It
 //! uses the control API's routes with a browser session instead of the token.
 //!

@@ -1,5 +1,5 @@
 //! `cargo horizon-mod registry build|review|check|list`: the registry repository's CI
-//! (`horizon-rust/horizon-mods`, docs/api/mod-index.md). Network-free: the
+//! (`horizon-rust/horizon-mods`, docs/engine/api/mod-index.md). Network-free: the
 //! workflow downloads the files and publishes what this writes.
 use horizon_mods::index::{
     FILE_HOST,

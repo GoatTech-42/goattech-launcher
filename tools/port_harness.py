@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run every parity harness against a new version, in its candidate worktree (docs/version-ports.md, "Run every
+"""Run every parity harness against a new version, in its candidate worktree (docs/engine/version-ports.md, "Run every
 harness against the new version").
 
 Used through `version_port.py harnesses NEW` after `regen NEW`:

@@ -1,4 +1,4 @@
-//! The chat filter on the server side (docs/chat-filter.md): a player's text, before the server relays
+//! The chat filter on the server side (docs/engine/chat-filter.md): a player's text, before the server relays
 //! it, through `horizon_chat_filter`'s list, mutes and escalation. A refused text reaches nobody; the
 //! sender is told in private, and the game logs it and bans when the escalation says so
 //! (`HostEvent::ChatFiltered`).

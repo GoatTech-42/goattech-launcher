@@ -1,4 +1,4 @@
-//! `horizon-shader`: make Horizon shader packs (docs/shaders.md).
+//! `horizon-shader`: make Horizon shader packs (docs/engine/shaders.md).
 //!
 //! - `new <dir> [--template post|sky|material] [--name "Name"]`: a pack from a template.
 //! - `check <pack>... [--json]`: the check the game, the launcher and the registry run.

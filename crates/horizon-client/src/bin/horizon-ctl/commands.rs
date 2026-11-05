@@ -218,7 +218,7 @@ pub const COMMANDS: &[Cmd] = &[
     cmd!("status", Session, "status", "game, renderer and streaming state (the scripting socket's original summary)",
         "Also what F3 shows: the overlay flags, the renderer, chunk streaming and memory.", ["horizon-ctl status"], &[], mcp: true, local: false),
     cmd!("hello", Session, "hello", "the control protocol's version, the game's release and the command groups it serves",
-        "Replies protocol (MAJOR.MINOR.PATCH of the control protocol, docs/api/stability.md), release (the game's version, the string MCP serverInfo carries too) and features (the command groups the game answers, so a script can test for one before calling it).",
+        "Replies protocol (MAJOR.MINOR.PATCH of the control protocol, docs/engine/api/stability.md), release (the game's version, the string MCP serverInfo carries too) and features (the command groups the game answers, so a script can test for one before calling it).",
         ["horizon-ctl hello"], &[], mcp: true, local: false),
     cmd!("memory", Session, "memory", "what holds the game's memory: resident set, allocator, client and server columns by part, renderer, GPU memory by resource",
         "Columns count blocks, biomes, light, heightmaps and records, each shared section once; server_columns are the single-player server thread's own levels. GPU memory by label needs Vulkan or DirectX 12. What the census doesn't reach is the resident set less its parts.", ["horizon-ctl memory"], &[], mcp: true, local: false),
@@ -532,7 +532,7 @@ pub fn detail(c: &Cmd) -> String {
     out
 }
 
-/// The generated reference, docs/horizon-ctl-commands.md (`horizon-ctl help --markdown`).
+/// The generated reference, docs/engine/horizon-ctl-commands.md (`horizon-ctl help --markdown`).
 pub fn markdown() -> String {
     let cell = |s: &str| s.replace('|', "\\|");
     let mut out = String::from(
@@ -841,12 +841,12 @@ mod tests {
     fn the_generated_reference_is_up_to_date() {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../docs/horizon-ctl-commands.md"
+            "/../../docs/engine/horizon-ctl-commands.md"
         );
         let on_disk = std::fs::read_to_string(path).unwrap_or_default();
         assert!(
             on_disk == markdown(),
-            "docs/horizon-ctl-commands.md is out of date: run `horizon-ctl help --markdown > docs/horizon-ctl-commands.md`"
+            "docs/engine/horizon-ctl-commands.md is out of date: run `horizon-ctl help --markdown > docs/engine/horizon-ctl-commands.md`"
         );
         for c in COMMANDS {
             assert!(

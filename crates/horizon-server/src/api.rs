@@ -1,8 +1,8 @@
-//! The control API (docs/server.md, section 8): HTTP and JSON on 127.0.0.1, with a random token in
+//! The control API (docs/engine/server.md, section 8): HTTP and JSON on 127.0.0.1, with a random token in
 //! `.horizon/api.json` that only the server's own user can read. The CLI manages a running server through
 //! it, and so does the web panel. The admin endpoints (players, moderation, text metrics) are in admin.rs.
 //!
-//! Its routes are [`ROUTES`], listed in docs/api/server-reference.md.
+//! Its routes are [`ROUTES`], listed in docs/engine/api/server-reference.md.
 
 use crate::{
     admin::{self, Action},
@@ -32,7 +32,7 @@ const LOG_LINES: usize = 2000;
 /// The samples kept for the panel's graphs: 10 minutes, one a second.
 const METRICS: usize = 600;
 
-/// One endpoint of the control API: what the reference (docs/api/server-reference.md) says about it.
+/// One endpoint of the control API: what the reference (docs/engine/api/server-reference.md) says about it.
 #[cfg_attr(
     not(test),
     expect(dead_code, reason = "only the reference reads all of it")

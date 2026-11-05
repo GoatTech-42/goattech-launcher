@@ -1,4 +1,4 @@
-//! What `horizon-server` asks the dedicated server on its control endpoint (`--control-socket`, docs/server.md
+//! What `horizon-server` asks the dedicated server on its control endpoint (`--control-socket`, docs/engine/server.md
 //! section 2): `server-status` answers with the tick rate, the tick times `/tick query` reports, the players
 //! and the loaded chunks; `console <line>` runs a console command and answers with the lines it logged;
 //! `server-events <since>` answers the typed events after that number (events.rs); `management <connection>

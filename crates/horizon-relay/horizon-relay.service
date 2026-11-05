@@ -1,4 +1,4 @@
-# A systemd unit for a self-hosted Play with friends relay (docs/play-with-friends.md,
+# A systemd unit for a self-hosted Play with friends relay (docs/engine/play-with-friends.md,
 # "Running your own relay"). Install the binary as /usr/local/bin/horizon-relay, copy this
 # file to /etc/systemd/system/, then: systemctl enable --now horizon-relay
 [Unit]

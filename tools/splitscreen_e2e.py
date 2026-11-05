@@ -11,7 +11,7 @@ How it works
   `cargo build --profile fast -p horizon-client`) with `HORIZON_SPLIT=players`: the game adds the
   others itself, as P2, P3...
 - Every player has its own control socket (`c.sock`, `c.sock2`...). `g.ctl(n, words...)` sends one
-  horizon-ctl command to player n (docs/horizon-ctl-commands.md).
+  horizon-ctl command to player n (docs/engine/horizon-ctl-commands.md).
 - Checks look from outside: each player's view size (`g.size(n)`, from `status`) and its `state`.
   `check(name, got, want)` records a failure and goes on; a `RuntimeError` (a `wait` that timed
   out) ends that scenario as failed.

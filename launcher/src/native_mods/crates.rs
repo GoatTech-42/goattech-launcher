@@ -1,4 +1,4 @@
-//! Native mods' own crates and post-build steps (docs/native-mods.md, "Crates" and
+//! Native mods' own crates and post-build steps (docs/engine/native-mods.md, "Crates" and
 //! "Post-build steps"). horizon-mixins stages a mod's `[[crate]]` as
 //! `native-crates/<mod>/<crate>/`, a workspace member, and lists its `[[post_build]]` steps in
 //! `native-post-build.json`. A mod's crate may use only what Horizon's own `Cargo.lock` has: the

@@ -1,5 +1,5 @@
 //! A mod's recipes shown in its item panel's place (`native_panel_recipes`,
-//! or `browser.set-recipes` of a WebAssembly mod, docs/mods.md), laid out by the game with its own slots, arrows and
+//! or `browser.set-recipes` of a WebAssembly mod, docs/engine/mods.md), laid out by the game with its own slots, arrows and
 //! buttons, paged to the panel's height, under a title and a back button.
 //! The mod hears clicks on their slots, their action buttons, the back
 //! button and page turns.

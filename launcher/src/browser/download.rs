@@ -19,7 +19,7 @@ const HOSTS: [&str; 5] = [
 ];
 /// `https://github.com/<owner>/<repo>/releases/download/<tag>/<name>`: a release asset of a mod's
 /// own repository, which the registry's index lists once its release passed the registry's checks
-/// (docs/api/mod-index.md). Only the address is vouched for here; the index's SHA-256 is what
+/// (docs/engine/api/mod-index.md). Only the address is vouched for here; the index's SHA-256 is what
 /// pins the bytes, and [`save`] refuses any other.
 pub fn github_release_asset(url: &str) -> bool {
     let Some(rest) = url.strip_prefix("https://github.com/") else {

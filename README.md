@@ -10,14 +10,16 @@ goattech launcher is its own minecraft launcher project: the horizon rust engine
 
 > not an official minecraft product. not approved by or associated with mojang or microsoft. you need your own legally obtained copy of minecraft: java edition.
 
-## what works today
+## project status
+
+**what works today:**
 
 - the cli creates java (vanilla) and fabric instances end to end
 - installs mods from modrinth, checksums verified
 - imports instances from other launchers without mutating the source
 - the launcher library and binary test suites pass (`cargo test`)
 
-## what's not done yet
+**not done yet:**
 
 - the gui runs in headless test rigs (virtual display, software rendering) with reviewed frame captures; the home stage renders the account's real skin - verified from the public profile texture in a test rig, not from a new signed-in session in this rig; physical-display qualification still outstanding - no installers, no releases
 - forge and neoforge java instances install through the official-installer driver (goattech/FORGE-NEOFORGE.md); `.mrpack` forge/neoforge imports are refused with the reason, while cross-launcher instance copies keep their loader and mods; no forge/neoforge instance has had a signed-in game launch yet
@@ -31,12 +33,13 @@ goattech launcher is its own minecraft launcher project: the horizon rust engine
 - `crates/`, `mods/`, `tools/`, `tests/`, `bench/`, `benchmarks/` - the engine sources and harnesses, upstream's tree.
 - `goattech/` - this project's own plans, ui maps and release notes.
 - `website/` - the source of https://launcher.goattech.us.
-- `ROADMAP.md`, `CONTRIBUTING.md`, `roadmap/` - upstream's, describing horizon's own plans and process.
+- `ROADMAP.md`, `CONTRIBUTING.md` - this project's own plan and how changes land here.
+- `docs/engine/ROADMAP.md`, `docs/engine/CONTRIBUTING.md`, `roadmap/`, `tools/roadmap.py` - the engine's own plans and process, upstream's, kept working from their new home.
 
 ## credit
 
 the rust engine - the hard part - is upstream horizon's work. this fork keeps its attribution and its mit license and stays in sync with it. what the fork adds is the other half: ordinary java instances with fabric, quilt, modrinth and imports, in the same home. upstream's dated parity self-audit, kept for attribution rather than as this project's status, lives at [docs/engine/upstream-parity-audit.md](docs/engine/upstream-parity-audit.md).
 
-## building
+## build from source
 
 the launcher is its own cargo workspace: `cargo test --manifest-path launcher/Cargo.toml` runs the library and gui binary suites. when real builds ship they'll be on github releases, verified before install.

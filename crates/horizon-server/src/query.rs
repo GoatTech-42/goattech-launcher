@@ -1,4 +1,4 @@
-//! Vanilla's GS4 query (docs/server.md, section 8): `enable-query` and `query.port` in server.properties
+//! Vanilla's GS4 query (docs/engine/server.md, section 8): `enable-query` and `query.port` in server.properties
 //! (`[properties]` in server.toml) turn on a UDP listener that answers as vanilla 26.3's
 //! `net.minecraft.server.rcon.thread.QueryThreadGs4` does: a handshake (a request of type 9 answers with a
 //! challenge token), then the basic stat (MOTD, game type, world, players, port, address) or the full stat

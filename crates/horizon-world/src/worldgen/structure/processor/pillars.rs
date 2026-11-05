@@ -1,5 +1,5 @@
 //! Processors that place blocks outside their template, carried as data from
-//! mods' Java processors (docs/modpacks.md):
+//! mods' Java processors (docs/engine/modpacks.md):
 //! - `horizon:pillar` and `horizon:bottom_pillar`: Repurposed Structures' and
 //!   Moog's pillar processors, which run a column of blocks from a trigger
 //!   block (or the template's bottom layer) down to the ground;

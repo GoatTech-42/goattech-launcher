@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""File a port report's work items as GitHub issues (docs/version-ports.md, "The port report").
+"""File a port report's work items as GitHub issues (docs/engine/version-ports.md, "The port report").
 
 Used through `version_port.py publish OLD NEW [--yes]`. A dry run by default: it prints what it would create or
 update; --yes does it (labels, issues, the Kira card). The maintainer approves the first --yes run and the
@@ -73,7 +73,7 @@ def body(item, report, diff, store_path, limit=25):
     """The generated part of an item's issue."""
     old, new = report["old"], report["new"]
     lines = [START, f"Minecraft {old} → {new}, rank {item['rank']} ({RANKS[item['rank']]}), from "
-             f"`tools/version_port.py report {old} {new}` (docs/version-ports.md).", ""]
+             f"`tools/version_port.py report {old} {new}` (docs/engine/version-ports.md).", ""]
     if item.get("command"):
         lines.append(f"Run: `{item['command']}`")
     if item.get("compile_errors"):
@@ -148,7 +148,7 @@ def merged(existing, generated):
 
 def tracking_body(report, issues, others, limit=200):
     lines = [START, f"Port of Horizon to Minecraft {report['new']} (from {report['old']}): `tools/version_port.py "
-             f"report {report['old']} {report['new']}` (docs/version-ports.md).", ""]
+             f"report {report['old']} {report['new']}` (docs/engine/version-ports.md).", ""]
     summary = report["summary"]
     lines += [f"- {key}: {a} → {b}" for key, (a, b) in summary["facts"].items()]
     if report.get("harnesses"):

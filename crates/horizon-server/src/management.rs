@@ -1,4 +1,4 @@
-//! Vanilla's server management protocol (docs/server.md, section 8): JSON-RPC 2.0 over a WebSocket, which
+//! Vanilla's server management protocol (docs/engine/server.md, section 8): JSON-RPC 2.0 over a WebSocket, which
 //! `management-server-*` in server.properties (`[properties]` in server.toml) turns on, as vanilla 26.3's
 //! `net.minecraft.server.jsonrpc` serves it: the same authentication (`AuthenticationHandler`), the same
 //! errors and parameter checks (`Connection`, `IncomingRpcMethod`, `JsonRPCErrors`). The supervisor serves it,

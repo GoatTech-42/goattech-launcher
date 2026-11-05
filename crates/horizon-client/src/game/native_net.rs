@@ -1,4 +1,4 @@
-//! Mod messages for native mods (docs/native-mods.md, "Mod messages", API
+//! Mod messages for native mods (docs/engine/native-mods.md, "Mod messages", API
 //! 23): a mod's server half and its client half send each other bytes
 //! (`horizon_protocol::mod_net`). The hub is out of the game while a guest's
 //! packet or turn runs, so both directions wait here: what a guest sent

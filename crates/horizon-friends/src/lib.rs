@@ -7,7 +7,7 @@
 //! unchanged between loopback ports (the integrated server on the host, a
 //! local port the guest's client connects to), end-to-end encrypted with a
 //! key only the holders of the code can derive. The design, the protocol and
-//! what the relay sees are in docs/play-with-friends.md.
+//! what the relay sees are in docs/engine/play-with-friends.md.
 pub mod code;
 pub mod crypto;
 pub mod direct;

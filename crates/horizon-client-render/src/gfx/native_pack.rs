@@ -1,4 +1,4 @@
-//! One of Horizon's own shader packs while it runs (docs/shaders.md): the frame its stages
+//! One of Horizon's own shader packs while it runs (docs/engine/shaders.md): the frame its stages
 //! read, its sky, material and post stages, and the timer of their passes.
 
 use horizon_shader_api::{Report, StageKind};

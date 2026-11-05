@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""How long Horizon takes to build, measured the same way on any checkout (docs/build-times.md).
+"""How long Horizon takes to build, measured the same way on any checkout (docs/engine/build-times.md).
 
     python3 tools/build_times.py run                          # cold + incremental, dev and fast profiles
     python3 tools/build_times.py run --profiles dev --only incremental --crates horizon-items

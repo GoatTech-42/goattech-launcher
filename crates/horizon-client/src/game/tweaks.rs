@@ -1,4 +1,4 @@
-//! Horizon's inventory extras (#332, `docs/extras.md`), Mouse Tweaks-style
+//! Horizon's inventory extras (#332, `docs/engine/extras.md`), Mouse Tweaks-style
 //! controls and sorting, both off by default: while an extra is off its
 //! hooks return false and the screen clicks exactly as vanilla's. Each action is made of ordinary slot clicks
 //! (the menu engine's, or `ContainerClick`s on a server), so it works

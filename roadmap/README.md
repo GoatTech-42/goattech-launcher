@@ -1,7 +1,7 @@
 # The roadmap
 
 `roadmap.toml` is the one source of the roadmap. `tools/roadmap.py build` turns it into
-[ROADMAP.md](../ROADMAP.md); the website's hub (playhorizon.dev/hub) and Kira read the same items. The work
+[ROADMAP.md](../docs/engine/ROADMAP.md); the website's hub (playhorizon.dev/hub) and Kira read the same items. The work
 board stays the task-level view (every issue and pull request); the roadmap is the overview, and each pull
 request carries the `roadmap:<id>` label of the item it moves.
 
@@ -19,7 +19,7 @@ owner = "levzzz5154"             # Now items: the GitHub login who leads it (a p
 issue = "#3911"                  # Now items: the tracking issue that holds the checklist
 plain = """Servers that show dialogs ... will work in Horizon."""   # players' words, at most 240 characters
 dev = """26.3's dialog packets and model (#1720), ..."""             # crates, approach, what is left
-links = ["#1720", "#1734", "docs/hosting.md"]                       # #N, a repository path, or https://
+links = ["#1720", "#1734", "docs/engine/hosting.md"]                       # #N, a repository path, or https://
 shipped_in = "v0.2.58"           # shipped items only: a game tag, launcher@x.y.z, or "website"
 post = "..."                     # optional: the announcement when it ships, if `plain` doesn't read as one
 announce = true                  # optional: when it ships, Kira also posts it on X (`post`, else `plain`)
@@ -43,7 +43,7 @@ Whoever moves the work (the orchestrator on each heartbeat, or anyone in their p
 
 1. `python3 tools/roadmap.py sync`: every item whose linked pull requests all went out in a release, whose
    linked issues are all closed and that isn't `ongoing` becomes `shipped`, with that release in
-   `shipped_in`, on top of the shipped items. It rewrites `roadmap.toml` and ROADMAP.md; open a pull request
+   `shipped_in`, on top of the shipped items. It rewrites `roadmap.toml` and `docs/engine/ROADMAP.md`; open a pull request
    with the change (`skip-release`).
 2. `python3 tools/roadmap.py check`: the file's rules, then GitHub's state of every link. It fails when a
    link is not an issue or pull request, when a tracking issue is not an open issue, when a Now item has no open pull request and none merged in the last
@@ -64,7 +64,7 @@ Whoever moves the work (the orchestrator on each heartbeat, or anyone in their p
 6. Suggestions come only from #horizon-ideas posts on Discord: Kira sends each one to the maintainers' private
    channel. A good one becomes an item in a normal pull request; none is published automatically.
 
-CI runs `tests/test_roadmap.py` (in the Python tests), which fails when ROADMAP.md is not what `build` writes
+CI runs `tests/test_roadmap.py` (in the Python tests), which fails when `docs/engine/ROADMAP.md` is not what `build` writes
 or when the file breaks a rule; `python3 tools/roadmap.py check --offline` runs the same rules without GitHub.
 
 ## The journal

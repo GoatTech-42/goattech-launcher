@@ -4,7 +4,7 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 rust-version = "1.95"
-description = "Horizon's mod files: content mods, modpacks and the registry index (docs/mods.md)"
+description = "Horizon's mod files: content mods, modpacks and the registry index (docs/engine/mods.md)"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -21,7 +21,7 @@ minisign-verify = { version = "0.3", optional = true }
 horizon-shader-api = { path = "../horizon-shader-api", optional = true }
 
 [features]
-# The mod registry's index (docs/api/mod-index.md): the launcher, the registry server and its CI.
+# The mod registry's index (docs/engine/api/mod-index.md): the launcher, the registry server and its CI.
 index = ["dep:sha2", "dep:minisign-verify", "dep:horizon-shader-api", "dep:wasmparser"]
 
 [lints]

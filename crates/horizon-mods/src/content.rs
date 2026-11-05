@@ -1,4 +1,4 @@
-//! A content mod's `assets/` and `data/` (API 0.2, docs/modpacks.md): the
+//! A content mod's `assets/` and `data/` (API 0.2, docs/engine/modpacks.md): the
 //! files it adds to the game's resource tree, and the blocks, items, mob
 //! effects, entity types and menu types it declares in
 //! `data/<id>/horizon/{block,item,mob_effect,entity_type,menu}/`.

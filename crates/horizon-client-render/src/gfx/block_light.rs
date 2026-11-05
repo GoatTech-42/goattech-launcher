@@ -1,4 +1,4 @@
-//! The colour of block light for Horizon's shader packs (`[[lights]]`, docs/api/shaders.md):
+//! The colour of block light for Horizon's shader packs (`[[lights]]`, docs/engine/api/shaders.md):
 //! a grid of cells around the camera, each holding the colour of the light sources that
 //! reach it, averaged by how near each is, which the material stage reads through the
 //! prelude's `block_light_color`. Block light keeps its own brightness (the light engine's,

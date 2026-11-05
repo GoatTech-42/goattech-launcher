@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 FRAGMENTS = Path("tools/native-hook-fragments")
 SOURCE = Path("crates/horizon-client/src/game/native_hooks.rs")
-DOCS = Path("docs/native-mods.md")
+DOCS = Path("docs/engine/native-mods.md")
 CATALOG = Path("native-hooks.json")
 # The mod API's types and the files `cargo run -p xtask -- mod-api` generates: they copy hook and
 # helper comments, markers included, so every marker is stamped in them too and `--check` holds.

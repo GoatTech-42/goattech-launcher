@@ -499,7 +499,7 @@ fn ingredient(v: &Value, items: &Items) -> Ingredient {
 }
 impl StationRecipes {
     pub fn load(root: &Path, items: &Items, overlay: &PackOverlay) -> Self {
-        // Vanilla's recipes, then the content mods' (docs/modpacks.md).
+        // Vanilla's recipes, then the content mods' (docs/engine/modpacks.md).
         let mut files = Vec::new();
         let namespaces =
             std::iter::once("minecraft".to_owned()).chain(crate::mod_content::namespaces(root));

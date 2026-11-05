@@ -23,7 +23,7 @@ file, the tags from before 0.2: vYYYY.MM.DD, then .01, .02 the same UTC day, and
 the last launcher tag or the next minor when a merged pull request is labelled feature. Every 0.2 tag is newer than
 every tag from before (tag_key). Notes:
 "### New" lists the pull requests labelled feature, "### Fixed" the others, "### Known issues" the bullets of
-docs/known-issues.md. Every release is published as the release, GitHub's latest, which launchers, servers and
+docs/engine/known-issues.md. Every release is published as the release, GitHub's latest, which launchers, servers and
 install.sh take at once; one channel, no promotion. A game release is published only after `gate`: its smoke test
 passed and no release-blocker is open. Notes cover everything since the last published release; the game
 pre-releases of the old Alpha channel (v0.2.1 on) don't count, so the first release after them lists all of

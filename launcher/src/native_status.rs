@@ -1,4 +1,4 @@
-//! Whether an instance plays its native mods (docs/native-mods.md): the mods turned on in its
+//! Whether an instance plays its native mods (docs/engine/native-mods.md): the mods turned on in its
 //! folder against the ones its version was built with (`native-mods.json`, written by
 //! `native_mods::build`). The Mods page shows the answer beside its Build button.
 use crate::{backend, browser::java, native_mods};

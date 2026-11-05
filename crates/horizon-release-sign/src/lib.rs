@@ -1,4 +1,4 @@
-//! Signed release checksums (docs/security.md, "Signed updates").
+//! Signed release checksums (docs/engine/security.md, "Signed updates").
 //!
 //! Every release carries `SHA256SUMS` (`sha256sum`'s format, `<hex>  <file>` per line) and
 //! `SHA256SUMS.sig`: one base64 Ed25519 signature per line, each over `horizon release <tag>\n`

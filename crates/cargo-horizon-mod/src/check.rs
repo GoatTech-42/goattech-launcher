@@ -1,5 +1,5 @@
 //! `cargo horizon-mod check <file>`: what the registry checks of a submission,
-//! run anywhere: its kind's own checks (docs/api/mod-index.md), its signature
+//! run anywhere: its kind's own checks (docs/engine/api/mod-index.md), its signature
 //! when given a key, and for a `.hmod` that it is content only.
 use horizon_mods::{
     Package,
@@ -136,11 +136,11 @@ pub fn check(
 }
 
 /// A mod is content only: WebAssembly code mods don't run any more, code mods are native
-/// (`.hnmod`, docs/native-mods.md). `inspect` already read its content as the game does.
+/// (`.hnmod`, docs/engine/native-mods.md). `inspect` already read its content as the game does.
 fn content_only(path: &Path) -> Result<(), String> {
     match Package::read(path)?.wasm {
         Some(_) => Err(
-            "it has WebAssembly code, which Horizon doesn't run any more: make it a native mod (docs/native-mods.md)"
+            "it has WebAssembly code, which Horizon doesn't run any more: make it a native mod (docs/engine/native-mods.md)"
                 .into(),
         ),
         None => Ok(()),

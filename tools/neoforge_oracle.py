@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dev-only NeoForge oracle for Horizon's mod-port harnesses (docs/modpacks.md).
+"""Dev-only NeoForge oracle for Horizon's mod-port harnesses (docs/engine/modpacks.md).
 
     neoforge_oracle.py export --jars DIR [--deps DIR] [--namespaces a,b] --out FACTS.json
 
@@ -22,7 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL = ROOT / '.local' / 'neoforge-oracle'
 SOURCE = ROOT / 'mods' / 'horizon' / 'src' / 'neoforge-oracle'
-# ATM10 8.x: Minecraft 1.21.1 on NeoForge 21.1.259 (docs/modpacks.md).
+# ATM10 8.x: Minecraft 1.21.1 on NeoForge 21.1.259 (docs/engine/modpacks.md).
 NEOFORGE = os.environ.get('HORIZON_NEOFORGE', '21.1.259')
 MAVEN = 'https://maven.neoforged.net/releases/net/neoforged/neoforge'
 

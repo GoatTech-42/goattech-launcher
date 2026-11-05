@@ -1,4 +1,4 @@
-//! Horizon Extras' dynamic lights (docs/extras.md): a torch, lantern or other light source held by
+//! Horizon Extras' dynamic lights (docs/engine/extras.md): a torch, lantern or other light source held by
 //! a player or mob, dropped as an item, or an entity on fire lights the blocks and entities
 //! around it. Not in vanilla; off by default.
 //!

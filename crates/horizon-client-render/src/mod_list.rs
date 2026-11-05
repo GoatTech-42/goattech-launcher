@@ -1,4 +1,4 @@
-//! Which of the installed Horizon mods are on (`docs/mods.md`), kept in
+//! Which of the installed Horizon mods are on (`docs/engine/mods.md`), kept in
 //! `horizon-mods.txt` beside `options.txt` as `mod.<id>:true` lines. Every
 //! mod is off until the player turns it on in Options > Mods. A native mod is
 //! built in, so on until turned off (`mod.<id>:false`); the launcher builds

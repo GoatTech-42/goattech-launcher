@@ -49,7 +49,7 @@ The opening, then Play ([clip](docs/opening.webm)):
   **Update all** and Remove ([docs/mod-browser.md](../docs/mod-browser.md)).
 - **Modpacks**: import a Java modpack (a Modrinth `.mrpack`, a CurseForge zip, or a Prism,
   MultiMC or CurseForge instance folder) and see its coverage report: per mod, ported, partial,
-  not yet or not needed, with the reason ([docs/modpacks.md](../docs/engine/modpacks.md)). **Port**
+  not yet or not needed, with the reason ([docs/engine/modpacks.md](../docs/engine/modpacks.md)). **Port**
   gets the jars of what this computer can port today (content mods with data and assets only)
   the player's own way: copied from a folder they have, or downloaded from the pack's own links
   or the same file on Modrinth's CDN, hash checked; files only CurseForge has come from your
@@ -71,7 +71,7 @@ The opening, then Play ([clip](docs/opening.webm)):
   list with dates and sizes, Restore with a confirmation, Back up automatically, and **Updates**:
   Check for updates, Update now with its automatic rollback, and how many older versions to
   keep). Changes the running game can take apply at once, the others say "Restart to apply".
-  Everything goes through `horizon-server` itself ([docs/hosting.md](../docs/engine/hosting.md)):
+  Everything goes through `horizon-server` itself ([docs/engine/hosting.md](../docs/engine/hosting.md)):
   the launcher copies a prepared version's programs and game files into `server-runtime/` laid
   out as `install.sh` does, runs `horizon-server init`, `config`, `start`, `backup`, `restore`,
   `update` and `service` there, and talks to a running server through its control API. Problems

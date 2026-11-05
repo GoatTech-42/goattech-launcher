@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Horizon's roadmap: roadmap/roadmap.toml is the source, ROADMAP.md is generated from it.
+"""Horizon's roadmap: roadmap/roadmap.toml is the source, docs/engine/ROADMAP.md is generated from it.
 
-    python3 tools/roadmap.py build              write ROADMAP.md and roadmap/roadmap.json
+    python3 tools/roadmap.py build              write docs/engine/ROADMAP.md and roadmap/roadmap.json
     python3 tools/roadmap.py build --check      fail when either is out of date (CI)
     python3 tools/roadmap.py check --offline    the file's own rules (CI)
     python3 tools/roadmap.py check              the same, then GitHub: links resolve, no stale Now item
@@ -27,7 +27,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "roadmap" / "roadmap.toml"
-OUTPUT = ROOT / "ROADMAP.md"
+OUTPUT = ROOT / "docs/engine/ROADMAP.md"  # the engine's own roadmap lives with its docs
 # What the website's hub reads from main at build time (horizon-rust/horizon-site), and serves at /data/roadmap.json
 # for Kira and others.
 SITE_DATA = ROOT / "roadmap" / "roadmap.json"
@@ -207,7 +207,7 @@ def link_list(links):
 
 
 def render(data):
-    """ROADMAP.md, from the parsed TOML."""
+    """docs/engine/ROADMAP.md, from the parsed TOML."""
     overview = data["overview"]
     items = data.get("item", [])
     out = [
@@ -299,7 +299,22 @@ def site_data(data):
 
 def outputs(data):
     """Every generated file and its content."""
-    return {OUTPUT: render(data), SITE_DATA: site_data(data)}
+    roadmap_md = render(data)
+    # OUTPUT lives in docs/engine/: turn the toml's repo-relative links into
+    # links relative to that file.
+    def _relativize(match):
+        target = match.group(1)
+        if target.startswith(("http://", "https://", "mailto:", "#")):
+            return match.group(0)
+        if target.startswith("docs/engine/"):
+            target = target[len("docs/engine/"):]
+        elif target.startswith("docs/"):
+            target = "../" + target[len("docs/"):]
+        else:
+            target = "../../" + target
+        return "](" + target + ")"
+    roadmap_md = re.sub(r"\]\(([^)\s]+)\)", _relativize, roadmap_md)
+    return {OUTPUT: roadmap_md, SITE_DATA: site_data(data)}
 
 
 # --- GitHub ---------------------------------------------------------------------------------------------------
@@ -595,7 +610,7 @@ def command_sync(args):
     SOURCE.write_text(text, encoding="utf-8")
     for path, content in outputs(new).items():
         path.write_text(content, encoding="utf-8")
-    print("roadmap: wrote roadmap/roadmap.toml, ROADMAP.md and roadmap/roadmap.json")
+    print("roadmap: wrote roadmap/roadmap.toml, docs/engine/ROADMAP.md and roadmap/roadmap.json")
     return 0
 
 
@@ -627,8 +642,8 @@ def command_labels(args):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
-    build = commands.add_parser("build", help="write ROADMAP.md")
-    build.add_argument("--check", action="store_true", help="fail when ROADMAP.md is out of date")
+    build = commands.add_parser("build", help="write docs/engine/ROADMAP.md")
+    build.add_argument("--check", action="store_true", help="fail when docs/engine/ROADMAP.md is out of date")
     check = commands.add_parser("check", help="the roadmap's rules, and GitHub's state of its links")
     check.add_argument("--offline", action="store_true", help="skip GitHub")
     sync_command = commands.add_parser("sync", help="ship the items whose pull requests all merged")

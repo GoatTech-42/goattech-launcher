@@ -1,5 +1,5 @@
 //! The Horizon side of a mod port's harness (tools/mod_port_harness.py,
-//! docs/modpacks.md): builds the content root for carried-over mods and
+//! docs/engine/modpacks.md): builds the content root for carried-over mods and
 //! writes what Horizon makes of every block state, drop, recipe and tag the
 //! NeoForge oracle exported.
 //!

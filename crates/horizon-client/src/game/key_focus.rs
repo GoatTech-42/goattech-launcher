@@ -6,7 +6,7 @@
 //! its value once Enter (or Tab) let them (`AbstractSliderButton.keyPressed`).
 //!
 //! The focus lands on what the controller's focus mode reaches: the targets
-//! each screen registers (`widgets::target_as`, docs/controllers.md). This
+//! each screen registers (`widgets::target_as`, docs/engine/controllers.md). This
 //! module is the pure part: which key does what, the tab order, the slider
 //! rules. `pad_menu.rs` applies it in the game (it shares the controller's
 //! focus), `startup_menu.rs` on the title shown while resources load.

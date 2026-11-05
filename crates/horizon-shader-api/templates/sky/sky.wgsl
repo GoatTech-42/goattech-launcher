@@ -1,5 +1,5 @@
 // The sky's colour along each view ray; the sun, moon, stars and clouds are
-// drawn over it. Reference: docs/api/shaders-reference.md.
+// drawn over it. Reference: docs/engine/api/shaders-reference.md.
 override glow: f32 = 0.5;
 
 fn sky(input: SkyInput) -> vec4<f32> {

@@ -442,7 +442,7 @@ impl Game<'_> {
 
     /// Open the pad's haptics once its output is open over USB (its audio device is there
     /// only then); close them when it goes. Opt-in with `HORIZON_DUALSENSE_HAPTICS=1` until
-    /// they are proven on a pad (docs/controllers.md); never for games without sound (tests).
+    /// they are proven on a pad (docs/engine/controllers.md); never for games without sound (tests).
     fn pad_haptics(&mut self) {
         let usb = self.pad.devices.output.as_ref().and_then(|o| o.open())
             == Some(horizon_dualsense::Transport::Usb);

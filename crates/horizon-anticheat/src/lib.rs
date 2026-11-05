@@ -1,4 +1,4 @@
-//! The dedicated server's anticheat (docs/anticheat.md), without the game: the `[anticheat]` section of
+//! The dedicated server's anticheat (docs/engine/anticheat.md), without the game: the `[anticheat]` section of
 //! `server.toml`, each player's violation levels, and the rules of the checks. The server's hub
 //! (`horizon_client::lan`) feeds it what players send and carries out what it decides.
 //!

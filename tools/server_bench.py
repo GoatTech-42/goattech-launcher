@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Server benchmark: the same bots on Horizon's server and on vanilla 26.3's (docs/server.md, section 9).
+"""Server benchmark: the same bots on Horizon's server and on vanilla 26.3's (docs/engine/server.md, section 9).
 
 Every run starts a fresh server from the same server.properties (seed, view and simulation distance 10,
 offline, creative so the bots can fly), waits for `Done`, lets `horizon-bots` join one a second, warms up,
@@ -40,7 +40,7 @@ Both run with the same heap as vanilla (`--heap`).
 `--pumpkin`: a black box, nothing of it is read or shipped. A first start in a scratch folder (on 127.0.0.1
 only, without telemetry) writes its default configuration; every run gets that file with the same settings
 as the others (seed, view and simulation distance 10, creative, offline, no encryption, 127.0.0.1) and
-Pumpkin's Bedrock and LAN listeners, query, plugins and telemetry off. docs/performance/server-vs-pumpkin.md
+Pumpkin's Bedrock and LAN listeners, query, plugins and telemetry off. docs/engine/performance/server-vs-pumpkin.md
 has the comparison and its commands.
 """
 
@@ -368,7 +368,7 @@ def server_command(kind, directory, args):
     # The same settings, without the web panel.
     toml.write_text(re.sub(r'(?m)^bind = "127\.0\.0\.1:8130"', 'bind = ""', toml.read_text()))
     if args.anticheat:
-        # Every check on with its defaults (docs/anticheat.md), to measure what it costs. The bots move
+        # Every check on with its defaults (docs/engine/anticheat.md), to measure what it costs. The bots move
         # by their own rules, not vanilla's: the prediction plays every move again but, with this
         # tolerance, flags none (an honest player's moves agree).
         toml.write_text(toml.read_text()

@@ -1,5 +1,5 @@
 //! `horizon-bots`: load-test bots for any Minecraft Java Edition 26.3 server, vanilla, Paper or Horizon
-//! (docs/server.md, section 9). Each bot logs in offline, goes through configuration as vanilla's client
+//! (docs/engine/server.md, section 9). Each bot logs in offline, goes through configuration as vanilla's client
 //! does, answers keep-alives and pings, accepts teleports, acknowledges chunk batches, and moves at 20 Hz.
 //!
 //! Bots fly a little above the ground, so the server must give them creative mode (`gamemode=creative`

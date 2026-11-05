@@ -1,4 +1,4 @@
-//! `horizon-server`: host a Horizon server (docs/server.md). It keeps the server's settings in `server.toml`,
+//! `horizon-server`: host a Horizon server (docs/engine/server.md). It keeps the server's settings in `server.toml`,
 //! runs the game headless as the engine, and manages the vanilla files around it.
 
 mod admin;

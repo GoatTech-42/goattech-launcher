@@ -1,8 +1,8 @@
-//! The game's side of the Launch API (docs/api/launch.md): the options another launcher may pass,
-//! `--launch-api`'s reply, the exit codes, and docs/api/launch-reference.md, generated from them.
+//! The game's side of the Launch API (docs/engine/api/launch.md): the options another launcher may pass,
+//! `--launch-api`'s reply, the exit codes, and docs/engine/api/launch-reference.md, generated from them.
 //! Update it with: `HORIZON_WRITE_DOCS=1 cargo test -p horizon-client --lib launch_api`.
 
-/// The Launch API's version (docs/api/stability.md): an addition makes the next patch.
+/// The Launch API's version (docs/engine/api/stability.md): an addition makes the next patch.
 pub const VERSION: &str = "0.1.0";
 
 /// One option of the contract: its name, its value's placeholder (none for a flag), what it does.
@@ -147,7 +147,7 @@ pub fn reply(horizon: &str) -> String {
     .expect("a JSON value")
 }
 
-/// docs/api/launch-reference.md.
+/// docs/engine/api/launch-reference.md.
 #[cfg(test)]
 pub fn markdown() -> String {
     use std::fmt::Write;
@@ -250,12 +250,12 @@ mod tests {
         assert!(parse(&["--quickPlaySingleplayer", "E2E World"]).is_ok());
     }
 
-    /// docs/api/launch-reference.md is what `markdown` writes.
+    /// docs/engine/api/launch-reference.md is what `markdown` writes.
     #[test]
     fn launch_api_reference_is_current() {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
-            .join("docs/api/launch-reference.md");
+            .join("docs/engine/api/launch-reference.md");
         let want = markdown();
         if std::env::var_os("HORIZON_WRITE_DOCS").is_some() {
             std::fs::write(&path, &want).unwrap();
@@ -265,7 +265,7 @@ mod tests {
             .replace("\r\n", "\n");
         assert!(
             have == want,
-            "docs/api/launch-reference.md is out of date: HORIZON_WRITE_DOCS=1 cargo test -p horizon-client --lib launch_api"
+            "docs/engine/api/launch-reference.md is out of date: HORIZON_WRITE_DOCS=1 cargo test -p horizon-client --lib launch_api"
         );
     }
 }

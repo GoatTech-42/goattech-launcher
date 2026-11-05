@@ -1437,7 +1437,7 @@ impl Launcher {
         )
     }
 
-    /// The selected instance's native build (docs/native-mods.md): which build it plays, the
+    /// The selected instance's native build (docs/engine/native-mods.md): which build it plays, the
     /// Horizon it was built on, and whether it holds the native mods turned on (Up to date,
     /// Needs rebuild, Not built), with Build, and Update when a newer Horizon is installed. Both
     /// open the trust warning first (`native_warning`). A build under way, or its error, shows

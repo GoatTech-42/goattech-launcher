@@ -1,5 +1,5 @@
 //! The on-screen keyboard a controller types with in focus mode (Horizon's
-//! own; docs/controllers.md, "Text fields"): a QWERTY grid and a symbols
+//! own; docs/engine/controllers.md, "Text fields"): a QWERTY grid and a symbols
 //! grid in Horizon's design language, moved over with the D-pad or stick.
 //! A types the key, X deletes, Y is a space, Start is Enter, B closes it.
 //! It only produces [`Output`]s; the game feeds them to the focused field

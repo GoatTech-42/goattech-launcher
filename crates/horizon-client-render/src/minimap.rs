@@ -1,4 +1,4 @@
-//! The minimap extra (`docs/extras.md`): a 16x16 tile per loaded chunk with
+//! The minimap extra (`docs/engine/extras.md`): a 16x16 tile per loaded chunk with
 //! each column's vanilla map colour (`MapColor`, as `MapItem.update` picks
 //! it), height and water depth, and a 128x128 image composed from the tiles
 //! around the player with the map item's height and water shading.

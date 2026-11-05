@@ -1,8 +1,8 @@
-//! Updates and rollbacks (docs/server.md, section 7) for a `horizon-server` installed by install.sh or
+//! Updates and rollbacks (docs/engine/server.md, section 7) for a `horizon-server` installed by install.sh or
 //! install.ps1: each release in `<dir>/releases/<tag>`, `<dir>/current` pointing at the one in use, and
 //! `<dir>/previous` naming the one before it. An update downloads the current Nightly from GitHub (the only build
 //! Horizon ships since 2026-10-28; GitHub's latest release while there is none), checks it against the SHA-256 in
-//! its signed SHA256SUMS (docs/security.md), unpacks it beside the others as `nightly-<date>-<commit>` and switches
+//! its signed SHA256SUMS (docs/engine/security.md), unpacks it beside the others as `nightly-<date>-<commit>` and switches
 //! `current`; the supervisor then restarts the game on it and switches back by itself if the new game doesn't come
 //! up.
 
@@ -276,7 +276,7 @@ pub fn release(tag: Option<&str>) -> Result<Release, String> {
 }
 
 /// The archive for this computer in a release's JSON, with the SHA-256 the release's SHA256SUMS
-/// gives for it, once its signature checks with one of `keys` (docs/security.md). A release from
+/// gives for it, once its signature checks with one of `keys` (docs/engine/security.md). A release from
 /// before signing gets the SHA-256 pinned for it (legacy-releases.txt); any other release that
 /// isn't signed, or not by Horizon's key, is refused.
 fn pick(
@@ -970,7 +970,7 @@ mod tests {
     #[test]
     fn horizon_server_ships_with_a_release_key() {
         // With no key in release-keys.txt every update after the pinned releases would be refused:
-        // this fails until the release environment's public key is listed (docs/security.md).
+        // this fails until the release environment's public key is listed (docs/engine/security.md).
         assert!(
             !horizon_release_sign::trusted_keys().is_empty(),
             "crates/horizon-release-sign/release-keys.txt lists no key"

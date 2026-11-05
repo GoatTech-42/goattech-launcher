@@ -1,4 +1,4 @@
-//! `horizon-server mcp` (docs/server.md, section 8): the Model Context Protocol over stdin and stdout
+//! `horizon-server mcp` (docs/engine/server.md, section 8): the Model Context Protocol over stdin and stdout
 //! (JSON-RPC 2.0, one message per line, as `horizon-ctl mcp`), so an AI agent can run and moderate a server.
 //! Each tool is one control API call on the server running in the folder, with the token it reads itself;
 //! every action shows in the server's log as any other API call does.

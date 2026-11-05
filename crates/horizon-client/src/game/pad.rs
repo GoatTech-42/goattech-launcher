@@ -1,4 +1,4 @@
-//! Controllers through gilrs (Horizon's own; docs/controllers.md): the
+//! Controllers through gilrs (Horizon's own; docs/engine/controllers.md): the
 //! active pad's state each loop iteration, its button edges dispatched as
 //! the vanilla key mappings they are bound to, the left stick as an analog
 //! move vector and the right stick turning the view. `horizon-ctl pad`

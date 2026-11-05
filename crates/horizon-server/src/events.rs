@@ -1,4 +1,4 @@
-//! The event stream (`GET /api/v1/events`, docs/api/server.md): every log line, the supervisor's phase, and
+//! The event stream (`GET /api/v1/events`, docs/engine/api/server.md): every log line, the supervisor's phase, and
 //! the game's typed events (players joining, leaving and kicked, chat, deaths), numbered in one sequence. A
 //! client that asks for `text/event-stream` gets server-sent events as they happen, and resumes after a
 //! reconnection from `Last-Event-ID`; any other gets the events after `since` as JSON.

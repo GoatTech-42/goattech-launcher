@@ -374,7 +374,7 @@ fn thread_name(side: &str) -> String {
 }
 
 /// What starts the stderr line naming a saved report, the path follows: the Launch API's
-/// promise to launchers (docs/api/launch.md), so it never changes within a line of that API.
+/// promise to launchers (docs/engine/api/launch.md), so it never changes within a line of that API.
 pub const SAVED_LINE: &str = "Horizon: crash report saved to ";
 
 /// Writes the report and tells where it is; the log gets the error too.

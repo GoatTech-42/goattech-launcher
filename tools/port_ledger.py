@@ -45,7 +45,7 @@ method-by-method reading misses:
 Add --json to any query for machine output. `build` reads the game jar (the lab's or the launcher's; --jar,
 --no-jar) and the lab's decompiled sources (.local/minecraft/<version>/sources/{client,server},
 tools/lab.py decompile; --sources takes any directory of decompiled Java). Queries read the last build;
-`build` again after pulling. docs/port-ledger.md has the details.
+`build` again after pulling. docs/engine/port-ledger.md has the details.
 """
 
 import argparse

@@ -1,4 +1,4 @@
-//! The player's motion for mods (docs/native-mods.md, "A player's motion"): a push for the local player, on a
+//! The player's motion for mods (docs/engine/native-mods.md, "A player's motion"): a push for the local player, on a
 //! client, and a player's creative flying speed, on a server.
 use super::Game;
 

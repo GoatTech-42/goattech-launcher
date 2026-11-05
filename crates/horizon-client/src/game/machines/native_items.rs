@@ -1,4 +1,4 @@
-//! Items in a block's container for native server mods (docs/native-mods.md,
+//! Items in a block's container for native server mods (docs/engine/native-mods.md,
 //! API 48): read them through a side, take them and move them, by the rules
 //! hoppers follow. They act where the world is simulated, never on a client's
 //! copy, and only on the level in place, which those that read or take name by

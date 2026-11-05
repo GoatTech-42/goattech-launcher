@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""horizon-server's admin API on a real server, end to end (docs/api/server.md).
+"""horizon-server's admin API on a real server, end to end (docs/engine/api/server.md).
 
     python3 tools/server_admin_e2e.py --bin-dir target/fast
 
@@ -77,7 +77,7 @@ class Api:
 
 
 CHAT = 'hello from Kim0'
-# A slur in leetspeak, for the chat filter to refuse (docs/chat-filter.md).
+# A slur in leetspeak, for the chat filter to refuse (docs/engine/chat-filter.md).
 FILTERED = 'n1gg3r'
 
 

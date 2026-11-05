@@ -1,4 +1,4 @@
-//! Just enough HTTP/1.1 for the control API on 127.0.0.1 and the web panel (docs/server.md, sections 6 and
+//! Just enough HTTP/1.1 for the control API on 127.0.0.1 and the web panel (docs/engine/server.md, sections 6 and
 //! 8): one request per connection, bodies with a Content-Length. No async runtime and no dependency: a
 //! thread per connection is plenty for a CLI, a panel tab and an MCP client.
 

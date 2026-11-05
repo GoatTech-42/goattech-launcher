@@ -1,5 +1,5 @@
 //! Mod API levels: which of the WIT contract's functions a Horizon has
-//! (`docs/api/stability.md`). Every function the game offers mods has the
+//! (`docs/engine/api/stability.md`). Every function the game offers mods has the
 //! level it arrived at; a Horizon serves every level up to its [`LEVEL`].
 //! A mod needs the level of the newest function it imports, so a mod that
 //! calls a function this Horizon doesn't have is refused with "update

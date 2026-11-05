@@ -1,4 +1,4 @@
-//! The dedicated server's chat filter, game side (docs/chat-filter.md): what the hub refused is
+//! The dedicated server's chat filter, game side (docs/engine/chat-filter.md): what the hub refused is
 //! written to `logs/chat-filter.log` and told to horizon-server's event stream as `chat_filtered`
 //! (never as `chat`), a temporary ban goes into banned-players.json, and operators mute and unmute
 //! players by hand with `/mute`, `/tempmute`, `/mutelist` and `/unmute` (the same words on the console).

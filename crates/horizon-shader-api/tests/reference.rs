@@ -1,11 +1,11 @@
 //! The stages' WGSL against the Rust definitions: the preludes compile, the
 //! frame's WGSL layout is the uploaded struct's, and
-//! docs/api/shaders-reference.md is up to date. Rewrite the reference with
+//! docs/engine/api/shaders-reference.md is up to date. Rewrite the reference with
 //! `HORIZON_WRITE_DOCS=1 cargo test -p horizon-shader-api --test reference`.
 use horizon_shader_api::{Frame, Pack, StageKind, compose, reference};
 use std::path::Path;
 
-const DOC: &str = "docs/api/shaders-reference.md";
+const DOC: &str = "docs/engine/api/shaders-reference.md";
 
 fn root() -> &'static Path {
     Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))

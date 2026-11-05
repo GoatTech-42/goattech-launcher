@@ -886,7 +886,7 @@ impl Items {
         }
         // Every loot table, keyed by its id (blocks/stone, entities/sheep/white,
         // gameplay/chicken_lay, shearing/sheep/red...), of every namespace
-        // (content mods' tables, docs/modpacks.md), with the packs' over the
+        // (content mods' tables, docs/engine/modpacks.md), with the packs' over the
         // game's own: one map with the loot data of the same root and packs.
         let loot = horizon_world::loot::shared_tables(root, overlay)?;
         let registry_order = registry_order(root, &order);
@@ -1366,7 +1366,7 @@ impl LootContext<'_> {
     /// The context a mod's own loot kind sees in this engine: the block and
     /// the tool it has, and a seed from the roll's random. The entity, the
     /// damage, the player and the biome belong to the main loot engine's
-    /// rolls; they are None here (docs/native-mods.md, API 133).
+    /// rolls; they are None here (docs/engine/native-mods.md, API 133).
     fn native_loot_context<R: RandomSource>(
         &self,
         random: &mut R,

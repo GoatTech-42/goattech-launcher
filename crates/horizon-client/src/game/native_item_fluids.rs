@@ -1,4 +1,4 @@
-//! Fluids held by item stacks for native mods (docs/native-mods.md): vanilla's
+//! Fluids held by item stacks for native mods (docs/engine/native-mods.md): vanilla's
 //! buckets, and a mod's own containers (`native_item_fluid_tank`), read,
 //! filled and drained in millibuckets. NeoForge's
 //! `Capabilities.FluidHandler.ITEM` acts on one item of a stack at a time and

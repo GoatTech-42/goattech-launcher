@@ -1,5 +1,5 @@
 //! A controller in menus, screens and inventories (Horizon's own;
-//! docs/controllers.md). Two ways to drive them, picked in the controller
+//! docs/engine/controllers.md). Two ways to drive them, picked in the controller
 //! options:
 //!
 //! - **Focus** (console-style): a highlight steps between the widgets, list

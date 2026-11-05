@@ -1,4 +1,4 @@
-//! `horizon-server console` (docs/server.md, section 5): attach to the running server. The recent log, then
+//! `horizon-server console` (docs/engine/server.md, section 5): attach to the running server. The recent log, then
 //! every new line as it happens (the control API's event stream), a header with the TPS, MSPT, players and
 //! RAM refreshed every second, and a command line: each line typed runs as a console command. Ctrl-D
 //! detaches and leaves the server running. Plain ANSI, no TUI framework; when stdout isn't a terminal, plain

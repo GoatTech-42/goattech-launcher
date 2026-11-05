@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Map vanilla classes to the Horizon code that ports them and the harnesses that prove it
-(docs/version-ports.md).
+(docs/engine/version-ports.md).
 
 Three sources, all in the repository:
 

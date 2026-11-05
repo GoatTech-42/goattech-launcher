@@ -1,4 +1,4 @@
-# A native mod that uses every part of the bundle format (docs/native-mods.md): its own crate with
+# A native mod that uses every part of the bundle format (docs/engine/native-mods.md): its own crate with
 # a dependency from Horizon's Cargo.lock, data files, a named hook point and a post-build step.
 [mod]
 id = "crate_demo"

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Regenerate what Horizon derives from vanilla, for a new version, in a candidate worktree
-(docs/version-ports.md, "Regenerate").
+(docs/engine/version-ports.md, "Regenerate").
 
 Used through `version_port.py regen NEW`:
 

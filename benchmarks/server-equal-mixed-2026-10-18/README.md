@@ -133,5 +133,5 @@ machines during the runs.
 
 - One pass per configuration ran. Vanilla at 50 bots, in particular, needs a second pass, ideally on the
   desktop (24 threads), where neither server is CPU-bound.
-- 100 bots, and Paper and Fabric + Lithium (docs/server.md section 9).
+- 100 bots, and Paper and Fabric + Lithium (docs/engine/server.md section 9).
 - A longer warm-up, or measuring from when the first-time chunk rate settles, so the 25-bot work is equal too.

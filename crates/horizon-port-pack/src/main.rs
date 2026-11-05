@@ -1,4 +1,4 @@
-//! `horizon-port-pack`: port a Java modpack to Horizon (`docs/modpacks.md`).
+//! `horizon-port-pack`: port a Java modpack to Horizon (`docs/engine/modpacks.md`).
 //!
 //! - `import <pack> <work>`: a `.mrpack`, CurseForge zip or instance folder
 //!   to `<work>/pack.json`.
@@ -27,7 +27,7 @@
 //!   step for the portable mods, as the launcher's "Import modpack" runs it.
 //! - `upgrade-datapack <pack> <out> | --world <world>`: a 26.2 data pack
 //!   (zip or folder) with its world generation rewritten in 26.3's formats
-//!   (`docs/datapack-upgrade.md`), into the folder `<out>`, or into
+//!   (`docs/engine/datapack-upgrade.md`), into the folder `<out>`, or into
 //!   `<world>/datapacks/<pack name>-26.3`.
 //!
 //! The work folder belongs to the user: jars and carried-over files stay

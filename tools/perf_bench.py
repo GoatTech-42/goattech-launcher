@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fair Horizon vs vanilla 26.3 benchmark (methodology: docs/benchmark.md).
+"""Fair Horizon vs vanilla 26.3 benchmark (methodology: docs/engine/benchmark.md).
 
 Runs one game per render distance, each from a fresh world (seed 1234,
 creative), through the same steps: start to the title screen, create the
@@ -13,7 +13,7 @@ for every game. RSS is sampled from outside the process for every game too.
     python3 tools/perf_bench.py --game vanilla-mods --label mods-m4
     python3 tools/perf_bench.py --table horizon-m4 vanilla-m4 mods-m4
 
-A ported mod pack against the same mods on their own loader (docs/modpacks.md, "Measured"):
+A ported mod pack against the same mods on their own loader (docs/engine/modpacks.md, "Measured"):
 
     python3 tools/perf_bench.py --game horizon --port-work WORK --label pack-horizon
     python3 tools/perf_bench.py --game neoforge --mod-jars JARS --deps DEPS --label pack-neoforge
@@ -712,7 +712,7 @@ def release_version(log):
 
 
 def dev_mods(args):
-    """The carried-over mods of a horizon-port-pack work folder (docs/modpacks.md), loaded as dev mods."""
+    """The carried-over mods of a horizon-port-pack work folder (docs/engine/modpacks.md), loaded as dev mods."""
     if not args.port_work:
         return []
     return sorted(p for p in (Path(args.port_work) / "mods").glob("*/carry") if (p / "horizon-mod.toml").exists())

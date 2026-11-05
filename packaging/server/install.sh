@@ -1,5 +1,5 @@
 #!/bin/sh
-# Installs horizon-server (docs/server.md) on Linux or macOS: the current Horizon Nightly for this computer (the
+# Installs horizon-server (docs/engine/server.md) on Linux or macOS: the current Horizon Nightly for this computer (the
 # only build Horizon ships; GitHub's latest release while there is none), downloaded from GitHub Releases and
 # checked against the SHA-256 GitHub publishes for it. On Linux that is
 # the server build (horizon-server-linux-x86_64.tar.gz), which needs neither ALSA nor udev.
@@ -42,7 +42,7 @@ case "$(uname -s)-$MACHINE" in
   Darwin-arm64) ASSETS=horizon-macos-arm64.zip ;;
   # Intel Macs: the Nightlies built since #1161.
   Darwin-x86_64) ASSETS=horizon-macos-x64.zip ;;
-  *) die "no Horizon release for $(uname -s) $(uname -m) yet: build it from source (docs/server.md)" ;;
+  *) die "no Horizon release for $(uname -s) $(uname -m) yet: build it from source (docs/engine/server.md)" ;;
 esac
 
 TMP=$(mktemp -d)
@@ -136,7 +136,7 @@ case ":$PATH:" in
 esac
 if [ -z "$(ls -A "$DIR/game-files/horizon-client" 2>/dev/null)" ]; then
   echo "Next, prepare the game files from your own Minecraft 26.3 (it needs Java 25 and the game installed once"
-  echo "by the official launcher; see docs/server.md):"
+  echo "by the official launcher; see docs/engine/server.md):"
   echo "  horizon-prepare --prepare --server-jar /path/to/server.jar"
 fi
 echo "Then set up a server: mkdir my-server && cd my-server && horizon-server init"

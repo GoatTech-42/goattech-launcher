@@ -10,7 +10,7 @@ use std::{
 };
 use winit::{event::MouseButton, keyboard::KeyCode};
 
-/// The control protocol's version (`docs/api/stability.md`): before 1.0 an
+/// The control protocol's version (`docs/engine/api/stability.md`): before 1.0 an
 /// addition makes the next patch and a breaking change the next line.
 const PROTOCOL: &str = "0.1.0";
 

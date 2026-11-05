@@ -1,4 +1,4 @@
-//! Data maps for native server mods (docs/native-mods.md): values a data pack
+//! Data maps for native server mods (docs/engine/native-mods.md): values a data pack
 //! attaches to the entries of a registry, under the types a mod registered
 //! (`native_data_map_types`). Vanilla has no data maps; the contract is
 //! NeoForge's `DataMapType`: files at

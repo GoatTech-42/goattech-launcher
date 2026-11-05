@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Kind and area labels on pull requests (CONTRIBUTING.md "Pull requests", issue #3859).
+"""Kind and area labels on pull requests (docs/engine/CONTRIBUTING.md, "Pull requests"; issue #3859).
 
     pr_labels.py event                     one pull request event (pr-labels.yml): its kind and area labels
     pr_labels.py create [--apply]          creates the kind and area labels the repository lacks

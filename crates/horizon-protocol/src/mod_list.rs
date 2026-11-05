@@ -1,5 +1,5 @@
 //! The mod list: which content mods a Horizon server and a Horizon client
-//! have turned on, compared when a client joins (docs/mods.md, "Playing on a
+//! have turned on, compared when a client joins (docs/engine/mods.md, "Playing on a
 //! server with mods").
 //!
 //! In the configuration phase the server sends its list on [`CHANNEL`] and

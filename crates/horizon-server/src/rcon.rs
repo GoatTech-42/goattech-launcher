@@ -1,4 +1,4 @@
-//! Vanilla's RCON (docs/server.md, section 8): `enable-rcon`, `rcon.port` and `rcon.password` in
+//! Vanilla's RCON (docs/engine/server.md, section 8): `enable-rcon`, `rcon.port` and `rcon.password` in
 //! server.properties (`[properties]` in server.toml) turn on a remote console, which listens as vanilla 26.3's
 //! `net.minecraft.server.rcon.thread.RconThread` does and speaks `RconClient`'s protocol: little-endian packets
 //! of a length, a request id, a type, a payload and two NULs. The supervisor serves it, so it answers while the

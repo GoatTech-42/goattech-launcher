@@ -1,10 +1,10 @@
-//! Step 2 and 3: classify each mod (class and API tier, `docs/modpacks.md`)
+//! Step 2 and 3: classify each mod (class and API tier, `docs/engine/modpacks.md`)
 //! and order them by required dependencies.
 use std::collections::{BTreeMap, HashMap};
 
-/// The reviewed table: ATM10's 495 rows (`docs/modpacks/atm10-mods.csv`).
+/// The reviewed table: ATM10's 495 rows (`docs/engine/modpacks/atm10-mods.csv`).
 /// It wins over the heuristics.
-const KNOWN_CSV: &str = include_str!("../../../docs/modpacks/atm10-mods.csv");
+const KNOWN_CSV: &str = include_str!("../../../docs/engine/modpacks/atm10-mods.csv");
 
 pub struct Known {
     by_key: HashMap<String, (String, String)>,

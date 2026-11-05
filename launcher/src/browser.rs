@@ -5,7 +5,7 @@
 //! Offered: Java mods (Fabric, NeoForge, Forge), whose content Horizon ports and whose jar is
 //! checked before install ([`java`]), modpacks (imported and ported), resource packs
 //! (`resourcepacks/`) and data packs (into a world, [`installed::install_datapack`]). Java code
-//! itself doesn't run in Horizon (docs/mods.md).
+//! itself doesn't run in Horizon (docs/engine/mods.md).
 pub mod curseforge;
 pub mod details;
 pub mod download;
@@ -19,7 +19,7 @@ pub mod modrinth;
 use serde::{Deserialize, Serialize};
 
 /// The Minecraft version Horizon plays. A version port updates it with the other `"26.3"` sites
-/// (docs/version-ports.md).
+/// (docs/engine/version-ports.md).
 pub const GAME: &str = "26.3";
 
 /// What a project is, as far as Horizon is concerned.
@@ -30,7 +30,7 @@ pub enum Kind {
     Modpack,
     /// A Java mod: its content is ported ([`java`]).
     Mod,
-    /// One of Horizon's own shader packs (`.hshader`, docs/shaders.md), from Horizon's registry
+    /// One of Horizon's own shader packs (`.hshader`, docs/engine/shaders.md), from Horizon's registry
     /// only.
     Shader,
     /// A data pack: it goes into one world's `datapacks/` (`crate::datapacks`).

@@ -1,7 +1,7 @@
 //! What a pack's WGSL reads: the frame uniform every stage sees, which the
 //! renderer fills and uploads as the Rust struct below, and the stage input
 //! and output structs. The WGSL of each is generated from these definitions
-//! (`Struct::wgsl`), and so is the reference (docs/api/shaders-reference.md).
+//! (`Struct::wgsl`), and so is the reference (docs/engine/api/shaders-reference.md).
 
 /// One field of a WGSL struct, for the prelude and the reference.
 #[derive(Debug)]
@@ -177,7 +177,7 @@ uniform! {
         /// The size of `reflection`, in pixels: half the world's picture.
         reflection_resolution: [f32; 2],
         /// Eight values a native mod hands its own pack each frame (`native_shader_params`,
-        /// docs/native-mods.md): what they mean is that mod's, such as where and when
+        /// docs/engine/native-mods.md): what they mean is that mod's, such as where and when
         /// something happened in the world. All 0 when no mod sets them.
         mods: [[f32; 4]; 8],
         /// Unit vector toward the body casting this frame's shadows: the sun by day, the moon

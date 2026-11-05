@@ -1,4 +1,4 @@
-# Dev-only: the NeoForge oracle for Horizon's mod-port harnesses (docs/modpacks.md).
+# Dev-only: the NeoForge oracle for Horizon's mod-port harnesses (docs/engine/modpacks.md).
 # Built and run by tools/neoforge_oracle.py; never shipped.
 modLoader = "javafml"
 loaderVersion = "[4,)"

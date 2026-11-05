@@ -1,4 +1,4 @@
-//! Native mods (docs/native-mods.md): mixin bundles that
+//! Native mods (docs/engine/native-mods.md): mixin bundles that
 //! levzzz5154's horizon-mixins (MIT, <https://github.com/horizon-rust/horizon-mixins>) applies to
 //! Horizon's source, which the launcher then compiles into a game of its own with its portable Rust
 //! ([`rust_toolchain`]). Unlike `.hmod` mods they are not sandboxed: their code runs with the
@@ -103,7 +103,7 @@ impl Profile {
 }
 
 /// What a native build compiles: the game the player plays, or the headless engine a dedicated
-/// server runs (`horizon-engine`, docs/server.md). Both build the same source with the same
+/// server runs (`horizon-engine`, docs/engine/server.md). Both build the same source with the same
 /// mixins. The server uses `--no-default-features` (no audio or controllers), a separate cache,
 /// and a standalone runtime folder outside the managed versions.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -142,7 +142,7 @@ impl Target {
     }
 
     /// The name the built binary is installed under: the game's own, the engine's
-    /// (`horizon-engine`, docs/server.md).
+    /// (`horizon-engine`, docs/engine/server.md).
     fn binary(self) -> String {
         match self {
             Self::Client => backend::CLIENT.into(),
@@ -1484,7 +1484,7 @@ fn apply(rust: &Toolchain, tool: &Path, source: &Path, mods: &Path, out: &Path) 
 /// `target`'s features, into `target`. It starts outside any Cargo configuration of the
 /// player's ([`rust_toolchain::outside_configs`]), so only the workspace's own
 /// (`stage/.cargo/config.toml`, when it has one) applies. A server build compiles headless:
-/// `--no-default-features` (the server build, docs/server.md), keeping the `mods` feature when
+/// `--no-default-features` (the server build, docs/engine/server.md), keeping the `mods` feature when
 /// the source has one.
 fn compile(
     rust: &Toolchain,
@@ -2055,7 +2055,7 @@ pub fn build(
 }
 
 /// Builds `folder`'s mods as the headless engine a dedicated server runs (`horizon-engine`,
-/// docs/server.md): the same pipeline as [`build`] on the same revision, compiled with
+/// docs/engine/server.md): the same pipeline as [`build`] on the same revision, compiled with
 /// `--no-default-features`, installed as its own version (its key distinct from the game's, so
 /// the two never stand in for each other) and exported into `output` as a standalone runtime
 /// folder: the built engine, the base version's resources, the mods' post-build data and the
@@ -3218,7 +3218,7 @@ mod tests {
         );
     }
 
-    /// The server build (docs/server.md): compiled headless off the same source, with its own
+    /// The server build (docs/engine/server.md): compiled headless off the same source, with its own
     /// key, and the game build's flags unchanged.
     #[test]
     fn a_server_build_compiles_headless_with_its_own_key() {

@@ -2,7 +2,7 @@
 //!
 //! The proxy authenticates the player and the server (`online-mode=false`) trusts what it forwards. Written
 //! from the behaviour of a real Velocity 4.3.1, not from any other project's source: the exchange was recorded
-//! with a stand-in backend and is described in docs/velocity-forwarding.md.
+//! with a stand-in backend and is described in docs/engine/velocity-forwarding.md.
 //!
 //! The server asks on [`CHANNEL`] with one byte, the highest forwarding version it understands. The proxy
 //! answers with a 32-byte HMAC-SHA256 signature followed by the signed data, made with the secret both sides

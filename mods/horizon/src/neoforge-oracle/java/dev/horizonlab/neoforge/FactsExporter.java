@@ -58,7 +58,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 
 /**
- * Dev-only oracle for Horizon's mod ports (docs/modpacks.md): once the server has started,
+ * Dev-only oracle for Horizon's mod ports (docs/engine/modpacks.md): once the server has started,
  * writes every block, item, recipe and tag of the namespaces named in {@code
  * horizon.oracle.namespaces} (plus the vanilla blocks, so templates can be compared) to {@code
  * horizon.oracle.out}, then stops the server. Never shipped to players.

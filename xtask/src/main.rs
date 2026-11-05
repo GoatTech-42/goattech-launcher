@@ -6,7 +6,7 @@
 //! them to its own), and PLAY.txt. It holds none of Minecraft's files: players prepare those
 //! from their own copy. .github/workflows/release.yml makes the release folders with it.
 //!
-//! `package-server ENGINE OUTDIR`: a server folder (docs/server.md): the server build of the game
+//! `package-server ENGINE OUTDIR`: a server folder (docs/engine/server.md): the server build of the game
 //! (`cargo build --release -p horizon-client --no-default-features`, without sound or controllers)
 //! as horizon-engine, with horizon-prepare and horizon-server from beside it and the same sources.
 //!
@@ -37,7 +37,7 @@ const ARCHIVED: [&str; 5] = [
 /// The programs that sit beside the client: horizon-ctl, the command line and MCP server that
 /// play the game, horizon-prepare, which prepares the resources from the player's own
 /// Minecraft, and horizon-server, which hosts a server with the client as its engine
-/// (docs/server.md).
+/// (docs/engine/server.md).
 const TOOLS: [&str; 3] = ["horizon-ctl", "horizon-prepare", "horizon-server"];
 
 /// The programs beside the engine in a server folder.

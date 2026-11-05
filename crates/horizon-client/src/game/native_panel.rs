@@ -1,6 +1,6 @@
 //! The item panel beside container screens: the items a recipe viewer mod
 //! lists (a native mod's `native_panel_items`, or WIT `interface browser`
-//! of a WebAssembly mod, docs/mods.md), drawn as the game's own item slots
+//! of a WebAssembly mod, docs/engine/mods.md), drawn as the game's own item slots
 //! in pages right of the screen's window, with a search box under them. The
 //! mod says what the panel holds; the game pages it and tells the mod what
 //! the player clicked, typed, and which keys went down over an item

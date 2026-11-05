@@ -1,4 +1,4 @@
-//! The auto-reconnect extra (`docs/extras.md`): whether a lost multiplayer
+//! The auto-reconnect extra (`docs/engine/extras.md`): whether a lost multiplayer
 //! connection may be retried, and when. Only lost connections and the
 //! server's own shutdown or restart are retried, never kicks, bans or
 //! refusals; attempts back off and stop after a few.

@@ -1,4 +1,4 @@
-//! The preparer's side of the Launch API (docs/api/launch.md): the options another launcher may
+//! The preparer's side of the Launch API (docs/engine/api/launch.md): the options another launcher may
 //! pass and `horizon-prepare --launch-api`'s reply, so it can ask what this preparer supports
 //! before it runs one.
 
@@ -6,7 +6,7 @@ use crate::artifacts::Lock;
 use crate::pyjson::{self, Value};
 
 /// The Launch API's version, the same line as `horizon-client --launch-api`'s
-/// (docs/api/stability.md): an addition makes the next patch.
+/// (docs/engine/api/stability.md): an addition makes the next patch.
 pub const VERSION: &str = "0.1.0";
 
 /// What a launcher may pass, with its value's placeholder (none for a flag). The asset commands

@@ -1,4 +1,4 @@
-//! Horizon's sorting extra (#332, `docs/extras.md`): the left clicks that
+//! Horizon's sorting extra (#332, `docs/engine/extras.md`): the left clicks that
 //! sort a run of slots, starting and ending with an empty hand, as a player
 //! could click them, so a vanilla server accepts them. Partial stacks of
 //! one item merge first; then the stacks go in rank order (creative tab

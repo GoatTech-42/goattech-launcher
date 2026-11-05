@@ -1,5 +1,5 @@
 //! `horizon-server config`: read server.toml's settings, and change them the way the server checks them
-//! (docs/server.md, section 4). A running server takes what vanilla can change live through its console
+//! (docs/engine/server.md, section 4). A running server takes what vanilla can change live through its console
 //! (difficulty, the default game mode, the whitelist) at once; the rest applies at the next start.
 
 use crate::{api::Client, config};

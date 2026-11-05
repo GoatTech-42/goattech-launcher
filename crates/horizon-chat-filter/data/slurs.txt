@@ -1,5 +1,5 @@
 # Horizon's chat filter: the hate slurs a server refuses in chat, private messages, /say, /me, team
-# messages, signs, anvil names and book titles (docs/chat-filter.md). This is a moderation list: the
+# messages, signs, anvil names and book titles (docs/engine/chat-filter.md). This is a moderation list: the
 # words are written here only so the filter can recognise them, because players spammed them on the
 # official server (2026-10-31). Add a word when players find a way around the list; keep insults that
 # aren't slurs out of it (moderators handle those).

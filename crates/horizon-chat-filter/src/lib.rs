@@ -1,4 +1,4 @@
-//! The dedicated server's chat filter (docs/chat-filter.md), without the game: `server.toml`'s
+//! The dedicated server's chat filter (docs/engine/chat-filter.md), without the game: `server.toml`'s
 //! `[chat_filter]`, the matcher for the slur list (`data/slurs.txt`, or the owner's `words_file`), and
 //! the escalation (a refused message, then a mute, then a temporary ban), with the mutes kept in a file
 //! so that they outlive a restart. The server's hub (`horizon_client::lan`) asks it before it relays a

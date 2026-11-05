@@ -1,4 +1,4 @@
-//! Server commands and players for native mods (docs/native-mods.md,
+//! Server commands and players for native mods (docs/engine/native-mods.md,
 //! "Server commands and players", API 8): the commands mods add to the
 //! server's command tree (`native_register_commands`), a player's command
 //! reaching them (`native_perform_command`), and the helpers a server mod

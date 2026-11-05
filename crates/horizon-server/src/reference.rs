@@ -1,11 +1,11 @@
-//! docs/api/server-reference.md: `horizon-server`'s commands, every `server.toml` key and the control API's
+//! docs/engine/api/server-reference.md: `horizon-server`'s commands, every `server.toml` key and the control API's
 //! endpoints, generated from the source, and the tests that fail when it is out of date. Update it with:
 //! `HORIZON_WRITE_DOCS=1 cargo test -p horizon-server reference`.
 
 use crate::{api::ROUTES, config};
 use std::fmt::Write;
 
-const DOC: &str = "docs/api/server-reference.md";
+const DOC: &str = "docs/engine/api/server-reference.md";
 
 /// One `key = value  # what it means` line of the template, under its `[section]`.
 struct Key {

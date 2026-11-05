@@ -1,5 +1,5 @@
 # Schema 1 of horizon-shaders.toml with every key. Readers of later schemas
-# keep reading this file (docs/api/stability.md, "Data formats").
+# keep reading this file (docs/engine/api/stability.md, "Data formats").
 schema = 1
 id = "sample_pack"
 name = "Sample Pack"

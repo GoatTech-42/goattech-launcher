@@ -152,7 +152,7 @@ pub fn resources(config: &Config, dir: &Path, program: Option<&Path>) -> Result<
         })
 }
 
-/// The files `horizon-prepare` derives from the game and the engine reads at start (docs/hosting.md: a folder
+/// The files `horizon-prepare` derives from the game and the engine reads at start (docs/engine/hosting.md: a folder
 /// prepared before `registries.json` and `commands.json` were kept stops with "registries.json not found").
 const PREPARED_FILES: [&str; 4] = [
     "facts.json",
@@ -272,7 +272,7 @@ fn command(
             | windows_sys::Win32::System::Threading::CREATE_NO_WINDOW,
     );
     // `[engine] low_memory`: mimalloc then keeps transparent huge pages off. Mostly empty huge pages cost
-    // 60 MB idle and 190 MB at 20 players, and save ~1 % of tick time (docs/hosting.md).
+    // 60 MB idle and 190 MB at 20 players, and save ~1 % of tick time (docs/engine/hosting.md).
     if low_memory {
         command.env("MIMALLOC_ALLOW_THP", "0");
     }

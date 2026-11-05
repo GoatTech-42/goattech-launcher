@@ -1,4 +1,4 @@
-//! The movement prediction's replay (docs/anticheat.md): each client tick a player's record holds
+//! The movement prediction's replay (docs/engine/anticheat.md): each client tick a player's record holds
 //! ([`horizon_anticheat::prediction::Record`]) is played again with the client's own movement code,
 //! from where the last one ended, and compared with where the client said it went.
 //!

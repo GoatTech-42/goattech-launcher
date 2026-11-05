@@ -1,5 +1,5 @@
 //! The shader packs in the `shaderpacks` folder beside `options.txt`, as Options > Horizon
-//! Settings > Shader Packs lists them: Horizon's own (docs/shaders.md) and those in the
+//! Settings > Shader Packs lists them: Horizon's own (docs/engine/shaders.md) and those in the
 //! `shaders/` format, side by side.
 
 use std::path::{Path, PathBuf};

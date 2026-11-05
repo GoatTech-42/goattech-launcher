@@ -1,5 +1,5 @@
 //! The movement prediction's record: each of a player's client ticks as the server heard them, so
-//! the server can play the tick again with vanilla's movement code and compare (docs/anticheat.md).
+//! the server can play the tick again with vanilla's movement code and compare (docs/engine/anticheat.md).
 //!
 //! A vanilla client ends every tick with ServerboundClientTickEndPacket, after the tick's input
 //! (ServerboundPlayerInputPacket, sent when the keys change) and its move (ServerboundMovePlayerPacket,

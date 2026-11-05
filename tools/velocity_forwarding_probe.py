@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Records what a Velocity proxy forwards, and joins through it (docs/velocity-forwarding.md).
+"""Records what a Velocity proxy forwards, and joins through it (docs/engine/velocity-forwarding.md).
 
 Dev tool, standard library only. Two commands, run against a Velocity in offline mode with
 `player-info-forwarding-mode = "modern"` and its only server pointed at --listen:

@@ -1,4 +1,4 @@
-//! Horizon modpacks from the registry (`.hpack`, docs/api/mod-index.md), each played as its own
+//! Horizon modpacks from the registry (`.hpack`, docs/engine/api/mod-index.md), each played as its own
 //! profile: `horizon-packs/<id>/` in the game's home holds the pack's file, `pack.json` (what
 //! was installed) and `home/`, the profile's game folder: its saves, its options, and the pack's
 //! mods in `home/horizon-mods/`, each downloaded and checked against the index like any

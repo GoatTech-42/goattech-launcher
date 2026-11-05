@@ -1,4 +1,4 @@
-//! `server.toml`, the one file an owner edits (docs/server.md, section 4).
+//! `server.toml`, the one file an owner edits (docs/engine/server.md, section 4).
 //!
 //! It has typed sections for what owners change and `[properties]` for any other vanilla key. Before every
 //! start the supervisor writes them into `server.properties`, which the game reads exactly as vanilla's
@@ -15,7 +15,7 @@ pub const FILE: &str = "server.toml";
 pub const PROPERTIES: &str = "server.properties";
 
 /// What `init` writes: every typed setting, with vanilla 26.3's defaults and what it means.
-pub const TEMPLATE: &str = r##"# Horizon server settings (docs/server.md). The server writes them into server.properties before
+pub const TEMPLATE: &str = r##"# Horizon server settings (docs/engine/server.md). The server writes them into server.properties before
 # every start: edit this file, not that one.
 
 [server]
@@ -64,13 +64,13 @@ bind = ""                    # the control API: "" a free port on 127.0.0.1; or 
 token = ""                   # its token (16 characters or more); "" a new random one at every start
 allow_public = false         # true lets bind be any address; the token is then all that guards the server
 
-# Post the chat, joins, leaves and deaths to a Discord channel, drawn like the in-game chat (docs/hosting.md)
+# Post the chat, joins, leaves and deaths to a Discord channel, drawn like the in-game chat (docs/engine/hosting.md)
 [discord]
 webhook = ""                 # the channel's webhook URL (a secret: anyone with it can post there); "" off
 events = ["chat", "join", "leave", "death"]   # what is posted; "kick" too if you like
 enabled = true               # false pauses it and keeps the webhook
 
-# Horizon's anticheat (docs/anticheat.md) is on: `combat` drops attacks no vanilla client sends and
+# Horizon's anticheat (docs/engine/anticheat.md) is on: `combat` drops attacks no vanilla client sends and
 # `ground` the false ground claims of a no-fall or a walk on water; both kick, and ban at the second kick.
 # timer and prediction only write logs/anticheat.log until they're trusted. To change it:
 # [anticheat]
@@ -85,7 +85,7 @@ enabled = true               # false pauses it and keeps the webhook
 # decay = 0.02               # violation level lost each second
 # ban_after = 0              # the kick (counting this check's earlier ones) that bans instead; 0: never
 
-# The chat filter (docs/chat-filter.md) is on: a message, sign, anvil name or book title with a hate slur reaches
+# The chat filter (docs/engine/chat-filter.md) is on: a message, sign, anvil name or book title with a hate slur reaches
 # nobody, the sender is told, and logs/chat-filter.log keeps it for operators. To change it:
 # [chat_filter]
 # enabled = true             # false: players' text goes out as they wrote it
@@ -140,15 +140,15 @@ pub struct Config {
     /// Chat and players posted to a Discord channel (discord.rs).
     #[serde(default)]
     pub discord: crate::discord::Settings,
-    /// The game reads this section itself (docs/anticheat.md); written only when it isn't the default.
+    /// The game reads this section itself (docs/engine/anticheat.md); written only when it isn't the default.
     #[serde(default, skip_serializing_if = "anticheat_default")]
     pub anticheat: horizon_anticheat::Config,
-    /// The game reads this section itself (docs/chat-filter.md); written only when it isn't the default.
+    /// The game reads this section itself (docs/engine/chat-filter.md); written only when it isn't the default.
     #[serde(default, skip_serializing_if = "chat_filter_default")]
     pub chat_filter: horizon_chat_filter::Config,
 }
 
-/// The game reads this section itself too (docs/chat-filter.md).
+/// The game reads this section itself too (docs/engine/chat-filter.md).
 fn chat_filter_default(c: &horizon_chat_filter::Config) -> bool {
     *c == horizon_chat_filter::Config::default()
 }
@@ -169,7 +169,7 @@ pub struct Server {
     pub enforce_whitelist: bool,
     pub view_distance: u32,
     pub simulation_distance: u32,
-    /// Horizon's far ring (docs/hosting.md): saved chunks sent past `view_distance`, up to this; 0 is off.
+    /// Horizon's far ring (docs/engine/hosting.md): saved chunks sent past `view_distance`, up to this; 0 is off.
     pub max_view_distance: u32,
     /// Whether operators get each other's command feedback (`[name: ...]`, vanilla's broadcastToAdmins);
     /// false leaves it to the console's log, so nobody in game sees an operator's commands.
@@ -194,7 +194,7 @@ pub struct Engine {
     pub path: String,
     pub resources: String,
     pub restart_on_crash: bool,
-    /// The game without transparent huge pages (docs/hosting.md): less memory, slightly slower ticks.
+    /// The game without transparent huge pages (docs/engine/hosting.md): less memory, slightly slower ticks.
     pub low_memory: bool,
 }
 
@@ -221,7 +221,7 @@ impl Panel {
     }
 }
 
-/// The control API's fixed address and token (docs/api/server.md); by default neither: a free port on
+/// The control API's fixed address and token (docs/engine/api/server.md); by default neither: a free port on
 /// 127.0.0.1 and a random token, both written to `.horizon/api.json`.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]

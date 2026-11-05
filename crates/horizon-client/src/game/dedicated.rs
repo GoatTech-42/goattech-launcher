@@ -196,7 +196,7 @@ fn load_anticheat() -> horizon_anticheat::Config {
     }
 }
 
-/// `server.toml`'s `[chat_filter]` (docs/chat-filter.md), like `[anticheat]`: on by default, off (with an
+/// `server.toml`'s `[chat_filter]` (docs/engine/chat-filter.md), like `[anticheat]`: on by default, off (with an
 /// error logged) when the section is wrong. The mutes are kept beside server.properties.
 fn load_chat_filter() -> Option<horizon_chat_filter::Guard> {
     let text = std::fs::read_to_string("server.toml").unwrap_or_default();
@@ -1004,7 +1004,7 @@ impl Game<'_> {
         self.sync_ops(&lists);
         let anticheat = load_anticheat();
         let chat_filter = load_chat_filter();
-        // Horizon's far ring (docs/hosting.md): server.toml's `max_view_distance`.
+        // Horizon's far ring (docs/engine/hosting.md): server.toml's `max_view_distance`.
         let far = props
             .raw
             .get(FAR_PROPERTY)

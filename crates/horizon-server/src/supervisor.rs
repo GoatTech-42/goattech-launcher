@@ -1,6 +1,6 @@
 //! `horizon-server run`: writes `server.properties` from `server.toml`, runs the engine with the console on
 //! stdin, serves the control API, stops the game cleanly on Ctrl-C, SIGTERM or `stop`, and restarts it when
-//! it crashes (docs/server.md, sections 2 and 7). An update restarts the game on another release and goes
+//! it crashes (docs/engine/server.md, sections 2 and 7). An update restarts the game on another release and goes
 //! back by itself when the new game doesn't come up.
 
 use crate::{

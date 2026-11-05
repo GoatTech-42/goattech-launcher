@@ -48,4 +48,4 @@ Running a server
     ./horizon-server --dir my-server backup   also backups, restore
     ./horizon-server --dir my-server service install   start it at boot or login
   Its settings are in my-server/server.toml. ./horizon-server help lists every
-  command; docs/server.md in the repository has the details.
+  command; docs/engine/server.md in the repository has the details.

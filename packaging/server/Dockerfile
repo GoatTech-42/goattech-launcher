@@ -1,4 +1,4 @@
-# horizon-server in a container (docs/server.md, section 3). Build context: the repository root:
+# horizon-server in a container (docs/engine/server.md, section 3). Build context: the repository root:
 #   docker build -f packaging/server/Dockerfile -t horizon-server .
 #
 # The image holds none of Minecraft's files. Prepare them on the host from your own Minecraft 26.3

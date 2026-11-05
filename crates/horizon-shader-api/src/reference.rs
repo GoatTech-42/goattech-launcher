@@ -1,4 +1,4 @@
-//! docs/api/shaders-reference.md, generated from the stages and inputs this
+//! docs/engine/api/shaders-reference.md, generated from the stages and inputs this
 //! crate defines (`tests/reference.rs` fails when the file drifts).
 use crate::check::{MAX_EXPRESSIONS, MAX_TEXTURE_READS};
 use crate::inputs::{Frame, SURFACE, Struct};

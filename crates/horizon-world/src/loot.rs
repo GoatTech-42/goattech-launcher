@@ -460,7 +460,7 @@ fn int_value(v: &Value) -> Option<i64> {
 }
 
 /// `data/<ns>/<kind>/` of every namespace, as `ns:path`: vanilla's, and in
-/// a content mods' root theirs (docs/modpacks.md), whose chests name their
+/// a content mods' root theirs (docs/engine/modpacks.md), whose chests name their
 /// own loot tables.
 /// A kind's overlay files over what the resource root provided: the top
 /// pack's file for each id replaces the rest (`SimpleJsonResourceReloadListener`
@@ -574,7 +574,7 @@ pub fn shared_tables(root: &Path, overlay: &PackOverlay) -> io::Result<Arc<LootT
     Ok(tables)
 }
 
-/// A native mod's hook point (docs/native-mods.md), listed in `native-hooks.json` with the game's:
+/// A native mod's hook point (docs/engine/native-mods.md), listed in `native-hooks.json` with the game's:
 /// the loot table `id` (`minecraft:chests/simple_dungeon`, `minecraft:blocks/stone`,
 /// `minecraft:entities/zombie`) as it loads, its JSON after the data packs', before anything
 /// rolls it (NeoForge's `LootTableLoadEvent`, Fabric's `LootTableEvents.MODIFY`). Add pools to

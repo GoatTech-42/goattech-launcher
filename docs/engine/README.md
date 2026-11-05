@@ -2,12 +2,12 @@
 
 _this subtree is upstream horizon's documentation, inherited with the fork and kept in sync with it; it describes the horizon engine that goattech launcher installs. the launcher's own documentation is at [../README.md](../README.md)._
 
-To play, use [the launcher](../../launcher/README.md); the project site is [playhorizon.dev](https://playhorizon.dev). These pages are for developers. What is being done now and next, the work board and how to help: [the hub](https://playhorizon.dev/hub) ([ROADMAP.md](../../ROADMAP.md), [roadmap/README.md](../../roadmap/README.md) for keeping it current).
+To play, use [the launcher](../../launcher/README.md); the project site is [playhorizon.dev](https://playhorizon.dev). These pages are for developers. What is being done now and next, the work board and how to help: [the hub](https://playhorizon.dev/hub) ([ROADMAP.md](ROADMAP.md), [roadmap/README.md](../../roadmap/README.md) for keeping it current).
 
 ## Build and run
 
 - [AGENTS.md](../../AGENTS.md) and [Architecture](architecture.md): where each part of the code lives, how `Game` is organised, which harness checks which area.
-- [Build from source](../README.md#build-from-source): your own copy of the game, resource preparation, `cargo run`.
+- [Build from source](../../README.md#build-from-source): your own copy of the game, resource preparation, `cargo run`.
 - [Build times](build-times.md): `tools/build_times.py` measures cold and incremental builds per crate and the critical path, writes a JSON report and a table, and compares two reports; the first numbers, Windows and Linux.
 - [Native client](native-client.md): options, controls, the dedicated server, `horizon-ctl` scripting, packaging, architecture.
 - [Host a server](hosting.md): install `horizon-server`, prepare the game files, first run, `server.toml`, the commands, the web panel, backups, services and Docker; what works today and what doesn't yet.

@@ -212,7 +212,7 @@ impl Hub {
                 message.content
             )));
         }
-        // The chat filter (docs/chat-filter.md): after the chain took the message, before anyone sees it.
+        // The chat filter (docs/engine/chat-filter.md): after the chain took the message, before anyone sees it.
         if !self.chat_allowed(
             i,
             &[&message.content],

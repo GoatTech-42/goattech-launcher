@@ -1,4 +1,4 @@
-//! The commands that manage a server in the background (docs/server.md, section 5): `start`, `stop`,
+//! The commands that manage a server in the background (docs/engine/server.md, section 5): `start`, `stop`,
 //! `restart`, `status`, `cmd`, `report` and `logs`. They talk to the running supervisor through the control API.
 
 use crate::{api::Client, backup, signals, supervisor};

@@ -1,5 +1,5 @@
 //! The Model Context Protocol, as Horizon's three servers speak it (`horizon-ctl mcp`,
-//! `horizon-server mcp`, `horizon-launcher mcp`: docs/agent-control.md, docs/server.md section 8):
+//! `horizon-server mcp`, `horizon-launcher mcp`: docs/agent-control.md, docs/engine/server.md section 8):
 //! JSON-RPC 2.0 over stdin and stdout, one message per line.
 //!
 //! Two revisions, newest first. `2026-07-28` is stateless: every request carries its version,

@@ -1,4 +1,4 @@
-//! The sample index (`tests/index/index-v1.json`, the one docs/api/mod-index.md
+//! The sample index (`tests/index/index-v1.json`, the one docs/engine/api/mod-index.md
 //! shows) and its files: `coords_hud-0.1.0.hmod`, signed with the throwaway
 //! key `test.pub` by minisign 0.12 (its secret key was deleted),
 //! `cozy-1.0.0.hpack`, unsigned, and `glow-1.0.0.hshader`, unsigned

@@ -733,7 +733,7 @@ pub trait Hooks: Send + Sync {
     /// (`minecraft:fall`), from the source's `causing` entity
     /// (`DamageSource.getEntity`: the shooter of an arrow) and `direct` one
     /// (`getDirectEntity`: the arrow), 0 for none or not known yet
-    /// (docs/native-mods.md, API 50). Change `amount`, or set `canceled`,
+    /// (docs/engine/native-mods.md, API 50). Change `amount`, or set `canceled`,
     /// and nothing of `hurtServer` itself happens (no damage, hurt sound,
     /// knockback, invulnerable time, statistics or criteria); the caller acts
     /// as on a refused hit, except that a canceled hit on the ender dragon
@@ -1096,7 +1096,7 @@ pub trait Hooks: Send + Sync {
         let _ = host;
         let _ = event;
     }
-    /// A native mod's hook point (docs/native-mods.md), listed in `native-hooks.json` with the game's:
+    /// A native mod's hook point (docs/engine/native-mods.md), listed in `native-hooks.json` with the game's:
     /// the loot table `id` (`minecraft:chests/simple_dungeon`, `minecraft:blocks/stone`,
     /// `minecraft:entities/zombie`) as it loads, its JSON after the data packs', before anything
     /// rolls it (NeoForge's `LootTableLoadEvent`, Fabric's `LootTableEvents.MODIFY`). Add pools to
@@ -1201,7 +1201,7 @@ pub trait Hooks: Send + Sync {
         let _ = host;
         let _ = event;
     }
-    /// Hook point for native mods (docs/native-mods.md, listed in `native-hooks.json`
+    /// Hook point for native mods (docs/engine/native-mods.md, listed in `native-hooks.json`
     /// with those of `horizon-client/src/game/native_hooks.rs`): `components` holds
     /// `item`'s default components in `items.json`'s form (`"minecraft:max_stack_size": 16`,
     /// `"minecraft:food": {"nutrition": 4, "saturation": 2.4}`); insert or replace one to
@@ -1786,7 +1786,7 @@ pub trait Hooks: Send + Sync {
     /// (`minecraft:zombie`, `minecraft:player`) `strength` away from the direction (`x`, `z`),
     /// on the raw strength, before the entity's knockback resistance takes its share and its motion
     /// changes
-    /// (docs/native-mods.md, API 125). Vanilla's direction points at the
+    /// (docs/engine/native-mods.md, API 125). Vanilla's direction points at the
     /// source of a hit (the attacker's side), and the entity is pushed the other way. Change
     /// `strength`, `x` or `z`, or set `canceled`, and the push follows them: canceled, the
     /// entity's motion is left alone. A `strength` of 0 or less after the hook is no push, and a
@@ -1844,7 +1844,7 @@ pub trait Hooks: Send + Sync {
         let _ = event;
         Flow::Continue
     }
-    /// Hook point for native mods (docs/native-mods.md, listed in `native-hooks.json`
+    /// Hook point for native mods (docs/engine/native-mods.md, listed in `native-hooks.json`
     /// with the game's): container slot `slot` of the content mod menu type `menu`
     /// (`data/<id>/horizon/menu/`) is asked whether it takes `stack`
     /// (`Slot.mayPlace`) and how many of it it holds (`Slot.getMaxStackSize`).
@@ -2218,7 +2218,7 @@ pub trait Hooks: Send + Sync {
     /// id is that namespace when it is on (your models, textures, loot and
     /// recipes are its files), else one of their own, with the template's
     /// look. Ids, saves and the check that a joining client has the same
-    /// blocks are the files' (docs/mods.md). Asked once at start, on every
+    /// blocks are the files' (docs/engine/mods.md). Asked once at start, on every
     /// side, before any resource loads: push the same ones every time, from
     /// nothing but your code. Declarations that don't pass the files' checks
     /// are logged and that namespace's are left out. API

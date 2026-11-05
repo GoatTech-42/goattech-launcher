@@ -1,5 +1,5 @@
 //! The relay protocol: one JSON object per line until a connection is
-//! bridged, then the raw session stream (see docs/play-with-friends.md).
+//! bridged, then the raw session stream (see docs/engine/play-with-friends.md).
 use serde::{Deserialize, Serialize};
 use std::io::{self, BufRead, Read, Write};
 

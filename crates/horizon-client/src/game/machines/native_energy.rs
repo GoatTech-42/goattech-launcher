@@ -1,4 +1,4 @@
-//! Energy in a block's buffer for native server mods (docs/native-mods.md):
+//! Energy in a block's buffer for native server mods (docs/engine/native-mods.md):
 //! the buffer a mod block declared through `native_block_entity_energy`, read
 //! through a side, filled, drained and moved to another block. Vanilla has no
 //! energy; the contract is NeoForge's `EnergyHandler` (`SimpleEnergyHandler`

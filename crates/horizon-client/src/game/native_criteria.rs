@@ -1,4 +1,4 @@
-//! A mod's own advancement criteria triggers (docs/native-mods.md,
+//! A mod's own advancement criteria triggers (docs/engine/native-mods.md,
 //! "Advancement triggers"). An advancement of a content mod or a world's data
 //! pack names a trigger of the mod's (`mymod:pipe_connected`); the tree keeps
 //! it as it keeps vanilla's, and the mod fires it where its event happens, as

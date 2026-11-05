@@ -1,5 +1,5 @@
 //! `horizon-server service install|uninstall|print`: run the server at boot or login under the system's own
-//! service manager (docs/server.md, section 3): a systemd unit on Linux, a launchd agent on macOS, a task at
+//! service manager (docs/engine/server.md, section 3): a systemd unit on Linux, a launchd agent on macOS, a task at
 //! logon on Windows. The service runs `horizon-server run`, which restarts the game if it crashes; the
 //! service manager restarts the supervisor itself.
 

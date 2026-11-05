@@ -1,4 +1,4 @@
-//! Content mods in the resource root (docs/modpacks.md, registries 0.2).
+//! Content mods in the resource root (docs/engine/modpacks.md, registries 0.2).
 //!
 //! Every loader reads one resource root, and most of its block and item
 //! tables are exports from vanilla indexed by block-state id or keyed by

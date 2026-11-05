@@ -1,6 +1,6 @@
 //! The piece-limited jigsaw assembler of Repurposed Structures and Moog's
 //! Structure Lib (PieceLimitedJigsawManager, the same code in both), for
-//! their structures carried over from a modpack (docs/modpacks.md). Carry
+//! their structures carried over from a modpack (docs/engine/modpacks.md). Carry
 //! maps their jigsaw types to `minecraft:jigsaw` with a
 //! `"horizon:piece_limited"` key; vanilla data never has it.
 //!

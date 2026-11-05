@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Anyone claims an issue before working on it (CONTRIBUTING.md "Claim before you start").
+"""Anyone claims an issue before working on it (docs/engine/CONTRIBUTING.md, "Claim before you start").
 
     claim_command.py command               one comment (claim-command.yml): assigns or unassigns, answers in the thread
     claim_command.py release [--dry-run]   the daily run: releases the claims older than 5 days with no open pull request

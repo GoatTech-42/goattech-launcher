@@ -105,7 +105,7 @@ const LAYOUT_RULES: [&str; 4] = [
     "pools_that_ignore_boundaries",
 ];
 /// The libraries' terrain kernel field, the game's
-/// `horizon:enhanced_terrain_adaptation` (docs/mods.md).
+/// `horizon:enhanced_terrain_adaptation` (docs/engine/mods.md).
 pub(crate) const ENHANCED_TERRAIN: &str = "enhanced_terrain_adaptation";
 pub(crate) const HORIZON_ENHANCED_TERRAIN: &str = "horizon:enhanced_terrain_adaptation";
 /// Fields of older versions the mods' codecs no longer read: their own

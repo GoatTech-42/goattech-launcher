@@ -1,4 +1,4 @@
-//! `.hpack`, a Horizon modpack (docs/api/mod-index.md): registry mods
+//! `.hpack`, a Horizon modpack (docs/engine/api/mod-index.md): registry mods
 //! played together as a profile. A zip holding `horizon-modpack.toml`, which
 //! names each mod by id, version and SHA-256 (the files themselves come from
 //! the registry), and optionally `overrides/`: settings and resource packs

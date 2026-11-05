@@ -1,5 +1,5 @@
 //! `[discord]`: the server's chat, joins, leaves and deaths posted to a Discord channel through a webhook
-//! (docs/hosting.md). Only outgoing HTTPS to Discord; nothing listens. Lines are batched for 2 s, drawn as
+//! (docs/engine/hosting.md). Only outgoing HTTPS to Discord; nothing listens. Lines are batched for 2 s, drawn as
 //! one picture of the in-game chat's text (Pixelify Sans, SIL OFL, from horizon-theme: no Mojang asset), and
 //! posted at most every 2 s. Nothing posted can ping: `allowed_mentions` is empty and every `@` is defused.
 

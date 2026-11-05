@@ -197,7 +197,7 @@ pub fn counts<'a>(
     v
 }
 
-/// `inventory.csv`: the columns of `docs/modpacks/atm10-mods.csv`, plus the layer.
+/// `inventory.csv`: the columns of `docs/engine/modpacks/atm10-mods.csv`, plus the layer.
 pub fn csv(records: &[Record]) -> String {
     let field = |s: &str| {
         if s.contains([',', '"', '\n']) {

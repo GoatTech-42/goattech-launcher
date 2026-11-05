@@ -1,4 +1,4 @@
-//! Fluids of a block for native server mods (docs/native-mods.md, API 54):
+//! Fluids of a block for native server mods (docs/engine/native-mods.md, API 54):
 //! the tanks a mod block declared through `native_block_entity_fluids`, and a
 //! cauldron, read through a side, filled and drained in millibuckets. They act
 //! where the world is simulated, never on a client's copy, and only on the

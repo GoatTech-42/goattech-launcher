@@ -609,7 +609,7 @@ enum ModsCmd {
         #[arg(long)]
         instance: Option<String>,
     },
-    /// Install a native mod from a GitHub link (docs/native-mods.md, "Install from GitHub"):
+    /// Install a native mod from a GitHub link (docs/engine/native-mods.md, "Install from GitHub"):
     /// https://github.com/OWNER/REPO (its latest release, else its default branch),
     /// .../releases/tag/TAG, .../tree/REF or .../commit/SHA. Resolved to an exact release file or
     /// commit, checked like a registry mod. NOT reviewed by the Horizon registry
@@ -782,7 +782,7 @@ enum Cmd {
         #[arg(long)]
         accept_eula: bool,
     },
-    /// Native mods (docs/native-mods.md): compile mixin bundles on the Horizon revision they
+    /// Native mods (docs/engine/native-mods.md): compile mixin bundles on the Horizon revision they
     /// pin, else the one the instance plays, with the launcher's own Rust, as the version the
     /// instance then plays. Not sandboxed: the mods' code runs with your rights
     NativeBuild {
@@ -929,7 +929,7 @@ enum Cmd {
         action: Option<MultiplayerCmd>,
     },
     /// Modpacks: import a Java pack, see its coverage report, port what this computer can and
-    /// play it as its own profile (docs/modpacks.md)
+    /// play it as its own profile (docs/engine/modpacks.md)
     Modpack {
         #[command(subcommand)]
         action: Option<ModpackCmd>,
@@ -941,7 +941,7 @@ enum Cmd {
         #[command(subcommand)]
         action: Option<ModsCmd>,
     },
-    /// The portable Rust toolchain native mods compile with (docs/native-mods.md): the launcher's
+    /// The portable Rust toolchain native mods compile with (docs/engine/native-mods.md): the launcher's
     /// own, in its data folder, never installed on the system
     Rust {
         #[command(subcommand)]
@@ -1314,7 +1314,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                     "{}",
                     tr(
                         "Point the server at it: set engine.path to this file in the server's \
-                        server.toml (docs/hosting.md); the launcher writes nothing itself."
+                        server.toml (docs/engine/hosting.md); the launcher writes nothing itself."
                     )
                 );
                 return Ok(());
