@@ -2963,6 +2963,303 @@ fn replace_bundle(_new: &Path, _app: &Path) -> Result<(), String> {
     Err("App bundles are a macOS thing.".into())
 }
 
+// Threat model, honestly bounded. This machinery defends the update against its own accidents
+// (two launchers updating at once, a crashed run's leftovers, a reused pid) and against a swap
+// of the download between its check and its use: the transfer is budgeted as its bytes actually
+// land and as they are read back (never by any declared size), and the verified bytes themselves
+// are unpacked and placed, read once into memory and consumed there. It is not a defense against
+// a local process already running as this user with hostile intent: such a process can write
+// this data folder regardless, and two consequences are stated, not guarded. The unpacked tree
+// (whose inner files carry no digest of their own; the signed digest covers the archive) is read
+// by path after the unpack - the bundle and binary copies - and stays exposed to that process in
+// between, a residual window no filename scheme closes. And the stage guard's cleanup is
+// bookkeeping, not a proof of identity: a rename-race that moves the stage aside and plants a
+// replacement at its path gets the replacement removed, because the guard removes what is at the
+// path it made rather than holding a handle to it. Both are bounded by what such a process could
+// already do to the folder.
+
+/// The largest archive a launcher update may be: real releases are tens of megabytes, and the
+/// verified bytes are held in memory to be used.
+const MAX_UPDATE_BYTES: u64 = 256 * 1024 * 1024;
+
+/// This updater run's own stage folder: `<pid>-<nonce>`, so two concurrent updaters never share
+/// one, unlike the single folder earlier runs all deleted and rewrote.
+fn stage_name(pid: u32, nonce: u128) -> String {
+    format!("{pid}-{nonce}")
+}
+
+fn stage_nonce() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0)
+}
+
+/// The owning process of a stage folder's name, or None for anything else an older layout or
+/// another writer left in the stages folder. Non-positive and out-of-range pids parse as no
+/// one's: they are never fed to kill(2).
+fn stage_pid(name: &std::ffi::OsStr) -> Option<i32> {
+    let (pid, nonce) = name.to_str()?.split_once('-')?;
+    if nonce.is_empty() || !nonce.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    pid.parse::<i32>().ok().filter(|pid| *pid > 0)
+}
+
+/// Whether `pid` still runs. Only "no such process" answers no; anything else - a process owned
+/// by someone else, a platform that gave no answer - fails safe: the stage stays.
+#[cfg(unix)]
+fn pid_alive(pid: i32) -> bool {
+    if unsafe { libc::kill(pid, 0) } == 0 {
+        return true;
+    }
+    std::io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH)
+}
+
+/// Removes leftovers from earlier updater runs, conservatively, and never leaves `stages`: the
+/// root itself must be a real folder (a link elsewhere is left alone, and staging will refuse
+/// it); a link inside is unlinked, never followed - it is never a legitimate stage, so it goes
+/// at any age; a real stage folder goes only once it cannot belong to a live update - on unix,
+/// over an hour old with its owner process gone. Off unix there is no process check, so a stage
+/// naming an owner is left alone at any age: no assumed duration may delete a live owner's work,
+/// and only ownerless residue from the old single-folder layout ages out (past a week). A live
+/// owner's stage is never removed on unix, however old it looks, and a fresh stage is never
+/// removed, however dead its owner: a reused pid may not wipe a run that just started, and a
+/// stale clock may not wipe a run in progress.
+fn clean_stale_stages(stages: &Path) {
+    let now = std::time::SystemTime::now();
+    let margin = if cfg!(unix) { 3600 } else { 7 * 24 * 3600 };
+    let Ok(root) = fs::symlink_metadata(stages) else {
+        return;
+    };
+    if root.file_type().is_symlink() || !root.is_dir() {
+        return;
+    }
+    for entry in fs::read_dir(stages).ok().into_iter().flatten().flatten() {
+        let path = entry.path();
+        let (Ok(kind), Ok(meta)) = (entry.file_type(), fs::symlink_metadata(&path)) else {
+            continue;
+        };
+        let age = meta
+            .modified()
+            .ok()
+            .and_then(|at| now.duration_since(at).ok())
+            .unwrap_or_default();
+        let removable = if kind.is_symlink() {
+            true
+        } else if age.as_secs() < margin {
+            false
+        } else {
+            #[cfg(unix)]
+            {
+                stage_pid(&entry.file_name()).is_none_or(|pid| !pid_alive(pid))
+            }
+            #[cfg(not(unix))]
+            {
+                // No owner check exists on this platform: only residue no live run could own.
+                stage_pid(&entry.file_name()).is_none()
+            }
+        };
+        if !removable {
+            continue;
+        }
+        if kind.is_dir() {
+            let _ = fs::remove_dir_all(&path);
+        } else {
+            let _ = fs::remove_file(&path);
+        }
+    }
+}
+
+/// Creates this run's own stage folder inside `stages` and hands back its cleanup guard. The
+/// create is exclusive: a name that is already taken - a crashed run's leftover, a collision, a
+/// planted folder - is never adopted, the next nonce is tried, so the guard can never delete
+/// content this run did not make. `stages` itself must be a real folder: a link elsewhere is
+/// refused, not followed.
+fn create_stage(
+    stages: &Path,
+    mut nonce: impl FnMut() -> u128,
+) -> Result<(PathBuf, OwnStage), String> {
+    match fs::create_dir(stages) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            let root = fs::symlink_metadata(stages).map_err(|e| e.to_string())?;
+            if root.file_type().is_symlink() || !root.is_dir() {
+                return Err(format!("{} is not a real folder.", stages.display()));
+            }
+        }
+        Err(e) => return Err(e.to_string()),
+    }
+    for _ in 0..16 {
+        let dir = stages.join(stage_name(std::process::id(), nonce()));
+        match fs::create_dir(&dir) {
+            Ok(()) => return Ok((dir.clone(), OwnStage(dir))),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+    Err("could not make a fresh update stage.".into())
+}
+
+/// Removes the stage folder this run made, however the update ends (success, refusal or
+/// failure); a link swapped into its place is unlinked, not descended into (remove_dir_all
+/// would not follow it either). This is bookkeeping, not a proof of identity: the exclusive
+/// create means the path only ever held this run's own work, but a hostile same-user process
+/// racing a rename could put a replacement at the path and get it removed - stated in the
+/// threat model above, not guarded here.
+struct OwnStage(PathBuf);
+impl Drop for OwnStage {
+    fn drop(&mut self) {
+        match fs::symlink_metadata(&self.0) {
+            Ok(m) if m.file_type().is_symlink() => {
+                let _ = fs::remove_file(&self.0);
+            }
+            Ok(_) => {
+                let _ = fs::remove_dir_all(&self.0);
+            }
+            Err(_) => {}
+        }
+    }
+}
+
+/// The signed checksum, answered for `bytes`: the same bytes that are then unpacked and placed,
+/// so what was verified is what gets used, with no filesystem window in between.
+fn rehash_bytes(bytes: &[u8], url: &str, sha256: &str) -> Result<(), String> {
+    let mut hash = horizon_release_sign::Sha256::default();
+    hash.update(bytes);
+    let name = url.rsplit('/').next().unwrap_or(url);
+    horizon_release_sign::check(name, sha256, &hash.hex())
+}
+
+/// Unpacks the verified update `bytes` (see `rehash_bytes`) into `to`.
+fn unpack_bytes(bytes: &[u8], url: &str, to: &Path) -> Result<(), String> {
+    if url.ends_with(".tar.gz") {
+        tar::Archive::new(flate2::read::GzDecoder::new(std::io::Cursor::new(bytes)))
+            .unpack(to)
+            .map_err(|e| e.to_string())
+    } else {
+        zip::ZipArchive::new(std::io::Cursor::new(bytes))
+            .and_then(|mut z| z.extract(to))
+            .map_err(|e| e.to_string())
+    }
+}
+
+/// Writes what `reader` yields to `to`, refusing to grow it past `budget`: whatever any declared
+/// size said - or whether there was one - no more than `budget` bytes ever land on disk. A
+/// stream that crosses the budget is cut off, the partial file removed and the update refused.
+fn write_bounded(mut reader: impl std::io::Read, to: &Path, budget: u64) -> Result<u64, String> {
+    let mut file = fs::File::create(to).map_err(|e| e.to_string())?;
+    let (mut done, mut buf) = (0u64, vec![0u8; 1 << 16]);
+    let result = loop {
+        match reader.read(&mut buf) {
+            Ok(0) => break Ok(done),
+            Ok(n) => {
+                done += n as u64;
+                if done > budget {
+                    break Err("This launcher release is larger than a release can be.".to_owned());
+                }
+                if let Err(e) = file.write_all(&buf[..n]) {
+                    break Err(e.to_string());
+                }
+            }
+            Err(e) => break Err(format!("Download interrupted: {e}")),
+        }
+    };
+    if result.is_err() {
+        let _ = fs::remove_file(to);
+    }
+    result
+}
+
+/// Reads `from` into memory under the same budget: the verified bytes are what gets used, so
+/// the read itself refuses a file that grew past the budget. The `take` caps the bytes read at
+/// budget + 1 (a logical bound - a Vec's capacity may round above it); the refusal is decided
+/// from that bounded prefix, never from reading the whole file first.
+fn read_bounded(from: &Path, budget: u64) -> Result<Vec<u8>, String> {
+    let file = fs::File::open(from).map_err(|e| e.to_string())?;
+    let mut bytes = Vec::new();
+    std::io::Read::take(file, budget + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| e.to_string())?;
+    if bytes.len() as u64 > budget {
+        return Err("This launcher release is larger than a release can be.".into());
+    }
+    Ok(bytes)
+}
+
+/// The update archive's own download. The body's actual bytes are budgeted as they land
+/// ([`write_bounded`]) - a feed that declares little and sends much, or declares nothing, is
+/// cut off at the same line - and `size` only ever drives the progress bar. Nothing here
+/// hashes: the bytes are verified after [`read_bounded`] brings them back, in memory.
+fn download_update(url: &str, size: u64, to: &Path, progress: &impl Fn(f32)) -> Result<(), String> {
+    let response = get(url)?;
+    let size = match size {
+        0 => response
+            .header("Content-Length")
+            .and_then(|n| n.parse().ok())
+            .unwrap_or(0),
+        n => n,
+    };
+    let mut reader = response.into_reader();
+    let (mut done, mut buf) = (0u64, vec![0u8; 1 << 16]);
+    let progress_reader = std::iter::from_fn(|| match reader.read(&mut buf) {
+        Ok(0) => None,
+        Ok(n) => {
+            done += n as u64;
+            progress((done as f32 / size.max(1) as f32).min(1.0) * 0.9);
+            Some(Ok(buf[..n].to_vec()))
+        }
+        Err(e) => Some(Err(e)),
+    });
+    // Adapter with a load-bearing invariant: each chunk must fit the caller's buffer - a
+    // remainder is NOT carried over (a longer chunk would be truncated, and the checksum
+    // would then fail the update). Here both sides are 1 << 16, so it holds; any other use
+    // must carry the remainder properly first.
+    struct Chunks<I>(I);
+    impl<I: Iterator<Item = std::io::Result<Vec<u8>>>> std::io::Read for Chunks<I> {
+        fn read(&mut self, out: &mut [u8]) -> std::io::Result<usize> {
+            let chunk = match self.0.next() {
+                None => return Ok(0),
+                Some(Err(e)) => return Err(e),
+                Some(Ok(c)) => c,
+            };
+            let n = chunk.len().min(out.len());
+            out[..n].copy_from_slice(&chunk[..n]);
+            Ok(n)
+        }
+    }
+    write_bounded(Chunks(progress_reader), to, MAX_UPDATE_BYTES)?;
+    Ok(())
+}
+
+/// The unix [`replace_binary`], for bytes already in memory (a verified update archive): the
+/// placed file is written from `bytes`, never re-read from a path.
+#[cfg(unix)]
+fn replace_binary_bytes(bytes: &[u8], exe: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = exe.parent().ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::NotFound, "the launcher has no folder")
+    })?;
+    let name = exe.file_name().unwrap_or_default().to_string_lossy();
+    let temp = dir.join(format!(".{name}.update-{}", std::process::id()));
+    let mode = fs::metadata(exe).map_or(0o755, |m| m.permissions().mode() | 0o111);
+    let result = fs::write(&temp, bytes)
+        .and_then(|_| fs::set_permissions(&temp, fs::Permissions::from_mode(mode)))
+        .and_then(|_| fs::rename(&temp, exe));
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    result
+}
+
+#[cfg(not(unix))]
+fn replace_binary_bytes(_bytes: &[u8], _exe: &Path) -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "AppImages are a Linux thing.",
+    ))
+}
+
 /// Downloads a launcher release and puts it in place of this one. The running process keeps
 /// working; `restart` starts the new one. When the file there already is that release or
 /// a newer one (updated from the command line or another window), there is nothing to do.
@@ -2984,11 +3281,23 @@ pub fn self_update(release: &Release, progress: impl Fn(f32)) -> Result<(), Stri
         return Ok(());
     }
     let sha256 = signed_digest(&release.tag, launcher_asset().unwrap_or_default())?;
-    let work = data_dir().join(".launcher-update");
-    let _ = fs::remove_dir_all(&work);
-    fs::create_dir_all(&work).map_err(|e| e.to_string())?;
-    let archive = work.join("download");
-    download(&url, size, &sha256, &archive, &progress)?;
+    if size > MAX_UPDATE_BYTES {
+        return Err("This launcher release is larger than a release can be.".into());
+    }
+    // Every updater run works in its own exclusively-created stage folder: two launchers
+    // updating at once must not wipe or swap each other's download between its check and its
+    // use, and a run never adopts - then deletes - a folder that was already there.
+    let stages = data_dir().join(".launcher-update");
+    clean_stale_stages(&stages);
+    let (work, _own_stage) = create_stage(&stages, stage_nonce)?;
+    // The archive keeps a temporary name until it carries the signed checksum; then the bytes
+    // the checksum was read from are the very bytes that get unpacked and placed - read once
+    // into memory and consumed there, so neither a renamed path nor a rewritten file between
+    // check and use can put unverified bytes in place.
+    let part = work.join("download.part");
+    download_update(&url, size, &part, &progress)?;
+    let bytes = read_bounded(&part, MAX_UPDATE_BYTES)?;
+    rehash_bytes(&bytes, &url, &sha256)?;
     // An AppImage is the whole program: the new one takes the place of the file `$APPIMAGE` names
     // (the running mount keeps its copy until `restart` starts it). Its archive is not a `.tar.gz`
     // to unpack, so this comes before the unpacking below.
@@ -2999,7 +3308,7 @@ pub fn self_update(release: &Release, progress: impl Fn(f32)) -> Result<(), Stri
                 release.tag
             ));
         }
-        replace_binary(&archive, &appimage).map_err(|e| {
+        replace_binary_bytes(&bytes, &appimage).map_err(|e| {
             format!(
                 "Could not replace the AppImage at {}: {e}",
                 appimage.display()
@@ -3010,7 +3319,7 @@ pub fn self_update(release: &Release, progress: impl Fn(f32)) -> Result<(), Stri
         return Ok(());
     }
     let unpacked = work.join("unpacked");
-    unpack(&archive, &url, &unpacked)?;
+    unpack_bytes(&bytes, &url, &unpacked)?;
     // A launcher inside Horizon.app replaces the whole bundle (its Info.plist, icon and
     // signature belong with the binary); a bare binary, as older launchers are, only the binary,
     // which the macOS archive also holds (Horizon.app/Contents/MacOS/horizon-launcher).
@@ -3695,6 +4004,220 @@ mod tests {
         };
         let err = self_update(&release, |_| {}).unwrap_err();
         assert_eq!(err, "This build does not replace itself.");
+    }
+    #[test]
+    fn stage_names_carry_their_owner() {
+        assert_eq!(stage_name(4242, 99), "4242-99");
+        assert_eq!(stage_pid(std::ffi::OsStr::new("4242-99")), Some(4242));
+        // Anything the older single-folder layout left behind parses as no one's stage, and so
+        // do malformed, negative, zero and out-of-range pids: none is ever fed to kill(2).
+        assert_eq!(stage_pid(std::ffi::OsStr::new("download")), None);
+        assert_eq!(stage_pid(std::ffi::OsStr::new("unpacked")), None);
+        assert_eq!(stage_pid(std::ffi::OsStr::new("42-")), None);
+        assert_eq!(stage_pid(std::ffi::OsStr::new("42-x")), None);
+        assert_eq!(stage_pid(std::ffi::OsStr::new("-42")), None);
+        assert_eq!(stage_pid(std::ffi::OsStr::new("0-1")), None);
+        assert_eq!(
+            stage_pid(std::ffi::OsStr::new("99999999999999999999-1")),
+            None
+        );
+        assert_eq!(stage_pid(std::ffi::OsStr::new("..")), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stale_stage_cleanup_takes_only_what_cannot_be_live() {
+        let base = std::env::temp_dir().join(stage_name(std::process::id(), stage_nonce()));
+        fs::create_dir_all(&base).unwrap();
+        let dead = {
+            let mut child = Command::new("true").spawn().unwrap();
+            let pid = child.id();
+            child.wait().unwrap();
+            pid as i32
+        };
+        assert!(!pid_alive(dead), "the fixture pid must really be gone");
+        let live_fresh = base.join(stage_name(std::process::id(), 1));
+        let dead_fresh = base.join(stage_name(dead as u32, 2));
+        let dead_old = base.join(stage_name(dead as u32, 3));
+        let live_old = base.join(stage_name(std::process::id(), 4));
+        let leftover_old = base.join("unpacked");
+        for dir in [
+            &live_fresh,
+            &dead_fresh,
+            &dead_old,
+            &live_old,
+            &leftover_old,
+        ] {
+            fs::create_dir_all(dir).unwrap();
+        }
+        let backdate = |dir: &Path| {
+            // Portable across unix: the dir's own mtime, set through std (no `touch -d`).
+            fs::File::open(dir)
+                .unwrap()
+                .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(7200))
+                .unwrap();
+        };
+        backdate(&dead_old);
+        backdate(&live_old);
+        backdate(&leftover_old);
+        // A planted link inside the stages folder points the cleanup nowhere: the LINK goes at
+        // any age, its target keeps every byte.
+        let outside = std::env::temp_dir().join(stage_name(std::process::id(), stage_nonce()));
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(outside.join("keep.txt"), b"keep").unwrap();
+        let link = base.join(stage_name(dead as u32, 5));
+        std::os::unix::fs::symlink(&outside, &link).unwrap();
+        clean_stale_stages(&base);
+        assert!(live_fresh.exists(), "a live process's stage stays");
+        assert!(
+            dead_fresh.exists(),
+            "a fresh stage stays while its run may be mid-step"
+        );
+        assert!(!dead_old.exists(), "an old stage whose owner is gone goes");
+        assert!(
+            live_old.exists(),
+            "a live owner's stage stays however old it looks"
+        );
+        assert!(
+            !leftover_old.exists(),
+            "old single-folder residue goes once old"
+        );
+        assert!(!link.exists(), "the planted link is unlinked");
+        assert_eq!(
+            fs::read(outside.join("keep.txt")).unwrap(),
+            b"keep",
+            "the link's target is untouched"
+        );
+        let _ = fs::remove_dir_all(&base);
+        let _ = fs::remove_dir_all(&outside);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_stage_is_never_adopted_and_a_swapped_link_is_unlinked_not_followed() {
+        let base = std::env::temp_dir().join(stage_name(std::process::id(), stage_nonce()));
+        fs::create_dir_all(&base).unwrap();
+        let pid = std::process::id();
+        // A folder already sitting where the first nonce would go - a leftover, or a plant.
+        let planted = base.join(stage_name(pid, 1));
+        fs::create_dir_all(&planted).unwrap();
+        fs::write(planted.join("not-ours.txt"), b"keep").unwrap();
+        let mut next = 0u128;
+        let nonces = move || {
+            next += 1;
+            next
+        };
+        let (dir, guard) = create_stage(&base, nonces).unwrap();
+        assert_eq!(
+            dir,
+            base.join(stage_name(pid, 2)),
+            "the taken name is skipped"
+        );
+        drop(guard);
+        assert!(!dir.exists(), "the guard removes the stage it made");
+        assert_eq!(
+            fs::read(planted.join("not-ours.txt")).unwrap(),
+            b"keep",
+            "the pre-existing folder keeps its contents"
+        );
+        // A link where the stages root should be is refused, not followed.
+        let outside = std::env::temp_dir().join(stage_name(std::process::id(), stage_nonce()));
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(outside.join("keep.txt"), b"keep").unwrap();
+        let link_root = base.join("linked-root");
+        std::os::unix::fs::symlink(&outside, &link_root).unwrap();
+        assert!(create_stage(&link_root, stage_nonce).is_err());
+        assert_eq!(
+            fs::read(outside.join("keep.txt")).unwrap(),
+            b"keep",
+            "the redirected root was never entered"
+        );
+        let _ = fs::remove_dir_all(&base);
+        let _ = fs::remove_dir_all(&outside);
+    }
+
+    #[test]
+    fn an_oversized_stream_is_cut_off_at_the_budget() {
+        // The budget is the only line: a stream that crosses it - declared size honest, lying
+        // or absent, the helper never consults one - leaves no partial file behind.
+        let dir = std::env::temp_dir().join(stage_name(std::process::id(), stage_nonce()));
+        fs::create_dir_all(&dir).unwrap();
+        let part = dir.join("download.part");
+        let flood = std::io::Cursor::new(vec![b'x'; 64]);
+        let err = write_bounded(flood, &part, 8).unwrap_err();
+        assert!(err.contains("larger than a release can be"), "{err}");
+        assert!(!part.exists(), "the partial file is removed");
+        // Exactly at the budget, the whole stream lands.
+        let exact = std::io::Cursor::new(vec![b'y'; 8]);
+        assert_eq!(write_bounded(exact, &part, 8).unwrap(), 8);
+        assert_eq!(fs::read(&part).unwrap(), b"yyyyyyyy");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn an_oversized_file_is_refused_without_being_read_whole() {
+        // A file that grew past the budget between the write and the read is refused by the
+        // read itself, decided from a prefix bounded at budget + 1 bytes read.
+        let dir = std::env::temp_dir().join(stage_name(std::process::id(), stage_nonce()));
+        fs::create_dir_all(&dir).unwrap();
+        let part = dir.join("download.part");
+        fs::write(&part, vec![b'z'; 64]).unwrap();
+        let err = read_bounded(&part, 8).unwrap_err();
+        assert!(err.contains("larger than a release can be"), "{err}");
+        fs::write(&part, b"small").unwrap();
+        assert_eq!(read_bounded(&part, 8).unwrap(), b"small");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_swapped_download_fails_its_use_time_check() {
+        let good = b"the bytes the signed digest promised";
+        let mut hash = horizon_release_sign::Sha256::default();
+        hash.update(good);
+        let sha256 = hash.hex();
+        rehash_bytes(good, "https://example.test/launcher.tar.gz", &sha256).unwrap();
+        // Bytes other than the verified ones are refused, wherever the swap happened.
+        let err = rehash_bytes(
+            b"swapped in between",
+            "https://example.test/launcher.tar.gz",
+            &sha256,
+        )
+        .unwrap_err();
+        assert!(err.contains("signed checksum"), "{err}");
+    }
+
+    #[test]
+    fn a_verified_archive_unpacks_from_the_verified_bytes() {
+        // A tiny real .tar.gz built in memory: the verified bytes are what gets unpacked.
+        let enc = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        let mut builder = tar::Builder::new(enc);
+        let data: &[u8] = b"the new launcher";
+        let mut header = tar::Header::new_gnu();
+        header.set_size(data.len() as u64);
+        header.set_mode(0o755);
+        header.set_cksum();
+        builder
+            .append_data(&mut header, "horizon-launcher", data)
+            .unwrap();
+        let archive_bytes = builder.into_inner().unwrap().finish().unwrap();
+        let mut hash = horizon_release_sign::Sha256::default();
+        hash.update(&archive_bytes);
+        let sha256 = hash.hex();
+        rehash_bytes(
+            &archive_bytes,
+            "https://example.test/launcher.tar.gz",
+            &sha256,
+        )
+        .unwrap();
+        let out = std::env::temp_dir().join(stage_name(std::process::id(), stage_nonce()));
+        fs::create_dir_all(&out).unwrap();
+        unpack_bytes(&archive_bytes, "https://example.test/launcher.tar.gz", &out).unwrap();
+        assert_eq!(fs::read(out.join("horizon-launcher")).unwrap(), data);
+        // The same bytes, one bit different, never reach unpacking.
+        let mut tampered = archive_bytes.clone();
+        *tampered.last_mut().unwrap() ^= 1;
+        assert!(rehash_bytes(&tampered, "https://example.test/launcher.tar.gz", &sha256).is_err());
+        let _ = fs::remove_dir_all(&out);
     }
     use super::*;
     use std::cmp::Ordering::*;
