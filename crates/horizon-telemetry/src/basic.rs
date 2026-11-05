@@ -615,7 +615,7 @@ mod tests {
         }
         assert!(test_release().is_none(), "no fixture release without the seam");
         assert!(!release_allowed("v0.0.0-test"));
-        let report = Report {
+        let _report = Report {
             schema: SCHEMA_ID.to_owned(),
             release: "v0.0.0-test".to_owned(),
             os: "linux".to_owned(),
@@ -624,7 +624,7 @@ mod tests {
             p95_ms: None,
         };
         #[cfg(feature = "basic")]
-        assert!(send(&report).is_err(), "an unpublished release never sends");
+        assert!(send(&_report).is_err(), "an unpublished release never sends");
         unsafe { std::env::remove_var("GOATTECH_BASIC_STATS_TEST_URL") };
     }
 }

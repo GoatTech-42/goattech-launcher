@@ -184,7 +184,7 @@ fn an_unrelated_save_refuses_uncertain_existing_bytes() {
     let mut b = crate::backend::Settings::load();
     b.basic_summaries = Some(false);
     b.save_basic_choice().unwrap();
-    let mut stale = crate::backend::Settings {
+    let stale = crate::backend::Settings {
         basic_summaries: Some(true),
         ..crate::backend::Settings::load()
     };
@@ -327,11 +327,7 @@ fn a_failed_completion_is_published_as_one_consistent_unit() {
     for _ in 0..50 {
         let g = CHOICE_GEN.fetch_add(1, Ordering::AcqRel) + 1;
         CHOICE_STATUS.store(pack_status(g, 1), Ordering::Release);
-        complete_choice(
-            g,
-            false,
-            Err(std::io::Error::new(std::io::ErrorKind::Other, "disk full")),
-        );
+        complete_choice(g, false, Err(std::io::Error::other("disk full")));
     }
     stop.store(true, O::Relaxed);
     observer.join().unwrap();
@@ -440,11 +436,7 @@ fn a_stale_saved_on_never_clears_a_newer_off() {
         "a stale completion overwrote the newer choice's status"
     );
     // A stale FAILURE is just as toothless.
-    complete_choice(
-        g_on,
-        false,
-        Err(std::io::Error::new(std::io::ErrorKind::Other, "stale")),
-    );
+    complete_choice(g_on, false, Err(std::io::Error::other("stale")));
     assert_eq!(CHOICE_STATUS.load(Ordering::Acquire), pack_status(g_off, 1));
     assert!(
         choice_save_failed().is_none(),
