@@ -319,6 +319,9 @@ struct Launcher {
     client_run: Option<(String, Instant)>,
     /// The running game's basic-summaries session, when the switch is on (`basic_stats`).
     basic_session: Option<horizon_launcher::basic_stats::Session>,
+    /// The basic-summaries choice status last drawn: the save worker completes off the
+    /// UI thread, and `drain` repaints when its word moves.
+    basic_choice_status: u64,
     /// The running game's instance variables, for its post-exit command.
     client_vars: horizon_launcher::launch::Vars,
     /// Settings' Game arguments field: the line, whether it has focus, and its focus handle.
@@ -617,6 +620,7 @@ impl Launcher {
             quick_play: None,
             client_run: None,
             basic_session: None,
+            basic_choice_status: 0,
             client_vars: Vec::new(),
             collection: collection::Collection::load(),
             agents: agents_page::AgentsUi::default(),
@@ -1361,6 +1365,13 @@ impl Launcher {
             .is_some_and(|at| at.elapsed() > backend::CHECK_EVERY)
         {
             self.check_updates();
+        }
+        // A basic-summaries choice save completed (or failed) off the UI thread: repaint
+        // so the switch's row tells the truth even when nothing else moved.
+        let choice_status = horizon_launcher::basic_stats::choice_status_word();
+        if choice_status != self.basic_choice_status {
+            self.basic_choice_status = choice_status;
+            changed = true;
         }
         if changed {
             cx.notify();

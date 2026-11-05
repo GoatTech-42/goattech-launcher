@@ -6,7 +6,7 @@
 //! recorded setting and treat its absence as off. Only the window runs [`init_for_gui`], once,
 //! from the snapshot taken at the very start of `main`, before anything writes.
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock, mpsc};
 use std::time::Instant;
 
@@ -149,84 +149,136 @@ fn init_in(path: &Path, fresh: bool) {
 /// every other entry point see a missing field as off and never write it. A corrupt file or
 /// a value of the wrong shape parses to no setting (`Settings::parse`), so it is off too.
 pub fn enabled() -> bool {
-    if PROCESS_VETO.load(Ordering::Relaxed) {
+    if VETO_GEN.load(Ordering::Acquire) != 0 {
         return false;
     }
     Settings::load().basic_summaries == Some(true)
 }
 
-/// Process-local veto: an OFF the player just chose applies at once - before, and even
-/// if, its save lands - because every collection gate (the session's send, the dispatch
-/// thread's re-check, the command's events switch) reads it through `enabled()`. It can
-/// only turn collection off; a later ON choice clears it only once that ON is actually
-/// saved and is still the newest choice (the choice worker below).
-static PROCESS_VETO: AtomicBool = AtomicBool::new(false);
+/// The veto, as a generation token: 0 is no veto; anything else is the generation of
+/// the newest OFF choice. `enabled()` is off while it is nonzero - an OFF the player
+/// just chose applies at once, before (and even if) its save lands - because every
+/// collection gate (the session's send, the dispatch thread's re-check, the command's
+/// events switch) reads it through `enabled()`. A saved ON lifts it only by
+/// compare-exchange and only when that ON is newer than the OFF that set it, so a stale
+/// completion can never clear a newer OFF: a save completes after it returns, and the
+/// player may have clicked again by then.
+static VETO_GEN: AtomicU64 = AtomicU64::new(0);
 
-/// The switch was just turned off: collection stops in this process NOW, whatever disk
-/// says and however the save goes.
-pub fn veto_for_process() {
-    PROCESS_VETO.store(true, Ordering::Relaxed);
+/// Monotonic click number: generations order every explicit choice and every save
+/// completion against each other.
+static CHOICE_GEN: AtomicU64 = AtomicU64::new(0);
+
+/// The newest choice's save, packed as (generation << 8) | state: 0 settled, 1 saving,
+/// 2 the OFF could not be saved, 3 the ON could not be saved. Completions land by
+/// compare-exchange on the exact word the save started with, so a stale completion
+/// never overwrites a newer choice's state.
+static CHOICE_STATUS: AtomicU64 = AtomicU64::new(0);
+static CHOICE_ERROR: Mutex<Option<(u64, String)>> = Mutex::new(None);
+static CHOICE_TX: OnceLock<mpsc::Sender<(u64, Settings)>> = OnceLock::new();
+
+fn pack_status(gen: u64, state: u64) -> u64 {
+    (gen << 8) | state
 }
 
-/// Monotonic click number: the newest explicit choice is the one whose outcome the
-/// window shows, and the only one a saved ON may clear the veto for.
-static CHOICE_GEN: AtomicU64 = AtomicU64::new(0);
-/// Newest choice's save state: 0 settled, 1 saving, 2 the OFF could not be saved,
-/// 3 the ON could not be saved.
-static CHOICE_STATE: AtomicU8 = AtomicU8::new(0);
-static CHOICE_ERROR: Mutex<Option<String>> = Mutex::new(None);
-static CHOICE_TX: OnceLock<mpsc::Sender<(u64, Settings)>> = OnceLock::new();
+/// The raw status word, for the window's redraw observer: it changes on every choice
+/// and every completion.
+pub fn choice_status_word() -> u64 {
+    CHOICE_STATUS.load(Ordering::Acquire)
+}
 
 /// The newest explicit choice's failed save, for the switch's row: whether the choice
 /// that failed was ON, and the error. `None` while a save is in flight or settled.
 pub fn choice_save_failed() -> Option<(bool, String)> {
-    match CHOICE_STATE.load(Ordering::Relaxed) {
-        2 => Some((false, CHOICE_ERROR.lock().unwrap().clone().unwrap_or_default())),
-        3 => Some((true, CHOICE_ERROR.lock().unwrap().clone().unwrap_or_default())),
+    let w = CHOICE_STATUS.load(Ordering::Acquire);
+    match w & 0xff {
+        code @ (2 | 3) => {
+            let msg = match &*CHOICE_ERROR.lock().unwrap() {
+                Some((gen, msg)) if *gen == (w >> 8) => msg.clone(),
+                _ => String::new(),
+            };
+            Some((code == 3, msg))
+        }
         _ => None,
     }
 }
 
-/// Persist an explicit basic-summaries choice OFF the UI thread, in click order: one
-/// worker, one FIFO, so a quick off-on-off lands exactly in that order and the newest
-/// click's save is the last word. `settings` already carries the choice. The UI never
-/// waits on the lock or the disk: the switch's row shows a failed save when the newest
-/// choice's save could not be written (`choice_save_failed`).
+/// One save's completion, for the worker and for tests: the veto and the status move
+/// only by compare-exchange keyed on this choice's own generation, so whatever the
+/// player clicked since this save started always wins.
+fn complete_choice(gen: u64, on: bool, result: std::io::Result<()>) {
+    match result {
+        Ok(()) => {
+            if on {
+                // Lift the veto only when this saved ON is newer than the OFF that set
+                // it; the CAS fails - and the newer OFF stands - if one landed between
+                // the read and here.
+                let veto = VETO_GEN.load(Ordering::Acquire);
+                if veto < gen {
+                    let _ = VETO_GEN.compare_exchange(
+                        veto,
+                        0,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    );
+                }
+            }
+            let _ = CHOICE_STATUS.compare_exchange(
+                pack_status(gen, 1),
+                pack_status(gen, 0),
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            );
+        }
+        Err(e) => {
+            let failed = pack_status(gen, if on { 3 } else { 2 });
+            if CHOICE_STATUS
+                .compare_exchange(
+                    pack_status(gen, 1),
+                    failed,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                )
+                .is_ok()
+            {
+                *CHOICE_ERROR.lock().unwrap() = Some((gen, e.to_string()));
+            }
+        }
+    }
+}
+
+/// Record an explicit basic-summaries choice. An OFF vetoes collection in this process
+/// at once - its generation is stored before anything else - then the save runs off the
+/// UI thread on one FIFO worker, in click order, so a quick off-on-off lands exactly in
+/// that order and the newest click's save is the last word. `settings` already carries
+/// the choice. The UI never waits on the lock or the disk; the switch's row shows the
+/// newest choice's failed save (`choice_save_failed`).
 pub fn record_choice_async(settings: Settings) {
-    let gen = CHOICE_GEN.fetch_add(1, Ordering::Relaxed) + 1;
-    CHOICE_STATE.store(1, Ordering::Relaxed);
+    let gen = CHOICE_GEN.fetch_add(1, Ordering::AcqRel) + 1;
+    let on = settings.basic_summaries == Some(true);
+    if !on {
+        VETO_GEN.store(gen, Ordering::Release);
+    }
+    CHOICE_STATUS.store(pack_status(gen, 1), Ordering::Release);
     let tx = CHOICE_TX.get_or_init(|| {
         let (tx, rx) = mpsc::channel::<(u64, Settings)>();
         std::thread::spawn(move || {
             while let Ok((gen, settings)) = rx.recv() {
                 let on = settings.basic_summaries == Some(true);
-                let newest = || gen == CHOICE_GEN.load(Ordering::Relaxed);
-                match settings.save_basic_choice() {
-                    Ok(()) => {
-                        if newest() {
-                            CHOICE_STATE.store(0, Ordering::Relaxed);
-                            // A saved ON, still the newest choice, lifts the veto; the
-                            // disk record now carries it, so the process agrees with the
-                            // next launch.
-                            if on {
-                                PROCESS_VETO.store(false, Ordering::Relaxed);
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        if newest() {
-                            *CHOICE_ERROR.lock().unwrap() = Some(e.to_string());
-                            CHOICE_STATE.store(if on { 3 } else { 2 }, Ordering::Relaxed);
-                        }
-                    }
-                }
+                complete_choice(gen, on, settings.save_basic_choice());
             }
         });
         tx
     });
     if tx.send((gen, settings)).is_err() {
-        *CHOICE_ERROR.lock().unwrap() = Some("the settings worker is gone".to_owned());
-        CHOICE_STATE.store(2, Ordering::Relaxed);
+        complete_choice(
+            gen,
+            on,
+            Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "the settings worker is gone",
+            )),
+        );
     }
 }
 

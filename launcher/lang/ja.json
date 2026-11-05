@@ -854,5 +854,8 @@
   "Basic performance summaries are on by default - a few coarse numbers, listed below. Every other switch is off until you turn it on, and Settings can change any of them any time.": "Basic performance summaries are on by default - a few coarse numbers, listed below. Every other switch is off until you turn it on, and Settings can change any of them any time.",
   "Basic performance summaries are on by default on a new install; every other switch is off unless you turn it on. What each sends is below it; the privacy page on playhorizon.dev says how long it is kept.": "Basic performance summaries are on by default on a new install; every other switch is off unless you turn it on. What each sends is below it; the privacy page on playhorizon.dev says how long it is kept.",
   "The choice could not be saved ({error}): basic summaries are still off.": "The choice could not be saved ({error}): basic summaries are still off.",
-  "Basic summaries are off for the rest of this session, but the choice could not be saved ({error}): they will be on again the next time the launcher starts.": "Basic summaries are off for the rest of this session, but the choice could not be saved ({error}): they will be on again the next time the launcher starts."
+  "Basic summaries are off for the rest of this session, but the choice could not be saved ({error}): they will be on again the next time the launcher starts.": "Basic summaries are off for the rest of this session, but the choice could not be saved ({error}): they will be on again the next time the launcher starts.",
+  "Turning on...": "Turning on...",
+  "Turning off...": "Turning off...",
+  "Off for this session.": "Off for this session."
 }

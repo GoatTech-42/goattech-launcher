@@ -119,16 +119,16 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
 
 impl Launcher {
     /// Basic summaries off, for real. Cancellation is immediate and does not wait on the
-    /// disk: the process veto stops every collection gate in this process at once, the
-    /// launcher's session is dropped (nothing can be sent, and a canceled sample can never
-    /// be resurrected by the switch coming back on), and the explicit choice is saved off
-    /// the window's thread, in click order - the row says so if that save fails, and off
-    /// still holds for the rest of this session. Only then is the running game told, on a
-    /// detached thread so a stuck pipe never freezes the UI; a failed control line only
-    /// logs (the game is never asked to acknowledge), and nothing is sent either way
-    /// because the launcher's session is gone.
+    /// disk: recording the choice vetoes every collection gate in this process at once
+    /// (before its save is even queued), the launcher's session is dropped (nothing can
+    /// be sent, and a canceled sample can never be resurrected by the switch coming back
+    /// on), and the explicit choice is saved off the window's thread, in click order -
+    /// the row says so if that save fails, and off still holds for the rest of this
+    /// session. Only then is the running game told, on a detached thread so a stuck pipe
+    /// never freezes the UI; a failed control line only logs (the game is never asked to
+    /// acknowledge), and nothing is sent either way because the launcher's session is
+    /// gone.
     fn basic_off(&mut self) {
-        horizon_launcher::basic_stats::veto_for_process();
         self.settings.basic_summaries = Some(false);
         self.basic_session = None;
         horizon_launcher::basic_stats::record_choice_async(self.settings.clone());
@@ -168,6 +168,7 @@ impl Launcher {
     fn basic_row(&self, id: &'static str, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let failed = horizon_launcher::basic_stats::choice_save_failed();
+        let saving = horizon_launcher::basic_stats::choice_status_word() & 0xff == 1;
         div()
             .flex()
             .items_start()
@@ -192,11 +193,27 @@ impl Launcher {
                             .text_color(t.muted)
                             .child(tr(telemetry::BASIC_WHAT)),
                     )
-                    // The actual recorded state, never a blanket "on by default".
+                    // The truth, in order: a save in flight is "turning", a failed save
+                    // is its effective state (a failed OFF still holds this session; a
+                    // failed ON never turned anything on), and only a settled choice is
+                    // "for this install" - never an optimistic claim while the disk may
+                    // disagree.
                     .child(
                         text(theme::CAPTION)
                             .text_color(t.muted)
-                            .child(if self.settings.basic_summaries == Some(true) {
+                            .child(if saving {
+                                if self.settings.basic_summaries == Some(true) {
+                                    tr("Turning on...")
+                                } else {
+                                    tr("Turning off...")
+                                }
+                            } else if let Some((was_on, _)) = &failed {
+                                if *was_on {
+                                    tr("Off for this install.")
+                                } else {
+                                    tr("Off for this session.")
+                                }
+                            } else if self.settings.basic_summaries == Some(true) {
                                 tr("On for this install.")
                             } else {
                                 tr("Off for this install.")

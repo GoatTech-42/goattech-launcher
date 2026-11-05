@@ -229,9 +229,8 @@ fn an_off_choice_applies_now_and_lands_after_a_held_lock() {
         .open(launcher.join("settings.lock"))
         .unwrap();
     held.lock().unwrap();
-    // The click: veto now, persist off the thread. Neither waits on the lock.
+    // The click: veto now (inside the choice recording), persist off the thread.
     let started = Instant::now();
-    veto_for_process();
     let mut off = crate::backend::Settings::load();
     off.basic_summaries = Some(false);
     record_choice_async(off);
@@ -258,7 +257,6 @@ fn an_off_choice_applies_now_and_lands_after_a_held_lock() {
     assert!(choice_save_failed().is_none(), "{:?}", choice_save_failed());
     // Click order is the write order: a quick off-then-on ends on, and that saved ON -
     // the newest choice - lifts the veto, so this process agrees with the next launch.
-    veto_for_process();
     let mut off2 = crate::backend::Settings::load();
     off2.basic_summaries = Some(false);
     record_choice_async(off2);
@@ -273,6 +271,52 @@ fn an_off_choice_applies_now_and_lands_after_a_held_lock() {
     assert_eq!(crate::backend::Settings::load().basic_summaries, Some(true));
     assert!(choice_save_failed().is_none(), "{:?}", choice_save_failed());
     std::env::remove_var("HORIZON_LAUNCHER_HOME");
+}
+
+/// QA's v5 probe, in-repo and deterministic: a stale saved ON - chosen BEFORE a newer
+/// OFF - completes after the OFF was recorded. Its completion must neither clear the
+/// newer OFF's veto nor overwrite the newer choice's status. Driven straight through
+/// `complete_choice`, so no timing luck is involved.
+#[test]
+fn a_stale_saved_on_never_clears_a_newer_off() {
+    let _guard = SERIAL.lock().unwrap();
+    // An ON choice's save is in flight...
+    let g_on = CHOICE_GEN.fetch_add(1, Ordering::AcqRel) + 1;
+    CHOICE_STATUS.store(pack_status(g_on, 1), Ordering::Release);
+    // ...and the player turns it OFF before that save completes: veto now, status now.
+    let g_off = CHOICE_GEN.fetch_add(1, Ordering::AcqRel) + 1;
+    VETO_GEN.store(g_off, Ordering::Release);
+    CHOICE_STATUS.store(pack_status(g_off, 1), Ordering::Release);
+    // The stale ON completion lands: the newer OFF stands.
+    complete_choice(g_on, true, Ok(()));
+    assert_eq!(
+        VETO_GEN.load(Ordering::Acquire),
+        g_off,
+        "a stale saved on cleared a newer off's veto"
+    );
+    assert_eq!(
+        CHOICE_STATUS.load(Ordering::Acquire),
+        pack_status(g_off, 1),
+        "a stale completion overwrote the newer choice's status"
+    );
+    // A stale FAILURE is just as toothless.
+    complete_choice(
+        g_on,
+        false,
+        Err(std::io::Error::new(std::io::ErrorKind::Other, "stale")),
+    );
+    assert_eq!(CHOICE_STATUS.load(Ordering::Acquire), pack_status(g_off, 1));
+    assert!(choice_save_failed().is_none(), "a stale failure surfaced as the newest");
+    // The OFF's own completion settles its own word; the veto it set stays.
+    complete_choice(g_off, false, Ok(()));
+    assert_eq!(CHOICE_STATUS.load(Ordering::Acquire), pack_status(g_off, 0));
+    assert_eq!(VETO_GEN.load(Ordering::Acquire), g_off, "an off's save lifted its own veto");
+    // And a NEWER saved ON does lift it - the disk now carries the newest choice.
+    let g_on2 = CHOICE_GEN.fetch_add(1, Ordering::AcqRel) + 1;
+    CHOICE_STATUS.store(pack_status(g_on2, 1), Ordering::Release);
+    complete_choice(g_on2, true, Ok(()));
+    assert_eq!(VETO_GEN.load(Ordering::Acquire), 0, "the newest saved on kept the veto");
+    assert_eq!(CHOICE_STATUS.load(Ordering::Acquire), pack_status(g_on2, 0));
 }
 
 /// A failed OFF save is reported for the row and still stays off in this process: the
@@ -296,7 +340,6 @@ fn a_failed_off_save_is_surfaced_and_stays_off() {
         .open(launcher.join("settings.lock"))
         .unwrap();
     held.lock().unwrap();
-    veto_for_process();
     let mut off = crate::backend::Settings::load();
     off.basic_summaries = Some(false);
     record_choice_async(off);
