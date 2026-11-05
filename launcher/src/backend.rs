@@ -3163,17 +3163,34 @@ pub enum Msg {
 /// A running process; its output arrives as `Msg::Line`, its end as `Msg::Exit`.
 pub struct Running {
     pub child: Arc<Mutex<Child>>,
-    pub stdin: Option<ChildStdin>,
+    stdin: Arc<Mutex<Option<ChildStdin>>>,
 }
 
 impl Running {
     /// A line to the child's stdin. False when it could not be written (the child is gone
     /// or the pipe broke): callers whose line matters say so, instead of assuming it landed.
-    pub fn send(&mut self, line: &str) -> bool {
-        let Some(stdin) = &mut self.stdin else {
+    pub fn send(&self, line: &str) -> bool {
+        use std::io::Write;
+        let mut guard = self.stdin.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(stdin) = guard.as_mut() else {
             return false;
         };
+        writeln!(stdin, "{line}").and_then(|()| stdin.flush()).is_ok()
+    }
+
+    /// The shared stdin, for a line that must not go out on the caller's thread (the
+    /// window's): the caller spawns its own thread and sends through the clone.
+    pub fn stdin_shared(&self) -> Arc<Mutex<Option<ChildStdin>>> {
+        self.stdin.clone()
+    }
+
+    /// A line through a shared stdin handle (`stdin_shared`), off the owning struct.
+    pub fn send_shared(stdin: &Arc<Mutex<Option<ChildStdin>>>, line: &str) -> bool {
         use std::io::Write;
+        let mut guard = stdin.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(stdin) = guard.as_mut() else {
+            return false;
+        };
         writeln!(stdin, "{line}").and_then(|()| stdin.flush()).is_ok()
     }
     pub fn kill(&self) {
@@ -3226,7 +3243,10 @@ pub fn spawn(job: Job, mut cmd: Command, tx: Sender<Msg>) -> Result<Running, Str
         };
         let _ = tx.send(Msg::Exit(job, result));
     });
-    Ok(Running { child, stdin })
+    Ok(Running {
+        child,
+        stdin: Arc::new(Mutex::new(stdin)),
+    })
 }
 
 /// The launcher's appearance, as the player picks it in Settings.
@@ -3455,61 +3475,87 @@ impl Settings {
         self.keep_versions.unwrap_or(KEEP_NEWEST).max(1)
     }
     pub fn save(&self) {
+        self.save_inner(false);
+    }
+
+    /// An explicit basic-summaries choice (the switch): this window's value wins. Every
+    /// other save preserves what is on disk for the two basic keys, so a long-lived GUI
+    /// `Settings` saving an unrelated field can never resurrect or undo another window's
+    /// (or the default patch's) recorded choice.
+    pub fn save_basic_choice(&self) {
+        self.save_inner(true);
+    }
+
+    fn save_inner(&self, basic_choice: bool) {
         // A write that stops halfway leaves settings.json unreadable, and `load` answers
-        // defaults for it: the file is replaced only once it is whole. The write lock
-        // serializes this read-modify-write against the basic-summaries default's one-time
-        // patch (`basic_stats::init_for_gui`), so neither overwrites the other's choice.
+        // defaults for it: the file is replaced only once it is whole. The OS write lock
+        // serializes this read-modify-write against every other settings writer. No lock,
+        // no write: proceeding without it could overwrite a concurrent writer's choice,
+        // which is worse than one skipped save.
         let dir = data_dir();
         let path = dir.join("settings.json");
         let made = fs::create_dir_all(&dir);
-        // No lock, no write: proceeding without it could overwrite a concurrent writer's
-        // choice (and collide on the scratch file), which is worse than one skipped save.
         let Some(_guard) = settings_write_lock(&dir) else {
             eprintln!("Horizon: settings.json is not saved: another settings write is stuck");
             return;
         };
+        let mut value = serde_json::to_value(self).unwrap();
+        if !basic_choice {
+            // The recorded basic choice on disk wins over this snapshot's stale copy.
+            let disk_fields = fs::read_to_string(&path)
+                .ok()
+                .and_then(|disk| serde_json::from_str::<serde_json::Value>(&disk).ok())
+                .and_then(|v| v.as_object().cloned());
+            if let (Some(disk_fields), Some(fields)) = (disk_fields, value.as_object_mut()) {
+                for key in ["basic_summaries", "basic_summaries_cohort"] {
+                    if let Some(v) = disk_fields.get(key) {
+                        fields.insert(key.to_owned(), v.clone());
+                    } else {
+                        fields.remove(key);
+                    }
+                }
+            }
+        }
         let tmp = dir.join(format!(
             "settings.{}.{}.tmp",
             std::process::id(),
             TMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         let written = made
-            .and_then(|()| fs::write(&tmp, serde_json::to_string_pretty(self).unwrap()))
+            .and_then(|()| fs::write(&tmp, serde_json::to_string_pretty(&value).unwrap()))
             .and_then(|()| fs::rename(&tmp, &path));
         if let Err(e) = written {
             let _ = fs::remove_file(&tmp);
             eprintln!("Horizon: settings.json is not saved: {e}");
         }
-        let _ = fs::remove_file(dir.join("settings.init.lock"));
     }
 }
 
 /// Unique scratch names for settings writers, even when one is misbehaving.
 static TMP_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
-/// The settings write lock: create-new, with stale recovery. Every settings writer
-/// (typed saves and the basic default's patch) holds it across its read-modify-write, so
-/// cooperating writers serialize and a recorded choice is never lost to a stale snapshot.
-/// Held writes take microseconds; a lock that outlasts ten seconds is stuck, and the caller
-/// must NOT write without it.
+/// The settings write lock: an OS file lock on a persistent lock file. Every settings
+/// writer (typed saves and the basic default's patch) holds it across its whole
+/// read-modify-write, so cooperating writers serialize and a recorded choice is never lost
+/// to a stale snapshot. Ownership and release are the OS's: a crashed writer's lock is
+/// released by the kernel, nobody reclaims or deletes another writer's lock, and dropping
+/// the guard releases exactly the lock held. Held writes take microseconds; the wait is
+/// bounded (about a second), and without the lock the caller must NOT write.
 pub(crate) fn settings_write_lock(dir: &std::path::Path) -> Option<std::fs::File> {
-    let lock = dir.join("settings.init.lock");
-    for attempt in 0..100 {
-        match std::fs::OpenOptions::new().write(true).create_new(true).open(&lock) {
-            Ok(f) => return Some(f),
-            Err(_) => {
-                // A lock older than a minute is a crashed writer's: remove it, once.
-                let stale = std::fs::metadata(&lock)
-                    .and_then(|m| m.modified())
-                    .ok()
-                    .and_then(|t| t.elapsed().ok())
-                    .is_some_and(|age| age > std::time::Duration::from_secs(60));
-                if stale && attempt == 0 {
-                    let _ = std::fs::remove_file(&lock);
-                    continue;
-                }
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(dir.join("settings.lock"))
+        .ok()?;
+    for _ in 0..10 {
+        match file.try_lock() {
+            Ok(()) => return Some(file),
+            Err(std::fs::TryLockError::WouldBlock) => {
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
+            Err(_) => return None,
         }
     }
     None

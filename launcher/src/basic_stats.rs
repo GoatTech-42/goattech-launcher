@@ -140,7 +140,7 @@ fn init_in(path: &Path, fresh: bool) {
             let _ = std::fs::remove_file(&tmp);
         }
     }
-    let _ = std::fs::remove_file(dir.join("settings.init.lock"));
+    // The OS lock releases when the guard drops; the lock file itself stays.
 }
 
 /// Whether basic summaries are on: only an explicit `true` the window recorded. The CLI and

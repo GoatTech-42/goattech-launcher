@@ -94,21 +94,58 @@ fn the_default_write_preserves_everything_and_never_overwrites() {
     init_in(&settings, true);
     assert_eq!(std::fs::read(&settings).unwrap(), b"\xff\xfe\x00not settings");
     std::fs::remove_file(&settings).unwrap();
-    // A held init lock (another launcher initializing) skips the write entirely.
-    let lock = launcher.join("settings.init.lock");
-    std::fs::write(&lock, b"").unwrap();
+    // A held OS write lock (another writer mid-save) skips the patch entirely; once it is
+    // released (drop, or the kernel after a crash) the write lands.
+    let held = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(launcher.join("settings.lock"))
+        .unwrap();
+    held.lock().unwrap();
     init_in(&settings, true);
     assert!(!settings.exists(), "a held lock must not be overwritten");
-    // A minute-stale lock is a crashed attempt's: removed once, the init proceeds.
-    std::fs::write(&lock, b"").unwrap();
-    // filetime backdating without extra crates: remove+recreate simulates only a held lock,
-    // so exercise the stale path by removing the lock and confirming the write lands.
-    std::fs::remove_file(&lock).unwrap();
+    drop(held);
     init_in(&settings, true);
     let after: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&settings).unwrap()).unwrap();
     assert_eq!(after["basic_summaries"], true);
     assert_eq!(after["basic_summaries_cohort"], "fresh-default-on");
+}
+
+/// The stale-GUI case: window A holds an old Settings; another window records an explicit
+/// opt-out; A saves an unrelated change. The recorded choice must survive - only an explicit
+/// basic-choice save may change it.
+#[test]
+fn an_unrelated_save_preserves_the_recorded_basic_choice() {
+    let _guard = SERIAL.lock().unwrap();
+    let (launcher, _game) = dirs("stale-save");
+    std::fs::create_dir_all(&launcher).unwrap();
+    std::fs::write(
+        launcher.join("settings.json"),
+        r#"{"basic_summaries": true, "basic_summaries_cohort": "fresh-default-on"}"#,
+    )
+    .unwrap();
+    std::env::set_var("HORIZON_LAUNCHER_HOME", &launcher);
+    let mut a = crate::backend::Settings::load();
+    assert_eq!(a.basic_summaries, Some(true));
+    // Another window turns it off, explicitly.
+    let mut b = crate::backend::Settings::load();
+    b.basic_summaries = Some(false);
+    b.save_basic_choice();
+    assert_eq!(crate::backend::Settings::load().basic_summaries, Some(false));
+    // A saves an unrelated change from its stale snapshot: the recorded false survives.
+    a.skip_opening = true;
+    a.save();
+    let after = crate::backend::Settings::load();
+    assert_eq!(after.basic_summaries, Some(false), "a stale save resurrected the opt-in");
+    assert!(after.skip_opening, "the unrelated change was lost");
+    // But when A's user actually flips the basic switch, that explicit choice wins.
+    a.basic_summaries = Some(true);
+    a.save_basic_choice();
+    assert_eq!(crate::backend::Settings::load().basic_summaries, Some(true));
+    std::env::remove_var("HORIZON_LAUNCHER_HOME");
 }
 
 #[test]
@@ -236,8 +273,8 @@ fn a_session_sends_exactly_once_and_only_on_a_clean_end() {
 
 /// The recorded choice never loses to a concurrent first-run default: the shared write
 /// lock serializes typed saves and the default patch. A writer thread hammers an explicit
-/// opt-out through the real Settings::save while the init runs; the opt-out must survive
-/// every round.
+/// opt-out through the real Settings::save_basic_choice while the init runs; the opt-out
+/// must survive every round.
 #[test]
 fn a_concurrent_choice_survives_the_default_patch() {
     let _guard = SERIAL.lock().unwrap();
@@ -254,7 +291,7 @@ fn a_concurrent_choice_survives_the_default_patch() {
         while !stop2.load(Ordering::Relaxed) {
             let mut st = crate::backend::Settings::load();
             st.basic_summaries = Some(false);
-            st.save();
+            st.save_basic_choice();
             opted_out2.store(true, Ordering::Relaxed);
             // The opt-out just written must still be there: no stale init true over it.
             assert_ne!(

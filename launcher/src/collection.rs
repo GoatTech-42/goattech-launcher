@@ -118,23 +118,27 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
 }
 
 impl Launcher {
-    /// Basic summaries off, for real: the recorded setting, the running game told to stop
-    /// collecting (its own buffer clears), and the launcher's session dropped, so a canceled
-    /// sample can never be resurrected by the switch coming back on. If the control line
-    /// could not be written the player hears it; nothing is sent either way, because the
-    /// launcher's session is gone.
+    /// Basic summaries off, for real. Cancellation is immediate: the launcher's session is
+    /// dropped first (nothing can be sent, and a canceled sample can never be resurrected by
+    /// the switch coming back on), then the explicit choice is saved, and only then the
+    /// running game is told - off the window's thread, so a stuck pipe never freezes the UI.
+    /// If the control line could not be written the player hears it; nothing is sent either
+    /// way, because the launcher's session is gone.
     fn basic_off(&mut self) {
         self.settings.basic_summaries = Some(false);
-        self.settings.save();
-        if let Some(client) = &mut self.client {
-            if !client.send(horizon_launcher::basic_stats::CONTROL_OFF) {
-                self.collection.note = Some(
-                    tr("The running game could not be told; it still sends nothing when it quits.")
-                        .to_owned(),
-                );
-            }
-        }
         self.basic_session = None;
+        self.settings.save_basic_choice();
+        if let Some(client) = &self.client {
+            let stdin = client.stdin_shared();
+            std::thread::spawn(move || {
+                if !crate::backend::Running::send_shared(
+                    &stdin,
+                    horizon_launcher::basic_stats::CONTROL_OFF,
+                ) {
+                    eprintln!("Horizon: the running game could not be told basic summaries are off");
+                }
+            });
+        }
     }
 
     /// The basic-summaries row's own switch, on the first-run question and in Settings: the
@@ -147,7 +151,7 @@ impl Launcher {
                 this.basic_off();
             } else {
                 this.settings.basic_summaries = Some(true);
-                this.settings.save();
+                this.settings.save_basic_choice();
             }
             cx.notify();
         }))

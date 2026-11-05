@@ -20779,7 +20779,10 @@ pub fn run_with() -> Result<()> {
     if options.execution_role.is_client() {
         // Stdin is free now (`Options::read` consumed any --session-stdin account): the
         // launcher's basic-summaries off-control watch. Client only - a dedicated server
-        // owns its stdin for console commands.
+        // owns its stdin for console commands. The launcher launches with --session-file,
+        // so the pipe stays open for control; a --session-stdin launch ends stdin at EOF
+        // and the watch simply sees the pipe close (mid-game off is then unsupported, and
+        // the launcher never uses that path).
         horizon_client::telemetry::watch_basic_control();
         horizon_threads::catch_stop_signals();
     }
