@@ -7,9 +7,17 @@
 use super::{pick, safe_name, Kind, Project, Source, SourceId, Support, Version};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 const MANIFEST: &str = "mod-browser.json";
+/// The folders the browser installs into: an entry's `file` is always inside one of them.
+const FOLDERS: [&str; 5] = [
+    "mods",
+    "resourcepacks",
+    "shaderpacks",
+    super::java::MODS_DIR,
+    crate::native_mods::INSTALLED,
+];
 /// How deep required dependencies are followed.
 const MAX_DEPTH: usize = 4;
 
@@ -41,6 +49,96 @@ pub struct Entry {
     pub namespaces: Vec<String>,
 }
 
+/// A name no platform mistakes for something else: no `:` stream separator, no trailing dot
+/// or space, and not a Windows device name (any letter case, before any `.`).
+fn plain_part(part: &std::ffi::OsStr) -> bool {
+    let Some(s) = part.to_str() else {
+        return false;
+    };
+    if s.is_empty() || s.ends_with(['.', ' ']) || s.contains(':') {
+        return false;
+    }
+    let stem = s.split('.').next().unwrap_or_default().to_ascii_uppercase();
+    !matches!(
+        stem.as_str(),
+        "CON" | "PRN" | "AUX" | "NUL"
+            | "COM1" | "COM2" | "COM3" | "COM4" | "COM5" | "COM6" | "COM7" | "COM8" | "COM9"
+            | "LPT1" | "LPT2" | "LPT3" | "LPT4" | "LPT5" | "LPT6" | "LPT7" | "LPT8" | "LPT9"
+    )
+}
+
+/// Whether `file` names something inside one of the folders the browser installs into, made of
+/// plain names only (no root, drive, `..` or Windows-unsafe part), so `home.join(file)` reads
+/// as a plain path in the game folder. The list is a file in that folder, which a shared
+/// archive could have put there: an entry naming any other place must never make the browser
+/// remove or rename it.
+pub fn in_folders(file: &str) -> bool {
+    let mut parts = Path::new(file).components();
+    let top = parts.next();
+    matches!(top, Some(Component::Normal(t)) if FOLDERS.iter().any(|f| t == *f))
+        && parts.clone().next().is_some()
+        && parts.all(|c| match c {
+            Component::Normal(p) => plain_part(p),
+            _ => false,
+        })
+}
+
+/// Whether the browser may touch an entry's file in the game folder, and where it is.
+///
+/// The containment this proves is bounded: a manifest is a file the game folder holds, which
+/// a shared archive could have planted, and an install folder or one inside it could already
+/// be a symlink out — so an entry is touched only where its parent really resolves inside the
+/// game folder. It is NOT a guard against a process on this computer swapping folders between
+/// the check and the touch (such a process could already delete anything the player can), on
+/// Windows junctions have not been exercised, and new installs write to their own fresh paths
+/// without it.
+pub enum Touch {
+    /// Verified inside the game folder: safe to remove or rename. The path runs through the
+    /// checked folder itself, not the alias the entry named.
+    Here(PathBuf),
+    /// A part of the path verifiably doesn't exist, so the file can't be there: nothing to
+    /// remove, and a stale entry is safe to drop. Only a proven absence — an unreadable or
+    /// unresolvable folder is [`Touch::Unsafe`], never this.
+    Gone,
+    /// Not verifiably inside the game folder: don't touch.
+    Unsafe,
+}
+
+/// The filesystem half of [`Entry::touch`], also for a path that has no entry of its own
+/// (the `.hmod` a mod that turned native left behind).
+fn touch_file(home: &Path, file: &str) -> Touch {
+    if !in_folders(file) {
+        return Touch::Unsafe;
+    }
+    let path = home.join(file);
+    let (Some(parent), Some(name)) = (path.parent(), path.file_name()) else {
+        return Touch::Unsafe;
+    };
+    let parent = match fs::canonicalize(parent) {
+        Ok(parent) => parent,
+        // Some part of the path verifiably doesn't exist, so the file can't either.
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Touch::Gone,
+        // An unreadable or unresolvable parent proves nothing about the file: don't touch.
+        Err(_) => return Touch::Unsafe,
+    };
+    let Ok(root) = fs::canonicalize(home) else {
+        return Touch::Unsafe;
+    };
+    if parent.starts_with(&root) {
+        Touch::Here(parent.join(name))
+    } else {
+        Touch::Unsafe
+    }
+}
+
+impl Entry {
+    /// Where the entry's file may be touched in the game folder `home`, if anywhere
+    /// ([`Touch`]): [`in_folders`] is the lexical half, the resolve the filesystem half.
+    pub fn touch(&self, home: &Path) -> Touch {
+        touch_file(home, &self.file)
+    }
+}
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Installed {
     /// An entry this launcher can't read (a shader pack, which older launchers installed) is
@@ -62,6 +160,12 @@ impl Installed {
         fs::read_to_string(home.join(MANIFEST))
             .ok()
             .and_then(|t| serde_json::from_str(&t).ok())
+            .map(|mut listed: Self| {
+                // The manifest is a file in the game folder, not proof a path is the
+                // browser's: keep only entries inside the install folders.
+                listed.entries.retain(|e| in_folders(&e.file));
+                listed
+            })
             .unwrap_or_default()
     }
 
@@ -231,7 +335,9 @@ pub(super) fn put(
         let (algo, hash) = file.checksum().expect("fetch checks for one");
         if let Some(old) = &old {
             if old.file != relative {
-                let _ = fs::remove_file(home.join(&old.file));
+                if let Touch::Here(part) = old.touch(home) {
+                    let _ = fs::remove_file(part);
+                }
             }
         }
         let entry = Entry {
@@ -272,16 +378,27 @@ pub fn remove(home: &Path, name: &str) -> Result<Entry, String> {
     if entry.kind == Kind::Mod && entry.source != SourceId::Horizon {
         super::java::remove(home, &entry)?;
     } else {
-        match fs::remove_file(home.join(&entry.file)) {
-            Ok(()) => {}
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(format!("{}: {e}", entry.file)),
+        match entry.touch(home) {
+            Touch::Here(path) => match fs::remove_file(&path) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(format!("{}: {e}", entry.file)),
+            },
+            Touch::Gone => {}
+            Touch::Unsafe => {
+                return Err(format!("{} isn't a place the browser may remove.", entry.file))
+            }
         }
     }
     if let Some(id) = super::horizon::mod_id(&entry).filter(|_| entry.source == SourceId::Horizon) {
-        // The `.hmod` a mod that turned native left behind (horizon::install_version).
+        // The `.hmod` a mod that turned native left behind (horizon::install_version). It
+        // lives with the Java mods, under the same containment as the entry's own file: a
+        // planted entry must not turn this cleanup into a removal anywhere else.
         if entry.file.ends_with(".hnmod") {
-            let _ = fs::remove_file(home.join(super::java::MODS_DIR).join(format!("{id}.hmod")));
+            let leftover = format!("{}/{id}.hmod", super::java::MODS_DIR);
+            if let Touch::Here(part) = touch_file(home, &leftover) {
+                let _ = fs::remove_file(part);
+            }
         }
         super::java::set_enabled(home, id, false)?;
     }

@@ -701,11 +701,12 @@ fn install_version(
         fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
     fs::rename(&path, &target).map_err(|e| format!("{}: {e}", target.display()))?;
-    if let Some(old) = old
+    if let Some(installed::Touch::Here(part)) = old
         .as_ref()
         .filter(|o| o.file != relative && !stays(native, &o.file))
+        .map(|o| o.touch(home))
     {
-        let _ = fs::remove_file(home.join(&old.file));
+        let _ = fs::remove_file(part);
     }
     if project.kind == Kind::Mod {
         java::set_enabled(home, &p.id, true)?;

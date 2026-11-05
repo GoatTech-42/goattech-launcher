@@ -7,7 +7,10 @@
 //!
 //! Installing copies the carried-over folder mod into `horizon-mods/<mod id>/` beside
 //! `options.txt` and turns it on in `horizon-mods.txt`, where the game's Options > Mods reads it.
-use super::{installed::Entry, pick, FileRef, Kind, Project, Source, Support, Version};
+use super::{
+    installed::{Entry, Touch},
+    pick, FileRef, Kind, Project, Source, Support, Version,
+};
 use horizon_port_pack::check::{self, Check, Verdict};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -254,7 +257,9 @@ impl Job<'_> {
             let _ = fs::remove_dir_all(&part);
         })?;
         if let Some(old) = &old {
-            let _ = fs::remove_dir_all(home.join(&old.file));
+            if let Touch::Here(part) = old.touch(home) {
+                let _ = fs::remove_dir_all(part);
+            }
             if old.file != relative {
                 let _ = set_enabled(home, old.file.trim_start_matches("horizon-mods/"), false);
             }
@@ -291,10 +296,16 @@ pub fn remove(home: &Path, entry: &Entry) -> Result<(), String> {
     let Some(id) = entry.file.strip_prefix("horizon-mods/") else {
         return Err(format!("{} isn't in {MODS_DIR}/.", entry.file));
     };
-    match fs::remove_dir_all(home.join(&entry.file)) {
-        Ok(()) => {}
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-        Err(e) => return Err(format!("{}: {e}", entry.file)),
+    match entry.touch(home) {
+        Touch::Here(path) => match fs::remove_dir_all(&path) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(format!("{}: {e}", entry.file)),
+        },
+        Touch::Gone => {}
+        Touch::Unsafe => {
+            return Err(format!("{} isn't a place the browser may remove.", entry.file))
+        }
     }
     set_enabled(home, id, false)
 }

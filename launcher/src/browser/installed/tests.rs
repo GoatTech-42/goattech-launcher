@@ -428,3 +428,226 @@ fn data_packs_go_into_a_world_when_something_in_them_runs() {
     assert_eq!(names.len(), 2, "{names:?}");
     fs::remove_dir_all(world.parent().unwrap().parent().unwrap()).unwrap();
 }
+
+fn listed(home: &Path, files: &[&str]) {
+    listed_full(home, SourceId::Modrinth, Kind::Mod, files)
+}
+
+fn listed_as(home: &Path, kind: Kind, files: &[&str]) {
+    listed_full(home, SourceId::Modrinth, kind, files)
+}
+
+fn listed_full(home: &Path, source: SourceId, kind: Kind, files: &[&str]) {
+    let entries: Vec<Entry> = files
+        .iter()
+        .map(|f| Entry {
+            source,
+            project: "p".into(),
+            slug: "p-slug".into(),
+            title: "P".into(),
+            kind,
+            version: "1".into(),
+            number: "1.0".into(),
+            file: f.to_string(),
+            checksum: String::new(),
+            page: String::new(),
+            dependency: false,
+            verdict: None,
+            skipped: Vec::new(),
+            namespaces: Vec::new(),
+        })
+        .collect();
+    let listed = Installed {
+        entries,
+        ..Default::default()
+    };
+    listed.save(home).unwrap();
+}
+
+#[test]
+fn a_planted_manifest_keeps_only_files_inside_the_install_folders() {
+    let home = std::env::temp_dir().join(format!("horizon-installed-plant-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&home);
+    fs::create_dir_all(&home).unwrap();
+    listed(
+        &home,
+        &[
+            "/etc/passwd",
+            "../outside.txt",
+            "mods/../../outside.txt",
+            "horizon-mods",
+            "config/options.txt",
+            "mods/keep.jar",
+            "horizon-mods/port",
+            "horizon-native-mods/n",
+        ],
+    );
+    let loaded = Installed::load(&home);
+    let kept: Vec<&str> = loaded
+        .entries
+        .iter()
+        .map(|e| e.file.as_str())
+        .collect();
+    assert_eq!(kept, ["mods/keep.jar", "horizon-mods/port", "horizon-native-mods/n"]);
+    let _ = fs::remove_dir_all(&home);
+}
+
+#[test]
+fn remove_never_deletes_a_file_the_manifest_planted_outside() {
+    let home = std::env::temp_dir().join(format!("horizon-installed-rm-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&home);
+    fs::create_dir_all(&home).unwrap();
+    let outside = home.join("../outside-planted.txt");
+    fs::write(&outside, b"not the browser's").unwrap();
+    listed(&home, &["../outside-planted.txt"]);
+    let err = remove(&home, "p").unwrap_err();
+    assert!(err.contains("wasn't installed"), "{err}");
+    assert!(outside.exists());
+    let _ = fs::remove_dir_all(&home);
+    let _ = fs::remove_file(&outside);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlinked_folder_never_lets_a_removal_out() {
+    let id = std::process::id();
+    let home = std::env::temp_dir().join(format!("horizon-installed-link-{id}"));
+    let outside = std::env::temp_dir().join(format!("horizon-installed-link-out-{id}"));
+    let _ = fs::remove_dir_all(&home);
+    let _ = fs::remove_dir_all(&outside);
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&outside).unwrap();
+    let prey = outside.join("prey.jar");
+    fs::write(&prey, b"not the browser's").unwrap();
+    // The install folder itself is a door out of the game folder.
+    std::os::unix::fs::symlink(&outside, home.join("horizon-mods")).unwrap();
+    // So is a folder inside a real install folder.
+    fs::create_dir_all(home.join("mods")).unwrap();
+    std::os::unix::fs::symlink(&outside, home.join("mods/sub")).unwrap();
+    // And a real file in a real folder still resolves.
+    fs::create_dir_all(home.join("mods/real")).unwrap();
+    fs::write(home.join("mods/real/keep.jar"), b"x").unwrap();
+    listed(&home, &["horizon-mods/prey.jar", "mods/sub/prey.jar", "mods/real/keep.jar"]);
+    let loaded = Installed::load(&home);
+    // All three entries pass the lexical load filter, but resolving the two through a symlink
+    // must see where the path lands and refuse to name it.
+    assert_eq!(loaded.entries.len(), 3);
+    assert!(matches!(loaded.entries[0].touch(&home), Touch::Unsafe), "symlinked install folder");
+    assert!(matches!(loaded.entries[1].touch(&home), Touch::Unsafe), "symlinked nested folder");
+    assert!(matches!(loaded.entries[2].touch(&home), Touch::Here(_)), "real file");
+    let err = remove(&home, "p").unwrap_err();
+    assert!(err.contains("isn't a place the browser may remove"), "{err}");
+    assert_eq!(fs::read(&prey).unwrap(), b"not the browser's");
+    let _ = fs::remove_dir_all(&home);
+    let _ = fs::remove_dir_all(&outside);
+}
+
+#[test]
+fn a_missing_folder_makes_a_stale_entry_a_no_op_to_remove() {
+    let home = std::env::temp_dir().join(format!("horizon-installed-gone-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&home);
+    fs::create_dir_all(&home).unwrap();
+    // The pack's folder was never made (or was deleted by hand), so the file can't be there:
+    // removing the stale entry succeeds instead of erroring, and the manifest forgets it.
+    listed_as(&home, Kind::ResourcePack, &["resourcepacks/missing.zip"]);
+    remove(&home, "p").unwrap();
+    assert!(Installed::load(&home).entries.is_empty());
+    let err = remove(&home, "p").unwrap_err();
+    assert!(err.contains("wasn't installed"), "{err}");
+    // A Java mod whose folder is gone is the same no-op.
+    listed(&home, &["horizon-mods/gone-mod"]);
+    remove(&home, "p").unwrap();
+    assert!(Installed::load(&home).entries.is_empty());
+    let _ = fs::remove_dir_all(&home);
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unreadable_folder_is_not_absence() {
+    use std::os::unix::fs::PermissionsExt;
+    let home = std::env::temp_dir().join(format!("horizon-installed-denied-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&home);
+    let nested = home.join("resourcepacks/sub");
+    fs::create_dir_all(&nested).unwrap();
+    fs::write(nested.join("pack.zip"), b"x").unwrap();
+    listed_as(&home, Kind::ResourcePack, &["resourcepacks/sub/pack.zip"]);
+    // The folder above the file's parent can't be read: nothing is proven about the file,
+    // so removal refuses and KEEPS the entry instead of dropping it as gone.
+    fs::set_permissions(home.join("resourcepacks"), fs::Permissions::from_mode(0o000)).unwrap();
+    let denied = remove(&home, "p").unwrap_err();
+    fs::set_permissions(home.join("resourcepacks"), fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(denied.contains("isn't a place the browser may remove"), "{denied}");
+    assert_eq!(Installed::load(&home).entries.len(), 1);
+    assert!(nested.join("pack.zip").exists());
+    let _ = fs::remove_dir_all(&home);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_native_mods_leftover_never_lets_a_removal_out() {
+    let id = std::process::id();
+    let home = std::env::temp_dir().join(format!("horizon-installed-hmod-{id}"));
+    let outside = std::env::temp_dir().join(format!("horizon-installed-hmod-out-{id}"));
+    let _ = fs::remove_dir_all(&home);
+    let _ = fs::remove_dir_all(&outside);
+    fs::create_dir_all(&home).unwrap();
+    fs::create_dir_all(&outside).unwrap();
+    let prey = outside.join("evil.hmod");
+    fs::write(&prey, b"not the browser's").unwrap();
+    // The native mod's entry names a file in its own folder...
+    fs::create_dir_all(home.join("horizon-native-mods")).unwrap();
+    fs::write(home.join("horizon-native-mods/evil.hnmod"), b"x").unwrap();
+    // ...but the Java-mods folder its `.hmod` leftover would sit in is a door out.
+    std::os::unix::fs::symlink(&outside, home.join("horizon-mods")).unwrap();
+    listed_full(&home, SourceId::Horizon, Kind::Mod, &["horizon-native-mods/evil.hnmod"]);
+    // The entry's own file goes; the leftover outside is not touched.
+    remove(&home, "p").unwrap();
+    assert_eq!(fs::read(&prey).unwrap(), b"not the browser's");
+    assert!(!home.join("horizon-native-mods/evil.hnmod").exists());
+    assert!(Installed::load(&home).entries.is_empty());
+    let _ = fs::remove_dir_all(&home);
+    let _ = fs::remove_dir_all(&outside);
+}
+
+#[test]
+fn a_native_mods_contained_leftover_is_removed_with_its_entry() {
+    let home = std::env::temp_dir().join(format!("horizon-installed-hmod-ok-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&home);
+    fs::create_dir_all(home.join("horizon-native-mods")).unwrap();
+    fs::create_dir_all(home.join("horizon-mods")).unwrap();
+    fs::write(home.join("horizon-native-mods/evil.hnmod"), b"x").unwrap();
+    fs::write(home.join("horizon-mods/evil.hmod"), b"leftover").unwrap();
+    listed_full(&home, SourceId::Horizon, Kind::Mod, &["horizon-native-mods/evil.hnmod"]);
+    remove(&home, "p").unwrap();
+    assert!(!home.join("horizon-native-mods/evil.hnmod").exists());
+    assert!(!home.join("horizon-mods/evil.hmod").exists());
+    assert!(Installed::load(&home).entries.is_empty());
+    let _ = fs::remove_dir_all(&home);
+}
+
+#[test]
+fn in_folders_marks_the_shapes() {
+    for bad in [
+        "/etc/passwd",
+        "..",
+        "../x",
+        "mods",
+        "mods/",
+        "mods/../x",
+        "horizon-mods",
+        "config/options.txt",
+        "screenshots/a.png",
+        "mods/CON.jar",
+        "mods/com1.txt",
+        "mods/a:b",
+        "mods/x.",
+        "mods/x ",
+        "mods/a /b.jar",
+        "",
+    ] {
+        assert!(!in_folders(bad), "{bad}");
+    }
+    for good in ["mods/a.jar", "resourcepacks/p.zip", "shaderpacks/s.zip", "horizon-mods/m", "horizon-native-mods/n", "mods/a/b.jar"] {
+        assert!(in_folders(good), "{good}");
+    }
+}

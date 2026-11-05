@@ -175,7 +175,11 @@ pub fn install(
             continue;
         };
         if old.file != e.file {
-            let _ = fs::remove_file(off(home, old));
+            if let installed::Touch::Here(jar) = old.touch(home) {
+                let mut off = jar.into_os_string();
+                off.push(OFF);
+                let _ = fs::remove_file(off);
+            }
         }
         set_on(home, e, false)?;
     }
@@ -203,8 +207,19 @@ pub fn set_on(home: &Path, entry: &Entry, on: bool) -> Result<(), String> {
             entry.title
         ));
     }
-    let (jar, off) = (home.join(&entry.file), off(home, entry));
-    let (from, to) = if on { (off, jar) } else { (jar, off) };
+    let jar = match entry.touch(home) {
+        installed::Touch::Here(jar) => jar,
+        installed::Touch::Gone => {
+            return Err(format!("{} isn't there to turn on or off.", entry.title))
+        }
+        installed::Touch::Unsafe => {
+            return Err(format!("{} isn't a place the browser may touch.", entry.file))
+        }
+    };
+    let mut off = jar.clone().into_os_string();
+    off.push(OFF);
+    let off = std::path::PathBuf::from(off);
+    let (from, to) = if on { (off, jar.clone()) } else { (jar, off) };
     if !from.exists() && to.is_file() {
         return Ok(());
     }
@@ -232,11 +247,21 @@ pub fn remove(home: &Path, name: &str) -> Result<Entry, String> {
         .lookup(name)
         .cloned()
         .ok_or_else(|| format!("{name} wasn't installed by the browser."))?;
-    for path in [home.join(&entry.file), off(home, &entry)] {
-        match fs::remove_file(&path) {
-            Ok(()) => {}
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(format!("{}: {e}", path.display())),
+    match entry.touch(home) {
+        installed::Touch::Here(jar) => {
+            let mut off = jar.clone().into_os_string();
+            off.push(OFF);
+            for path in [jar, std::path::PathBuf::from(off)] {
+                match fs::remove_file(&path) {
+                    Ok(()) => {}
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(e) => return Err(format!("{}: {e}", path.display())),
+                }
+            }
+        }
+        installed::Touch::Gone => {}
+        installed::Touch::Unsafe => {
+            return Err(format!("{} isn't a place the browser may remove.", entry.file))
         }
     }
     installed

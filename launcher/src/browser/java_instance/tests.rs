@@ -118,6 +118,34 @@ fn home(name: &str) -> PathBuf {
 const NONE: &dyn Fn(&str, f32) = &|_, _| {};
 
 #[test]
+fn a_mod_whose_folder_is_gone_is_not_toggled() {
+    let home = std::env::temp_dir().join(format!("horizon-java-instance-gone-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&home);
+    fs::create_dir_all(&home).unwrap();
+    let entry = Entry {
+        source: SourceId::Modrinth,
+        project: "p".into(),
+        slug: "p-slug".into(),
+        title: "P".into(),
+        kind: Kind::Mod,
+        version: "1".into(),
+        number: "1.0".into(),
+        file: "mods/gone.jar".into(),
+        checksum: String::new(),
+        page: String::new(),
+        dependency: false,
+        verdict: None,
+        skipped: Vec::new(),
+        namespaces: Vec::new(),
+    };
+    // The folder that would hold the mod isn't there: toggling says so instead of renaming
+    // through a path nobody checked.
+    let err = set_on(&home, &entry, false).unwrap_err();
+    assert!(err.contains("isn't there"), "{err}");
+    let _ = fs::remove_dir_all(&home);
+}
+
+#[test]
 fn picks_the_newest_file_for_the_version_and_loader() {
     let mut fake = Fake::default();
     fake.release("sodium", Kind::Mod, "1", &["1.21.1"], &["fabric"], &[]);
