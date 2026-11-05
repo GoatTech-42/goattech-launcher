@@ -24,6 +24,14 @@ const INDEX: &str = "modrinth.index.json";
 /// The `.mrpack` folders copied into the game folder; `server-overrides/` is a server's.
 const OVERRIDES: [&str; 2] = ["overrides/", "client-overrides/"];
 
+/// The most a shared instance or a `.mrpack` may unpack to, in bytes: far past any real pack,
+/// so an archive that claims small files but keeps producing them is refused instead of
+/// filling the disk.
+/// The most an import may unpack from its archive: 8 GiB. This bounds what the archive itself
+/// unpacks to; the files an index lists are downloaded afterwards, each bounded on its own, so
+/// it is not a promise about an import's total size.
+pub const MAX_IMPORT: u64 = 8 << 30;
+
 /// What a dropped file is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Dropped {
@@ -171,7 +179,7 @@ pub fn import_into(
         .find_map(|name| create(&name).ok())
         .ok_or_else(|| format!("Could not make an instance called {base}."))?;
     let home = instance.home.clone();
-    let filled = fill(&mut zip, index.as_ref(), &home, progress);
+    let filled = fill(&mut zip, index.as_ref(), &home, progress, MAX_IMPORT);
     if let Err(e) = filled {
         let _ = fs::remove_dir_all(&home);
         return Err(e);
@@ -271,7 +279,7 @@ pub fn import_java_instance_with(
         .find_map(|name| create(&name, &version, loader.clone()).ok())
         .ok_or_else(|| format!("Could not make an instance called {base}."))?;
     let home = instance.home.clone();
-    if let Err(e) = fill_with(&mut zip, Some(&index), &home, progress, &java_target) {
+    if let Err(e) = fill_with(&mut zip, Some(&index), &home, progress, &java_target, MAX_IMPORT) {
         let _ = fs::remove_dir_all(&home);
         return Err(e);
     }
@@ -308,19 +316,27 @@ fn fill(
     index: Option<&serde_json::Value>,
     home: &Path,
     progress: &dyn Fn(&str, f32),
+    limit: u64,
 ) -> Result<(), String> {
-    fill_with(zip, index, home, progress, &target)
+    fill_with(zip, index, home, progress, &target, limit)
 }
 
 /// `fill` with the rule for where an entry may land: Horizon instances take their own files,
 /// Java instances theirs ([`java_target`]).
+/// `limit` bounds the bytes unpacked from the archive in total, and only those: an entry's
+/// declared size is the archive's own word, so the budget is enforced on what actually comes
+/// out, before it lands — a copy stops at the remaining budget and one detection byte, never
+/// written, decides the refusal. Files an index lists for download are fetched afterwards and
+/// don't come from the archive: each is bounded on its own, with no total promised here.
 fn fill_with(
     zip: &mut zip::ZipArchive<fs::File>,
     index: Option<&serde_json::Value>,
     home: &Path,
     progress: &dyn Fn(&str, f32),
     target: &dyn Fn(&Path, &str) -> Option<PathBuf>,
+    limit: u64,
 ) -> Result<(), String> {
+    let mut unpacked: u64 = 0;
     let count = zip.len();
     for i in 0..count {
         let mut entry = zip.by_index(i).map_err(|e| e.to_string())?;
@@ -337,7 +353,24 @@ fn fill_with(
         };
         fs::create_dir_all(to.parent().expect("inside home")).map_err(|e| e.to_string())?;
         let mut out = fs::File::create(&to).map_err(|e| format!("{}: {e}", to.display()))?;
-        std::io::copy(&mut entry, &mut out).map_err(|e| format!("{}: {e}", to.display()))?;
+        // The budget is enforced before bytes land, not counted after: the copy gets at most
+        // the remaining budget, then one detection byte, never written, tells whether the
+        // entry held more. What lands can never pass `limit`.
+        let remaining = limit - unpacked;
+        let wrote = std::io::copy(&mut (&mut entry).take(remaining), &mut out)
+            .map_err(|e| format!("{}: {e}", to.display()))?;
+        unpacked += wrote;
+        let mut detection = [0u8; 1];
+        if entry
+            .read(&mut detection)
+            .map_err(|e| format!("{}: {e}", to.display()))?
+            > 0
+        {
+            return Err(format!(
+                "{relative} unpacks past the {} an import may hold: refusing the archive.",
+                describe(limit)
+            ));
+        }
         progress(
             &format!("Copying {relative}"),
             (i + 1) as f32 / count as f32,
@@ -368,6 +401,15 @@ fn fill_with(
             .map_err(|e| format!("{relative}: {e}"))?;
     }
     Ok(())
+}
+
+/// How the refusal names `limit`: the production cap by name, a smaller one in bytes.
+fn describe(limit: u64) -> String {
+    if limit == MAX_IMPORT {
+        "8 GiB".to_string()
+    } else {
+        format!("{limit} bytes")
+    }
 }
 
 #[cfg(test)]

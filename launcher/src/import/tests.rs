@@ -355,3 +355,46 @@ fn a_forge_pack_says_so_instead_of_importing_broken() {
     assert!(err.contains("A new Java instance can install neoforge itself"), "{err}");
     let _ = fs::remove_dir_all(&root);
 }
+
+#[test]
+fn an_archive_unpacking_past_the_limit_is_refused_mid_fill() {
+    let root = scratch("cap");
+    let archive = root.join("over.zip");
+    zip_file(&archive, &[("options.txt", b"12345"), ("config/a.txt", b"67890")]);
+    let mut zip = open(&archive).unwrap();
+    let home = root.join("inst");
+    // A tiny limit stands in for 8 GiB: the budget is enforced on what actually unpacks,
+    // entry by entry, so the second file crosses it.
+    let err = fill_with(&mut zip, None, &home, &|_, _| {}, &target, 8).unwrap_err();
+    assert!(err.contains("unpacks past"), "{err}");
+    // Nothing lands past the budget: all five bytes of the first file, three of the second.
+    assert_eq!(fs::metadata(home.join("options.txt")).unwrap().len(), 5);
+    assert_eq!(fs::metadata(home.join("config/a.txt")).unwrap().len(), 3);
+}
+
+#[test]
+fn a_single_huge_entry_is_cut_off_before_it_lands() {
+    let root = scratch("cap-huge");
+    let archive = root.join("huge.zip");
+    let big = vec![b'x'; 100_000];
+    zip_file(&archive, &[("options.txt", &big)]);
+    let mut zip = open(&archive).unwrap();
+    let home = root.join("inst");
+    // One entry larger than the whole budget: the copy stops at the remaining budget and
+    // one detection byte, never written, refuses the archive.
+    let err = fill_with(&mut zip, None, &home, &|_, _| {}, &target, 1_000).unwrap_err();
+    assert!(err.contains("unpacks past"), "{err}");
+    assert_eq!(fs::metadata(home.join("options.txt")).unwrap().len(), 1_000);
+}
+
+#[test]
+fn an_archive_within_the_limit_unpacks_all_of_it() {
+    let root = scratch("cap-ok");
+    let archive = root.join("fine.zip");
+    zip_file(&archive, &[("options.txt", b"12345"), ("config/a.txt", b"67890")]);
+    let mut zip = open(&archive).unwrap();
+    let home = root.join("inst");
+    fill_with(&mut zip, None, &home, &|_, _| {}, &target, 10).unwrap();
+    assert_eq!(fs::read(home.join("options.txt")).unwrap(), b"12345");
+    assert_eq!(fs::read(home.join("config/a.txt")).unwrap(), b"67890");
+}
