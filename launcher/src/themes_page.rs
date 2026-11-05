@@ -60,7 +60,7 @@ impl Launcher {
                 })
                 .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
                     this.settings.accent = accent;
-                    this.settings.save();
+                    let _ = this.settings.save();
                     this.theme = this.settings_theme(window);
                     cx.notify();
                 })),
@@ -168,7 +168,7 @@ impl Launcher {
     fn finish_hue(&mut self) {
         if self.hue_dragging {
             self.hue_dragging = false;
-            self.settings.save();
+            let _ = self.settings.save();
         }
     }
 
@@ -215,7 +215,7 @@ impl Launcher {
         match themes::keep_background(&backend::data_dir(), path) {
             Ok(name) => {
                 self.settings.background = Some(name);
-                self.settings.save();
+                let _ = self.settings.save();
                 self.background_error = None;
             }
             Err(e) => self.background_error = Some(e),
@@ -242,7 +242,7 @@ impl Launcher {
                 button("background-reset", "Landscape", Kind::Ghost, &t).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.settings.background = None;
-                        this.settings.save();
+                        let _ = this.settings.save();
                         cx.notify();
                     },
                 )),

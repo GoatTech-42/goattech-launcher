@@ -1613,7 +1613,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             if let Some(key) = key {
                 let value = value.ok_or("settings KEY VALUE: the value is missing")?;
                 set_setting(&mut settings, &key, &value)?;
-                settings.save();
+                let _ = settings.save();
                 crate::proxy::announce(settings.proxy.clone());
             }
             let all = settings_json(&settings);
@@ -1629,7 +1629,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             let mut settings = backend::Settings::load();
             if let Some(line) = args {
                 settings.game_args = line;
-                settings.save();
+                let _ = settings.save();
             }
             let line = settings.game_args;
             if as_json {
@@ -1691,7 +1691,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
         Cmd::DesktopEntry { remove } => {
             let mut settings = backend::Settings::load();
             settings.desktop_entry = Some(!remove);
-            settings.save();
+            let _ = settings.save();
             if remove {
                 crate::desktop::remove()?;
                 println!("Removed GoatTech Launcher from the applications menu.");
@@ -2301,7 +2301,7 @@ fn github_native(
     if !settings.native_mods_noticed {
         eprintln!("{}", native_status::NOTICE);
         settings.native_mods_noticed = true;
-        settings.save();
+        let _ = settings.save();
     }
     println!("Build it next: horizon-launcher native-build --trust-native-code");
     println!(
@@ -2604,7 +2604,7 @@ fn mods(action: ModsCmd, as_json: bool) -> Result<(), String> {
             if native && !settings.native_mods_noticed {
                 eprintln!("{}", native_status::NOTICE);
                 settings.native_mods_noticed = true;
-                settings.save();
+                let _ = settings.save();
             }
         }
         ModsCmd::Update { project, check, .. } => {

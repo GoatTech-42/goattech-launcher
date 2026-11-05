@@ -85,7 +85,7 @@ impl Launcher {
                         })
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.settings.language = choice;
-                            this.settings.save();
+                            let _ = this.settings.save();
                             i18n::set(this.settings.language());
                             this.language_menu = false;
                             cx.notify();

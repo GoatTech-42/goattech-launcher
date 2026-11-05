@@ -6,6 +6,8 @@
 //! recorded setting and treat its absence as off. Only the window runs [`init_for_gui`], once,
 //! from the snapshot taken at the very start of `main`, before anything writes.
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
+use std::sync::{Mutex, OnceLock, mpsc};
 use std::time::Instant;
 
 use horizon_telemetry::basic::{self, P95, Report, Ttt, Ttw};
@@ -147,7 +149,85 @@ fn init_in(path: &Path, fresh: bool) {
 /// every other entry point see a missing field as off and never write it. A corrupt file or
 /// a value of the wrong shape parses to no setting (`Settings::parse`), so it is off too.
 pub fn enabled() -> bool {
+    if PROCESS_VETO.load(Ordering::Relaxed) {
+        return false;
+    }
     Settings::load().basic_summaries == Some(true)
+}
+
+/// Process-local veto: an OFF the player just chose applies at once - before, and even
+/// if, its save lands - because every collection gate (the session's send, the dispatch
+/// thread's re-check, the command's events switch) reads it through `enabled()`. It can
+/// only turn collection off; a later ON choice clears it only once that ON is actually
+/// saved and is still the newest choice (the choice worker below).
+static PROCESS_VETO: AtomicBool = AtomicBool::new(false);
+
+/// The switch was just turned off: collection stops in this process NOW, whatever disk
+/// says and however the save goes.
+pub fn veto_for_process() {
+    PROCESS_VETO.store(true, Ordering::Relaxed);
+}
+
+/// Monotonic click number: the newest explicit choice is the one whose outcome the
+/// window shows, and the only one a saved ON may clear the veto for.
+static CHOICE_GEN: AtomicU64 = AtomicU64::new(0);
+/// Newest choice's save state: 0 settled, 1 saving, 2 the OFF could not be saved,
+/// 3 the ON could not be saved.
+static CHOICE_STATE: AtomicU8 = AtomicU8::new(0);
+static CHOICE_ERROR: Mutex<Option<String>> = Mutex::new(None);
+static CHOICE_TX: OnceLock<mpsc::Sender<(u64, Settings)>> = OnceLock::new();
+
+/// The newest explicit choice's failed save, for the switch's row: whether the choice
+/// that failed was ON, and the error. `None` while a save is in flight or settled.
+pub fn choice_save_failed() -> Option<(bool, String)> {
+    match CHOICE_STATE.load(Ordering::Relaxed) {
+        2 => Some((false, CHOICE_ERROR.lock().unwrap().clone().unwrap_or_default())),
+        3 => Some((true, CHOICE_ERROR.lock().unwrap().clone().unwrap_or_default())),
+        _ => None,
+    }
+}
+
+/// Persist an explicit basic-summaries choice OFF the UI thread, in click order: one
+/// worker, one FIFO, so a quick off-on-off lands exactly in that order and the newest
+/// click's save is the last word. `settings` already carries the choice. The UI never
+/// waits on the lock or the disk: the switch's row shows a failed save when the newest
+/// choice's save could not be written (`choice_save_failed`).
+pub fn record_choice_async(settings: Settings) {
+    let gen = CHOICE_GEN.fetch_add(1, Ordering::Relaxed) + 1;
+    CHOICE_STATE.store(1, Ordering::Relaxed);
+    let tx = CHOICE_TX.get_or_init(|| {
+        let (tx, rx) = mpsc::channel::<(u64, Settings)>();
+        std::thread::spawn(move || {
+            while let Ok((gen, settings)) = rx.recv() {
+                let on = settings.basic_summaries == Some(true);
+                let newest = || gen == CHOICE_GEN.load(Ordering::Relaxed);
+                match settings.save_basic_choice() {
+                    Ok(()) => {
+                        if newest() {
+                            CHOICE_STATE.store(0, Ordering::Relaxed);
+                            // A saved ON, still the newest choice, lifts the veto; the
+                            // disk record now carries it, so the process agrees with the
+                            // next launch.
+                            if on {
+                                PROCESS_VETO.store(false, Ordering::Relaxed);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        if newest() {
+                            *CHOICE_ERROR.lock().unwrap() = Some(e.to_string());
+                            CHOICE_STATE.store(if on { 3 } else { 2 }, Ordering::Relaxed);
+                        }
+                    }
+                }
+            }
+        });
+        tx
+    });
+    if tx.send((gen, settings)).is_err() {
+        *CHOICE_ERROR.lock().unwrap() = Some("the settings worker is gone".to_owned());
+        CHOICE_STATE.store(2, Ordering::Relaxed);
+    }
 }
 
 /// One game session's measurements as its events arrive, bound to the measured game build:

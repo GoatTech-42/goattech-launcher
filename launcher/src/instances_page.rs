@@ -124,7 +124,7 @@ impl Launcher {
         // Every pick is recorded, the game's own home included: None means "never picked",
         // so collapsing that pick to None would lose it (and mislead the first-pick ask).
         self.settings.instance = Some(instance.id.clone());
-        self.settings.save();
+        let _ = self.settings.save();
     }
 
     /// A texture from the selected version's prepared files, its first frame, drawn as pixels.
@@ -1425,7 +1425,7 @@ impl Launcher {
                 // Play starts Horizon again; the window's copy of the settings says so too.
                 if self.settings.instance.as_deref() == Some(id) {
                     self.settings.instance = None;
-                    self.settings.save();
+                    let _ = self.settings.save();
                 }
                 self.reload_instances();
             }

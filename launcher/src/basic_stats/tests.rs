@@ -133,18 +133,198 @@ fn an_unrelated_save_preserves_the_recorded_basic_choice() {
     // Another window turns it off, explicitly.
     let mut b = crate::backend::Settings::load();
     b.basic_summaries = Some(false);
-    b.save_basic_choice();
+    b.save_basic_choice().unwrap();
     assert_eq!(crate::backend::Settings::load().basic_summaries, Some(false));
     // A saves an unrelated change from its stale snapshot: the recorded false survives.
     a.skip_opening = true;
-    a.save();
+    a.save().unwrap();
     let after = crate::backend::Settings::load();
     assert_eq!(after.basic_summaries, Some(false), "a stale save resurrected the opt-in");
     assert!(after.skip_opening, "the unrelated change was lost");
     // But when A's user actually flips the basic switch, that explicit choice wins.
     a.basic_summaries = Some(true);
-    a.save_basic_choice();
+    a.save_basic_choice().unwrap();
     assert_eq!(crate::backend::Settings::load().basic_summaries, Some(true));
+    std::env::remove_var("HORIZON_LAUNCHER_HOME");
+}
+
+/// Fail closed on uncertain bytes: an unrelated save that cannot read the current file -
+/// corrupt, invalid UTF-8, or not a settings object - writes NOTHING, because the recorded
+/// choice is unknown and a stale snapshot must never replace it.
+#[test]
+fn an_unrelated_save_refuses_uncertain_existing_bytes() {
+    let _guard = SERIAL.lock().unwrap();
+    let (launcher, _game) = dirs("uncertain");
+    std::fs::create_dir_all(&launcher).unwrap();
+    std::env::set_var("HORIZON_LAUNCHER_HOME", &launcher);
+    let settings = launcher.join("settings.json");
+    // A recorded opt-out, then a stale snapshot from another window still carrying true.
+    let mut b = crate::backend::Settings::load();
+    b.basic_summaries = Some(false);
+    b.save_basic_choice().unwrap();
+    let mut stale = crate::backend::Settings {
+        basic_summaries: Some(true),
+        ..crate::backend::Settings::load()
+    };
+    for bad in [b"\xffnot-json".as_slice(), b"[1,2]".as_slice(), b"\"str\"".as_slice()] {
+        std::fs::write(&settings, bad).unwrap();
+        assert!(
+            stale.save().is_err(),
+            "an unrelated save wrote over bytes it could not read"
+        );
+        assert_eq!(
+            std::fs::read(&settings).unwrap(),
+            bad,
+            "uncertain bytes were replaced"
+        );
+    }
+    // A file that parses to no setting is off - never the stale snapshot's true.
+    assert_ne!(crate::backend::Settings::load().basic_summaries, Some(true));
+    // And the explicit-choice path still works afterwards.
+    stale.save_basic_choice().unwrap();
+    assert_eq!(crate::backend::Settings::load().basic_summaries, Some(true));
+    std::env::remove_var("HORIZON_LAUNCHER_HOME");
+}
+
+/// Proven-absent file, explicit policy: an unrelated save records NO basic choice rather
+/// than inventing one from a stale snapshot's in-memory value.
+#[test]
+fn an_unrelated_save_records_no_choice_when_none_is_on_disk() {
+    let _guard = SERIAL.lock().unwrap();
+    let (launcher, _game) = dirs("gone");
+    std::fs::create_dir_all(&launcher).unwrap();
+    std::env::set_var("HORIZON_LAUNCHER_HOME", &launcher);
+    let mut stale = crate::backend::Settings::load();
+    stale.basic_summaries = Some(true); // a stale in-memory opt-in
+    stale.save().unwrap();
+    let v: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(launcher.join("settings.json")).unwrap(),
+    )
+    .unwrap();
+    assert!(v.get("basic_summaries").is_none(), "an unrelated save invented a choice: {v}");
+    assert!(v.get("basic_summaries_cohort").is_none(), "{v}");
+    std::env::remove_var("HORIZON_LAUNCHER_HOME");
+}
+
+/// The held-lock off, end to end: the click returns at once (no 1s lock wait on the UI),
+/// the veto makes every collection gate off NOW while disk still says on, and the queued
+/// save lands once the lock is free. A saved ON - the newest choice - lifts the veto.
+#[test]
+fn an_off_choice_applies_now_and_lands_after_a_held_lock() {
+    let _guard = SERIAL.lock().unwrap();
+    let (launcher, _game) = dirs("heldoff");
+    std::fs::create_dir_all(&launcher).unwrap();
+    std::env::set_var("HORIZON_LAUNCHER_HOME", &launcher);
+    let settings = launcher.join("settings.json");
+    let mut st = crate::backend::Settings::load();
+    st.basic_summaries = Some(true);
+    st.save_basic_choice().unwrap();
+    assert!(enabled());
+    // Hold the OS write lock, as another stuck writer would.
+    let held = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(launcher.join("settings.lock"))
+        .unwrap();
+    held.lock().unwrap();
+    // The click: veto now, persist off the thread. Neither waits on the lock.
+    let started = Instant::now();
+    veto_for_process();
+    let mut off = crate::backend::Settings::load();
+    off.basic_summaries = Some(false);
+    record_choice_async(off);
+    assert!(
+        started.elapsed() < std::time::Duration::from_millis(500),
+        "the click blocked on the stuck lock"
+    );
+    assert!(!enabled(), "the veto did not apply while the save was stuck");
+    // Free the lock well inside the worker's bounded wait: the queued save lands.
+    drop(held);
+    let deadline = Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        let v: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&settings).unwrap(),
+        )
+        .unwrap();
+        if v.get("basic_summaries") == Some(&serde_json::Value::Bool(false)) {
+            break;
+        }
+        assert!(Instant::now() < deadline, "the queued off never landed");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert!(!enabled(), "a recorded off somehow reads as on");
+    assert!(choice_save_failed().is_none(), "{:?}", choice_save_failed());
+    // Click order is the write order: a quick off-then-on ends on, and that saved ON -
+    // the newest choice - lifts the veto, so this process agrees with the next launch.
+    veto_for_process();
+    let mut off2 = crate::backend::Settings::load();
+    off2.basic_summaries = Some(false);
+    record_choice_async(off2);
+    let mut on2 = crate::backend::Settings::load();
+    on2.basic_summaries = Some(true);
+    record_choice_async(on2);
+    let deadline = Instant::now() + std::time::Duration::from_secs(5);
+    while !enabled() {
+        assert!(Instant::now() < deadline, "the newest saved on never lifted the veto");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert_eq!(crate::backend::Settings::load().basic_summaries, Some(true));
+    assert!(choice_save_failed().is_none(), "{:?}", choice_save_failed());
+    std::env::remove_var("HORIZON_LAUNCHER_HOME");
+}
+
+/// A failed OFF save is reported for the row and still stays off in this process: the
+/// lock outlasts the worker's bounded wait, so the save fails - the veto holds (disk
+/// still says on, collection is off here), and the failure is surfaced. Retrying after
+/// the lock frees lands it.
+#[test]
+fn a_failed_off_save_is_surfaced_and_stays_off() {
+    let _guard = SERIAL.lock().unwrap();
+    let (launcher, _game) = dirs("failedoff");
+    std::fs::create_dir_all(&launcher).unwrap();
+    std::env::set_var("HORIZON_LAUNCHER_HOME", &launcher);
+    let mut st = crate::backend::Settings::load();
+    st.basic_summaries = Some(true);
+    st.save_basic_choice().unwrap();
+    let held = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(launcher.join("settings.lock"))
+        .unwrap();
+    held.lock().unwrap();
+    veto_for_process();
+    let mut off = crate::backend::Settings::load();
+    off.basic_summaries = Some(false);
+    record_choice_async(off);
+    // The worker's wait is bounded (~1s): outlast it, so the save fails for real.
+    let deadline = Instant::now() + std::time::Duration::from_secs(5);
+    while choice_save_failed().is_none() {
+        assert!(Instant::now() < deadline, "the stuck save was never reported");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let (was_on, error) = choice_save_failed().unwrap();
+    assert!(!was_on, "the failed choice was the off");
+    assert!(!error.is_empty());
+    assert!(!enabled(), "a failed off save left collection on in this process");
+    assert_eq!(crate::backend::Settings::load().basic_summaries, Some(true), "disk changed?");
+    drop(held);
+    // The retry lands; a saved ON then lifts the veto, leaving a clean state.
+    let mut off = crate::backend::Settings::load();
+    off.basic_summaries = Some(false);
+    record_choice_async(off);
+    let mut on = crate::backend::Settings::load();
+    on.basic_summaries = Some(true);
+    record_choice_async(on);
+    let deadline = Instant::now() + std::time::Duration::from_secs(5);
+    while !enabled() {
+        assert!(Instant::now() < deadline, "the retry never landed");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert!(choice_save_failed().is_none(), "{:?}", choice_save_failed());
     std::env::remove_var("HORIZON_LAUNCHER_HOME");
 }
 
@@ -291,7 +471,11 @@ fn a_concurrent_choice_survives_the_default_patch() {
         while !stop2.load(Ordering::Relaxed) {
             let mut st = crate::backend::Settings::load();
             st.basic_summaries = Some(false);
-            st.save_basic_choice();
+            // A lost lock race skips that round instead of failing it; the assertion
+            // below only makes sense once this writer actually landed its opt-out.
+            if st.save_basic_choice().is_err() {
+                continue;
+            }
             opted_out2.store(true, Ordering::Relaxed);
             // The opt-out just written must still be there: no stale init true over it.
             assert_ne!(
@@ -303,12 +487,14 @@ fn a_concurrent_choice_survives_the_default_patch() {
     });
     for _ in 0..50 {
         init_in(&settings, true);
-        // Before any choice, the default may record true; once an opt-out exists, never.
-        let v: serde_json::Value = serde_json::from_str(
-            &std::fs::read_to_string(&settings).unwrap(),
-        )
-        .unwrap();
+        // Check the flag FIRST, then read: once the opt-out has landed the file can only
+        // ever read false again, while a file read BEFORE the flag flips may still be the
+        // default patch - that ordering is a test artifact, not an init overwrite.
         if opted_out.load(Ordering::Relaxed) {
+            let v: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(&settings).unwrap(),
+            )
+            .unwrap();
             if let Some(b) = v.get("basic_summaries") {
                 assert_eq!(b, &serde_json::Value::Bool(false), "init overwrote the choice");
             }

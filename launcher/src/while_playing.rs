@@ -67,7 +67,7 @@ impl Launcher {
             move |choice, _, cx| {
                 let _ = this.update(cx, |this, cx| {
                     this.settings.while_playing = choice;
-                    this.settings.save();
+                    let _ = this.settings.save();
                     cx.notify();
                 });
             }

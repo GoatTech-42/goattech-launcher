@@ -430,7 +430,7 @@ pub fn delete(query: &str) -> Result<Instance, String> {
     let mut settings = backend::Settings::load();
     if settings.instance.as_ref() == Some(&gone.id) {
         settings.instance = None;
-        settings.save();
+        let _ = settings.save();
     }
     Ok(gone)
 }
@@ -504,7 +504,7 @@ pub fn select(query: &str) -> Result<Instance, String> {
     // Every pick is recorded, the game's own home ("horizon") included: None means "never
     // picked", so collapsing that pick to None would lose it (and mislead the first-pick ask).
     settings.instance = Some(instance.id.clone());
-    settings.save();
+    let _ = settings.save();
     Ok(instance)
 }
 

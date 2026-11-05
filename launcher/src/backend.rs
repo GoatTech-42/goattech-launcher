@@ -2339,7 +2339,7 @@ pub fn remove_version(tag: &str) -> Result<(), String> {
     let mut settings = Settings::load();
     if settings.selected.as_deref() == Some(tag) {
         settings.selected = installed().first().cloned();
-        settings.save();
+        let _ = settings.save();
     }
     Ok(())
 }
@@ -2688,7 +2688,7 @@ pub fn install_tag(tag: &str, as_update: bool, progress: impl Fn(f32)) -> Result
     let mut settings = Settings::load();
     if !as_update || select_after_update(settings.selected.as_deref(), &before) {
         settings.selected = Some(release.tag.clone());
-        settings.save();
+        let _ = settings.save();
     }
     if as_update && release.nightly.is_some() {
         crate::nightly::after_update(&release.tag);
@@ -3305,7 +3305,7 @@ impl WhilePlaying {
     }
 }
 
-#[derive(Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct Settings {
     pub selected: Option<String>,
     /// The instance Play starts (`instances`), by id: every pick is recorded, the game's own
@@ -3474,19 +3474,25 @@ impl Settings {
     pub fn keep_newest(&self) -> usize {
         self.keep_versions.unwrap_or(KEEP_NEWEST).max(1)
     }
-    pub fn save(&self) {
-        self.save_inner(false);
+    /// Save every setting. The recorded basic-summaries choice on disk is preserved (see
+    /// `save_basic_choice`), and an uncertain disk state fails CLOSED: when the current
+    /// bytes cannot be read or parsed (corrupt, not an object, an I/O error) nothing is
+    /// written, because a stale snapshot must never replace bytes whose recorded choice
+    /// is unknown. A proven-absent file carries no recorded choice, so the two basic keys
+    /// are dropped from what this snapshot writes rather than invented from it.
+    pub fn save(&self) -> std::io::Result<()> {
+        self.save_inner(false)
     }
 
     /// An explicit basic-summaries choice (the switch): this window's value wins. Every
     /// other save preserves what is on disk for the two basic keys, so a long-lived GUI
     /// `Settings` saving an unrelated field can never resurrect or undo another window's
     /// (or the default patch's) recorded choice.
-    pub fn save_basic_choice(&self) {
-        self.save_inner(true);
+    pub fn save_basic_choice(&self) -> std::io::Result<()> {
+        self.save_inner(true)
     }
 
-    fn save_inner(&self, basic_choice: bool) {
+    fn save_inner(&self, basic_choice: bool) -> std::io::Result<()> {
         // A write that stops halfway leaves settings.json unreadable, and `load` answers
         // defaults for it: the file is replaced only once it is whole. The OS write lock
         // serializes this read-modify-write against every other settings writer. No lock,
@@ -3496,23 +3502,53 @@ impl Settings {
         let path = dir.join("settings.json");
         let made = fs::create_dir_all(&dir);
         let Some(_guard) = settings_write_lock(&dir) else {
-            eprintln!("Horizon: settings.json is not saved: another settings write is stuck");
-            return;
+            let e = std::io::Error::new(
+                std::io::ErrorKind::WouldBlock,
+                "another settings write is stuck",
+            );
+            eprintln!("Horizon: settings.json is not saved: {e}");
+            return Err(e);
         };
         let mut value = serde_json::to_value(self).unwrap();
         if !basic_choice {
-            // The recorded basic choice on disk wins over this snapshot's stale copy.
-            let disk_fields = fs::read_to_string(&path)
-                .ok()
-                .and_then(|disk| serde_json::from_str::<serde_json::Value>(&disk).ok())
-                .and_then(|v| v.as_object().cloned());
-            if let (Some(disk_fields), Some(fields)) = (disk_fields, value.as_object_mut()) {
-                for key in ["basic_summaries", "basic_summaries_cohort"] {
-                    if let Some(v) = disk_fields.get(key) {
-                        fields.insert(key.to_owned(), v.clone());
-                    } else {
-                        fields.remove(key);
+            match fs::read(&path) {
+                // The recorded basic choice on disk wins over this snapshot's stale copy.
+                Ok(bytes) => match serde_json::from_slice::<serde_json::Value>(&bytes) {
+                    Ok(serde_json::Value::Object(disk_fields)) => {
+                        if let Some(fields) = value.as_object_mut() {
+                            for key in ["basic_summaries", "basic_summaries_cohort"] {
+                                if let Some(v) = disk_fields.get(key) {
+                                    fields.insert(key.to_owned(), v.clone());
+                                } else {
+                                    fields.remove(key);
+                                }
+                            }
+                        }
                     }
+                    // Unreadable as a settings object: the recorded choice is unknown, so
+                    // these bytes stay exactly as they are - never a stale snapshot over
+                    // an uncertain state.
+                    _ => {
+                        let e = std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "settings.json is not a readable settings object; leaving it untouched",
+                        );
+                        eprintln!("Horizon: settings.json is not saved: {e}");
+                        return Err(e);
+                    }
+                },
+                // Proven absent: no recorded choice exists, so an unrelated save must not
+                // invent one from a stale snapshot.
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    if let Some(fields) = value.as_object_mut() {
+                        fields.remove("basic_summaries");
+                        fields.remove("basic_summaries_cohort");
+                    }
+                }
+                // Any other read failure is just as uncertain as corrupt bytes.
+                Err(e) => {
+                    eprintln!("Horizon: settings.json is not saved: {e}");
+                    return Err(e);
                 }
             }
         }
@@ -3527,7 +3563,9 @@ impl Settings {
         if let Err(e) = written {
             let _ = fs::remove_file(&tmp);
             eprintln!("Horizon: settings.json is not saved: {e}");
+            return Err(e);
         }
+        Ok(())
     }
 }
 

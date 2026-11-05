@@ -1125,7 +1125,7 @@ impl Launcher {
                             if as_update.is_none_or(|(_, select)| select) {
                                 self.settings.selected = Some(tag);
                             }
-                            self.settings.save();
+                            let _ = self.settings.save();
                             // After the save: the selected version is never pruned.
                             let tx = self.tx.clone();
                             std::thread::spawn(move || {
@@ -1350,7 +1350,7 @@ impl Launcher {
                     self.client_error = None;
                     if !self.settings.owner_notice_seen {
                         self.settings.owner_notice_seen = true;
-                        self.settings.save();
+                        let _ = self.settings.save();
                     }
                 }
                 changed = true;
@@ -1750,7 +1750,7 @@ impl Launcher {
                 if let Some(path) = paths.pop() {
                     let _ = this.update(cx, |this, cx| {
                         this.settings.minecraft_dir = Some(path);
-                        this.settings.save();
+                        let _ = this.settings.save();
                         cx.notify();
                     });
                 }
@@ -3273,7 +3273,7 @@ impl Launcher {
         let toggle = switch("auto-install", self.settings.auto_install(), &t).on_click(
             cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.settings.install_new_versions = Some(!this.settings.auto_install());
-                this.settings.save();
+                let _ = this.settings.save();
                 if this.settings.auto_install() {
                     this.install_update();
                 }
@@ -3283,14 +3283,14 @@ impl Launcher {
         let prune = switch("auto-prune", self.settings.auto_prune(), &t).on_click(cx.listener(
             |this, _: &ClickEvent, _, cx| {
                 this.settings.prune_old_versions = Some(!this.settings.auto_prune());
-                this.settings.save();
+                let _ = this.settings.save();
                 cx.notify();
             },
         ));
         let opening = switch("opening", !self.settings.skip_opening, &t).on_click(cx.listener(
             |this, _: &ClickEvent, _, cx| {
                 this.settings.skip_opening = !this.settings.skip_opening;
-                this.settings.save();
+                let _ = this.settings.save();
                 cx.notify();
             },
         ));
@@ -3298,7 +3298,7 @@ impl Launcher {
             cx.listener(|this, _: &ClickEvent, _, cx| {
                 let on = !this.settings.reduce_motion();
                 this.settings.reduce_motion = Some(on);
-                this.settings.save();
+                let _ = this.settings.save();
                 set_reduce_motion(on);
                 cx.notify();
             }),
@@ -3308,7 +3308,7 @@ impl Launcher {
             cx.listener(|this, _: &ClickEvent, _, cx| {
                 let on = !this.settings.desktop_entry();
                 this.settings.desktop_entry = Some(on);
-                this.settings.save();
+                let _ = this.settings.save();
                 let _ = if on {
                     horizon_launcher::desktop::install(backend::exe_path()).map(|_| ())
                 } else {
@@ -3409,7 +3409,7 @@ impl Launcher {
                 move |choice, window, cx| {
                     let _ = this.update(cx, |this, cx| {
                         this.settings.appearance = choice;
-                        this.settings.save();
+                        let _ = this.settings.save();
                         titlebar::apply_appearance(window, choice);
                         this.theme = this.settings_theme(window);
                         cx.notify();
@@ -3697,7 +3697,7 @@ impl Launcher {
                     line_edit::Key::Escape => window.blur(cx),
                     line_edit::Key::Edited => {
                         this.settings.game_args = this.args_input.text().to_string();
-                        this.settings.save();
+                        let _ = this.settings.save();
                     }
                     _ => {}
                 }
@@ -3789,7 +3789,7 @@ impl Launcher {
     fn save_proxy(&mut self) {
         let value = self.proxy_input.text().trim().to_owned();
         self.settings.proxy = (!value.is_empty()).then_some(value);
-        self.settings.save();
+        let _ = self.settings.save();
         horizon_launcher::proxy::announce(self.settings.proxy.clone());
     }
 
@@ -4096,7 +4096,7 @@ impl Launcher {
                     button(format!("use-{tag}"), "Use", Kind::Ghost, &t).on_click(cx.listener(
                         move |this, _: &ClickEvent, _, cx| {
                             this.settings.selected = Some(t1.clone());
-                            this.settings.save();
+                            let _ = this.settings.save();
                             cx.notify();
                         },
                     )),

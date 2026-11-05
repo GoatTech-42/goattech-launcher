@@ -118,16 +118,20 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
 }
 
 impl Launcher {
-    /// Basic summaries off, for real. Cancellation is immediate: the launcher's session is
-    /// dropped first (nothing can be sent, and a canceled sample can never be resurrected by
-    /// the switch coming back on), then the explicit choice is saved, and only then the
-    /// running game is told - off the window's thread, so a stuck pipe never freezes the UI.
-    /// If the control line could not be written the player hears it; nothing is sent either
-    /// way, because the launcher's session is gone.
+    /// Basic summaries off, for real. Cancellation is immediate and does not wait on the
+    /// disk: the process veto stops every collection gate in this process at once, the
+    /// launcher's session is dropped (nothing can be sent, and a canceled sample can never
+    /// be resurrected by the switch coming back on), and the explicit choice is saved off
+    /// the window's thread, in click order - the row says so if that save fails, and off
+    /// still holds for the rest of this session. Only then is the running game told, on a
+    /// detached thread so a stuck pipe never freezes the UI; a failed control line only
+    /// logs (the game is never asked to acknowledge), and nothing is sent either way
+    /// because the launcher's session is gone.
     fn basic_off(&mut self) {
+        horizon_launcher::basic_stats::veto_for_process();
         self.settings.basic_summaries = Some(false);
         self.basic_session = None;
-        self.settings.save_basic_choice();
+        horizon_launcher::basic_stats::record_choice_async(self.settings.clone());
         if let Some(client) = &self.client {
             let stdin = client.stdin_shared();
             std::thread::spawn(move || {
@@ -150,8 +154,11 @@ impl Launcher {
             if on {
                 this.basic_off();
             } else {
+                // Saved off the window's thread like the off path; collection starts
+                // only once the ON is actually on disk (the veto lifts then), so a failed
+                // save can never turn anything on - and the row says it failed.
                 this.settings.basic_summaries = Some(true);
-                this.settings.save_basic_choice();
+                horizon_launcher::basic_stats::record_choice_async(this.settings.clone());
             }
             cx.notify();
         }))
@@ -160,6 +167,7 @@ impl Launcher {
     /// The basic row, laid out as the switches' rows, with its real switch.
     fn basic_row(&self, id: &'static str, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
+        let failed = horizon_launcher::basic_stats::choice_save_failed();
         div()
             .flex()
             .items_start()
@@ -193,7 +201,24 @@ impl Launcher {
                             } else {
                                 tr("Off for this install.")
                             }),
-                    ),
+                    )
+                    // The newest choice's save failed: what the player chose still holds
+                    // this session (off) or not at all (on), and the row says so until a
+                    // choice actually saves.
+                    .when(failed.is_some(), |d| {
+                        let (on, error) = failed.as_ref().unwrap();
+                        d.child(text(theme::CAPTION).text_color(t.warn).child(if *on {
+                            trf(
+                                "The choice could not be saved ({error}): basic summaries are still off.",
+                                &[("error", error)],
+                            )
+                        } else {
+                            trf(
+                                "Basic summaries are off for the rest of this session, but the choice could not be saved ({error}): they will be on again the next time the launcher starts.",
+                                &[("error", error)],
+                            )
+                        }))
+                    }),
             )
             .child(self.basic_switch(id, cx))
     }
@@ -215,7 +240,7 @@ impl Launcher {
         // The question and Settings say what the "I'm playing" ping holds, beside the switches.
         if !self.settings.ping_notice_seen {
             self.settings.ping_notice_seen = true;
-            self.settings.save();
+            let _ = self.settings.save();
         }
         self.collection.view = None;
     }
