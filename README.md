@@ -42,4 +42,20 @@ the rust engine - the hard part - is upstream horizon's work. this fork keeps it
 
 ## build from source
 
-the launcher is its own cargo workspace: `cargo test --manifest-path launcher/Cargo.toml` runs the library and gui binary suites. when real builds ship they'll be on github releases, verified before install.
+you need rust (stable), python 3.10+, jdk 25, and on linux the alsa and udev headers (`libasound2-dev libudev-dev`).
+
+the launcher is its own cargo workspace:
+
+```sh
+cd launcher && cargo run        # on nixos, nix-shell first
+cargo test --manifest-path launcher/Cargo.toml
+```
+
+the engine never downloads the game: it prepares its resources from your own copy of minecraft 26.3, then runs:
+
+```sh
+cargo run --release -p horizon-prepare -- --prepare --server-jar ~/Downloads/server.jar
+cargo run --release -p horizon-client
+```
+
+the engine's own setup notes are in [docs/engine/CONTRIBUTING.md](docs/engine/CONTRIBUTING.md#build-it). when real builds ship they'll be on github releases, verified before install.

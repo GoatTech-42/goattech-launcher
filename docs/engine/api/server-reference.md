@@ -71,7 +71,7 @@ Settings live in server.toml; the server writes server.properties from it before
 
 ## `server.toml`
 
-Horizon server settings (docs/server.md). The server writes them into server.properties before every start: edit this file, not that one. Unknown keys are refused. `horizon-server init` writes this file with these defaults; `horizon-server config set SECTION.KEY=VALUE` changes it.
+Horizon server settings (docs/engine/server.md). The server writes them into server.properties before every start: edit this file, not that one. Unknown keys are refused. `horizon-server init` writes this file with these defaults; `horizon-server config set SECTION.KEY=VALUE` changes it.
 
 ### `[server]`
 
@@ -142,7 +142,7 @@ Any other server.properties key, spelled as vanilla spells it, for example: spaw
 
 ### `[discord]`
 
-Post the chat, joins, leaves and deaths to a Discord channel, drawn like the in-game chat (docs/hosting.md)
+Post the chat, joins, leaves and deaths to a Discord channel, drawn like the in-game chat (docs/engine/hosting.md)
 
 | Key | Default | In `server.properties` | What it does |
 | --- | --- | --- | --- |
