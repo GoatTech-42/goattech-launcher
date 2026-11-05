@@ -42,6 +42,10 @@ pub const SWITCHES: [(Kind, &str, &str); 4] = [
 pub const BASIC_NAME: &str = "Basic performance summaries";
 
 /// What it is, in plain words: every claim here is checked against `horizon_telemetry::basic`.
+/// The 7-day daily-counts sentence is the design's requirement on the collector, NOT a
+/// verified live policy: the collector is undeployed, and transmission stays gated until its
+/// deletion behavior is verified to match this copy exactly. If the deployed collector
+/// differs, this copy must change to the verified behavior before any send is enabled.
 pub const BASIC_WHAT: &str = "Once per game session: how long the game took to show its title and to load its first world, and its usual frame time (the 95th percentile), each as a coarse range, with the launcher release and your OS (Linux, macOS or Windows). No account, no install ID, nothing you do in the game. Sent only to GoatTech's own collector, which keeps daily counts per release and OS and deletes them after 7 days. On by default on a new install; turn it off any time. A session that ends in a crash or a forced quit sends nothing.";
 
 /// Never sent, whatever the switches say.
