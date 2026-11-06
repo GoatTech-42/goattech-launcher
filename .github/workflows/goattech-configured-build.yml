@@ -1,0 +1,75 @@
+name: GoatTech configured build qualification
+
+# Build-only preparation. The binary stays on the ephemeral hosted runner.
+# This public repository's logs expose hashes and synthetic account-list results,
+# not private artifacts, tokens, accounts, game files, or runtime profiles.
+# No release, tag, deployment, sign-in, game launch, cache or artifact upload.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goattech-configured-build-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  HORIZON_TELEMETRY_URL: 'off'
+  HORIZON_LAUNCHER_NO_SELF_UPDATE: '1'
+
+jobs:
+  windows:
+    if: github.repository == 'GoatTech-42/goattech-launcher'
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          ref: 082749790c7895c3a85253b61dd75746e32bf37b
+      - name: Rust toolchain
+        shell: pwsh
+        run: rustup toolchain install stable --profile minimal
+      - name: Build configured release binary
+        working-directory: launcher
+        shell: pwsh
+        env:
+          HORIZON_MSA_CLIENT_ID: ${{ secrets.HORIZON_MSA_CLIENT_ID }}
+          RUSTFLAGS: '-C target-feature=+crt-static'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($env:HORIZON_MSA_CLIENT_ID))).ToLowerInvariant() -ne 'aea41f3c67b6424b9a1329e43a4d1e49387ab169c5e7abb2267d5bb560a03c11') { throw 'Repository client ID missing or changed; review before building.' }
+          if ((git rev-parse HEAD).Trim() -ne '082749790c7895c3a85253b61dd75746e32bf37b') { throw 'Unexpected product source.' }
+          cargo build --release --locked
+          if ($LASTEXITCODE -ne 0) { throw "cargo build failed: $LASTEXITCODE" }
+      - name: Verify built-in configuration without signing in
+        shell: pwsh
+        timeout-minutes: 3
+        env:
+          HORIZON_LAUNCHER_HOME: ${{ runner.temp }}\configured-launcher-home
+          HORIZON_HOME: ${{ runner.temp }}\configured-game-home
+          EXPECTED_BUILD_CLIENT_ID: ${{ secrets.HORIZON_MSA_CLIENT_ID }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Remove-Item Env:HORIZON_MSA_CLIENT_ID -ErrorAction SilentlyContinue
+          if (Test-Path Env:HORIZON_MSA_CLIENT_ID) { throw 'Runtime client ID must be absent.' }
+          if ((Test-Path $env:HORIZON_LAUNCHER_HOME) -or (Test-Path $env:HORIZON_HOME)) { throw 'Expected fresh synthetic homes.' }
+          $bin = Join-Path $PWD 'launcher\target\release\horizon-launcher.exe'
+          $bytes = [IO.File]::ReadAllBytes($bin)
+          if (-not [Text.Encoding]::ASCII.GetString($bytes).Contains($env:EXPECTED_BUILD_CLIENT_ID)) { throw 'Expected ID not embedded in final binary.' }
+          Remove-Item Env:EXPECTED_BUILD_CLIENT_ID
+          $raw = & $bin --json account
+          if ($LASTEXITCODE -ne 0) { throw "account list failed: $LASTEXITCODE" }
+          $state = ($raw -join "`n") | ConvertFrom-Json
+          if ($state.sign_in_configured -ne $true -or $state.owner -ne $false -or @($state.accounts).Count -ne 0 -or @($state.offline).Count -ne 0) { throw 'Unexpected synthetic account state.' }
+          "workflow-commit: $env:GITHUB_SHA"
+          "source-commit: $((git rev-parse HEAD).Trim())"
+          "rustc: $(rustc --version)"
+          "cargo: $(cargo --version)"
+          "runner-image: $env:ImageOS $env:ImageVersion"
+          "binary-sha256: $((Get-FileHash $bin -Algorithm SHA256).Hash)"
+          "binary-bytes: $($bytes.Length)"
+          'runtime-client-id: absent'
+          'embedded-client-id: exact match'
+          'synthetic-sign-in-configured: true; owner: false; accounts: 0; offline: 0'
