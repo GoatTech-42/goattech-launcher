@@ -15,13 +15,16 @@ fn logged_child(fail: bool) -> (Vec<String>, Result<(), String>) {
     if fail {
         command.arg("--fail");
     }
-    let mut child = backend::spawn(Job::Prepare, command, sender).unwrap();
+    let mut child = backend::spawn(Job::Prepare, command, sender, 41).unwrap();
     child.send("input reaches the child");
     let mut lines = Vec::new();
     loop {
         match receiver.recv_timeout(Duration::from_secs(10)).unwrap() {
             Msg::Line(Job::Prepare, line) => lines.push(line),
-            Msg::Exit(Job::Prepare, result) => return (lines, result),
+            Msg::Exit(Job::Prepare, result, seq) => {
+                assert_eq!(seq, 41);
+                return (lines, result);
+            }
             _ => panic!("unexpected job message"),
         }
     }
