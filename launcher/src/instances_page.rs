@@ -72,11 +72,23 @@ pub(super) struct InstanceDialog {
     /// Why the section's state is unavailable (a store that would not parse). While set
     /// the section shows only this - never a false "no group / no conflicts".
     pub(super) sync_error: Option<String>,
+    sync_validation: Option<String>,
     /// Bumped as each sync request starts; a task's result applies only while no newer
     /// request has started (a late reload must not revert a finished leave).
     pub(super) sync_req: u64,
     /// Horizon, or the Java game it plays.
     pub(super) java: new_instance::JavaChoice,
+}
+
+impl InstanceDialog {
+    fn validate_sync_join(&mut self, group: &str) -> bool {
+        if group.trim().is_empty() {
+            self.sync_validation = Some(tr("Name a sync group to join.").into());
+            return false;
+        }
+        self.sync_validation = None;
+        true
+    }
 }
 
 /// The instances and their icons as images, kept between frames.
@@ -777,6 +789,7 @@ impl Launcher {
             sync_report: Vec::new(),
             sync_busy: false,
             sync_error: None,
+            sync_validation: None,
             sync_req: 0,
             java: Default::default(),
         });
@@ -917,8 +930,7 @@ impl Launcher {
         else {
             return;
         };
-        if group.is_empty() {
-            d.error = Some(tr("Name a sync group to join.").into());
+        if !d.validate_sync_join(&group) {
             cx.notify();
             return;
         }
@@ -1331,6 +1343,14 @@ impl Launcher {
                         .child(if busy { disabled(join) } else { join }),
                 );
             }
+        }
+        if let Some(e) = self
+            .instances
+            .dialog
+            .as_ref()
+            .and_then(|d| d.sync_validation.clone())
+        {
+            section = section.child(text(theme::CAPTION).text_color(t.danger).child(e));
         }
         section.into_any_element()
     }
@@ -2194,9 +2214,27 @@ mod tests {
             sync_report: Vec::new(),
             sync_busy: false,
             sync_error: None,
+            sync_validation: None,
             sync_req: 0,
             java: Default::default(),
         }
+    }
+
+    #[test]
+    fn blank_join_is_local_validation_and_retry_clears_it_without_a_request() {
+        let mut d = dialog("a");
+        assert!(!d.validate_sync_join("  "));
+        assert!(d.sync_validation.is_some());
+        assert!(d.error.is_none());
+        assert!(d.sync_error.is_none());
+        assert_eq!(d.sync_req, 0);
+        assert!(!d.sync_busy);
+        assert!(d.sync_group.is_none());
+        assert!(d.validate_sync_join("controls"));
+        assert!(d.sync_validation.is_none());
+        assert_eq!(d.sync_req, 0);
+        assert!(!d.sync_busy);
+        assert!(d.sync_group.is_none());
     }
 
     #[test]

@@ -573,12 +573,12 @@ impl Launcher {
         let basic = index_row(
             0,
             tr(telemetry::BASIC_NAME),
-            Some(div().child(tr(telemetry::BASIC_WHAT)).into_any_element()),
+            Some(div().child(tr(telemetry::BASIC_SHORT)).into_any_element()),
             Some(self.basic_switch("data-basic", None, cx).into_any_element()),
             &t,
         );
         list = list.child(basic);
-        for (i, &(kind, name, what)) in telemetry::SWITCHES.iter().enumerate() {
+        for (i, &(kind, name, _)) in telemetry::SWITCHES.iter().enumerate() {
             let on = !consent.needs_asking() && consent.choices.allows(kind);
             let toggle = switch(kind_id("data", kind), on, &t).on_click(cx.listener(
                 move |this, _: &ClickEvent, _, cx| {
@@ -595,7 +595,11 @@ impl Launcher {
             list = list.child(index_row(
                 i + 1,
                 tr(name),
-                Some(div().child(tr(what)).into_any_element()),
+                Some(
+                    div()
+                        .child(tr(telemetry::short_what(kind)))
+                        .into_any_element(),
+                ),
                 Some(toggle.into_any_element()),
                 &t,
             ));
@@ -603,7 +607,7 @@ impl Launcher {
         list = list.child(index_row(
             telemetry::SWITCHES.len() + 1,
             tr(telemetry::PING_NAME),
-            Some(div().child(tr(telemetry::ping_text())).into_any_element()),
+            Some(div().child(tr(telemetry::ping_short())).into_any_element()),
             Some(ping_state(&t).into_any_element()),
             &t,
         ));
@@ -696,6 +700,11 @@ impl Launcher {
                         "Basic performance summaries are on by default only on a genuinely new install; existing installs stay off unless you turn them on. Every other switch is off unless you turn it on. The player-count ping is separate from these switches. The details below describe each path and its source-defined retention; production basic-summary sending is not enabled yet.",
                     )),
             )
+            .child(
+                button("data-details-top", if self.collection.view.is_some() { "Hide details and example reports" } else { "View details and example reports" }, Kind::Ghost, &t)
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| { this.toggle_view(); cx.notify(); })),
+            )
+            .children(self.collection.view.as_ref().map(|v| json_view(v, &t, &self.collection.json_scroll)))
             .child(list)
             .child(
                 text(theme::CAPTION)
@@ -708,12 +717,6 @@ impl Launcher {
                     .note
                     .clone()
                     .map(|n| text(theme::UI).text_color(t.ink).child(n)),
-            )
-            .children(
-                self.collection
-                    .view
-                    .as_ref()
-                    .map(|v| json_view(v, &t, &self.collection.json_scroll)),
             )
     }
 }

@@ -49,11 +49,11 @@ pub const BASIC_WHAT: &str = "After an eligible game session ends normally: how 
 
 /// One-line dialog captions: the first-run question shows these beside the switches and
 /// keeps the full wording (BASIC_WHAT, the SWITCHES entries, [`ping_text`]) one click away
-/// in "View details and example reports"; Settings keeps the full wording inline.
-pub const BASIC_SHORT: &str = "Coarse ranges for startup, first-world load and slower frames, with the game release and OS. No account or ID. Sending is not enabled for a public release yet. When enabled: at most one attempt after an eligible normal session, if this option is on. Daily range counts use a 7-day UTC-day cleanup schedule; failures can delay deletion. Open details for more.";
+/// in "View details and example reports" on both surfaces.
+pub const BASIC_SHORT: &str = "Coarse startup, first-world load and slower-frame ranges, with game release and OS. No account or ID. Public-release sending is not enabled. Open details for sending rules and retention.";
 
 /// The performance-statistics row, short form (the full machine list stays in the detail view).
-pub const PERF_SHORT: &str = "After each session: frame-time and tick-time statistics, peak memory and startup times, with your machine's specs (OS, CPU, GPU, memory, screen, battery) and the settings that change performance.";
+pub const PERF_SHORT: &str = "Session performance, machine specs and performance settings. Open details for the full list of fields.";
 
 /// The ping row on the first-run question, short form; accurate about configuration being
 /// the only off switch.
