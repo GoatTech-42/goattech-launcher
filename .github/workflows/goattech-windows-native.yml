@@ -1,0 +1,86 @@
+name: GoatTech Windows native boundaries
+# Manual synthetic integration only. No real accounts, OAuth, game files, artifact
+# upload, cache, publication or self-hosted machine. Public output is allowlisted.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: goattech-windows-native-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  HORIZON_TELEMETRY_URL: 'off'
+  HORIZON_LAUNCHER_NO_SELF_UPDATE: '1'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+jobs:
+  windows:
+    if: github.repository == 'GoatTech-42/goattech-launcher'
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Rust
+        shell: pwsh
+        run: rustup toolchain install stable --profile minimal
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build bounded native integration target
+        working-directory: launcher
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ((git rev-parse HEAD).Trim() -ne $env:GITHUB_SHA) {throw 'Source differs from selected reviewed workflow commit'}
+          cargo fmt --check
+          if ($LASTEXITCODE -ne 0) {throw 'Formatting failed'}
+          cargo test --locked --test windows_native_boundaries --no-run
+          if ($LASTEXITCODE -ne 0) {throw 'Native integration compile failed'}
+      - name: Real native credential and Java boundaries
+        timeout-minutes: 10
+        working-directory: launcher
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $vswhere=Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $vs=(& $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()
+          if (-not $vs) {throw 'Required MSVC native compiler unavailable'}
+          $vars=Join-Path $vs 'VC\Auxiliary\Build\vcvars64.bat'
+          $lines=cmd /c "`"$vars`" >nul && set"
+          if ($LASTEXITCODE -ne 0) {throw 'Native compiler environment failed'}
+          foreach($line in $lines) {if($line -match '^([^=]+)=(.*)$'){[Environment]::SetEnvironmentVariable($Matches[1],$Matches[2],'Process')}}
+          $env:GT_NATIVE_ADMITTED='ephemeral-hosted'
+          $env:GT_JAVA25_HOME=$env:JAVA_HOME
+          $env:GT_NATIVE_CAPTURE_SCRIPT=Join-Path $env:GITHUB_WORKSPACE 'tools\qa\windows-native-capture.ps1'
+          $out=Join-Path $env:RUNNER_TEMP 'native-boundary.stdout'
+          $err=Join-Path $env:RUNNER_TEMP 'native-boundary.stderr'
+          $receipt=Join-Path $env:RUNNER_TEMP 'goattech-native-receipt.json'
+          if ((Test-Path $out) -or (Test-Path $err) -or (Test-Path $receipt)) {throw 'Expected new receipt and stdio paths'}
+          # stdout/stderr stay on ephemeral runner, including failure details.
+          # No credential item name/value or private account data enters public logs.
+          $p=Start-Process -FilePath 'cargo.exe' -ArgumentList 'test','--locked','--test','windows_native_boundaries','hosted_windows_native_boundaries','--','--ignored','--exact' -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+          try {
+            if(-not $p.WaitForExit(480000)) {throw 'Native integration exceeded eight minutes'}
+            $p.WaitForExit()
+            if($p.ExitCode -ne 0) {throw 'Native integration failed; no raw diagnostics exported'}
+          } finally {if(-not $p.HasExited){$p.Kill($true);$p.WaitForExit()};$p.Dispose()}
+          if(-not (Test-Path $receipt)) {throw 'Actual integration receipt absent'}
+          $r=Get-Content -LiteralPath $receipt -Raw | ConvertFrom-Json
+          # Literal allowlist. Print receipts only after actual successful execution.
+          if ($r.credentials -ne 'long/fresh-process/short/fresh-process/delete/fresh-process-no-pieces PASS' -or $r.runtime -ne 'production Windows raw-manifest install/discover/pick/actual Java25 PASS' -or $r.launch -ne 'production command/two-JAR/spaced-Unicode/Windows-classifier/extracted-JNI/owned-AWT/clean-exit PASS') {throw 'Unexpected actual receipt'}
+          "source-commit: $((git rev-parse HEAD).Trim())"
+          "workflow-commit: $env:GITHUB_SHA"
+          "rustc: $(rustc --version)"
+          "runner-image: $env:ImageOS $env:ImageVersion"
+          "credentials: $($r.credentials)"
+          "runtime: $($r.runtime)"
+          "launch: $($r.launch)"
+          'NOT-PROVEN: OAuth, real Minecraft, official runtime download, GUI Play'
+          $png=[IO.File]::ReadAllBytes($r.capture)
+          if ($png.Length -gt 1000000) {throw 'Capture exceeds public transport limit'}
+          "SYNTHETIC-PNG-BEGIN sha256=$([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($png))) bytes=$($png.Length)"
+          [Convert]::ToBase64String($png)
+          'SYNTHETIC-PNG-END'
