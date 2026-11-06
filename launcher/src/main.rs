@@ -6,6 +6,7 @@
 mod agents_page;
 mod art;
 mod blocks;
+mod client_install_page;
 mod collection;
 mod console;
 mod console_page;

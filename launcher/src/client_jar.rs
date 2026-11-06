@@ -424,11 +424,40 @@ pub fn install(
     goal: &Goal,
     fetch: Fetch,
 ) -> Result<Outcome, String> {
+    install_reviewed(game_home, data, versions, goal, fetch, None)
+}
+
+/// A preview can bind the second-click install to the exact bounded bytes it inspected.
+fn review_hash(bytes: &[u8]) -> String {
+    use sha2::Digest;
+    format!("{:x}", sha2::Sha256::digest(bytes))
+}
+
+pub fn inspect_for_review(path: &Path) -> Result<(ClientJar, String), String> {
+    if path.extension().and_then(|e| e.to_str()) != Some("jar") {
+        return Err("Choose a .jar client file.".into());
+    }
+    let bytes = read_jar(path)?;
+    let info = inspect_bytes(path, &bytes)?;
+    Ok((info, review_hash(&bytes)))
+}
+
+pub fn install_reviewed(
+    game_home: &Path,
+    data: &Path,
+    versions: Option<&Versions>,
+    goal: &Goal,
+    fetch: Fetch,
+    expected: Option<&str>,
+) -> Result<Outcome, String> {
     // Inspect and install the same bounded snapshot, never re-open the source after checks.
     if goal.jar.extension().and_then(|e| e.to_str()) != Some("jar") {
         return Err("Client installation takes a .jar file.".into());
     }
     let bytes = read_jar(goal.jar)?;
+    if expected.is_some_and(|hash| hash != review_hash(&bytes)) {
+        return Err("Client JAR changed since preview. Choose it again before installing.".into());
+    }
     let jar = inspect_bytes(goal.jar, &bytes)?;
     let dest = dest_file(goal.jar)?;
     if jar.side == Side::Server {

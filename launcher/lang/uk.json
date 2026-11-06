@@ -1059,5 +1059,12 @@
   "Use the group's": "Використати значення групи",
   "yours {local}, the group's {shared}": "твоє {local}, групи {shared}",
   "Settings that sync": "Налаштування, що синхронізуються",
-  "New settings sync too, as they appear.": "Нові налаштування теж синхронізуються, щойно з'являться."
+  "New settings sync too, as they appear.": "Нові налаштування теж синхронізуються, щойно з'являться.",
+  "Choose client JAR": "Choose client JAR",
+  "Client JAR": "Client JAR",
+  "Choose a local Fabric client mod from its own website. Inspect it here, then install it in a new Java instance. Existing instances stay unchanged.": "Choose a local Fabric client mod from its own website. Inspect it here, then install it in a new Java instance. Existing instances stay unchanged.",
+  "Some clients and Fabric API bundles need dependency resolution not supported here yet. Client-specific config sharing is not available; options.txt sharing is separate.": "Some clients and Fabric API bundles need dependency resolution not supported here yet. Client-specific config sharing is not available; options.txt sharing is separate.",
+  "Working...": "Working...",
+  "Installing...": "Installing...",
+  "Install in new instance": "Install in new instance"
 }

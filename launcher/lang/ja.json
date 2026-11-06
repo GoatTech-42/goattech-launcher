@@ -877,5 +877,12 @@
   "Use the group's": "グループのを使う",
   "yours {local}, the group's {shared}": "あなたの {local}、グループの {shared}",
   "Settings that sync": "同期する設定",
-  "New settings sync too, as they appear.": "新しい設定も追加されると同期されます。"
+  "New settings sync too, as they appear.": "新しい設定も追加されると同期されます。",
+  "Choose client JAR": "Choose client JAR",
+  "Client JAR": "Client JAR",
+  "Choose a local Fabric client mod from its own website. Inspect it here, then install it in a new Java instance. Existing instances stay unchanged.": "Choose a local Fabric client mod from its own website. Inspect it here, then install it in a new Java instance. Existing instances stay unchanged.",
+  "Some clients and Fabric API bundles need dependency resolution not supported here yet. Client-specific config sharing is not available; options.txt sharing is separate.": "Some clients and Fabric API bundles need dependency resolution not supported here yet. Client-specific config sharing is not available; options.txt sharing is separate.",
+  "Working...": "Working...",
+  "Installing...": "Installing...",
+  "Install in new instance": "Install in new instance"
 }

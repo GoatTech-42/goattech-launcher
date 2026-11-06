@@ -976,3 +976,28 @@ fn automatic_java_patch_constraint_is_not_inferred_from_major() {
     fs::remove_dir_all(home.parent().unwrap()).unwrap();
     let _ = data;
 }
+
+#[test]
+fn reviewed_jar_change_refuses_before_any_instance_write() {
+    let (home, data) = scratch("reviewed-change");
+    let path = dawn_jar(&home);
+    let (_, hash) = inspect_for_review(&path).unwrap();
+    fs::write(&path, b"replaced after preview").unwrap();
+    let result = install_reviewed(
+        &home,
+        &data,
+        None,
+        &Goal {
+            jar: &path,
+            instance: None,
+            name: None,
+            minecraft: None,
+            loader_version: None,
+        },
+        &fake_fetch,
+        Some(&hash),
+    );
+    assert!(result.unwrap_err().contains("changed since preview"));
+    assert!(!home.join("instances").exists());
+    fs::remove_dir_all(home.parent().unwrap()).unwrap();
+}

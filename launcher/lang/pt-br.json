@@ -877,5 +877,12 @@
   "Use the group's": "Usar as do grupo",
   "yours {local}, the group's {shared}": "o seu {local}, o do grupo {shared}",
   "Settings that sync": "Configurações sincronizadas",
-  "New settings sync too, as they appear.": "Novas configurações também são sincronizadas quando aparecem."
+  "New settings sync too, as they appear.": "Novas configurações também são sincronizadas quando aparecem.",
+  "Choose client JAR": "Choose client JAR",
+  "Client JAR": "Client JAR",
+  "Choose a local Fabric client mod from its own website. Inspect it here, then install it in a new Java instance. Existing instances stay unchanged.": "Choose a local Fabric client mod from its own website. Inspect it here, then install it in a new Java instance. Existing instances stay unchanged.",
+  "Some clients and Fabric API bundles need dependency resolution not supported here yet. Client-specific config sharing is not available; options.txt sharing is separate.": "Some clients and Fabric API bundles need dependency resolution not supported here yet. Client-specific config sharing is not available; options.txt sharing is separate.",
+  "Working...": "Working...",
+  "Installing...": "Installing...",
+  "Install in new instance": "Install in new instance"
 }

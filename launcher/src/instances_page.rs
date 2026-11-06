@@ -82,6 +82,7 @@ pub(super) struct InstanceDialog {
 /// The instances and their icons as images, kept between frames.
 #[derive(Default)]
 pub(super) struct Instances {
+    pub(super) client: client_install_page::ClientInstall,
     pub(super) list: Vec<Instance>,
     pub(super) dialog: Option<InstanceDialog>,
     /// Bumped every time the dialog opens: a sync task's result applies only while the
@@ -568,6 +569,7 @@ impl Launcher {
                         ),
                     ),
             )
+            .child(self.client_install_section(cx))
             .child(section(
                 "Java",
                 Some(
