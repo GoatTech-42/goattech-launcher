@@ -1033,3 +1033,145 @@ fn join_diff_mirrors_joins_establishment_and_corrupt_record_refusals() {
     assert!(err.contains("conflict"), "{err}");
     let _ = fs::remove_dir_all(root);
 }
+
+#[test]
+fn a_narrowed_membership_moves_only_the_selected_settings() {
+    let (root, data, a, b) = scratch("narrow-pass");
+    put(&a, "version:3465\nfov:90\ngamma:0.5\n");
+    let (mut m_a, _) = join(&data, &a, "main", None).unwrap();
+    put(&b, "version:3465\nfov:90\ngamma:0.5\n");
+    let (mut m_b, _) = join(&data, &b, "main", None).unwrap();
+    set_keys(
+        &data,
+        &a,
+        "a",
+        &mut m_a,
+        Some(BTreeSet::from(["fov".to_string()])),
+    )
+    .unwrap();
+    // A edits both; a pass pushes only the selected one.
+    put(&a, "version:3465\nfov:80\ngamma:0.2\n");
+    let report = sync(&data, &a, "a", &mut m_a, Pass::CleanExit).unwrap();
+    assert_eq!(report.pushed, vec!["fov".to_string()]);
+    let shared = read_shared(&data, "main").unwrap();
+    assert_eq!(shared.get("fov").unwrap(), b"80");
+    assert_eq!(shared.get("gamma").unwrap(), b"0.5", "unselected stays");
+    // B edits gamma and pushes; A's next pass does not pull it into A's file.
+    put(&b, "version:3465\nfov:80\ngamma:0.9\n");
+    let report = sync(&data, &b, "b", &mut m_b, Pass::CleanExit).unwrap();
+    assert_eq!(report.pushed, vec!["gamma".to_string()]);
+    let report = sync(&data, &a, "a", &mut m_a, Pass::CleanExit).unwrap();
+    assert!(report.pulled.is_empty());
+    assert_eq!(get(&a), "version:3465\nfov:80\ngamma:0.2\n");
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_key_coming_back_surfaces_a_standing_difference_as_a_conflict() {
+    let (root, data, a, _b) = scratch("widen-conflict");
+    put(&a, "version:3465\nfov:90\ngamma:0.5\n");
+    let (mut m_a, _) = join(&data, &a, "main", None).unwrap();
+    set_keys(
+        &data,
+        &a,
+        "a",
+        &mut m_a,
+        Some(BTreeSet::from(["fov".to_string()])),
+    )
+    .unwrap();
+    // While gamma is out, the sides drift apart on it.
+    put(&a, "version:3465\nfov:90\ngamma:0.2\n");
+    sync(&data, &a, "a", &mut m_a, Pass::CleanExit).unwrap();
+    // Widening back to everything neither adopts nor overwrites the drift: it conflicts.
+    set_keys(&data, &a, "a", &mut m_a, None).unwrap();
+    let held = conflicts(&data, "main", "a").unwrap();
+    assert!(held.contains_key("gamma"), "{held:?}");
+    let report = sync(&data, &a, "a", &mut m_a, Pass::CleanExit).unwrap();
+    assert!(report.pushed.is_empty() && report.pulled.is_empty());
+    assert_eq!(get(&a), "version:3465\nfov:90\ngamma:0.2\n");
+    assert_eq!(
+        read_shared(&data, "main").unwrap().get("gamma").unwrap(),
+        b"0.5"
+    );
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_key_leaving_the_set_drops_its_held_conflict() {
+    let (root, data, a, _b) = scratch("narrow-drops-conflict");
+    put(&a, "version:3465\nfov:90\ngamma:0.5\n");
+    let (mut m_a, _) = join(&data, &a, "main", None).unwrap();
+    // Both sides move gamma: a conflict is held.
+    put(&a, "version:3465\nfov:90\ngamma:0.2\n");
+    let shared = shared_file(&data, "main").unwrap();
+    fs::write(&shared, b"version:3465\nfov:90\ngamma:0.9\n").unwrap();
+    let report = sync(&data, &a, "a", &mut m_a, Pass::CleanExit).unwrap();
+    assert_eq!(report.conflicts.len(), 1);
+    assert!(conflicts(&data, "main", "a").unwrap().contains_key("gamma"));
+    set_keys(
+        &data,
+        &a,
+        "a",
+        &mut m_a,
+        Some(BTreeSet::from(["fov".to_string()])),
+    )
+    .unwrap();
+    assert!(conflicts(&data, "main", "a").unwrap().is_empty());
+    let _ = fs::remove_dir_all(root);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_failed_set_keys_changes_nothing_in_memory_or_on_disk() {
+    use std::os::unix::fs::PermissionsExt;
+    let (root, data, a, _b) = scratch("set-keys-save-fails");
+    put(&a, "version:3465\nfov:90\ngamma:0.5\n");
+    let (mut m_a, _) = join(&data, &a, "main", None).unwrap();
+    // Hold a conflict on gamma, then make the group directory unwritable: the
+    // conflict store can't be saved, so dropping it must fail without side effects.
+    put(&a, "version:3465\nfov:90\ngamma:0.2\n");
+    let shared = shared_file(&data, "main").unwrap();
+    fs::write(&shared, b"version:3465\nfov:90\ngamma:0.9\n").unwrap();
+    sync(&data, &a, "a", &mut m_a, Pass::CleanExit).unwrap();
+    assert!(conflicts(&data, "main", "a").unwrap().contains_key("gamma"));
+    let before = m_a.clone();
+    let store_path = conflicts_file(&data, "main").unwrap();
+    let store_before = fs::read(&store_path).unwrap();
+    let options_before = fs::read(a.join("options.txt")).unwrap();
+    let group_dir = store_path.parent().unwrap().to_path_buf();
+    fs::set_permissions(&group_dir, fs::Permissions::from_mode(0o555)).unwrap();
+    let result = set_keys(&data, &a, "a", &mut m_a, Some(BTreeSet::new()));
+    fs::set_permissions(&group_dir, fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(result.is_err());
+    assert_eq!(m_a, before);
+    assert_eq!(fs::read(&store_path).unwrap(), store_before);
+    assert_eq!(fs::read(a.join("options.txt")).unwrap(), options_before);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_kept_key_keeps_its_pending_change_through_a_set_change() {
+    let (root, data, a, _b) = scratch("narrow-keeps-pending");
+    put(&a, "version:3465\nfov:90\ngamma:0.5\n");
+    let (mut m_a, _) = join(&data, &a, "main", None).unwrap();
+    // A pre-launch pass defers the fov edit (torn-write protection).
+    put(&a, "version:3465\nfov:80\ngamma:0.5\n");
+    let report = sync(&data, &a, "a", &mut m_a, Pass::PreLaunch).unwrap();
+    assert!(report.pushed.is_empty());
+    // Narrowing to fov alone keeps that pending edit: the next trusted pass pushes it.
+    set_keys(
+        &data,
+        &a,
+        "a",
+        &mut m_a,
+        Some(BTreeSet::from(["fov".to_string()])),
+    )
+    .unwrap();
+    let report = sync(&data, &a, "a", &mut m_a, Pass::CleanExit).unwrap();
+    assert_eq!(report.pushed, vec!["fov".to_string()]);
+    assert_eq!(
+        read_shared(&data, "main").unwrap().get("fov").unwrap(),
+        b"80"
+    );
+    let _ = fs::remove_dir_all(root);
+}

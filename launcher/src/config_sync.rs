@@ -72,7 +72,7 @@
 //! per-key opt-out list yet.
 
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -115,6 +115,13 @@ pub struct Sync {
     /// Its own file's values for those settings at the same moment.
     #[serde(default)]
     pub local: BTreeMap<String, Bytes>,
+    /// The settings this instance syncs, when narrowed: only these keys move, in either
+    /// direction, and only they are baselined. None - every old record reads this way -
+    /// syncs every setting, the original behavior. Change it only through `set_keys`,
+    /// which re-baselines from the current files so a widened set never silently adopts
+    /// an edit made while the key was out.
+    #[serde(default)]
+    pub keys: Option<BTreeSet<String>>,
 }
 
 /// A setting's raw bytes kept losslessly: text when valid UTF-8, hex otherwise. Parsing hex
@@ -1071,6 +1078,8 @@ pub fn join(
         .unwrap_or_default();
     let membership = Sync {
         group: group.to_string(),
+        // A join always syncs everything; narrowing comes after, through `set_keys`.
+        keys: None,
         shared: shared
             .iter()
             .filter(|(k, _)| k.as_str() != "version")
@@ -1174,12 +1183,15 @@ pub fn sync(
 
     let local_values: BTreeMap<String, Vec<u8>> =
         local.as_ref().map(|(_, f)| f.values()).unwrap_or_default();
-    let keys: std::collections::BTreeSet<String> = shared
+    // A narrowed membership touches only its selected settings: keys outside the set are
+    // neither moved nor re-baselined here, so they stay exactly as the file has them.
+    let syncs = |k: &str| membership.keys.as_ref().is_none_or(|set| set.contains(k));
+    let keys: BTreeSet<String> = shared
         .keys()
         .chain(membership.shared.keys())
         .chain(membership.local.keys())
         .chain(local_values.keys())
-        .filter(|k| k.as_str() != "version")
+        .filter(|k| k.as_str() != "version" && syncs(k))
         .cloned()
         .collect();
 
@@ -1324,7 +1336,7 @@ pub fn sync(
         .collect();
     let mut next_shared: BTreeMap<String, Bytes> = membership.shared.clone();
     for (k, v) in &shared_now {
-        if !held.contains(k.as_str()) && k.as_str() != "version" {
+        if !held.contains(k.as_str()) && k.as_str() != "version" && syncs(k) {
             next_shared.insert(k.clone(), Bytes::of(v));
         }
     }
@@ -1334,7 +1346,7 @@ pub fn sync(
         .chain(membership.local.keys())
         .chain(local_now.keys())
     {
-        if !held.contains(k.as_str()) && k.as_str() != "version" {
+        if !held.contains(k.as_str()) && k.as_str() != "version" && syncs(k) {
             match local_now.get(k) {
                 Some(v) => next_local.insert(k.clone(), Bytes::of(v)),
                 None => next_local.remove(k),
@@ -1347,6 +1359,89 @@ pub fn sync(
         unreachable!("a pre-launch pass never pushes");
     }
     Ok(report)
+}
+
+/// Narrows or widens the settings this instance syncs with its group (`None`: everything,
+/// the join-time behavior). Only selected keys move on later passes, in either direction.
+/// A key that stays selected keeps its baselines and pending conflicts untouched. A key
+/// leaving the set drops its baselines and its held conflicts: nothing about it can move
+/// while it is out. A key ENTERING the set is baselined from the current files, and a
+/// standing difference between the two sides is recorded as a conflict at once - an edit
+/// made while the key was out is never silently adopted or overwritten when it comes back.
+pub fn set_keys(
+    data: &Path,
+    home: &Path,
+    instance: &str,
+    membership: &mut Sync,
+    keys: Option<BTreeSet<String>>,
+) -> Result<(), String> {
+    let _lock = GroupLock::take(data, &membership.group)?;
+    guard_not_running(home)?;
+    let old_syncs = |k: &str| membership.keys.as_ref().is_none_or(|set| set.contains(k));
+    let new_syncs = |k: &str| keys.as_ref().is_none_or(|set| set.contains(k));
+    let shared = read_shared(data, &membership.group)?;
+    let local_values = read_local(home)?
+        .map(|(_, f)| f.values())
+        .unwrap_or_default();
+    let mut store = load_conflicts(data, &membership.group)?;
+    // Work on a copy: nothing in `membership` moves until every write below has
+    // succeeded, so a failed save leaves the membership exactly as it was.
+    let mut proposed = membership.clone();
+    proposed.shared.retain(|k, _| new_syncs(k));
+    proposed.local.retain(|k, _| new_syncs(k));
+    let mut store_changed = false;
+    for key in shared
+        .keys()
+        .chain(local_values.keys())
+        .filter(|k| k.as_str() != "version")
+    {
+        let key = key.clone();
+        if !new_syncs(&key) || old_syncs(&key) {
+            continue;
+        }
+        // Entering the set: baseline from now, and surface a standing difference.
+        if let Some(value) = shared.get(&key) {
+            proposed.shared.insert(key.clone(), Bytes::of(value));
+        }
+        match (shared.get(&key), local_values.get(&key)) {
+            (Some(shared_v), Some(local_v)) => {
+                proposed.local.insert(key.clone(), Bytes::of(local_v));
+                if shared_v != local_v {
+                    store
+                        .conflicts
+                        .entry(instance.to_string())
+                        .or_default()
+                        .insert(
+                            key.clone(),
+                            ConflictNote {
+                                local: Bytes::of(local_v),
+                                shared: Bytes::of(shared_v),
+                                at: now_secs(),
+                            },
+                        );
+                    store_changed = true;
+                }
+            }
+            (Some(_), None) => {
+                proposed.local.remove(&key);
+            }
+            (None, Some(local_v)) => {
+                proposed.local.insert(key.clone(), Bytes::of(local_v));
+            }
+            (None, None) => {}
+        }
+    }
+    if let Some(mine) = store.conflicts.get_mut(instance) {
+        let before = mine.len();
+        mine.retain(|k, _| new_syncs(k));
+        store_changed |= mine.len() != before;
+    }
+    if store_changed {
+        save_conflicts(data, &membership.group, &store)?;
+    }
+    proposed.keys = keys;
+    *membership = proposed;
+    Ok(())
 }
 
 /// Picks a side for one of THIS instance's conflicted settings, or all of them with "all".
