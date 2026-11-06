@@ -356,7 +356,7 @@ a:focus-visible{outline:2px solid white;outline-offset:5px}
 
 <section class="sec" id="status" aria-label="project status">
   <div class="wrap">
-    <div class="sec-head rv"><h2>where it actually is</h2><span class="idx">Checked November 5, 2026</span></div>
+    <div class="sec-head rv"><h2>where it actually is</h2><span class="idx">Checked November 6, 2026</span></div>
     <p class="sub rv">no download button on this page, on purpose. here's the real state.</p>
     <div class="status-grid">
       <div class="panel rv">
@@ -364,15 +364,15 @@ a:focus-visible{outline:2px solid white;outline-offset:5px}
         <div class="srow"><span class="dot"></span><span class="w">the <b>cli</b> creates java and fabric instances end to end</span></div>
         <div class="srow"><span class="dot"></span><span class="w">installs mods from <b>modrinth</b>, checksums verified</span></div>
         <div class="srow"><span class="dot"></span><span class="w"><b>imports</b> instances from other launchers</span></div>
-        <div class="srow"><span class="dot"></span><span class="w">The November 4 integration candidate passed <b>Linux and Windows tests</b>; it is not a release</span></div>
-        <div class="srow"><span class="dot"></span><span class="w">November 5: the GUI rendered on Linux in an offline rig - <b>22 reviewed screens of navigation and surface previews</b>, no sign-in, preparation or gameplay; on Windows the ci build's hash, log and consent frames survive and match, the binary itself is not retained</span></div>
+        <div class="srow"><span class="dot"></span><span class="w">Current main passed <b>Linux and Windows automated checks</b>; passing tests are not a release</span></div>
+        <div class="srow"><span class="dot"></span><span class="w">On Linux: <b>Microsoft sign-in, Minecraft 26.3 play, save, quit and reopen</b> passed. The launcher Play button and opt-in Minecraft settings sharing also passed focused GUI checks</span></div>
       </div>
       <div class="panel rv">
         <h3>not done yet</h3>
-        <div class="srow"><span class="dot hollow"></span><span class="w">Windows is not qualified: <b>microsoft sign-in, game download, launch, input and sustained play still have to run on real hardware</b></span></div>
-        <div class="srow"><span class="dot hollow"></span><span class="w">No public release or downloads yet. <b>Test artifacts are not release builds</b>, and an independent review above 9/10 comes before any release</span></div>
+        <div class="srow"><span class="dot hollow"></span><span class="w">Windows: the launcher window and focused native credential, Java runtime and launch-command checks passed. <b>Real Windows sign-in and Minecraft gameplay remain unverified</b></span></div>
+        <div class="srow"><span class="dot hollow"></span><span class="w">No public release or downloads yet. <b>The independent whole-app review is 8.8/10</b>; every version must score strictly above 9/10 before publishing</span></div>
         <div class="srow"><span class="dot hollow"></span><span class="w">Forge and NeoForge <b>install through their official installers</b>; signed-in game-launch qualification remains open</span></div>
-        <div class="srow"><span class="dot hollow"></span><span class="w"><b>Mac testing has not run</b>. New upstream changes are checked separately, not blindly merged</span></div>
+        <div class="srow"><span class="dot hollow"></span><span class="w"><b>Client-specific settings sharing is unfinished</b> and v1 scope is not final. Mac testing has not run; upstream changes are reviewed separately</span></div>
       </div>
     </div>
     <p class="note rv">want it anyway? build from source: github.com/GoatTech-42/goattech-launcher · when real builds ship they'll be on github releases, verified before install.</p>
@@ -382,7 +382,7 @@ a:focus-visible{outline:2px solid white;outline-offset:5px}
 <section class="sec" id="concepts" aria-label="gui concepts">
   <div class="wrap">
     <div class="sec-head rv"><h2>The launcher direction</h2><span class="idx">04</span></div>
-    <p class="sub rv">Early concepts, not current app screenshots. The current launcher keeps the monochrome night sky, square controls, pixel headings and central player. Latest runtime visuals are still being verified.</p>
+    <p class="sub rv">Early concepts, not current app screenshots. The current launcher keeps the monochrome night sky, square controls, pixel headings and central player. The concepts below are not proof of tested features or a released build.</p>
   </div>
   <div class="gallery rv" id="gallery">
     <figure class="shot"><img src="assets/concepts/home.webp" alt="concept: home screen with a playing-next hero and patch notes" loading="lazy"><figcaption><span>home</span><span>concept · not shipped ui</span></figcaption></figure>

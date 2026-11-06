@@ -1,0 +1,95 @@
+name: GoatTech portable package candidate
+
+# Manual build-only preparation, never a release or deployment. Dispatch only
+# after the source, intended artifact audience and remaining gates are reviewed.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goattech-package-candidate-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  HORIZON_TELEMETRY_URL: 'off'
+  HORIZON_LAUNCHER_NO_SELF_UPDATE: '1'
+  HORIZON_LAUNCHER_VERSION: '0.1.0-rc.1'
+
+jobs:
+  package:
+    if: github.repository == 'GoatTech-42/goattech-launcher'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows-x64
+            binary: horizon-launcher.exe
+            rustflags: '-C target-feature=+crt-static'
+          - os: ubuntu-22.04
+            platform: linux-x64
+            binary: horizon-launcher
+            rustflags: ''
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    env:
+      RUSTFLAGS: ${{ matrix.rustflags }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Rust toolchain
+        shell: bash
+        run: rustup toolchain install stable --profile minimal
+      - name: Linux desktop build libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev
+      - name: Package contract tests
+        shell: bash
+        run: python -m unittest discover -s tools/tests -p test_package_goattech.py -v
+      - name: Build configured candidate
+        working-directory: launcher
+        shell: bash
+        env:
+          HORIZON_MSA_CLIENT_ID: ${{ secrets.HORIZON_MSA_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, os
+          assert hashlib.sha256(os.environ['HORIZON_MSA_CLIENT_ID'].encode()).hexdigest() == 'aea41f3c67b6424b9a1329e43a4d1e49387ab169c5e7abb2267d5bb560a03c11', 'Configured client ID missing or changed'
+          PY
+          cargo build --release --locked
+      - name: Verify version and embedded configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(launcher/target/release/${{ matrix.binary }} --version)" = 'horizon-launcher 0.1.0-rc.1'
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          binary = Path('launcher/target/release/${{ matrix.binary }}').read_bytes()
+          # The known public app identifier is checked without printing it.
+          import os
+          expected = os.environ['EXPECTED_CLIENT_ID'].encode()
+          assert hashlib.sha256(expected).hexdigest() == 'aea41f3c67b6424b9a1329e43a4d1e49387ab169c5e7abb2267d5bb560a03c11'
+          assert expected in binary, 'Expected configured client ID is absent'
+          PY
+        env:
+          EXPECTED_CLIENT_ID: ${{ secrets.HORIZON_MSA_CLIENT_ID }}
+      - name: Windows system DLL imports
+        if: runner.os == 'Windows'
+        shell: bash
+        run: python tools/check_imports.py launcher/target/release/horizon-launcher.exe
+      - name: Make explicit portable package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir candidate
+          python tools/package_goattech.py --binary launcher/target/release/${{ matrix.binary }} --output candidate --platform ${{ matrix.platform }} --version 0.1.0-rc.1 --source-commit "$GITHUB_SHA"
+          cat candidate/SHA256SUMS
+      # No artifact upload yet: the candidate workflow must be reviewed and its
+      # output audience admitted before adding retention or dispatching it.
