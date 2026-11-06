@@ -15,7 +15,7 @@ fn logged_child(fail: bool) -> (Vec<String>, Result<(), String>) {
     if fail {
         command.arg("--fail");
     }
-    let mut child = backend::spawn(Job::Prepare, command, sender, 41).unwrap();
+    let child = backend::spawn(Job::Prepare, command, sender, 41).unwrap();
     child.send("input reaches the child");
     let mut lines = Vec::new();
     loop {
