@@ -3,7 +3,7 @@
 //! census of its data, assets and classes. Legacy metadata contributes identity
 //! only; license and dependency fields are not interpreted.
 use serde::{Deserialize, Serialize};
-use std::{fs, io::Read, path::Path};
+use std::{fs, path::Path};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct JarInfo {
@@ -37,25 +37,34 @@ const NOT_MODS: [&str; 5] = ["minecraft", "neoforge", "forge", "fabricloader", "
 pub fn read(path: &Path) -> Result<JarInfo, String> {
     let file = fs::File::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let mut zip = zip::ZipArchive::new(file).map_err(|e| format!("{}: {e}", path.display()))?;
-    let text = |zip: &mut zip::ZipArchive<fs::File>, name: &str| -> Option<String> {
-        let mut s = String::new();
-        zip.by_name(name).ok()?.read_to_string(&mut s).ok()?;
-        Some(s)
-    };
-    let mut info = if let Some(t) = text(&mut zip, "META-INF/neoforge.mods.toml")
-        .or_else(|| text(&mut zip, "META-INF/mods.toml"))
+    let text =
+        |zip: &mut zip::ZipArchive<fs::File>, name: &str| -> Result<Option<String>, String> {
+            let Ok(entry) = zip.by_name(name) else {
+                return Ok(None);
+            };
+            let declared = entry.size();
+            match crate::entry::read_text(entry, declared, crate::entry::MAX_TEXT) {
+                Ok(text) => Ok(Some(text)),
+                Err(e) if crate::entry::is_too_big(&e) => {
+                    Err(format!("{}: {name}: {e}", path.display()))
+                }
+                Err(_) => Ok(None),
+            }
+        };
+    let mut info = if let Some(t) =
+        text(&mut zip, "META-INF/neoforge.mods.toml")?.or(text(&mut zip, "META-INF/mods.toml")?)
     {
         mods_toml(&t)?
-    } else if let Some(t) = text(&mut zip, "fabric.mod.json") {
+    } else if let Some(t) = text(&mut zip, "fabric.mod.json")? {
         fabric(&t)?
-    } else if let Some(t) = text(&mut zip, "mcmod.info") {
+    } else if let Some(t) = text(&mut zip, "mcmod.info")? {
         mcmod_info(&t)?
     } else {
         JarInfo::default()
     };
     // `version = "${file.jarVersion}"` is filled in from the manifest at load.
     if info.version.starts_with("${") {
-        info.version = text(&mut zip, "META-INF/MANIFEST.MF")
+        info.version = text(&mut zip, "META-INF/MANIFEST.MF")?
             .and_then(|m| manifest_value(&m, "Implementation-Version"))
             .unwrap_or_default();
     }
