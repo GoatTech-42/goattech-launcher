@@ -407,7 +407,7 @@ pub fn list() -> Vec<Instance> {
     list_in(&backend::game_home(), &backend::data_dir())
 }
 
-fn list_in(game_home: &Path, data: &Path) -> Vec<Instance> {
+pub(crate) fn list_in(game_home: &Path, data: &Path) -> Vec<Instance> {
     let store = Store::load(data);
     let mut found = vec![(
         DEFAULT.to_string(),
@@ -505,7 +505,7 @@ pub fn find(query: &str) -> Result<Instance, String> {
     find_in(&list(), query)
 }
 
-fn find_in(all: &[Instance], query: &str) -> Result<Instance, String> {
+pub(crate) fn find_in(all: &[Instance], query: &str) -> Result<Instance, String> {
     let q = query.trim();
     let bare = |id: &str| id.split_once(':').map_or(id, |(_, rest)| rest).to_string();
     all.iter()
@@ -534,7 +534,7 @@ pub fn delete(query: &str) -> Result<Instance, String> {
     Ok(gone)
 }
 
-fn delete_in(
+pub(crate) fn delete_in(
     game_home: &Path,
     data: &Path,
     query: &str,
@@ -655,7 +655,92 @@ pub fn create_java(name: &str, minecraft: &str) -> Result<Instance, String> {
     )
 }
 
-fn create_in(
+/// A client instance is prepared before publication. Metadata stays behind the same lock
+/// as other instance writers. A failed preparation never becomes a listed game folder.
+pub(crate) fn create_client_in(
+    game_home: &Path,
+    data: &Path,
+    name: &str,
+    java: JavaGame,
+    prepare: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<Instance, String> {
+    let _lock = StoreLock::take(data)?;
+    let mut store = Store::load_strict(data)?;
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("An instance needs a name.".into());
+    }
+    // Do not call list_in while holding StoreLock: its stale-entry prune can take the lock.
+    let base = modpacks::slug(name);
+    if store
+        .instances
+        .iter()
+        .any(|(id, m)| m.name.as_deref().unwrap_or(id).eq_ignore_ascii_case(name))
+    {
+        return Err(format!("There is already an instance called {name}."));
+    }
+    let own = game_home.join(OWN);
+    if fs::symlink_metadata(&own).is_ok_and(|m| m.file_type().is_symlink() || !m.is_dir()) {
+        return Err("instances/ must be a real directory.".into());
+    }
+    fs::create_dir_all(&own).map_err(|e| e.to_string())?;
+    let slug = (1..)
+        .map(|n| {
+            if n == 1 {
+                base.clone()
+            } else {
+                format!("{base}-{n}")
+            }
+        })
+        .find(|id| id != DEFAULT && !own.join(id).exists() && !store.instances.contains_key(id))
+        .unwrap();
+    let mut random = [0u8; 16];
+    getrandom::fill(&mut random).map_err(|e| e.to_string())?;
+    let token: String = random.iter().map(|b| format!("{b:02x}")).collect();
+    let stage = game_home.join(format!(".client-stage-{token}"));
+    fs::create_dir(&stage).map_err(|e| e.to_string())?;
+    let target = own.join(&slug);
+    let mut published = false;
+    let result = (|| {
+        prepare(&stage)?;
+        // The selected target is reserved with create_dir, not a replacing rename.
+        fs::create_dir(&target).map_err(|e| e.to_string())?;
+        published = true;
+        fs::rename(stage.join("mods"), target.join("mods")).map_err(|e| e.to_string())?;
+        store.instances.insert(
+            slug.clone(),
+            Meta {
+                name: Some(name.into()),
+                java: Some(java),
+                ..Default::default()
+            },
+        );
+        store.save(data)
+    })();
+    let cleanup_stage = fs::remove_dir_all(&stage);
+    if let Err(e) = result {
+        let cleanup_target = if published {
+            fs::remove_dir_all(&target)
+        } else {
+            Ok(())
+        };
+        return Err(match (cleanup_target, cleanup_stage) {
+            (Ok(()), Ok(())) => e,
+            (target, stage) => {
+                format!("{e}; rollback incomplete: target {target:?}, stage {stage:?}")
+            }
+        });
+    }
+    if let Err(e) = cleanup_stage {
+        return Err(format!(
+            "Client instance saved, staging cleanup failed: {e}"
+        ));
+    }
+    drop(_lock);
+    find_in(&list_in(game_home, data), &slug)
+}
+
+pub(crate) fn create_in(
     game_home: &Path,
     data: &Path,
     name: &str,
@@ -773,7 +858,7 @@ pub fn edit(query: &str, change: impl FnOnce(&mut Meta)) -> Result<Instance, Str
     edit_in(&backend::game_home(), &backend::data_dir(), query, change)
 }
 
-fn edit_in(
+pub(crate) fn edit_in(
     game_home: &Path,
     data: &Path,
     query: &str,

@@ -5511,7 +5511,7 @@ fn menus() -> Vec<Menu> {
     ]
 }
 
-/// Claims the instance's sync running-mark before its game starts. A synced instance
+/// Claims the running mark for Java games and sync-group instances. A protected instance
 /// whose mark cannot be claimed does NOT launch: a second, untracked game in the same
 /// folder would be rewritten by a sync pass once the tracked run exits. The player sees
 /// the refusal as the launch error.
@@ -5521,7 +5521,8 @@ fn claim_sync_mark(
 ) -> Result<Option<horizon_launcher::config_sync::RunMark>, String> {
     match instances::sync_membership_strict(id) {
         Ok(Some(_)) => {}
-        Ok(None) => return Ok(None),
+        Ok(None) if instances::find(id)?.java.is_none() => return Ok(None),
+        Ok(None) => {}
         Err(e) => return Err(format!("sync: instance store unreadable: {e}")),
     }
     match horizon_launcher::config_sync::claim_running(home)? {

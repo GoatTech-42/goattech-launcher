@@ -487,6 +487,20 @@ Share an instance's options.txt settings (keybinds, video, controls) with a sync
 
 MCP: `instance_sync`.
 
+## `horizon-launcher instance install-client`
+
+Install a standalone client JAR (a Fabric mod downloaded from the client's own site, like Dawn's): checks it against Fabric's contract, then makes it a Java instance with Fabric, or adds it to one you name. Never downloads the client for you.
+
+    horizon-launcher instance install-client <JAR>
+
+- `JAR`: The .jar file you downloaded
+- `--instance`: Add it to this existing Fabric Java instance instead of making one
+- `--name`: The new instance's name (default: the client's own name)
+- `--minecraft`: The new instance's Minecraft version (default: the newest release the JAR says it runs on)
+- `--loader-version`: The Fabric Loader version (default: its newest stable one)
+
+MCP: `instance_install_client`.
+
 ## `horizon-launcher instance select`
 
 Make Play start this instance.

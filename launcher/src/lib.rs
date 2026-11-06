@@ -7,6 +7,7 @@ pub mod browser;
 pub mod build_import;
 pub mod cli;
 pub mod cli_tools;
+pub mod client_jar;
 pub mod config_sync;
 pub mod datapacks;
 pub mod desktop;

@@ -3,6 +3,7 @@
 use crate::account::{self, Accounts};
 use crate::backend::{self, Release};
 use crate::build_import;
+use crate::client_jar;
 use crate::github_mods;
 use crate::i18n::{tr, trf};
 use crate::instances;
@@ -328,6 +329,26 @@ enum InstanceCmd {
         /// "all" syncs everything again. Joining always starts with every setting.
         #[arg(long, conflicts_with_all = ["group", "off", "status", "resolve"], value_name = "LIST")]
         keys: Option<String>,
+    },
+    /// Install a standalone client JAR (a Fabric mod downloaded from the client's own site,
+    /// like Dawn's): checks it against Fabric's contract, then makes it a Java instance with
+    /// Fabric, or adds it to one you name. Never downloads the client for you
+    InstallClient {
+        /// The .jar file you downloaded
+        jar: std::path::PathBuf,
+        /// Add it to this existing Fabric Java instance instead of making one
+        #[arg(long, conflicts_with_all = ["name", "minecraft", "loader_version"])]
+        instance: Option<String>,
+        /// The new instance's name (default: the client's own name)
+        #[arg(long)]
+        name: Option<String>,
+        /// The new instance's Minecraft version (default: the newest release the JAR says
+        /// it runs on)
+        #[arg(long)]
+        minecraft: Option<String>,
+        /// The Fabric Loader version (default: its newest stable one)
+        #[arg(long)]
+        loader_version: Option<String>,
     },
     /// Make Play start this instance
     Select { instance: String },
@@ -1210,8 +1231,8 @@ fn attached(mut cmd: Command) -> Result<(), String> {
     }
 }
 
-/// Claims the instance's sync running-mark before its game starts, when it's in a sync
-/// group. A synced instance whose mark cannot be claimed does NOT launch: starting a
+/// Claims the running mark for Java games and sync-group instances. A protected instance
+/// whose mark cannot be claimed does NOT launch: starting a
 /// second, untracked game into the same folder would let it be rewritten by a sync pass
 /// once the tracked run exits.
 fn sync_claim(
@@ -1219,7 +1240,8 @@ fn sync_claim(
 ) -> Result<Option<crate::config_sync::RunMark>, String> {
     match instances::sync_membership_strict(&instance.id) {
         Ok(Some(_)) => {}
-        Ok(None) => return Ok(None),
+        Ok(None) if instance.java.is_none() => return Ok(None),
+        Ok(None) => {}
         Err(e) => return Err(format!("sync: instance store unreadable: {e}")),
     }
     match crate::config_sync::claim_running(&instance.home)? {
@@ -3540,6 +3562,52 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             },
             as_json,
         )?,
+        InstanceCmd::InstallClient {
+            jar,
+            instance,
+            name,
+            minecraft,
+            loader_version,
+        } => {
+            let versions = Some(crate::minecraft_versions::load()?);
+            let done = client_jar::install(
+                &backend::game_home(),
+                &backend::data_dir(),
+                versions.as_ref(),
+                &client_jar::Goal {
+                    jar: &jar,
+                    instance: instance.as_deref(),
+                    name: name.as_deref(),
+                    minecraft: minecraft.as_deref(),
+                    loader_version: loader_version.as_deref(),
+                },
+                &backend::get_bytes,
+            )?;
+            if as_json {
+                json(serde_json::json!({
+                    "instance": done.instance, "created": done.created,
+                    "minecraft": done.minecraft, "loader": done.loader,
+                    "mod": done.jar.mod_id, "name": done.jar.name,
+                    "version": done.jar.version, "file": done.file,
+                    "notes": done.notes,
+                }));
+            } else {
+                let made = if done.created { " (new)" } else { "" };
+                println!(
+                    "Installed {} {} ({}) into {}{made}: Minecraft {}, {}.",
+                    done.jar.name,
+                    done.jar.version,
+                    done.jar.mod_id,
+                    done.instance,
+                    done.minecraft,
+                    done.loader
+                );
+                println!("  {}", done.file);
+                for note in &done.notes {
+                    println!("  {note}");
+                }
+            }
+        }
         InstanceCmd::Select { instance } => changed(instances::select(&instance)?),
         InstanceCmd::Version { instance, version } => {
             let pin = match version.as_str() {
