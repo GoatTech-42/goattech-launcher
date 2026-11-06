@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOWS = ROOT / ".github/workflows"
+WORKFLOWS = ROOT / ".github/upstream-workflows"
 LABELS = ("playhorizon-ci", "playhorizon-light")
 FORK_GUARD = "github.event.pull_request.head.repo.full_name == github.repository"
 

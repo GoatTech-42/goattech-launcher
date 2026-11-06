@@ -4653,14 +4653,14 @@ pub fn {f}("
         );
     }
 
-    /// Every asset a launcher looks for is one the release workflows build, sign and publish.
+    /// Assets downloaded from upstream match the preserved upstream build/sign/publish definitions.
     #[test]
     fn platform_assets_are_published() {
         let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
         let read = |path: &str| fs::read_to_string(repo.join(path)).unwrap();
-        let build = read(".github/workflows/game-build.yml");
-        let nightly = read(".github/workflows/nightly-build.yml");
-        let launcher = read(".github/workflows/launcher.yml");
+        let build = read(".github/upstream-workflows/game-build.yml");
+        let nightly = read(".github/upstream-workflows/nightly-build.yml");
+        let launcher = read(".github/upstream-workflows/launcher.yml");
         for (os, arch, game, launcher_asset) in PLATFORMS {
             assert!(
                 build.contains(&format!("asset: {game}")),

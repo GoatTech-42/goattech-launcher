@@ -1,0 +1,64 @@
+name: GoatTech checks
+
+# Source qualification only. Releases and deployment are separate reviewed actions.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goattech-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HORIZON_TELEMETRY_URL: 'off'
+  HORIZON_LAUNCHER_NO_SELF_UPDATE: '1'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+
+jobs:
+  launcher:
+    if: github.repository == 'GoatTech-42/goattech-launcher'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: launcher
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Linux native build libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libvulkan-dev libasound2-dev libudev-dev
+      - run: cargo fmt --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo test --locked --lib --bins --tests
+
+  port-pack:
+    if: github.repository == 'GoatTech-42/goattech-launcher'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      # The inherited modrinth.rs wrapping drift is recorded, not silently reformatted here.
+      - run: cargo clippy --locked -p horizon-port-pack --all-targets -- -D warnings
+      - run: cargo test --locked -p horizon-port-pack
