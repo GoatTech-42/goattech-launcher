@@ -715,6 +715,43 @@ pub fn import(
     minecraft: Option<&str>,
     with_mods: bool,
 ) -> Result<Instance, String> {
+    import_in(
+        found,
+        name,
+        minecraft,
+        with_mods,
+        &ImportStore {
+            game_home: &crate::backend::game_home(),
+            data: &crate::backend::data_dir(),
+            versions: &crate::minecraft_versions::load,
+            rollback: &|id| instances::delete(id).map(|_| ()),
+            copy: &copy_game_skipping,
+        },
+    )
+}
+
+// Keep the production delete wrapper (including saved selection cleanup) on rollback.
+struct ImportStore<'a> {
+    game_home: &'a Path,
+    data: &'a Path,
+    versions: &'a dyn Fn() -> Result<crate::minecraft_versions::Versions, String>,
+    rollback: &'a dyn Fn(&str) -> Result<(), String>,
+    copy: &'a dyn Fn(&Found, &Path, bool) -> std::io::Result<()>,
+}
+fn import_in(
+    found: &Found,
+    name: &str,
+    minecraft: Option<&str>,
+    with_mods: bool,
+    store: &ImportStore<'_>,
+) -> Result<Instance, String> {
+    let ImportStore {
+        game_home,
+        data,
+        versions,
+        rollback,
+        copy,
+    } = store;
     let Some(minecraft) = minecraft.or(found.minecraft.as_deref()) else {
         return Err(format!(
             "{} doesn't say which Minecraft version {} plays here: name it with --minecraft.",
@@ -728,11 +765,11 @@ pub fn import(
             ));
         }
     }
-    let versions = crate::minecraft_versions::load()?;
+    let versions = versions()?;
     let version = versions.find(minecraft)?.id.clone();
-    let instance = instances::create_java(name, &version)?;
-    if let Err(e) = copy_game_skipping(found, &instance.home, !with_mods) {
-        let _ = instances::delete(&instance.id);
+    let instance = instances::create_in(game_home, data, name, None, Some(&version))?;
+    if let Err(e) = copy(found, &instance.home, !with_mods) {
+        let _ = rollback(&instance.id);
         return Err(format!("Could not copy {}: {e}", found.game.display()));
     }
     let loader = loader(found).map(|mut l| {
@@ -745,7 +782,7 @@ pub fn import(
     if loader.is_some() || notes.is_some() {
         // edit returns the instance as written, so the caller (and --json) never sees the
         // pre-edit snapshot.
-        return instances::edit(&instance.id, |m| {
+        return instances::edit_in(game_home, data, &instance.id, |m| {
             if let Some(l) = loader {
                 m.java.get_or_insert_with(Default::default).loader = Some(l);
             }

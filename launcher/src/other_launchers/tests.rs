@@ -246,7 +246,7 @@ fn curseforge_and_modrinth_app_instances_are_their_game_folders() {
     assert!(to.join("mods/a.jar").is_file());
     assert!(!to.join("minecraftinstance.json").exists() && !to.join(".curseclient").exists());
 
-    let err = import(&found[1], "x", None, true).unwrap_err();
+    let err = isolated_import(&root, &found[1], "x", None, true).unwrap_err();
     assert_eq!(
         err,
         "the CurseForge app doesn't say which Minecraft version All the Mods plays here: name \
@@ -383,15 +383,15 @@ fn mods_that_could_never_load_are_refused_or_left_behind_never_silent() {
     }
 
     // The import refuses with the reason and the escape, and makes nothing.
-    let err = import(&base, "blocked-copy", Some("1.21.1"), true).unwrap_err();
+    let err = isolated_import(&root, &base, "blocked-copy", Some("1.21.1"), true).unwrap_err();
     assert!(err.contains("records no mod loader"), "{err}");
     assert!(err.contains("--no-mods"), "{err}");
 
     // With mods left behind, the copy keeps the rest.
-    let made = import(&base, "light-copy", Some("1.21.1"), false).unwrap();
+    let made = isolated_import(&root, &base, "light-copy", Some("1.21.1"), false).unwrap();
     assert!(made.home.join("options.txt").is_file());
     assert!(!made.home.join("mods").exists());
-    let _ = crate::instances::delete(&made.id);
+    assert!(root.join("store/instances.json").is_file());
     let _ = fs::remove_dir_all(&root);
 }
 
@@ -429,14 +429,14 @@ fn prism_notes_carry_to_the_imported_instance() {
         Some("first line\nsecond C:\\path\\x")
     );
 
-    let made = import(&found[0], "noted-copy", Some("1.21.1"), false).unwrap();
-    let listed = crate::instances::list();
+    let made = isolated_import(&root, &found[0], "noted-copy", Some("1.21.1"), false).unwrap();
+    let listed = isolated_list(&root);
     let again = listed.iter().find(|i| i.id == made.id).unwrap();
     assert_eq!(
         again.notes.as_deref(),
         Some("first line\nsecond C:\\path\\x")
     );
-    let _ = crate::instances::delete(&made.id);
+    assert!(root.join("store/instances.json").is_file());
     let _ = fs::remove_dir_all(&root);
 }
 
@@ -455,11 +455,11 @@ fn import_without_notes_leaves_them_unset() {
         game: game.clone(),
         shared: false,
     };
-    let made = import(&base, "noteless-copy", Some("1.21.1"), false).unwrap();
-    let listed = crate::instances::list();
+    let made = isolated_import(&root, &base, "noteless-copy", Some("1.21.1"), false).unwrap();
+    let listed = isolated_list(&root);
     let again = listed.iter().find(|i| i.id == made.id).unwrap();
     assert_eq!(again.notes, None);
-    let _ = crate::instances::delete(&made.id);
+    assert!(root.join("store/instances.json").is_file());
     let _ = fs::remove_dir_all(&root);
 }
 
@@ -583,8 +583,8 @@ fn a_forge_instance_carries_its_loader_and_mods() {
     // The loader carries, and its mods are no longer blocked.
     assert_eq!(mods_blocked(&found[0]), None);
 
-    let made = import(&found[0], "forge-copy", None, true).unwrap();
-    let listed = crate::instances::list();
+    let made = isolated_import(&root, &found[0], "forge-copy", None, true).unwrap();
+    let listed = isolated_list(&root);
     let again = listed.iter().find(|i| i.id == made.id).unwrap();
     // The recorded bare build is named the way Maven does for the installer download.
     assert_eq!(
@@ -595,7 +595,7 @@ fn a_forge_instance_carries_its_loader_and_mods() {
         })
     );
     assert!(made.home.join("mods/a.jar").is_file());
-    let _ = crate::instances::delete(&made.id);
+    assert!(root.join("store/instances.json").is_file());
     let _ = fs::remove_dir_all(&root);
 }
 
@@ -616,8 +616,8 @@ fn a_legacy_neoforge_instance_carries_its_loader_and_mods() {
     assert_eq!(found.len(), 1);
     assert_eq!(mods_blocked(&found[0]), None);
 
-    let made = import(&found[0], "neo-copy", None, true).unwrap();
-    let listed = crate::instances::list();
+    let made = isolated_import(&root, &found[0], "neo-copy", None, true).unwrap();
+    let listed = isolated_list(&root);
     let again = listed.iter().find(|i| i.id == made.id).unwrap();
     // 1.20.1 NeoForge lives on the legacy artifact, Minecraft-prefixed like a Forge build.
     assert_eq!(
@@ -628,7 +628,7 @@ fn a_legacy_neoforge_instance_carries_its_loader_and_mods() {
         })
     );
     assert!(made.home.join("mods/a.jar").is_file());
-    let _ = crate::instances::delete(&made.id);
+    assert!(root.join("store/instances.json").is_file());
     let _ = fs::remove_dir_all(&root);
 }
 
@@ -695,4 +695,139 @@ fn atlauncher_loader_types_match_whatever_the_case() {
     }
     assert!(atlauncher_loader(&json!({"loaderVersion": {"type": "Forge"}})).is_none());
     assert!(atlauncher_loader(&json!({})).is_none());
+}
+
+#[test]
+fn parallel_imports_keep_their_destination_stores_separate() {
+    let threads: Vec<_> = (0..4)
+        .map(|n| {
+            std::thread::spawn(move || {
+                let root = scratch(&format!("parallel-import-{n}"));
+                let game = root.join("source");
+                write(&game.join("options.txt"), &format!("worker:{n}"));
+                let found = Found {
+                    launcher: "Prism Launcher",
+                    name: "source".into(),
+                    minecraft: Some("1.21.1".into()),
+                    loader: None,
+                    notes: Some(format!("worker {n}")),
+                    icon: None,
+                    game,
+                    shared: false,
+                };
+                let made = isolated_import(&root, &found, "same-name", None, false).unwrap();
+                let listed = isolated_list(&root);
+                let again = listed.iter().find(|i| i.id == made.id).unwrap();
+                assert_eq!(again.notes, Some(format!("worker {n}")));
+                assert_eq!(
+                    fs::read_to_string(made.home.join("options.txt")).unwrap(),
+                    format!("worker:{n}")
+                );
+                assert!(made.home.starts_with(root.join("destination")));
+                assert!(root.join("store/instances.json").is_file());
+                fs::remove_dir_all(root).unwrap();
+            })
+        })
+        .collect();
+    for thread in threads {
+        thread.join().unwrap();
+    }
+}
+
+fn isolated_import(
+    root: &Path,
+    found: &Found,
+    name: &str,
+    minecraft: Option<&str>,
+    with_mods: bool,
+) -> Result<Instance, String> {
+    import_in(
+        found,
+        name,
+        minecraft,
+        with_mods,
+        &ImportStore {
+            copy: &copy_game_skipping,
+            game_home: &root.join("destination"),
+            data: &root.join("store"),
+            rollback: &|id| {
+                crate::instances::delete_in(
+                    &root.join("destination"),
+                    &root.join("store"),
+                    id,
+                    &|path| fs::remove_dir_all(path).map_err(|e| e.to_string()),
+                )
+                .map(|_| ())
+            },
+            versions: &|| {
+                crate::minecraft_versions::Versions::parse(
+                    r#"{
+            "latest": {"release": "1.21.1", "snapshot": "1.21.1"},
+            "versions": [
+                {"id":"1.21.1","type":"release","url":"unused","sha1":"unused"},
+                {"id":"1.20.1","type":"release","url":"unused","sha1":"unused"}
+            ]
+        }"#,
+                )
+            },
+        },
+    )
+}
+fn isolated_list(root: &Path) -> Vec<Instance> {
+    crate::instances::list_in(&root.join("destination"), &root.join("store"))
+}
+
+#[test]
+fn a_copy_failure_calls_the_owners_rollback_on_the_published_instance() {
+    let root = scratch("rollback-owner");
+    let home = root.join("destination");
+    let data = root.join("store");
+    let found = Found {
+        launcher: "Prism Launcher",
+        name: "missing".into(),
+        minecraft: Some("1.21.1".into()),
+        loader: None,
+        notes: None,
+        icon: None,
+        game: root.join("missing-source"),
+        shared: false,
+    };
+    write(&found.game.join("options.txt"), "options");
+    let called = std::cell::RefCell::new(None);
+    let result = import_in(
+        &found,
+        "failed-copy",
+        None,
+        false,
+        &ImportStore {
+            copy: &|found, to, skip| {
+                // A real file-over-directory error after metadata publication.
+                fs::create_dir_all(to.join("options.txt")).unwrap();
+                copy_game_skipping(found, to, skip)
+            },
+            game_home: &home,
+            data: &data,
+            versions: &|| {
+                crate::minecraft_versions::Versions::parse(
+                    r#"{"versions":[{"id":"1.21.1","type":"release","url":"unused","sha1":"unused"}]}"#,
+                )
+            },
+            rollback: &|id| {
+                let published = crate::instances::list_in(&home, &data);
+                assert!(published.iter().any(|i| i.id == id));
+                *called.borrow_mut() = Some(id.to_string());
+                crate::instances::delete_in(&home, &data, id, &|path| {
+                    fs::remove_dir_all(path).map_err(|e| e.to_string())
+                })
+                .map(|_| ())
+            },
+        },
+    );
+    assert!(result.unwrap_err().contains("Could not copy"));
+    let id = called.borrow().clone().expect("owner rollback called");
+    assert!(!crate::instances::list_in(&home, &data)
+        .iter()
+        .any(|i| i.id == id));
+    assert!(!home.join("instances").join(id).exists());
+    fs::remove_dir_all(root).unwrap();
 }
