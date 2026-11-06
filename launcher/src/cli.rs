@@ -1238,20 +1238,10 @@ fn attached(mut cmd: Command) -> Result<(), String> {
 fn sync_claim(
     instance: &instances::Instance,
 ) -> Result<Option<crate::config_sync::RunMark>, String> {
-    match instances::sync_membership_strict(&instance.id) {
-        Ok(Some(_)) => {}
-        Ok(None) if instance.java.is_none() => return Ok(None),
-        Ok(None) => {}
-        Err(e) => return Err(format!("sync: instance store unreadable: {e}")),
-    }
-    match crate::config_sync::claim_running(&instance.home)? {
-        Some(mark) => Ok(Some(mark)),
-        None => Err(
-            "another run of this instance's game is still live - not starting a second one. \
-             Quit it first; a sync pass must never write into a running game's settings."
-                .to_string(),
-        ),
-    }
+    let synced = instances::sync_membership_strict(&instance.id)
+        .map_err(|e| format!("sync: instance store unreadable: {e}"))?
+        .is_some();
+    crate::client_jar::claim_for_launch(instance.java.is_some(), synced, &instance.home)
 }
 
 /// Like `attached`, but owns the run's sync mark end to end: records the game process's
@@ -4275,6 +4265,32 @@ mod tests {
     /// mark is stopped - with its exit CONFIRMED - before it runs unprotected. The child
     /// is long-lived: without a working stop this test would block for its full sleep.
     #[cfg(unix)]
+    #[test]
+    fn client_install_parser_preserves_explicit_scope() {
+        let parse = |args: &[&str]| {
+            Cli::try_parse_from([&["gt-cli", "instance", "install-client"], args].concat())
+        };
+        for args in [
+            vec!["fixture.jar"],
+            vec!["fixture.jar", "--instance", "Chosen"],
+            vec![
+                "fixture.jar",
+                "--name",
+                "New",
+                "--minecraft",
+                "1.21.4",
+                "--loader-version",
+                "0.16.9",
+            ],
+        ] {
+            assert!(parse(&args).is_ok(), "{args:?}");
+        }
+        for flag in ["--name", "--minecraft", "--loader-version"] {
+            assert!(parse(&["fixture.jar", "--instance", "Chosen", flag, "value"]).is_err());
+        }
+        assert!(parse(&[]).is_err());
+    }
+
     #[test]
     fn attached_run_stops_and_confirms_the_game_when_recording_fails() {
         use std::os::unix::fs::PermissionsExt;

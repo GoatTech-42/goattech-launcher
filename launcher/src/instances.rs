@@ -547,10 +547,10 @@ pub(crate) fn delete_in(
             instance.name
         ));
     }
-    trash(&instance.work)
-        .map_err(|e| format!("{} could not go to the Trash: {e}", instance.name))?;
     let _lock = StoreLock::take(data)?;
     let mut store = Store::load_strict(data)?;
+    trash(&instance.work)
+        .map_err(|e| format!("{} could not go to the Trash: {e}", instance.name))?;
     if store.instances.remove(&instance.id).is_some() {
         store.save(data)?;
     }
@@ -653,6 +653,32 @@ pub fn create_java(name: &str, minecraft: &str) -> Result<Instance, String> {
         None,
         Some(minecraft),
     )
+}
+
+/// Serialize final client publication against metadata edits and folder deletion. A stale
+/// checked target is refused rather than installing against settings that were not checked.
+pub(crate) fn with_checked_client_target<T>(
+    game_home: &Path,
+    data: &Path,
+    checked: &Instance,
+    publish: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    let _lock = StoreLock::take(data)?;
+    let store = Store::load_strict(data)?;
+    let current = store
+        .instances
+        .get(&checked.id)
+        .ok_or("Client target was deleted or metadata is missing.")?;
+    if current.java != checked.java
+        || !checked.home.is_dir()
+        || checked.home != game_home.join(OWN).join(&checked.id)
+    {
+        return Err(
+            "Client target changed during compatibility checks. Nothing was installed; try again."
+                .into(),
+        );
+    }
+    publish()
 }
 
 /// A client instance is prepared before publication. Metadata stays behind the same lock

@@ -5519,20 +5519,14 @@ fn claim_sync_mark(
     id: &str,
     home: &std::path::Path,
 ) -> Result<Option<horizon_launcher::config_sync::RunMark>, String> {
-    match instances::sync_membership_strict(id) {
-        Ok(Some(_)) => {}
-        Ok(None) if instances::find(id)?.java.is_none() => return Ok(None),
-        Ok(None) => {}
-        Err(e) => return Err(format!("sync: instance store unreadable: {e}")),
-    }
-    match horizon_launcher::config_sync::claim_running(home)? {
-        Some(mark) => Ok(Some(mark)),
-        None => Err(
-            "another run of this instance's game is still live - not starting a second one. \
-             Quit it first; a sync pass must never write into a running game's settings."
-                .to_string(),
-        ),
-    }
+    let synced = instances::sync_membership_strict(id)
+        .map_err(|e| format!("sync: instance store unreadable: {e}"))?
+        .is_some();
+    horizon_launcher::client_jar::claim_for_launch(
+        instances::find(id)?.java.is_some(),
+        synced,
+        home,
+    )
 }
 
 /// Records the game's pid in the sync mark (recovering a child lock poisoned by a

@@ -530,7 +530,9 @@ pub fn install(
     let result = if created {
         Ok(())
     } else {
-        copy_bytes(&instance.home, &bytes, &dest)
+        instances::with_checked_client_target(game_home, data, &instance, || {
+            copy_bytes(&instance.home, &bytes, &dest)
+        })
     };
     result?;
     if let Some(mark) = install_mark.0.take() {
@@ -553,6 +555,23 @@ pub fn install(
         file: dest,
         notes,
     })
+}
+
+/// Shared CLI/GUI eligibility seam. The mark's child lifecycle is owned by the caller.
+pub fn claim_for_launch(
+    java: bool,
+    synced: bool,
+    home: &Path,
+) -> Result<Option<crate::config_sync::RunMark>, String> {
+    if !java && !synced {
+        return Ok(None);
+    }
+    crate::config_sync::claim_running(home)?
+        .map(Some)
+        .ok_or_else(|| {
+            "Another run or client installation holds this instance. Quit it before launching."
+                .into()
+        })
 }
 
 /// Older/external Java games may not hold our mark. Conservatively refuse while any Java
@@ -616,11 +635,17 @@ fn check_java(
     let Some(wants) = &jar.java_wants else {
         return Ok(());
     };
-    let major = match &game.home {
+    let version = match &game.home {
         Some(home) => {
+            let binary = home
+                .join("bin")
+                .join(if cfg!(windows) { "java.exe" } else { "java" });
+            if !binary.is_file() {
+                return Err("Selected Java home has no bin/java executable.".into());
+            }
             crate::java::release_version(home)
                 .ok_or("Cannot verify the selected Java runtime.")?
-                .1
+                .0
         }
         None => {
             let v = versions
@@ -628,12 +653,19 @@ fn check_java(
                 .find(&game.minecraft)?;
             let bytes = crate::sources::fetch_checked(fetch, &v.url, &v.sha1)?;
             let metadata: Value = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
-            crate::java::Need::of(&metadata).major
+            // Automatic selection fixes a major only; a later runtime may have any patch.
+            if wants
+                .split(|c: char| !(c.is_ascii_digit() || c == '.'))
+                .any(|t| t.contains('.'))
+            {
+                return Err("Java patch constraints need an explicit Java home; automatic runtime patch is not known yet.".into());
+            }
+            crate::java::Need::of(&metadata).major.to_string()
         }
     };
-    if range_allows(wants, &major.to_string()) != Some(true) {
+    if range_allows(wants, &version) != Some(true) {
         return Err(format!(
-            "Client needs Java {wants}; selected Java {major} is incompatible or unverified."
+            "Client needs Java {wants}; selected Java {version} is incompatible or unverified."
         ));
     }
     Ok(())
@@ -654,6 +686,14 @@ fn check_mod_dependencies(jar: &ClientJar, home: Option<&Path>) -> Result<(), St
                         .map_err(|e| format!("Cannot verify installed dependency: {e}"))?;
                     if info.mod_id == jar.mod_id {
                         return Err("A JAR with this mod id is already installed.".into());
+                    }
+                    if info.side == Side::Server
+                        || info.minecraft_wants.is_some()
+                        || info.loader_wants.is_some()
+                        || info.java_wants.is_some()
+                        || !info.mod_wants.is_empty()
+                    {
+                        return Err(format!("Dependency {} is server-only or has requirements needing full dependency resolution. Nothing was installed.", info.mod_id));
                     }
                     available.push(info);
                 }

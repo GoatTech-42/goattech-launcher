@@ -626,6 +626,13 @@ fn duplicate_mod_id_refuses_even_without_dependencies() {
 fn java_requirement_checks_selected_runtime_and_verified_metadata() {
     let (home, data) = scratch("java-check");
     let info = inspect(&jar(&home, "java.jar", &[("fabric.mod.json", DAWN_LIKE)])).unwrap();
+    fs::create_dir_all(data.join("bin")).unwrap();
+    fs::write(
+        data.join("bin")
+            .join(if cfg!(windows) { "java.exe" } else { "java" }),
+        b"fixture",
+    )
+    .unwrap();
     fs::write(data.join("release"), "JAVA_VERSION=\"17.0.1\"\n").unwrap();
     let mut game = instances::JavaGame {
         home: Some(data.clone()),
@@ -826,4 +833,146 @@ fn failed_compatibility_check_releases_only_installers_mark() {
         .expect("installer released its claim after error");
     mark.release().unwrap();
     fs::remove_dir_all(home.parent().unwrap()).unwrap();
+}
+
+#[test]
+fn dependency_requires_client_eligible_target_and_closed_requirements() {
+    let (home, data) = scratch("dependency-target");
+    fs::create_dir_all(home.join("mods")).unwrap();
+    let client = inspect(&jar(&data, "client.jar", &[("fabric.mod.json", DAWN_LIKE)])).unwrap();
+    for field in [
+        r#""environment":"server""#,
+        r#""depends":{"minecraft":"1.19.4"}"#,
+        r#""depends":{"fabricloader":">=99"}"#,
+        r#""depends":{"java":">=99"}"#,
+        r#""depends":{"missing":"*"}"#,
+    ] {
+        let body = format!(r#"{{"schemaVersion":1,"id":"fabric-api","version":"1",{field}}}"#);
+        jar(&home.join("mods"), "dep.jar", &[("fabric.mod.json", &body)]);
+        assert!(
+            check_mod_dependencies(&client, Some(&home)).is_err(),
+            "accepted {field}"
+        );
+    }
+    fs::remove_dir_all(home.parent().unwrap()).unwrap();
+}
+
+#[test]
+fn selected_java_patch_and_binary_are_verified() {
+    let (home, data) = scratch("java-patch");
+    let mut info = inspect(&dawn_jar(&home)).unwrap();
+    info.java_wants = Some("<=21.0.1".into());
+    fs::create_dir_all(data.join("bin")).unwrap();
+    fs::write(
+        data.join("bin")
+            .join(if cfg!(windows) { "java.exe" } else { "java" }),
+        b"fixture",
+    )
+    .unwrap();
+    fs::write(data.join("release"), "JAVA_VERSION=\"21.0.9\"\n").unwrap();
+    let game = instances::JavaGame {
+        home: Some(data.clone()),
+        ..Default::default()
+    };
+    assert!(check_java(&info, &game, None, &fake_fetch).is_err());
+    info.java_wants = Some(">=21.0.2".into());
+    check_java(&info, &game, None, &fake_fetch).unwrap();
+    fs::remove_dir_all(data.join("bin")).unwrap();
+    assert!(check_java(&info, &game, None, &fake_fetch).is_err());
+    fs::remove_dir_all(home.parent().unwrap()).unwrap();
+}
+
+#[test]
+fn nonsync_java_launch_claim_is_exclusive_and_horizon_stays_unclaimed() {
+    let (home, _) = scratch("launch-claim");
+    assert!(claim_for_launch(false, false, &home).unwrap().is_none());
+    let mark = claim_for_launch(true, false, &home)
+        .unwrap()
+        .expect("non-sync Java owns a mark");
+    assert!(claim_for_launch(true, false, &home).is_err());
+    assert!(crate::config_sync::claim_running(&home).unwrap().is_none());
+    mark.release().unwrap();
+    claim_for_launch(false, true, &home)
+        .unwrap()
+        .unwrap()
+        .release()
+        .unwrap();
+    fs::remove_dir_all(home.parent().unwrap()).unwrap();
+}
+
+#[test]
+fn changed_or_deleted_target_refuses_final_publication() {
+    let (home, data) = scratch("target-cas");
+    let checked = instances::create_in(&home, &data, "Chosen", None, Some("1.21.4")).unwrap();
+    instances::edit_in(&home, &data, &checked.id, |m| {
+        m.java.as_mut().unwrap().minecraft = "1.19.4".into()
+    })
+    .unwrap();
+    let called = std::cell::Cell::new(false);
+    assert!(
+        instances::with_checked_client_target(&home, &data, &checked, || {
+            called.set(true);
+            Ok(())
+        })
+        .is_err()
+    );
+    assert!(!called.get(), "stale target reached publication");
+    instances::delete_in(&home, &data, &checked.id, &|p| {
+        fs::remove_dir_all(p).map_err(|e| e.to_string())
+    })
+    .unwrap();
+    assert!(instances::with_checked_client_target(&home, &data, &checked, || Ok(())).is_err());
+    assert!(!checked.home.exists());
+    fs::remove_dir_all(home.parent().unwrap()).unwrap();
+}
+
+#[test]
+fn delete_cannot_move_target_while_publication_holds_store_lock() {
+    let (home, data) = scratch("target-delete-lock");
+    let checked = instances::create_in(&home, &data, "Chosen", None, Some("1.21.4")).unwrap();
+    let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let h = home.clone();
+    let d = data.clone();
+    let c = checked.clone();
+    let writer = std::thread::spawn(move || {
+        instances::with_checked_client_target(&h, &d, &c, || {
+            entered_tx.send(()).unwrap();
+            release_rx.recv().unwrap();
+            assert!(c.home.exists());
+            Ok(())
+        })
+    });
+    entered_rx.recv().unwrap();
+    // StoreLock has a bounded acquisition timeout. Deletion must refuse before trash.
+    let deleted = instances::delete_in(&home, &data, &checked.id, &|_| {
+        panic!("trash ran while publication locked")
+    });
+    assert!(deleted.is_err());
+    assert!(checked.home.exists());
+    release_tx.send(()).unwrap();
+    writer.join().unwrap().unwrap();
+    fs::remove_dir_all(home.parent().unwrap()).unwrap();
+}
+
+#[test]
+fn automatic_java_patch_constraint_is_not_inferred_from_major() {
+    let (home, data) = scratch("auto-java-patch");
+    let mut info = inspect(&dawn_jar(&home)).unwrap();
+    info.java_wants = Some("<=21.0.1".into());
+    let metadata = br#"{"javaVersion":{"majorVersion":21,"component":"java-runtime-delta"}}"#;
+    let mut versions = versions_fixture();
+    versions
+        .all
+        .iter_mut()
+        .find(|v| v.id == "1.21.4")
+        .unwrap()
+        .sha1 = crate::sources::sha1_hex(metadata);
+    let game = instances::JavaGame {
+        minecraft: "1.21.4".into(),
+        ..Default::default()
+    };
+    assert!(check_java(&info, &game, Some(&versions), &|_| Ok(metadata.to_vec())).is_err());
+    fs::remove_dir_all(home.parent().unwrap()).unwrap();
+    let _ = data;
 }
