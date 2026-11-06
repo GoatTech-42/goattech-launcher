@@ -1057,5 +1057,7 @@
   "Synced settings": "Ajustes sincronizados",
   "The group {group} and this instance differ on: {keys}. Whose values win? The side that loses is backed up first.": "El grupo {group} y esta instancia difieren en: {keys}. ¿Qué valores ganan? El lado que pierde se respalda primero.",
   "Use the group's": "Usar las del grupo",
-  "yours {local}, the group's {shared}": "la tuya {local}, la del grupo {shared}"
+  "yours {local}, the group's {shared}": "la tuya {local}, la del grupo {shared}",
+  "Settings that sync": "Ajustes que se sincronizan",
+  "New settings sync too, as they appear.": "Los ajustes nuevos también se sincronizan cuando aparecen."
 }

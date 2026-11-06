@@ -875,5 +875,7 @@
   "Synced settings": "同期設定",
   "The group {group} and this instance differ on: {keys}. Whose values win? The side that loses is backed up first.": "グループ {group} とこのインスタンスは次の項目で異なります:{keys}。どちらの値を優先しますか? 上書きされる側は先にバックアップされます。",
   "Use the group's": "グループのを使う",
-  "yours {local}, the group's {shared}": "あなたの {local}、グループの {shared}"
+  "yours {local}, the group's {shared}": "あなたの {local}、グループの {shared}",
+  "Settings that sync": "同期する設定",
+  "New settings sync too, as they appear.": "新しい設定も追加されると同期されます。"
 }

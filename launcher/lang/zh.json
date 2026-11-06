@@ -1057,5 +1057,7 @@
   "Synced settings": "同步设置",
   "The group {group} and this instance differ on: {keys}. Whose values win? The side that loses is backed up first.": "组 {group} 与此实例在以下设置上不同:{keys}。以哪一方的值为准?被覆盖的一方会先备份。",
   "Use the group's": "使用组的设置",
-  "yours {local}, the group's {shared}": "你的 {local},组的 {shared}"
+  "yours {local}, the group's {shared}": "你的 {local},组的 {shared}",
+  "Settings that sync": "同步的设置",
+  "New settings sync too, as they appear.": "新设置出现时也会同步。"
 }

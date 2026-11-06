@@ -875,5 +875,7 @@
   "Synced settings": "Eşitlenen ayarlar",
   "The group {group} and this instance differ on: {keys}. Whose values win? The side that loses is backed up first.": "{group} grubu ile bu örnek şuralarda farklı: {keys}. Hangi tarafın değerleri geçerli olsun? Kaybeden taraf önce yedeklenir.",
   "Use the group's": "Grubunkini kullan",
-  "yours {local}, the group's {shared}": "sendeki {local}, gruptaki {shared}"
+  "yours {local}, the group's {shared}": "sendeki {local}, gruptaki {shared}",
+  "Settings that sync": "Eşitlenen ayarlar",
+  "New settings sync too, as they appear.": "Yeni ayarlar da ortaya çıktığında eşitlenir."
 }

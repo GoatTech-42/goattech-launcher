@@ -1057,5 +1057,7 @@
   "Synced settings": "Paramètres synchronisés",
   "The group {group} and this instance differ on: {keys}. Whose values win? The side that loses is backed up first.": "Le groupe {group} et cette instance diffèrent sur : {keys}. Quelles valeurs garder ? Le côté perdant est d'abord sauvegardé.",
   "Use the group's": "Utiliser celles du groupe",
-  "yours {local}, the group's {shared}": "les tiennes {local}, celles du groupe {shared}"
+  "yours {local}, the group's {shared}": "les tiennes {local}, celles du groupe {shared}",
+  "Settings that sync": "Paramètres synchronisés",
+  "New settings sync too, as they appear.": "Les nouveaux paramètres sont aussi synchronisés dès qu'ils apparaissent."
 }

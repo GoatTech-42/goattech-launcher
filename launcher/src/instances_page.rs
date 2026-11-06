@@ -65,6 +65,8 @@ pub(super) struct InstanceDialog {
     pub(super) sync_group: Option<String>,
     pub(super) sync_join_diff: Option<(String, Vec<String>)>,
     pub(super) sync_conflicts: Vec<(String, config_sync::ConflictNote)>,
+    pub(super) sync_keys: Option<std::collections::BTreeSet<String>>,
+    pub(super) sync_key_union: Vec<String>,
     pub(super) sync_report: Vec<String>,
     pub(super) sync_busy: bool,
     /// Why the section's state is unavailable (a store that would not parse). While set
@@ -113,13 +115,23 @@ enum SyncJoin {
 
 /// The section's fresh state: the instance's group (None: in none) and the conflicts it
 /// is holding there.
-type SyncState = Result<(Option<String>, Vec<(String, config_sync::ConflictNote)>), String>;
+type SyncState = Result<
+    (
+        Option<String>,
+        Vec<(String, config_sync::ConflictNote)>,
+        Option<std::collections::BTreeSet<String>>,
+        Vec<String>,
+    ),
+    String,
+>;
 
 /// The sync section's snapshot for one frame (`Launcher::sync_section`).
 struct SyncSection {
     group: Option<String>,
     join_diff: Option<(String, Vec<String>)>,
     conflicts: Vec<(String, config_sync::ConflictNote)>,
+    keys: Option<std::collections::BTreeSet<String>>,
+    key_union: Vec<String>,
     report: Vec<String>,
     busy: bool,
     error: Option<String>,
@@ -131,10 +143,18 @@ struct SyncSection {
 fn sync_state(id: &str) -> SyncState {
     match instances::sync_membership_strict(id)? {
         Some(m) => {
-            let held = config_sync::conflicts(&backend::data_dir(), &m.group, id)?;
-            Ok((Some(m.group), held.into_iter().collect()))
+            let data = backend::data_dir();
+            let held = config_sync::conflicts(&data, &m.group, id)?;
+            let home = instances::find(id)?.home;
+            let union = config_sync::key_union(&data, &home, &m.group)?;
+            Ok((
+                Some(m.group.clone()),
+                held.into_iter().collect(),
+                m.keys,
+                union.into_iter().collect(),
+            ))
         }
-        None => Ok((None, Vec::new())),
+        None => Ok((None, Vec::new(), None, Vec::new())),
     }
 }
 
@@ -750,6 +770,8 @@ impl Launcher {
             sync_group: None,
             sync_join_diff: None,
             sync_conflicts: Vec::new(),
+            sync_keys: None,
+            sync_key_union: Vec::new(),
             sync_report: Vec::new(),
             sync_busy: false,
             sync_error: None,
@@ -836,10 +858,12 @@ impl Launcher {
                     if let Some(d) = &mut this.instances.dialog {
                         d.sync_busy = false;
                         match (lines, state) {
-                            (Ok(lines), Ok((group, conflicts))) => {
+                            (Ok(lines), Ok((group, conflicts, keys, union))) => {
                                 d.sync_report = lines;
                                 d.sync_group = group;
                                 d.sync_conflicts = conflicts;
+                                d.sync_keys = keys;
+                                d.sync_key_union = union;
                                 d.sync_join_diff = None;
                                 d.sync_error = None;
                             }
@@ -847,7 +871,15 @@ impl Launcher {
                                 d.sync_report = lines;
                                 d.sync_error = Some(e);
                             }
-                            (Err(e), Ok(_)) => d.error = Some(e),
+                            // The change may still have committed: apply the fresh
+                            // state and keep the error visible.
+                            (Err(e), Ok((group, conflicts, keys, union))) => {
+                                d.error = Some(e);
+                                d.sync_group = group;
+                                d.sync_conflicts = conflicts;
+                                d.sync_keys = keys;
+                                d.sync_key_union = union;
+                            }
                             // A state that no longer reads is unavailable even when the
                             // change itself also failed: never leave stale group or
                             // conflict actions looking usable.
@@ -918,10 +950,12 @@ impl Launcher {
                     if let Some(d) = &mut this.instances.dialog {
                         d.sync_busy = false;
                         match outcome {
-                            SyncJoin::Joined(lines, Ok((group, conflicts))) => {
+                            SyncJoin::Joined(lines, Ok((group, conflicts, keys, union))) => {
                                 d.sync_report = lines;
                                 d.sync_group = group;
                                 d.sync_conflicts = conflicts;
+                                d.sync_keys = keys;
+                                d.sync_key_union = union;
                                 d.sync_join_diff = None;
                                 d.sync_error = None;
                             }
@@ -1022,6 +1056,52 @@ impl Launcher {
         );
     }
 
+    /// Picks one setting in or out of the shared set (`config_sync::set_keys` on the
+    /// background pass; checking the last unchecked setting means "everything" again).
+    pub(super) fn sync_key_toggle_click(&mut self, key: String, on: bool, cx: &mut Context<Self>) {
+        self.sync_run(
+            move |id, home| {
+                let mut membership = instances::sync_membership_strict(id)?
+                    .ok_or_else(|| "This instance is in no sync group.".to_string())?;
+                let data = backend::data_dir();
+                let union = config_sync::key_union(&data, home, &membership.group)?;
+                let mut set = membership.keys.clone().unwrap_or_else(|| union.clone());
+                if on {
+                    set.insert(key.clone());
+                } else {
+                    set.remove(&key);
+                }
+                let next = if set == union { None } else { Some(set) };
+                let lines = match &next {
+                    None => vec!["syncing every setting".to_string()],
+                    Some(set) if set.is_empty() => {
+                        vec![
+                            "no settings sync right now; the instance stays in the group"
+                                .to_string(),
+                        ]
+                    }
+                    Some(set) => vec![format!(
+                        "syncing only: {}",
+                        set.iter()
+                            .map(String::as_str)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )],
+                };
+                config_sync::set_keys(
+                    &data,
+                    home,
+                    id,
+                    &mut membership,
+                    next,
+                    |id, expected, updated| instances::sync_persist(id, expected, updated.clone()),
+                )?;
+                Ok(lines)
+            },
+            cx,
+        );
+    }
+
     /// Loads the edit dialog's sync section (membership + held conflicts) on a background
     /// thread; the section starts from what the store actually holds, and a store that
     /// will not parse shows as unavailable, never as a false empty state. Counts as a
@@ -1045,9 +1125,11 @@ impl Launcher {
                 if sync_applies(&this.instances, &id, seq, req) {
                     if let Some(d) = &mut this.instances.dialog {
                         match state {
-                            Ok((group, conflicts)) => {
+                            Ok((group, conflicts, keys, union)) => {
                                 d.sync_group = group;
                                 d.sync_conflicts = conflicts;
+                                d.sync_keys = keys;
+                                d.sync_key_union = union;
                                 d.sync_error = None;
                             }
                             Err(e) => d.sync_error = Some(e),
@@ -1068,6 +1150,8 @@ impl Launcher {
             group,
             join_diff,
             conflicts,
+            keys,
+            key_union,
             report,
             busy,
             error,
@@ -1090,6 +1174,63 @@ impl Launcher {
                     "Shares its options.txt settings (keybinds, video, controls) with {group}, both ways.",
                     &[("group", &quoted)],
                 )));
+                if !key_union.is_empty() {
+                    let mut picker = div().flex().flex_col().gap(px(6.));
+                    picker = picker.child(
+                        text(theme::CAPTION)
+                            .text_color(t.muted)
+                            .child(tr("Settings that sync").to_string()),
+                    );
+                    if keys.is_none() {
+                        picker = picker.child(
+                            text(theme::CAPTION)
+                                .text_color(t.muted)
+                                .child(tr("New settings sync too, as they appear.").to_string()),
+                        );
+                    }
+                    for pick in &key_union {
+                        let on = keys.as_ref().is_none_or(|set| set.contains(pick));
+                        let pick_toggle = pick.clone();
+                        picker = picker.child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap(px(8.))
+                                .child(
+                                    div()
+                                        .id(format!("sync-key-{pick}"))
+                                        .flex_none()
+                                        .size(px(18.))
+                                        .rounded(px(4.))
+                                        .border_1()
+                                        .border_color(if on { t.accent } else { t.muted })
+                                        .bg(if on { t.accent } else { t.surface })
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .text_color(t.on_accent)
+                                        .text_size(px(12.))
+                                        .when(on, |d| d.child("\u{2713}"))
+                                        .when(!busy, |d| {
+                                            d.cursor_pointer().on_click(cx.listener(
+                                                move |this, _: &ClickEvent, _, cx| {
+                                                    this.sync_key_toggle_click(
+                                                        pick_toggle.clone(),
+                                                        !on,
+                                                        cx,
+                                                    );
+                                                },
+                                            ))
+                                        }),
+                                )
+                                .child(
+                                    shell::text(theme::night::CAPTION, shell::c(n.ink))
+                                        .child(pick.clone()),
+                                ),
+                        );
+                    }
+                    section = section.child(picker);
+                }
                 for (key, note) in conflicts {
                     let yours = note.local.show();
                     let groups = note.shared.show();
@@ -1380,10 +1521,21 @@ impl Launcher {
             d.busy,
             d.java.kind,
         );
-        let (sync_group, sync_join_diff, sync_conflicts, sync_report, sync_busy, sync_error) = (
+        let (
+            sync_group,
+            sync_join_diff,
+            sync_conflicts,
+            sync_keys,
+            sync_key_union,
+            sync_report,
+            sync_busy,
+            sync_error,
+        ) = (
             d.sync_group.clone(),
             d.sync_join_diff.clone(),
             d.sync_conflicts.clone(),
+            d.sync_keys.clone(),
+            d.sync_key_union.clone(),
             d.sync_report.clone(),
             d.sync_busy,
             d.sync_error.clone(),
@@ -1479,6 +1631,8 @@ impl Launcher {
                         group: sync_group,
                         join_diff: sync_join_diff,
                         conflicts: sync_conflicts,
+                        keys: sync_keys,
+                        key_union: sync_key_union,
                         report: sync_report,
                         busy: busy || sync_busy,
                         error: sync_error,
@@ -2033,6 +2187,8 @@ mod tests {
             sync_group: None,
             sync_join_diff: None,
             sync_conflicts: Vec::new(),
+            sync_keys: None,
+            sync_key_union: Vec::new(),
             sync_report: Vec::new(),
             sync_busy: false,
             sync_error: None,

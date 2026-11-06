@@ -1057,5 +1057,7 @@
   "Synced settings": "Синхронізовані налаштування",
   "The group {group} and this instance differ on: {keys}. Whose values win? The side that loses is backed up first.": "Група {group} і цей екземпляр відрізняються в: {keys}. Чиї значення лишити? Сторона, що поступиться, спочатку зберігається в копію.",
   "Use the group's": "Використати значення групи",
-  "yours {local}, the group's {shared}": "твоє {local}, групи {shared}"
+  "yours {local}, the group's {shared}": "твоє {local}, групи {shared}",
+  "Settings that sync": "Налаштування, що синхронізуються",
+  "New settings sync too, as they appear.": "Нові налаштування теж синхронізуються, щойно з'являться."
 }
