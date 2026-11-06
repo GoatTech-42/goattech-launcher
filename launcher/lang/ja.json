@@ -863,5 +863,17 @@
   "Once a minute while you play: a player-count ping, on by default regardless of the switches; only a configuration change turns it off. No account, install ID, world or server names. Session rows use an approximately one-hour cleanup schedule; aggregate minute counts are kept for 7 days and hourly peaks for 90 days. Cleanup failures can delay deletion. Open details for temporary IP use and other limits.": "プレイ中に1分ごと：プレイヤー数ピング。スイッチに関係なくデフォルトでオン。オフにするには設定変更のみ。アカウント、インストールID、ワールド名やサーバー名は含みません。セッション行は約1時間のクリーンアップスケジュールを使い、分単位の集計カウントは7日間、時間ごとのピークは90日間保持されます。クリーンアップの失敗で削除が遅れることがあります。一時的なIP利用などの制限は詳細を開いて確認してください。",
   "View details and example reports": "詳細とレポート例を見る",
   "Down and Up read through the examples.": "上下の矢印キーで例を読み進められます。",
-  "Hide details and example reports": "詳細とレポート例を隠す"
+  "Hide details and example reports": "詳細とレポート例を隠す",
+  "Back": "戻る",
+  "Group name": "グループ名",
+  "Keep its options.txt settings (keybinds, video, controls) the same across the instances of a group. A new group starts from this instance's settings.": "options.txt の設定(キー設定、ビデオ、操作)をグループ内のインスタンス間で同じに保ちます。新しいグループはこのインスタンスの設定から始まります。",
+  "Keep mine": "自分のを使う",
+  "Leave": "退出",
+  "Name a sync group to join.": "参加する同期グループ名を入力してください。",
+  "Shares its options.txt settings (keybinds, video, controls) with {group}, both ways.": "options.txt の設定(キー設定、ビデオ、操作)を {group} と双方向に共有しています。",
+  "Sync now": "今すぐ同期",
+  "Synced settings": "同期設定",
+  "The group {group} and this instance differ on: {keys}. Whose values win? The side that loses is backed up first.": "グループ {group} とこのインスタンスは次の項目で異なります:{keys}。どちらの値を優先しますか? 上書きされる側は先にバックアップされます。",
+  "Use the group's": "グループのを使う",
+  "yours {local}, the group's {shared}": "あなたの {local}、グループの {shared}"
 }

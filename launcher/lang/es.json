@@ -1045,5 +1045,17 @@
   "Once a minute while you play: a player-count ping, on by default regardless of the switches; only a configuration change turns it off. No account, install ID, world or server names. Session rows use an approximately one-hour cleanup schedule; aggregate minute counts are kept for 7 days and hourly peaks for 90 days. Cleanup failures can delay deletion. Open details for temporary IP use and other limits.": "Una vez por minuto mientras juegas: un ping de conteo de jugadores, activado por defecto independientemente de los interruptores; solo un cambio de configuración lo desactiva. Sin cuenta, sin ID de instalación, sin nombres de mundos ni servidores. Las filas de sesión usan un programa de limpieza de aproximadamente una hora; los conteos agregados por minuto se conservan 7 días y los picos por hora 90 días. Los fallos de limpieza pueden retrasar la eliminación. Abre los detalles para el uso temporal de IP y otros límites.",
   "View details and example reports": "Ver detalles e informes de ejemplo",
   "Down and Up read through the examples.": "Baja y sube para leer los ejemplos.",
-  "Hide details and example reports": "Ocultar detalles e informes de ejemplo"
+  "Hide details and example reports": "Ocultar detalles e informes de ejemplo",
+  "Back": "Atrás",
+  "Group name": "Nombre del grupo",
+  "Keep its options.txt settings (keybinds, video, controls) the same across the instances of a group. A new group starts from this instance's settings.": "Mantiene los ajustes de options.txt (teclas, vídeo, controles) iguales en las instancias de un grupo. Un grupo nuevo parte de los ajustes de esta instancia.",
+  "Keep mine": "Conservar los míos",
+  "Leave": "Salir",
+  "Name a sync group to join.": "Escribe el nombre del grupo de sincronización.",
+  "Shares its options.txt settings (keybinds, video, controls) with {group}, both ways.": "Comparte sus ajustes de options.txt (teclas, vídeo, controles) con {group}, en ambos sentidos.",
+  "Sync now": "Sincronizar ahora",
+  "Synced settings": "Ajustes sincronizados",
+  "The group {group} and this instance differ on: {keys}. Whose values win? The side that loses is backed up first.": "El grupo {group} y esta instancia difieren en: {keys}. ¿Qué valores ganan? El lado que pierde se respalda primero.",
+  "Use the group's": "Usar las del grupo",
+  "yours {local}, the group's {shared}": "la tuya {local}, la del grupo {shared}"
 }

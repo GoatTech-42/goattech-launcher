@@ -67,9 +67,9 @@
 //!   mutating path; a pass's baselines are persisted only over the membership the pass
 //!   started from, so a mid-pass join or --off is never silently reverted.
 //!
-//! Scope, plainly: options.txt settings only (not servers, resource packs or hotbars), CLI
-//! only (the window has no picker yet), all keys of a matching-format file, no per-key
-//! opt-out list yet.
+//! Scope, plainly: options.txt settings only (not servers, resource packs or hotbars), the
+//! CLI and the window's instance edit dialog, all keys of a matching-format file, no
+//! per-key opt-out list yet.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -1085,6 +1085,47 @@ pub fn join(
             .collect(),
     };
     Ok((membership, report))
+}
+
+/// What a `join` of this instance into `group` would meet, for the window's picker:
+/// Ok(None) the group does not exist yet (a join seeds it from this instance's file);
+/// Ok(Some(keys)) it exists - the settings the two sides differ on, empty when they
+/// agree. Err is every refusal `join` itself would make before writing anything (the
+/// format gate, a corrupt record). Read-only: nothing is written and no lock is taken,
+/// because a real `join` re-checks everything under the group lock - a pass in between
+/// only changes what a later join sees, never what this answered wrongly about.
+pub fn join_diff(data: &Path, home: &Path, group: &str) -> Result<Option<Vec<String>>, String> {
+    let local = read_local(home)?;
+    let shared_path = shared_file(data, group)?;
+    if !shared_path.exists() {
+        return Ok(None);
+    }
+    let shared = read_shared(data, group)?;
+    let group_v = group_format(data, group)?;
+    let local_v = local.as_ref().and_then(|(_, f)| f.format_version());
+    // Same split as join: an unestablished group takes the joining file whole, so there
+    // is nothing to pick a side over.
+    let establishing = group_v.is_none() && local_v.is_some() && local.is_some();
+    if local.is_some() && !establishing {
+        format_gate(group_v.as_deref(), local_v.as_deref())?;
+    }
+    load_conflicts(data, group)?;
+    let Some((_, file)) = &local else {
+        // A fresh instance receives nothing and picks no side (join's no-file branch).
+        return Ok(Some(Vec::new()));
+    };
+    if establishing {
+        return Ok(Some(Vec::new()));
+    }
+    let values = file.values();
+    Ok(Some(
+        shared
+            .iter()
+            .filter(|(k, _)| k.as_str() != "version")
+            .filter(|(k, v)| values.get(*k).is_some_and(|mine| mine != *v))
+            .map(|(k, _)| k.clone())
+            .collect(),
+    ))
 }
 
 /// One pass for an instance already in a group. Pull only rewrites settings the file

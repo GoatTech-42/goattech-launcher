@@ -3,10 +3,12 @@
 //! icon.
 use super::*;
 use gpui::RenderImage;
+use horizon_launcher::config_sync;
 use horizon_launcher::instances::{self, Icon, Instance, Kind as InstanceKind};
 use horizon_launcher::{other_launchers, sources};
 use servers_page::Field;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// Textures offered as icons, when the player's prepared files hold them: block faces and items
@@ -56,6 +58,21 @@ pub(super) struct InstanceDialog {
     pub(super) banner: Option<Option<instance_icons::Chosen>>,
     pub(super) error: Option<String>,
     busy: bool,
+    /// The synced-settings section (edit mode): the group the instance shares its
+    /// options.txt settings with, a join waiting on the player's side choice (the group
+    /// and the settings it differs on), the conflicts the instance is holding, the last
+    /// sync's report lines, and whether a sync task runs (`config_sync`).
+    pub(super) sync_group: Option<String>,
+    pub(super) sync_join_diff: Option<(String, Vec<String>)>,
+    pub(super) sync_conflicts: Vec<(String, config_sync::ConflictNote)>,
+    pub(super) sync_report: Vec<String>,
+    pub(super) sync_busy: bool,
+    /// Why the section's state is unavailable (a store that would not parse). While set
+    /// the section shows only this - never a false "no group / no conflicts".
+    pub(super) sync_error: Option<String>,
+    /// Bumped as each sync request starts; a task's result applies only while no newer
+    /// request has started (a late reload must not revert a finished leave).
+    pub(super) sync_req: u64,
     /// Horizon, or the Java game it plays.
     pub(super) java: new_instance::JavaChoice,
 }
@@ -65,6 +82,10 @@ pub(super) struct InstanceDialog {
 pub(super) struct Instances {
     pub(super) list: Vec<Instance>,
     pub(super) dialog: Option<InstanceDialog>,
+    /// Bumped every time the dialog opens: a sync task's result applies only while the
+    /// dialog it was started from is still the open one - a close and a reopen, even of
+    /// the same instance, is a new generation and drops the late answer.
+    pub(super) dialog_seq: u64,
     /// The instance whose Delete is waiting for its confirmation, and why the last one failed.
     confirm_delete: Option<String>,
     delete_error: Option<String>,
@@ -79,6 +100,65 @@ pub(super) struct Instances {
     others_busy: bool,
     /// Why the last import from another launcher failed.
     others_error: Option<String>,
+}
+
+/// What a dialog join found (`Launcher::sync_join_click`).
+enum SyncJoin {
+    /// Joined: the report's lines and the section's fresh state (group, conflicts).
+    Joined(Vec<String>, SyncState),
+    /// The sides differ: the group and the settings needing the player's side choice.
+    Differs(String, Vec<String>),
+    Failed(String),
+}
+
+/// The section's fresh state: the instance's group (None: in none) and the conflicts it
+/// is holding there.
+type SyncState = Result<(Option<String>, Vec<(String, config_sync::ConflictNote)>), String>;
+
+/// The sync section's snapshot for one frame (`Launcher::sync_section`).
+struct SyncSection {
+    group: Option<String>,
+    join_diff: Option<(String, Vec<String>)>,
+    conflicts: Vec<(String, config_sync::ConflictNote)>,
+    report: Vec<String>,
+    busy: bool,
+    error: Option<String>,
+}
+
+/// The sync section's state, read fresh and strictly: the instance's group and the
+/// conflicts it is holding there. A store that will not parse is an error the section
+/// shows, never a silent "no group / no conflicts" that a mutation would contradict.
+fn sync_state(id: &str) -> SyncState {
+    match instances::sync_membership_strict(id)? {
+        Some(m) => {
+            let held = config_sync::conflicts(&backend::data_dir(), &m.group, id)?;
+            Ok((Some(m.group), held.into_iter().collect()))
+        }
+        None => Ok((None, Vec::new())),
+    }
+}
+
+/// Whether a sync task's result still belongs to the open dialog: started for the same
+/// instance, in the same dialog generation, and no newer sync request has started since.
+fn sync_applies(instances: &Instances, id: &str, seq: u64, req: u64) -> bool {
+    instances.dialog_seq == seq
+        && instances
+            .dialog
+            .as_ref()
+            .is_some_and(|d| d.editing.as_deref() == Some(id) && d.sync_req == req)
+}
+
+/// Joins the instance to the group and records the membership - the same pair of calls
+/// the CLI's `instance sync --group` makes (the engine writes; then the guarded store).
+fn sync_join(
+    id: &str,
+    home: &Path,
+    group: &str,
+    take: Option<config_sync::Side>,
+) -> Result<Vec<String>, String> {
+    let (membership, report) = config_sync::join(&backend::data_dir(), home, group, take)?;
+    instances::edit_guarded(id, |m| m.sync = Some(membership))?;
+    Ok(report.lines())
 }
 
 impl Launcher {
@@ -667,8 +747,28 @@ impl Launcher {
             copy: false,
             error: None,
             busy: false,
+            sync_group: None,
+            sync_join_diff: None,
+            sync_conflicts: Vec::new(),
+            sync_report: Vec::new(),
+            sync_busy: false,
+            sync_error: None,
+            sync_req: 0,
             java: Default::default(),
         });
+        self.instances.dialog_seq += 1;
+        self.servers
+            .text(Field::InstanceSyncGroup)
+            .set(String::new());
+        // The edit dialog's synced-settings section loads what the store actually holds.
+        let editing_sync = self
+            .instances
+            .dialog
+            .as_ref()
+            .and_then(|d| d.editing.clone());
+        if let Some(id) = editing_sync {
+            self.sync_reload(id, cx);
+        }
         self.servers.text(Field::InstanceVersion).set(String::new());
         // A fresh dialog opens on Vanilla: its versions load now, not after a tab click.
         if self
@@ -681,9 +781,425 @@ impl Launcher {
         }
     }
 
+    /// The dialog's instance and its game folder, for a sync action. None: no edit
+    /// dialog, or the instance is gone - the click then does nothing.
+    fn sync_target(&self) -> Option<(String, PathBuf)> {
+        let id = self.instances.dialog.as_ref()?.editing.clone()?;
+        let home = self
+            .instances
+            .list
+            .iter()
+            .find(|i| i.id == id)?
+            .home
+            .clone();
+        Some((id, home))
+    }
+
+    /// Runs one sync change for the dialog's instance on a background thread, then reads
+    /// the section's fresh state; the change's report lines (or its error) land in the
+    /// dialog. Membership reads/writes go through the store's strict, locked path. The
+    /// result applies only to the dialog that asked (`sync_applies`): a close, a reopen
+    /// or a newer request drops the late answer instead of landing it in whatever dialog
+    /// happens to be open.
+    fn sync_run(
+        &mut self,
+        work: impl FnOnce(&str, &Path) -> Result<Vec<String>, String> + Send + 'static,
+        cx: &mut Context<Self>,
+    ) {
+        let Some((id, home)) = self.sync_target() else {
+            return;
+        };
+        let seq = self.instances.dialog_seq;
+        let Some(d) = self
+            .instances
+            .dialog
+            .as_mut()
+            .filter(|d| !d.busy && !d.sync_busy)
+        else {
+            return;
+        };
+        d.sync_req += 1;
+        let req = d.sync_req;
+        d.sync_busy = true;
+        d.error = None;
+        cx.notify();
+        let task_id = id.clone();
+        let task = cx.background_executor().spawn(async move {
+            let lines = work(&task_id, &home);
+            let state = sync_state(&task_id);
+            (lines, state)
+        });
+        cx.spawn(async move |this, cx| {
+            let (lines, state) = task.await;
+            let _ = this.update(cx, |this, cx| {
+                if sync_applies(&this.instances, &id, seq, req) {
+                    if let Some(d) = &mut this.instances.dialog {
+                        d.sync_busy = false;
+                        match (lines, state) {
+                            (Ok(lines), Ok((group, conflicts))) => {
+                                d.sync_report = lines;
+                                d.sync_group = group;
+                                d.sync_conflicts = conflicts;
+                                d.sync_join_diff = None;
+                                d.sync_error = None;
+                            }
+                            (Ok(lines), Err(e)) => {
+                                d.sync_report = lines;
+                                d.sync_error = Some(e);
+                            }
+                            (Err(e), Ok(_)) => d.error = Some(e),
+                            // A state that no longer reads is unavailable even when the
+                            // change itself also failed: never leave stale group or
+                            // conflict actions looking usable.
+                            (Err(e), Err(se)) => {
+                                d.error = Some(e);
+                                d.sync_error = Some(se);
+                            }
+                        }
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// Join from the dialog: a read-only preview first (`config_sync::join_diff`), so a
+    /// join that would move values on either side asks whose win instead of guessing.
+    /// The join itself re-checks everything under the group's lock, so a pass between
+    /// the preview and it changes the answer the player gets, never what is written.
+    /// The answer applies only to the dialog that asked (`sync_applies`).
+    pub(super) fn sync_join_click(&mut self, cx: &mut Context<Self>) {
+        let group = self
+            .servers
+            .value(Field::InstanceSyncGroup)
+            .trim()
+            .to_string();
+        let Some(d) = self
+            .instances
+            .dialog
+            .as_mut()
+            .filter(|d| !d.busy && !d.sync_busy)
+        else {
+            return;
+        };
+        if group.is_empty() {
+            d.error = Some(tr("Name a sync group to join.").into());
+            cx.notify();
+            return;
+        }
+        let Some((id, home)) = self.sync_target() else {
+            return;
+        };
+        let seq = self.instances.dialog_seq;
+        let Some(d) = self.instances.dialog.as_mut() else {
+            return;
+        };
+        d.sync_req += 1;
+        let req = d.sync_req;
+        d.sync_busy = true;
+        d.error = None;
+        cx.notify();
+        let task_id = id.clone();
+        let task = cx.background_executor().spawn(async move {
+            match config_sync::join_diff(&backend::data_dir(), &home, &group) {
+                Err(e) => SyncJoin::Failed(e),
+                Ok(Some(keys)) if !keys.is_empty() => SyncJoin::Differs(group.clone(), keys),
+                Ok(_) => match sync_join(&task_id, &home, &group, None) {
+                    Ok(lines) => SyncJoin::Joined(lines, sync_state(&task_id)),
+                    Err(e) => SyncJoin::Failed(e),
+                },
+            }
+        });
+        cx.spawn(async move |this, cx| {
+            let outcome = task.await;
+            let _ = this.update(cx, |this, cx| {
+                if sync_applies(&this.instances, &id, seq, req) {
+                    if let Some(d) = &mut this.instances.dialog {
+                        d.sync_busy = false;
+                        match outcome {
+                            SyncJoin::Joined(lines, Ok((group, conflicts))) => {
+                                d.sync_report = lines;
+                                d.sync_group = group;
+                                d.sync_conflicts = conflicts;
+                                d.sync_join_diff = None;
+                                d.sync_error = None;
+                            }
+                            SyncJoin::Joined(lines, Err(e)) => {
+                                d.sync_report = lines;
+                                d.sync_error = Some(e);
+                            }
+                            SyncJoin::Differs(group, keys) => {
+                                d.sync_join_diff = Some((group, keys));
+                            }
+                            SyncJoin::Failed(e) => d.error = Some(e),
+                        }
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// The side choice a differing join waited on: theirs = the group's values land here,
+    /// mine = this instance's become the group's; the losing side's file is backed up.
+    pub(super) fn sync_take_click(&mut self, mine: bool, cx: &mut Context<Self>) {
+        let Some((group, _)) = self
+            .instances
+            .dialog
+            .as_ref()
+            .and_then(|d| d.sync_join_diff.clone())
+        else {
+            return;
+        };
+        let side = if mine {
+            config_sync::Side::Mine
+        } else {
+            config_sync::Side::Theirs
+        };
+        self.sync_run(move |id, home| sync_join(id, home, &group, Some(side)), cx);
+    }
+
+    /// Leave the group: only the membership goes; no file on either side is touched (the
+    /// CLI's `instance sync --off`).
+    pub(super) fn sync_leave_click(&mut self, cx: &mut Context<Self>) {
+        self.sync_run(
+            |id, _| {
+                instances::edit_guarded(id, |m| m.sync = None)?;
+                Ok(Vec::new())
+            },
+            cx,
+        );
+    }
+
+    /// A manual pass from the dialog (the CLI's bare `instance sync`): both directions.
+    pub(super) fn sync_now_click(&mut self, cx: &mut Context<Self>) {
+        self.sync_run(
+            |id, home| {
+                let started = instances::sync_membership_strict(id)?
+                    .ok_or_else(|| "This instance is in no sync group.".to_string())?;
+                let mut membership = started.clone();
+                let report = config_sync::sync(
+                    &backend::data_dir(),
+                    home,
+                    id,
+                    &mut membership,
+                    config_sync::Pass::Manual,
+                )?;
+                instances::sync_persist(id, &started, membership)?;
+                Ok(report.lines())
+            },
+            cx,
+        );
+    }
+
+    /// Settles one held conflict: use_local keeps the instance's value (the group's file
+    /// is written), otherwise the group's lands here (the instance's file is backed up).
+    pub(super) fn sync_resolve_click(
+        &mut self,
+        key: String,
+        use_local: bool,
+        cx: &mut Context<Self>,
+    ) {
+        self.sync_run(
+            move |id, home| {
+                let started = instances::sync_membership_strict(id)?
+                    .ok_or_else(|| "This instance is in no sync group.".to_string())?;
+                let mut membership = started.clone();
+                let done = config_sync::resolve(
+                    &backend::data_dir(),
+                    home,
+                    id,
+                    &mut membership,
+                    &key,
+                    use_local,
+                )?;
+                instances::sync_persist(id, &started, membership)?;
+                Ok(done)
+            },
+            cx,
+        );
+    }
+
+    /// Loads the edit dialog's sync section (membership + held conflicts) on a background
+    /// thread; the section starts from what the store actually holds, and a store that
+    /// will not parse shows as unavailable, never as a false empty state. Counts as a
+    /// sync request: a later action's answer replaces it, never the other way round.
+    pub(super) fn sync_reload(&mut self, id: String, cx: &mut Context<Self>) {
+        let seq = self.instances.dialog_seq;
+        let req = match self.instances.dialog.as_mut() {
+            Some(d) => {
+                d.sync_req += 1;
+                d.sync_req
+            }
+            None => return,
+        };
+        let task_id = id.clone();
+        let task = cx
+            .background_executor()
+            .spawn(async move { sync_state(&task_id) });
+        cx.spawn(async move |this, cx| {
+            let state = task.await;
+            let _ = this.update(cx, |this, cx| {
+                if sync_applies(&this.instances, &id, seq, req) {
+                    if let Some(d) = &mut this.instances.dialog {
+                        match state {
+                            Ok((group, conflicts)) => {
+                                d.sync_group = group;
+                                d.sync_conflicts = conflicts;
+                                d.sync_error = None;
+                            }
+                            Err(e) => d.sync_error = Some(e),
+                        }
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// The edit dialog's synced-settings section (`horizon_launcher::config_sync`): join
+    /// a group, the side choice a differing join needs, the conflicts the instance
+    /// holds, a manual pass, leave. Syncing is always the player's pick, per instance.
+    fn sync_section(&mut self, s: SyncSection, cx: &mut Context<Self>) -> AnyElement {
+        let SyncSection {
+            group,
+            join_diff,
+            conflicts,
+            report,
+            busy,
+            error,
+        } = s;
+        let t = self.theme;
+        let n = t.night;
+        if let Some(e) = error {
+            return div()
+                .flex()
+                .flex_col()
+                .gap(px(10.))
+                .child(text(theme::CAPTION).text_color(t.danger).child(e))
+                .into_any_element();
+        }
+        let mut section = div().flex().flex_col().gap(px(10.));
+        match (group, join_diff) {
+            (Some(group), _) => {
+                let quoted = format!("\"{group}\"");
+                section = section.child(text(theme::CAPTION).text_color(t.muted).child(trf(
+                    "Shares its options.txt settings (keybinds, video, controls) with {group}, both ways.",
+                    &[("group", &quoted)],
+                )));
+                for (key, note) in conflicts {
+                    let yours = note.local.show();
+                    let groups = note.shared.show();
+                    let (key_keep, key_take, key_label) = (key.clone(), key.clone(), key.clone());
+                    let keep = shell::action(format!("sync-keep-{key}"), shell::Action::Quiet, &t)
+                        .child(shell::label(tr("Keep mine").to_string()))
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            this.sync_resolve_click(key_keep.clone(), true, cx);
+                        }));
+                    let take = shell::action(format!("sync-take-{key}"), shell::Action::Quiet, &t)
+                        .child(shell::label(tr("Use the group's").to_string()))
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            this.sync_resolve_click(key_take.clone(), false, cx);
+                        }));
+                    section = section.child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(8.))
+                            .child(
+                                shell::text(theme::night::CAPTION, shell::c(n.ink))
+                                    .child(key_label),
+                            )
+                            .child(text(theme::CAPTION).text_color(t.muted).child(trf(
+                                "yours {local}, the group's {shared}",
+                                &[("local", &yours), ("shared", &groups)],
+                            )))
+                            .child(if busy { disabled(keep) } else { keep })
+                            .child(if busy { disabled(take) } else { take }),
+                    );
+                }
+                let now = shell::action("sync-now", shell::Action::Quiet, &t)
+                    .child(shell::label(tr("Sync now").to_string()))
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.sync_now_click(cx)));
+                let leave = shell::action("sync-leave", shell::Action::Quiet, &t)
+                    .child(shell::label(tr("Leave").to_string()))
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.sync_leave_click(cx)));
+                section = section.child(
+                    div()
+                        .flex()
+                        .gap(px(8.))
+                        .child(if busy { disabled(now) } else { now })
+                        .child(if busy { disabled(leave) } else { leave }),
+                );
+                for line in report {
+                    section = section.child(text(theme::CAPTION).text_color(t.muted).child(line));
+                }
+            }
+            (None, Some((group, keys))) => {
+                let quoted = format!("\"{group}\"");
+                let list = keys.join(", ");
+                section = section.child(text(theme::CAPTION).text_color(t.muted).child(trf(
+                    "The group {group} and this instance differ on: {keys}. Whose values win? The side that loses is backed up first.",
+                    &[("group", &quoted), ("keys", &list)],
+                )));
+                let theirs = shell::action("sync-diff-theirs", shell::Action::Main, &t)
+                    .child(shell::label(tr("Use the group's").to_string()))
+                    .on_click(
+                        cx.listener(|this, _: &ClickEvent, _, cx| this.sync_take_click(false, cx)),
+                    );
+                let mine = shell::action("sync-diff-mine", shell::Action::Quiet, &t)
+                    .child(shell::label(tr("Keep mine").to_string()))
+                    .on_click(
+                        cx.listener(|this, _: &ClickEvent, _, cx| this.sync_take_click(true, cx)),
+                    );
+                let back = shell::action("sync-diff-back", shell::Action::Quiet, &t)
+                    .child(shell::label(tr("Back").to_string()))
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                        if let Some(d) = &mut this.instances.dialog {
+                            d.sync_join_diff = None;
+                        }
+                        cx.notify();
+                    }));
+                section = section.child(
+                    div()
+                        .flex()
+                        .gap(px(8.))
+                        .child(if busy { disabled(theirs) } else { theirs })
+                        .child(if busy { disabled(mine) } else { mine })
+                        .child(if busy { disabled(back) } else { back }),
+                );
+            }
+            (None, None) => {
+                section = section.child(text(theme::CAPTION).text_color(t.muted).child(tr(
+                    "Keep its options.txt settings (keybinds, video, controls) the same across the instances of a group. A new group starts from this instance's settings.",
+                )));
+                let join = shell::action("sync-join", shell::Action::Main, &t)
+                    .child(shell::label(tr("Join").to_string()))
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.sync_join_click(cx)));
+                section = section.child(
+                    div()
+                        .flex()
+                        .gap(px(8.))
+                        .items_center()
+                        .child(self.field(Field::InstanceSyncGroup, tr("Group name"), 200., cx))
+                        .child(if busy { disabled(join) } else { join }),
+                );
+            }
+        }
+        section.into_any_element()
+    }
+
     /// Escape closes the dialog. Whether it did.
     pub(super) fn instance_escape(&mut self) -> bool {
-        if self.instances.dialog.as_ref().is_some_and(|d| !d.busy) {
+        if self
+            .instances
+            .dialog
+            .as_ref()
+            .is_some_and(|d| !d.busy && !d.sync_busy)
+        {
             self.instances.dialog = None;
             return true;
         }
@@ -707,7 +1223,12 @@ impl Launcher {
             .value(Field::InstanceJvmArgs)
             .trim()
             .to_string();
-        let Some(d) = self.instances.dialog.as_mut().filter(|d| !d.busy) else {
+        let Some(d) = self
+            .instances
+            .dialog
+            .as_mut()
+            .filter(|d| !d.busy && !d.sync_busy)
+        else {
             return;
         };
         let icon = d.icon.clone();
@@ -859,6 +1380,14 @@ impl Launcher {
             d.busy,
             d.java.kind,
         );
+        let (sync_group, sync_join_diff, sync_conflicts, sync_report, sync_busy, sync_error) = (
+            d.sync_group.clone(),
+            d.sync_join_diff.clone(),
+            d.sync_conflicts.clone(),
+            d.sync_report.clone(),
+            d.sync_busy,
+            d.sync_error.clone(),
+        );
         let java = !editing && kind != new_instance::NewKind::Horizon;
         let editing_game = editing_id
             .as_ref()
@@ -942,6 +1471,22 @@ impl Launcher {
             self.field(Field::InstanceGroup, tr("No group"), 400., cx)
                 .into_any_element(),
         ));
+        if editing {
+            body = body.child(row(
+                "Synced settings",
+                self.sync_section(
+                    SyncSection {
+                        group: sync_group,
+                        join_diff: sync_join_diff,
+                        conflicts: sync_conflicts,
+                        report: sync_report,
+                        busy: busy || sync_busy,
+                        error: sync_error,
+                    },
+                    cx,
+                ),
+            ));
+        }
         if editing_java {
             body = body.child(row(
                 "Memory (MiB)",
@@ -1209,7 +1754,7 @@ impl Launcher {
             .border_color(plate::alpha(n.stroke, n.rule_alpha))
             .items_center()
             .children(import);
-        let foot = if busy {
+        let foot = if busy || sync_busy {
             foot.child(disabled(cancel)).child(disabled(save))
         } else {
             foot.child(cancel.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -1470,4 +2015,56 @@ fn initial(name: &str) -> String {
         .unwrap_or('?')
         .to_uppercase()
         .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn dialog(id: &str) -> InstanceDialog {
+        InstanceDialog {
+            editing: Some(id.to_string()),
+            copy: false,
+            icon: None,
+            picture: None,
+            banner: None,
+            error: None,
+            busy: false,
+            sync_group: None,
+            sync_join_diff: None,
+            sync_conflicts: Vec::new(),
+            sync_report: Vec::new(),
+            sync_busy: false,
+            sync_error: None,
+            sync_req: 0,
+            java: Default::default(),
+        }
+    }
+
+    #[test]
+    fn a_sync_result_applies_only_to_the_dialog_that_asked() {
+        let mut instances = Instances {
+            dialog_seq: 1,
+            dialog: Some(dialog("a")),
+            ..Instances::default()
+        };
+        assert!(sync_applies(&instances, "a", 1, 0));
+        // Closed while the task ran: the late answer is dropped.
+        instances.dialog = None;
+        assert!(!sync_applies(&instances, "a", 1, 0));
+        // Reopened for the SAME instance: a new generation still drops it.
+        instances.dialog_seq = 2;
+        instances.dialog = Some(dialog("a"));
+        assert!(!sync_applies(&instances, "a", 1, 0));
+        assert!(sync_applies(&instances, "a", 2, 0));
+        // Another instance's dialog: A's answer never lands in B's.
+        instances.dialog = Some(dialog("b"));
+        assert!(!sync_applies(&instances, "a", 2, 0));
+        // A newer request started since: the late answer (a stale reload after a leave)
+        // is dropped in the same open dialog too.
+        instances.dialog = Some(dialog("a"));
+        instances.dialog.as_mut().unwrap().sync_req = 1;
+        assert!(!sync_applies(&instances, "a", 2, 0));
+        assert!(sync_applies(&instances, "a", 2, 1));
+    }
 }

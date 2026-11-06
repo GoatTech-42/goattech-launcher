@@ -41,6 +41,8 @@ pub(super) enum Field {
     /// Its Java home and JVM arguments, only when editing a Java one (`instances_page.rs`).
     InstanceJavaHome,
     InstanceJvmArgs,
+    /// The edit dialog's sync group to join (`instances_page.rs`).
+    InstanceSyncGroup,
     /// Its search in Mojang's versions (`new_instance.rs`).
     InstanceVersion,
     /// Home's Mods tab's filter (`instance_mods.rs`).
@@ -1021,6 +1023,7 @@ impl Launcher {
             | Field::InstanceMemory
             | Field::InstanceJavaHome
             | Field::InstanceJvmArgs
+            | Field::InstanceSyncGroup
             | Field::InstanceVersion
             | Field::InstanceModsFilter
             | Field::ConsoleSearch

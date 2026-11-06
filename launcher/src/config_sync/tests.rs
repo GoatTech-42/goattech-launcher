@@ -945,3 +945,91 @@ fn a_fresh_claim_is_a_durable_hold_until_the_child_is_recorded() {
     mark.release().unwrap();
     let _ = fs::remove_dir_all(root);
 }
+#[test]
+fn join_diff_reports_an_absent_group_and_writes_nothing() {
+    let (root, data, a, _b) = scratch("join-diff-absent");
+    put(&a, "version:3465\nfov:90\n");
+    let before = get(&a);
+    assert_eq!(join_diff(&data, &a, "main").unwrap(), None);
+    assert!(
+        !shared_file(&data, "main").unwrap().exists(),
+        "a read-only preview never creates the group"
+    );
+    assert_eq!(get(&a), before);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn join_diff_names_the_differing_settings_and_writes_nothing() {
+    let (root, data, a, b) = scratch("join-diff-keys");
+    put(&a, "version:3465\nfov:90\nsensitivity:5\n");
+    let (_m, _) = join(&data, &a, "main", None).unwrap();
+    put(&b, "version:3465\nfov:70\nguiScale:3\n");
+    let local_before = get(&b);
+    let shared_before = fs::read(shared_file(&data, "main").unwrap()).unwrap();
+    let diff = join_diff(&data, &b, "main").unwrap().unwrap();
+    // Only settings the file ALREADY holds can differ: the group's sensitivity is never
+    // added, the file's guiScale is its own.
+    assert_eq!(diff, vec!["fov".to_string()]);
+    assert_eq!(get(&b), local_before, "the instance's file is untouched");
+    assert_eq!(
+        fs::read(shared_file(&data, "main").unwrap()).unwrap(),
+        shared_before,
+        "the group's file is untouched"
+    );
+    assert!(backups(&b).is_empty(), "no backup without a write");
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn join_diff_is_empty_when_the_sides_agree() {
+    let (root, data, a, b) = scratch("join-diff-agree");
+    put(&a, "version:3465\nfov:90\n");
+    let (_m, _) = join(&data, &a, "main", None).unwrap();
+    put(&b, "version:3465\nfov:90\nrenderDistance:12\n");
+    assert_eq!(join_diff(&data, &b, "main").unwrap(), Some(Vec::new()));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn join_diff_refuses_a_format_mismatch_and_unknown_formats_like_join() {
+    let (root, data, a, b) = scratch("join-diff-gate");
+    put(&a, "version:3465\nfov:90\n");
+    let (_m, _) = join(&data, &a, "main", None).unwrap();
+    put(&b, "version:9999\nfov:90\n");
+    let err = join_diff(&data, &b, "main").unwrap_err();
+    assert!(err.contains("formats differ"), "{err}");
+    // Unknown on the file's side is refused too, never read as compatible.
+    put(&b, "fov:90\n");
+    assert!(join_diff(&data, &b, "main").is_err());
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn join_diff_offers_a_fresh_instance_no_choice() {
+    let (root, data, a, b) = scratch("join-diff-fresh");
+    put(&a, "version:3465\nfov:90\n");
+    let (_m, _) = join(&data, &a, "main", None).unwrap();
+    // b has no options file yet: a join writes nothing into it, so there is nothing to
+    // pick a side over.
+    assert_eq!(join_diff(&data, &b, "main").unwrap(), Some(Vec::new()));
+    assert!(!b.join(OPTIONS_FILE).exists(), "still no file written");
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn join_diff_mirrors_joins_establishment_and_corrupt_record_refusals() {
+    let (root, data, _a, b) = scratch("join-diff-establish");
+    // A group file with values but no format marker is unestablished: a joining real
+    // file takes it over whole, so the preview offers no side choice.
+    let shared = shared_file(&data, "main").unwrap();
+    fs::create_dir_all(shared.parent().unwrap()).unwrap();
+    fs::write(&shared, b"fov:60\n").unwrap();
+    put(&b, "version:3465\nfov:90\n");
+    assert_eq!(join_diff(&data, &b, "main").unwrap(), Some(Vec::new()));
+    // A corrupt conflict record is the same hard stop join has.
+    fs::write(conflicts_file(&data, "main").unwrap(), b"not json").unwrap();
+    let err = join_diff(&data, &b, "main").unwrap_err();
+    assert!(err.contains("conflict"), "{err}");
+    let _ = fs::remove_dir_all(root);
+}
