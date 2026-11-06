@@ -1,16 +1,49 @@
-# Microsoft account sign-in and online-mode play
+# Microsoft account sign-in
 
-Horizon signs players in with their Microsoft account in the launcher and joins online-mode
-(authenticated) servers like vanilla 26.3 does. The launcher plays only with an account that owns
-Minecraft: Java Edition ([the owner gate](#the-owner-gate)); offline names, LAN and offline-mode
-servers play behind it. This note is the design, the status of each part and what Ludovic has to
-register.
+GoatTech Launcher uses your Microsoft account to check that you own Minecraft:
+Java Edition. Players do not need to register an Azure app or supply a client ID.
+Configured GoatTech builds already provide the application's public client ID.
 
-## What Ludovic registers (needs his accounts)
+## For players
 
-Nothing below can be done by an agent: the app registrations belong to Ludovic. A build without
-the client ID can't sign in, so its launcher can't start the game ("This build of the launcher has
-no Microsoft sign-in"); release builds have it.
+Choose **Sign in** in the launcher. Open the Microsoft address shown by the app,
+enter its one-time code and sign in on Microsoft's page. Check that the consent
+page names GoatTech Launcher before accepting. The requested access is your Xbox
+profile and permission to stay signed in. Return to the launcher and wait for the
+account to finish loading before playing.
+
+Never send your password, tokens or saved session files in a bug report. If a
+build says Microsoft sign-in is not configured, that is a build configuration
+problem, not a request to create your own app registration.
+
+Sign-ins use the system keychain where available. On Linux, the launcher can use
+its encrypted local secrets file when the Secret Service is unavailable. On
+Windows or macOS, an unavailable keychain means sign-in lasts only for the current
+run; the launcher warns you. **Sign out** removes that account's saved secrets.
+The account must own Java Edition before Play can start a game. See the
+[start guide](start-here.md) for Java instances and the
+[technical owner-gate reference](#the-owner-gate) below for offline behavior.
+
+## Inherited developer reference
+
+The remainder describes upstream Horizon's account implementation and registration
+history. Names, upstream URLs and dated decisions below belong to that reference,
+not GoatTech player setup or GoatTech release policy. The configured GoatTech
+sign-in path has been tested privately on Linux; that does not claim every
+platform's account storage has been qualified. Developers building a separate
+application need their own valid registration and current provider requirements.
+Do not use another application's client ID.
+
+<a id="what-ludovic-registers-needs-his-accounts"></a>
+
+## Upstream registration history (not player setup)
+
+This historical section concerns the upstream maintainer's registration. It is not
+a new registration task for GoatTech or its players. A source build without a
+configured client ID cannot sign in. In this fork, the configured-build workflow
+reads the repository secret `HORIZON_MSA_CLIENT_ID` at build time. The identifier
+is public OAuth configuration, not a client secret. Runtime configuration can
+override the embedded value.
 
 1. **Azure app registration** (https://portal.azure.com → Microsoft Entra ID → App registrations →
    New registration):
@@ -33,7 +66,7 @@ no Microsoft sign-in"); release builds have it.
    days to weeks; sign-in fails at the Minecraft step with "This app is not approved by Mojang yet"
    until then.
 3. **Where the ID goes**:
-   - Release builds: the GitHub repository variable (not a secret: client IDs are public)
+   - Upstream release builds: the GitHub repository variable (client IDs are public)
      `HORIZON_MSA_CLIENT_ID`; the launcher's build reads it with `option_env!` at compile time.
    - Any build, at run time: the environment variable `HORIZON_MSA_CLIENT_ID` overrides the built-in
      value (empty or unset = not configured).

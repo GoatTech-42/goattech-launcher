@@ -1,5 +1,11 @@
 # Release flow
 
+> **Upstream Horizon reference, not GoatTech release instructions.**
+> This page preserves the inherited release tooling and history. Its automatic
+> trains, maintainer decisions and tag numbers do not govern GoatTech Launcher.
+> Use [GoatTech releases](releases.md) for this fork's status and publication gates.
+
+
 How a change gets from a pull request to players: the checks a pull request passes, how it merges, and the
 automatic releases that follow. Releases are automatic and frequent so the latest Horizon is always playable.
 Since 2026-10-28 Horizon ships only the **Nightly** (Ludovic's decision; the Team proposed it): the batch train builds

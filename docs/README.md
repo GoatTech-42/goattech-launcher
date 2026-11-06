@@ -4,6 +4,8 @@ everything about the launcher: using it, your account, your data, and how it is 
 
 ## using the launcher
 
+- [start here](start-here.md): Java instances, optional Minecraft settings sharing and local client JAR limits.
+
 - [the launcher itself](../launcher/README.md): what it does, each page, and the cli.
 - [microsoft account sign-in and online-mode play](microsoft-account.md).
 - [the mod browser](mod-browser.md): modrinth and curseforge sources, checksums, updates.
@@ -18,8 +20,9 @@ everything about the launcher: using it, your account, your data, and how it is 
 
 ## developing and releasing
 
-- [release flow](release-flow.md): channels, sign-off and publishing.
-- [versioning](versioning.md): how releases are numbered.
+- [GoatTech releases](releases.md): current status and publication requirements.
+- [upstream release flow](release-flow.md): inherited Horizon tooling and history, not fork publishing instructions.
+- [upstream versioning](versioning.md): Horizon tag history, not GoatTech release numbers.
 - [ci runners](ci-runners.md): which jobs run on github's runners and which on ours, and why.
 - [design system](design-system.md): the shell the launcher's ui and site follow.
 - [agent control](agent-control.md): what ai agents can drive in the launcher and the game, and the control-socket rules.

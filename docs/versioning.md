@@ -1,5 +1,11 @@
 # Versioning
 
+> **Upstream Horizon reference, not GoatTech release instructions.**
+> This page preserves the inherited release tooling and history. Its automatic
+> trains, maintainer decisions and tag numbers do not govern GoatTech Launcher.
+> Use [GoatTech releases](releases.md) for this fork's status and publication gates.
+
+
 How Horizon's releases are numbered from 0.2 on, how that maps onto the release workflows, and how every install
 made before 0.2 gets there. The workflows themselves are in [release-flow.md](release-flow.md).
 
