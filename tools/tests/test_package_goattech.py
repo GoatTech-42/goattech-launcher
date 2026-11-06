@@ -30,7 +30,7 @@ class Packages(unittest.TestCase):
     def test_windows_contains_explicit_inputs_only_and_verifiable_manifest(self):
         archive = self.package()
         with zipfile.ZipFile(archive) as z:
-            self.assertEqual(set(z.namelist()), {'horizon-launcher.exe', 'README.txt', 'LICENSE', 'goattech.svg', 'manifest.json'})
+            self.assertEqual(set(z.namelist()), {'horizon-launcher.exe', 'README.txt', 'LICENSE', 'goattech.svg', 'manifest.json', 'THIRD_PARTY_NOTICES.md', 'notices/OFL-Geist.txt', 'notices/OFL-BricolageGrotesque.txt', 'notices/OFL-PixelifySans.txt', 'notices/LICENSE-lucide.txt', 'notices/LICENSE-pixelarticons.txt', 'notices/naga-LICENSE.MIT', 'notices/naga-LICENSE.APACHE', 'notices/wgpu-hal-LICENSE.MIT', 'notices/wgpu-hal-LICENSE.APACHE'})
             manifest = json.loads(z.read('manifest.json'))
             self.assertEqual(manifest['platform'], 'windows-x64')
             self.assertEqual(manifest['version'], '0.1.0')
@@ -40,6 +40,12 @@ class Packages(unittest.TestCase):
             self.assertNotIn(b'PRIVATE', b''.join(z.read(n) for n in z.namelist()))
         sums = (self.out / 'SHA256SUMS').read_text()
         self.assertEqual(sums, hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n')
+
+    def test_notices_preserve_original_license_texts(self):
+        with zipfile.ZipFile(self.package()) as z:
+            self.assertEqual(z.read('notices/OFL-Geist.txt'), (Path(__file__).parents[2] / 'crates/horizon-theme/fonts/OFL-Geist.txt').read_bytes())
+            self.assertEqual(z.read('THIRD_PARTY_NOTICES.md'), (Path(__file__).parents[2] / 'THIRD_PARTY_NOTICES.md').read_bytes())
+            self.assertIn('notices/LICENSE-lucide.txt', json.loads(z.read('manifest.json'))['sha256'])
 
     def test_linux_binary_has_executable_mode(self):
         self.binary.write_bytes(b'\x7fELFpublic-binary')

@@ -37,7 +37,8 @@ unfinished if an installer is included in a later release.
 
 `tools/package_goattech.py` accepts one explicit regular, single-link binary.
 It never searches a profile or includes a game directory. Archives contain only
-the binary, portable instructions, MIT license, goat glyph and manifest. The
+the binary, portable instructions, root license, goat glyph, existing third-party
+notices, selected asset/vendor license texts and manifest. The
 manifest records exact source commit, platform, version and per-input SHA-256;
 `SHA256SUMS` covers the archive. These checksums are not code signing.
 
@@ -49,3 +50,21 @@ its version, embedded configuration and Windows system imports before packing.
 Linux is a desktop-linked tar archive, not an AppImage or a promise of universal
 distribution compatibility. A retained real candidate still needs extraction,
 manifest/checksum and packaged-launch verification before release.
+
+## Notice coverage limits
+
+The bundle preserves the root third-party notice file and the existing Geist,
+Bricolage Grotesque, Pixelify Sans, Lucide, Pixelarticons, naga and wgpu-hal
+license texts. These are copied as published in this tree, not rewritten.
+The root notice file also identifies the embedded Quilt/NeoForge logos and their
+license URLs. This is not a complete linked-crate notice bundle or legal clearance.
+
+A local locked/offline metadata inventory on the initial candidate found 445
+Windows and 542 Linux normal/build-reachable packages. Metadata reachability is
+not final linker inclusion; 68 Windows and 37 Linux package roots lacked a
+top-level file matching the inventory's license filename patterns. This is not
+proof that license text is absent elsewhere or that a package is unlicensed.
+Before distributing a real binary, reconcile its dependency/asset license
+expressions, copyright notices and required texts, including AND expressions.
+Do not substitute a generic MIT license for every dependency or fabricate
+missing text. Crate notice reconciliation remains unfinished.

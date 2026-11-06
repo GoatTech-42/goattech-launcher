@@ -44,6 +44,19 @@ def package(binary, output, platform, version, source_commit):
         'LICENSE': (ROOT / 'LICENSE').read_bytes(),
         'goattech.svg': (ROOT / 'crates/horizon-theme/icons/goattech.svg').read_bytes(),
     }
+    notices = {
+        'THIRD_PARTY_NOTICES.md': 'THIRD_PARTY_NOTICES.md',
+        'notices/OFL-Geist.txt': 'crates/horizon-theme/fonts/OFL-Geist.txt',
+        'notices/OFL-BricolageGrotesque.txt': 'crates/horizon-theme/fonts/OFL-BricolageGrotesque.txt',
+        'notices/OFL-PixelifySans.txt': 'crates/horizon-theme/fonts/OFL-PixelifySans.txt',
+        'notices/LICENSE-lucide.txt': 'crates/horizon-theme/icons/lucide/LICENSE-lucide.txt',
+        'notices/LICENSE-pixelarticons.txt': 'crates/horizon-theme/icons/pixel/LICENSE-pixelarticons.txt',
+        'notices/naga-LICENSE.MIT': 'third_party/naga/LICENSE.MIT',
+        'notices/naga-LICENSE.APACHE': 'third_party/naga/LICENSE.APACHE',
+        'notices/wgpu-hal-LICENSE.MIT': 'third_party/wgpu-hal/LICENSE.MIT',
+        'notices/wgpu-hal-LICENSE.APACHE': 'third_party/wgpu-hal/LICENSE.APACHE',
+    }
+    files.update({name: (ROOT / path).read_bytes() for name, path in notices.items()})
     manifest = {
         'product': 'GoatTech Launcher', 'version': version,
         'platform': platform, 'source_commit': source_commit,
