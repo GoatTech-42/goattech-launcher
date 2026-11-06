@@ -472,7 +472,7 @@ MCP: `instance_group`.
 
 ## `horizon-launcher instance sync`
 
-Share an instance's options.txt settings (keybinds, video, controls) with a sync group: --group NAME joins (a group that doesn't exist yet starts from this instance's settings; joining one that has settings brings them in, its own file backed up first), --off leaves keeping what it has, --status shows its group and waiting conflicts, --resolve KEY (or "all") settles a conflict to this instance's value, or the group's with --theirs. Settings move one by one, in both directions; a setting changed on both sides waits for --resolve instead of overwriting either.
+Share an instance's options.txt settings (keybinds, video, controls) with a sync group: --group NAME joins (a group that doesn't exist yet starts from this instance's settings; joining one that has settings brings them in, its own file backed up first), --off leaves keeping what it has, --status shows its group and waiting conflicts, --resolve KEY (or "all") settles a conflict to this instance's value, or the group's with --theirs. Settings move one by one, in both directions; a setting changed on both sides waits for --resolve instead of overwriting either. --keys a,b,c syncs only those settings from now on ("all" for everything again; joining always starts with every setting).
 
     horizon-launcher instance sync <INSTANCE>
 
@@ -483,6 +483,7 @@ Share an instance's options.txt settings (keybinds, video, controls) with a sync
 - `--status`: Show its group and any conflicts waiting for a pick
 - `--resolve`: Settle a conflicted setting to this instance's value ("all": every conflict)
 - `--theirs`: With --resolve: take the group's value instead
+- `--keys`: Sync only these settings from now on: a comma list (e.g. --keys fov,sensitivity); "all" syncs everything again. Joining always starts with every setting
 
 MCP: `instance_sync`.
 

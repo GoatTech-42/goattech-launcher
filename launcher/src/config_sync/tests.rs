@@ -1047,6 +1047,7 @@ fn a_narrowed_membership_moves_only_the_selected_settings() {
         "a",
         &mut m_a,
         Some(BTreeSet::from(["fov".to_string()])),
+        |_, _, _| Ok(()),
     )
     .unwrap();
     // A edits both; a pass pushes only the selected one.
@@ -1077,13 +1078,14 @@ fn a_key_coming_back_surfaces_a_standing_difference_as_a_conflict() {
         "a",
         &mut m_a,
         Some(BTreeSet::from(["fov".to_string()])),
+        |_, _, _| Ok(()),
     )
     .unwrap();
     // While gamma is out, the sides drift apart on it.
     put(&a, "version:3465\nfov:90\ngamma:0.2\n");
     sync(&data, &a, "a", &mut m_a, Pass::CleanExit).unwrap();
     // Widening back to everything neither adopts nor overwrites the drift: it conflicts.
-    set_keys(&data, &a, "a", &mut m_a, None).unwrap();
+    set_keys(&data, &a, "a", &mut m_a, None, |_, _, _| Ok(())).unwrap();
     let held = conflicts(&data, "main", "a").unwrap();
     assert!(held.contains_key("gamma"), "{held:?}");
     let report = sync(&data, &a, "a", &mut m_a, Pass::CleanExit).unwrap();
@@ -1114,6 +1116,7 @@ fn a_key_leaving_the_set_drops_its_held_conflict() {
         "a",
         &mut m_a,
         Some(BTreeSet::from(["fov".to_string()])),
+        |_, _, _| Ok(()),
     )
     .unwrap();
     assert!(conflicts(&data, "main", "a").unwrap().is_empty());
@@ -1122,30 +1125,378 @@ fn a_key_leaving_the_set_drops_its_held_conflict() {
 
 #[cfg(unix)]
 #[test]
-fn a_failed_set_keys_changes_nothing_in_memory_or_on_disk() {
+fn a_failed_store_save_on_widening_keeps_the_entering_choice_until_recovered() {
     use std::os::unix::fs::PermissionsExt;
-    let (root, data, a, _b) = scratch("set-keys-save-fails");
+    let (root, data, a, _b) = scratch("set-keys-widen-save-fails");
     put(&a, "version:3465\nfov:90\ngamma:0.5\n");
     let (mut m_a, _) = join(&data, &a, "main", None).unwrap();
-    // Hold a conflict on gamma, then make the group directory unwritable: the
-    // conflict store can't be saved, so dropping it must fail without side effects.
+    // Narrow to nothing, then the instance drifts from the group on gamma.
+    set_keys(
+        &data,
+        &a,
+        "a",
+        &mut m_a,
+        Some(BTreeSet::new()),
+        |_, _, _| Ok(()),
+    )
+    .unwrap();
+    put(&a, "version:3465\nfov:90\ngamma:0.2\n");
+    let shared = shared_file(&data, "main").unwrap();
+    fs::write(&shared, b"version:3465\nfov:90\ngamma:0.9\n").unwrap();
+    let store_path = conflicts_file(&data, "main").unwrap();
+    let group_dir = store_path.parent().unwrap().to_path_buf();
+    // Widening re-baselines gamma from the current files and must record the standing
+    // difference as a conflict; the membership commit lands, the conflict save fails.
+    let group_dir_c = group_dir.clone();
+    let result = set_keys(&data, &a, "a", &mut m_a, None, move |_, _, _| {
+        fs::set_permissions(&group_dir_c, fs::Permissions::from_mode(0o555)).unwrap();
+        Ok(())
+    });
+    fs::set_permissions(&group_dir, fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(result.is_err());
+    assert!(conflicts(&data, "main", "a").unwrap().is_empty());
+    // The pending record keeps the entering choice durable: the next sync finishes the
+    // commit instead of silently adopting the baselines as settled.
+    let report = sync(&data, &a, "a", &mut m_a, Pass::Manual).unwrap();
+    assert!(report.pushed.is_empty() && report.pulled.is_empty());
+    assert!(conflicts(&data, "main", "a").unwrap().contains_key("gamma"));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unfinished_commit_keeps_the_pass_ready_until_settled() {
+    use std::os::unix::fs::PermissionsExt;
+    let (root, data, a, _b) = scratch("pending-keeps-ready");
+    put(&a, "version:3465\nfov:90\ngamma:0.5\n");
+    let (mut m_a, _) = join(&data, &a, "main", None).unwrap();
+    set_keys(
+        &data,
+        &a,
+        "a",
+        &mut m_a,
+        Some(BTreeSet::new()),
+        |_, _, _| Ok(()),
+    )
+    .unwrap();
+    put(&a, "version:3465\nfov:90\ngamma:0.2\n");
+    let shared = shared_file(&data, "main").unwrap();
+    fs::write(&shared, b"version:3465\nfov:90\ngamma:0.9\n").unwrap();
+    let group_dir = conflicts_file(&data, "main")
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf();
+    let group_dir_c = group_dir.clone();
+    // The membership commit lands, the conflict-cache save fails: only the journal is
+    // left, and every baseline already matches its file.
+    let result = set_keys(&data, &a, "a", &mut m_a, None, move |_, _, _| {
+        fs::set_permissions(&group_dir_c, fs::Permissions::from_mode(0o555)).unwrap();
+        Ok(())
+    });
+    fs::set_permissions(&group_dir, fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(result.is_err());
+    // The glue regression: readiness must still run the pass, or the record would wait
+    // forever for an explicit operation or a file change.
+    assert!(
+        pending(&data, &a, &m_a),
+        "an unfinished commit must keep the instance ready for a pass"
+    );
+    sync(&data, &a, "a", &mut m_a, Pass::Manual).unwrap();
+    assert!(conflicts(&data, "main", "a").unwrap().contains_key("gamma"));
+    assert!(!pending(&data, &a, &m_a), "settled: quiet again");
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_malformed_journal_keeps_the_pass_ready_and_surfaces() {
+    let (root, data, a, _b) = scratch("pending-malformed-ready");
+    put(&a, "version:3465\nfov:90\ngamma:0.5\n");
+    let (m_a, _) = join(&data, &a, "main", None).unwrap();
+    // Every baseline matches its file: without the journal nothing reads as pending.
+    assert!(!pending(&data, &a, &m_a));
+    fs::write(pending_file(&data, "main").unwrap(), b"{not json").unwrap();
+    assert!(
+        pending(&data, &a, &m_a),
+        "even an unreadable record must keep the instance ready for a pass"
+    );
+    let mut m = m_a.clone();
+    let err = sync(&data, &a, "a", &mut m, Pass::Manual).unwrap_err();
+    assert!(err.contains("left untouched"), "{err}");
+    let _ = fs::remove_dir_all(root);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_failed_pending_write_changes_nothing_in_memory_or_on_disk() {
+    use std::os::unix::fs::PermissionsExt;
+    let (root, data, a, mut m_a) = held_conflict("set-keys-save-fails");
+    let before = m_a.clone();
+    let store_path = conflicts_file(&data, "main").unwrap();
+    let store_before = fs::read(&store_path).unwrap();
+    let group_dir = store_path.parent().unwrap().to_path_buf();
+    fs::set_permissions(&group_dir, fs::Permissions::from_mode(0o555)).unwrap();
+    let result = set_keys(
+        &data,
+        &a,
+        "a",
+        &mut m_a,
+        Some(BTreeSet::new()),
+        |_, _, _| Ok(()),
+    );
+    fs::set_permissions(&group_dir, fs::Permissions::from_mode(0o755)).unwrap();
+    // The pending record can't even be written: nothing commits anywhere.
+    assert!(result.is_err());
+    assert_eq!(m_a, before);
+    assert_eq!(fs::read(&store_path).unwrap(), store_before);
+    assert!(conflicts(&data, "main", "a").unwrap().contains_key("gamma"));
+    let _ = fs::remove_dir_all(root);
+}
+
+/// A valid interrupted-commit record as `set_keys` would write it for `instance`:
+/// `membership` narrowed to fov alone, the conflict cache leg left unfinished.
+fn fake_pending(instance: &str, membership: &crate::config_sync::Sync) -> PendingSetKeys {
+    let mut narrowed = membership.clone();
+    narrowed.keys = Some(BTreeSet::from(["fov".to_string()]));
+    narrowed.shared.retain(|k, _| k == "fov");
+    narrowed.local.retain(|k, _| k == "fov");
+    PendingSetKeys {
+        instance: instance.to_string(),
+        old: membership.clone(),
+        new: narrowed,
+        store: ConflictStore::default(),
+        store_changed: false,
+    }
+}
+
+#[test]
+fn a_foreign_pending_record_fails_every_mutation_closed_and_survives() {
+    let (root, data, _a, m_a) = held_conflict("pending-foreign");
+    let b = root.join("b");
+    save_pending(&data, "main", &fake_pending("a", &m_a)).unwrap();
+    let journal = pending_file(&data, "main").unwrap();
+    let journal_before = fs::read(&journal).unwrap();
+    // Another instance, even holding an identical membership, must not consume it.
+    let mut m_b = m_a.clone();
+    let err = set_keys(&data, &b, "b", &mut m_b, None, |_, _, _| {
+        panic!("a foreign pending record must never reach the membership commit")
+    })
+    .unwrap_err();
+    assert!(err.contains("only that instance can finish it"), "{err}");
+    assert_eq!(m_b, m_a);
+    let mut m_b = m_a.clone();
+    let err = sync(&data, &b, "b", &mut m_b, Pass::Manual).unwrap_err();
+    assert!(err.contains("only that instance can finish it"), "{err}");
+    let mut m_b = m_a.clone();
+    let err = resolve(&data, &b, "b", &mut m_b, "gamma", true).unwrap_err();
+    assert!(err.contains("only that instance can finish it"), "{err}");
+    assert_eq!(fs::read(&journal).unwrap(), journal_before);
+    assert!(conflicts(&data, "main", "a").unwrap().contains_key("gamma"));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_divergent_membership_fails_every_mutation_closed_and_keeps_the_record() {
+    let (root, data, a, m_a) = held_conflict("pending-divergent");
+    save_pending(&data, "main", &fake_pending("a", &m_a)).unwrap();
+    let journal = pending_file(&data, "main").unwrap();
+    let journal_before = fs::read(&journal).unwrap();
+    let shared = shared_file(&data, "main").unwrap();
+    let shared_before = fs::read(&shared).unwrap();
+    // A third membership state - neither side of the interrupted change.
+    let third = |m: &crate::config_sync::Sync| {
+        let mut t = m.clone();
+        t.keys = Some(BTreeSet::from(["gamma".to_string()]));
+        t
+    };
+    let err = set_keys(&data, &a, "a", &mut third(&m_a), None, |_, _, _| {
+        panic!("a divergent membership must never reach the membership commit")
+    })
+    .unwrap_err();
+    assert!(err.contains("newer membership"), "{err}");
+    let err = sync(&data, &a, "a", &mut third(&m_a), Pass::Manual).unwrap_err();
+    assert!(err.contains("newer membership"), "{err}");
+    let err = resolve(&data, &a, "a", &mut third(&m_a), "gamma", true).unwrap_err();
+    assert!(err.contains("newer membership"), "{err}");
+    // Nothing moved anywhere: the record and the group's values are exactly as before.
+    assert_eq!(fs::read(&journal).unwrap(), journal_before);
+    assert_eq!(fs::read(&shared).unwrap(), shared_before);
+    assert!(conflicts(&data, "main", "a").unwrap().contains_key("gamma"));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_pending_record_spanning_groups_is_rejected_before_any_write() {
+    let (root, data, a, m_a) = held_conflict("pending-wrong-group");
+    let mut record = fake_pending("a", &m_a);
+    record.new.group = "other".to_string();
+    save_pending(&data, "main", &record).unwrap();
+    let journal = pending_file(&data, "main").unwrap();
+    let journal_before = fs::read(&journal).unwrap();
+    let mut m = m_a.clone();
+    let err = set_keys(&data, &a, "a", &mut m, None, |_, _, _| {
+        panic!("a record about another group must never reach the membership commit")
+    })
+    .unwrap_err();
+    assert!(err.contains("left untouched"), "{err}");
+    assert_eq!(m, m_a);
+    let mut m = m_a.clone();
+    let err = sync(&data, &a, "a", &mut m, Pass::Manual).unwrap_err();
+    assert!(err.contains("left untouched"), "{err}");
+    assert_eq!(fs::read(&journal).unwrap(), journal_before);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_pending_record_with_a_bad_shape_is_rejected_before_any_write() {
+    let (root, data, a, m_a) = held_conflict("pending-bad-shape");
+    let journal = pending_file(&data, "main").unwrap();
+    let journal_bytes = |raw: &serde_json::Value| serde_json::to_string_pretty(raw).unwrap();
+    // A field serde would quietly default must instead close every mutation.
+    for mutate in [
+        (vec!["old"], "keys"),
+        (vec!["new"], "local"),
+        (vec!["store"], "conflicts"),
+        (vec![], "store_changed"),
+        (vec![], "instance"),
+    ] {
+        let mut raw = serde_json::to_value(fake_pending("a", &m_a)).unwrap();
+        let target = mutate
+            .0
+            .iter()
+            .fold(&mut raw, |value, step| &mut value[*step]);
+        target.as_object_mut().unwrap().remove(mutate.1);
+        fs::write(&journal, journal_bytes(&raw)).unwrap();
+        let mut m = m_a.clone();
+        let err = set_keys(&data, &a, "a", &mut m, None, |_, _, _| {
+            panic!("a misshapen record must never reach the membership commit")
+        })
+        .unwrap_err();
+        assert!(err.contains("left untouched"), "{err}");
+        assert_eq!(m, m_a);
+    }
+    // An extra field is just as suspect.
+    let mut raw = serde_json::to_value(fake_pending("a", &m_a)).unwrap();
+    raw.as_object_mut()
+        .unwrap()
+        .insert("comment".to_string(), serde_json::Value::Null);
+    fs::write(&journal, journal_bytes(&raw)).unwrap();
+    let mut m = m_a.clone();
+    let err = sync(&data, &a, "a", &mut m, Pass::Manual).unwrap_err();
+    assert!(err.contains("left untouched"), "{err}");
+    // And plain malformed JSON, on every mutation.
+    fs::write(&journal, b"{not json").unwrap();
+    let mut m = m_a.clone();
+    let err = sync(&data, &a, "a", &mut m, Pass::Manual).unwrap_err();
+    assert!(err.contains("left untouched"), "{err}");
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn finishing_the_store_leg_preserves_conflicts_recorded_by_other_instances() {
+    let (root, data, a, m_a) = held_conflict("pending-merge-store");
+    // The interrupted change narrows to fov, dropping the held gamma conflict.
+    let mut record = fake_pending("a", &m_a);
+    record.store_changed = true;
+    save_pending(&data, "main", &record).unwrap();
+    // The membership commit landed; meanwhile another instance recorded a conflict.
+    let mut store = load_conflicts(&data, "main").unwrap();
+    store.conflicts.insert(
+        "b".to_string(),
+        BTreeMap::from([(
+            "fov".to_string(),
+            ConflictNote {
+                local: Bytes::of(b"1"),
+                shared: Bytes::of(b"2"),
+                at: 0,
+            },
+        )]),
+    );
+    save_conflicts(&data, "main", &store).unwrap();
+    let mut m_now = record.new.clone();
+    let _ = sync(&data, &a, "a", &mut m_now, Pass::Manual).unwrap();
+    // The interrupted instance's own delta landed; the other instance's work survived.
+    assert!(conflicts(&data, "main", "a").unwrap().is_empty());
+    assert!(conflicts(&data, "main", "b").unwrap().contains_key("fov"));
+    assert!(!pending_file(&data, "main").unwrap().exists());
+    let _ = fs::remove_dir_all(root);
+}
+
+/// A held conflict on gamma for member "a" of "main".
+fn held_conflict(root_name: &str) -> (PathBuf, PathBuf, PathBuf, crate::config_sync::Sync) {
+    let (root, data, a, _b) = scratch(root_name);
+    put(&a, "version:3465\nfov:90\ngamma:0.5\n");
+    let (mut m_a, _) = join(&data, &a, "main", None).unwrap();
     put(&a, "version:3465\nfov:90\ngamma:0.2\n");
     let shared = shared_file(&data, "main").unwrap();
     fs::write(&shared, b"version:3465\nfov:90\ngamma:0.9\n").unwrap();
     sync(&data, &a, "a", &mut m_a, Pass::CleanExit).unwrap();
     assert!(conflicts(&data, "main", "a").unwrap().contains_key("gamma"));
+    (root, data, a, m_a)
+}
+
+#[test]
+fn a_failed_set_keys_persist_changes_nothing_in_memory_or_on_disk() {
+    let (root, data, a, mut m_a) = held_conflict("set-keys-persist-fails");
     let before = m_a.clone();
     let store_path = conflicts_file(&data, "main").unwrap();
     let store_before = fs::read(&store_path).unwrap();
     let options_before = fs::read(a.join("options.txt")).unwrap();
-    let group_dir = store_path.parent().unwrap().to_path_buf();
-    fs::set_permissions(&group_dir, fs::Permissions::from_mode(0o555)).unwrap();
-    let result = set_keys(&data, &a, "a", &mut m_a, Some(BTreeSet::new()));
-    fs::set_permissions(&group_dir, fs::Permissions::from_mode(0o755)).unwrap();
+    let result = set_keys(
+        &data,
+        &a,
+        "a",
+        &mut m_a,
+        Some(BTreeSet::new()),
+        |_, _, _| Err("simulated persist failure".to_string()),
+    );
     assert!(result.is_err());
     assert_eq!(m_a, before);
     assert_eq!(fs::read(&store_path).unwrap(), store_before);
     assert_eq!(fs::read(a.join("options.txt")).unwrap(), options_before);
+    assert!(conflicts(&data, "main", "a").unwrap().contains_key("gamma"));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn set_keys_persists_the_membership_before_the_conflict_store() {
+    let (root, data, a, mut m_a) = held_conflict("set-keys-commit-order");
+    let store_path = conflicts_file(&data, "main").unwrap();
+    let store_before = fs::read(&store_path).unwrap();
+    let path_c = store_path.clone();
+    set_keys(
+        &data,
+        &a,
+        "a",
+        &mut m_a,
+        Some(BTreeSet::new()),
+        move |_, _, _| {
+            // The conflict cache must still be the old one when the membership commits.
+            assert_eq!(fs::read(&path_c).unwrap(), store_before);
+            Ok(())
+        },
+    )
+    .unwrap();
+    assert!(conflicts(&data, "main", "a").unwrap().is_empty());
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_key_union_lists_shared_and_local_keys_without_version() {
+    let (root, data, a, _b) = scratch("key-union");
+    put(&a, "version:3465\nfov:90\nlocalonly:1\n");
+    let _ = join(&data, &a, "main", None).unwrap();
+    let shared = shared_file(&data, "main").unwrap();
+    fs::write(&shared, b"version:3465\nfov:90\nsharedonly:2\n").unwrap();
+    let union = key_union(&data, &a, "main").unwrap();
+    assert_eq!(
+        union.into_iter().collect::<Vec<_>>(),
+        vec![
+            "fov".to_string(),
+            "localonly".to_string(),
+            "sharedonly".to_string()
+        ]
+    );
     let _ = fs::remove_dir_all(root);
 }
 
@@ -1165,6 +1516,7 @@ fn a_kept_key_keeps_its_pending_change_through_a_set_change() {
         "a",
         &mut m_a,
         Some(BTreeSet::from(["fov".to_string()])),
+        |_, _, _| Ok(()),
     )
     .unwrap();
     let report = sync(&data, &a, "a", &mut m_a, Pass::CleanExit).unwrap();

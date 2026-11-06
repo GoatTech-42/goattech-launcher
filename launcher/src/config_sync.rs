@@ -929,6 +929,225 @@ struct ConflictStore {
     conflicts: BTreeMap<String, BTreeMap<String, ConflictNote>>,
 }
 
+/// A key-selection change interrupted between its membership commit and its conflict
+/// cache commit: the durable record that keeps an entering key's unsettled choice from
+/// vanishing between the two commits.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct PendingSetKeys {
+    instance: String,
+    old: Sync,
+    new: Sync,
+    store: ConflictStore,
+    store_changed: bool,
+}
+
+fn pending_file(data: &Path, group: &str) -> Result<PathBuf, String> {
+    Ok(group_dir(data, group)?.join("pending-set-keys.json"))
+}
+
+/// The exact fields every level of a pending record must carry - no more, no fewer.
+/// `Sync`, `ConflictStore` and `Bytes` all tolerate missing fields through serde
+/// defaults, which is right for long-lived stores but wrong for a record that drives a
+/// commit: a journal with anything missing or extra is rejected before anything moves.
+fn strict_object(value: &serde_json::Value, path: &str, fields: &[&str]) -> Result<(), String> {
+    let object = value
+        .as_object()
+        .ok_or_else(|| format!("{path}: not an object"))?;
+    for field in fields {
+        if !object.contains_key(*field) {
+            return Err(format!("{path}: missing {field:?}"));
+        }
+    }
+    if let Some(extra) = object.keys().find(|k| !fields.contains(&k.as_str())) {
+        return Err(format!("{path}: unexpected {extra:?}"));
+    }
+    Ok(())
+}
+
+fn validate_pending_shape(raw: &serde_json::Value) -> Result<(), String> {
+    strict_object(
+        raw,
+        "pending record",
+        &["instance", "old", "new", "store", "store_changed"],
+    )?;
+    for side in ["old", "new"] {
+        strict_object(&raw[side], side, &["group", "keys", "shared", "local"])?;
+    }
+    strict_object(&raw["store"], "store", &["conflicts"])?;
+    if let Some(instances) = raw["store"]["conflicts"].as_object() {
+        for (instance, notes) in instances {
+            let held = notes
+                .as_object()
+                .ok_or_else(|| format!("store.conflicts.{instance:?}: not an object"))?;
+            for (key, note) in held {
+                strict_object(
+                    note,
+                    &format!("store.conflicts.{instance:?}.{key:?}"),
+                    &["local", "shared", "at"],
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// What a pending record must promise beyond shape: it belongs to this group, both of
+/// its memberships belong to this group, it changes something, every recorded byte
+/// decodes, and its baselines and conflict notes stay inside the recorded key selection.
+fn validate_pending(pending: &PendingSetKeys, group: &str) -> Result<(), String> {
+    if pending.old.group != group || pending.new.group != group {
+        return Err(format!(
+            "pending record is about group {:?} -> {:?}, not {group:?} - left untouched",
+            pending.old.group, pending.new.group
+        ));
+    }
+    // A record whose two sides match is valid: it is a change that fully landed (or a
+    // same-selection write) whose cleanup never ran. Recovery simply drops it.
+    for side in [&pending.old, &pending.new] {
+        for (key, baseline) in side.shared.iter().chain(side.local.iter()) {
+            if baseline.raw().is_none() {
+                return Err(format!(
+                    "pending record baseline for {key:?} is corrupt - left untouched"
+                ));
+            }
+            if side.keys.as_ref().is_some_and(|set| !set.contains(key)) {
+                return Err(format!(
+                    "pending record baselines {key:?}, outside its own key selection - left untouched"
+                ));
+            }
+        }
+    }
+    if let Some(mine) = pending.store.conflicts.get(&pending.instance) {
+        for key in mine.keys() {
+            if pending
+                .new
+                .keys
+                .as_ref()
+                .is_some_and(|set| !set.contains(key))
+            {
+                return Err(format!(
+                    "pending record holds a conflict for {key:?}, outside its new key selection - left untouched"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn load_pending(
+    data: &Path,
+    group: &str,
+) -> Result<Option<(PendingSetKeys, serde_json::Value)>, String> {
+    let path = pending_file(data, group)?;
+    let bytes = match fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(format!("{}: {e}", path.display())),
+    };
+    let raw: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| {
+        format!(
+            "{}: {e} - the pending record was left untouched",
+            path.display()
+        )
+    })?;
+    validate_pending_shape(&raw).map_err(|e| {
+        format!(
+            "{}: {e} - the pending record was left untouched",
+            path.display()
+        )
+    })?;
+    let pending: PendingSetKeys = serde_json::from_value(raw.clone()).map_err(|e| {
+        format!(
+            "{}: {e} - the pending record was left untouched",
+            path.display()
+        )
+    })?;
+    validate_pending(&pending, group).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(Some((pending, raw)))
+}
+
+/// The gate every group mutation passes first. A valid interrupted commit is handed back
+/// for the owner to finish; anything else - another instance's record, a malformed or
+/// inconsistent one, a divergent membership - closes the path with nothing written, and
+/// the record stays where it is.
+fn inspected_pending(
+    data: &Path,
+    group: &str,
+    instance: &str,
+) -> Result<Option<PendingSetKeys>, String> {
+    let Some((pending, _)) = load_pending(data, group)? else {
+        return Ok(None);
+    };
+    if pending.instance != instance {
+        return Err(format!(
+            "group {group:?} has a key change interrupted on instance {:?}; only that instance can finish it - nothing was written",
+            pending.instance
+        ));
+    }
+    Ok(Some(pending))
+}
+
+/// Finishes the conflict-cache leg of an interrupted commit against the CURRENT record:
+/// only the interrupted instance's own entries are replaced, so conflicts another
+/// instance recorded in between survive.
+fn merge_pending_store(data: &Path, group: &str, pending: &PendingSetKeys) -> Result<(), String> {
+    let mut current = load_conflicts(data, group)?;
+    match pending.store.conflicts.get(&pending.instance) {
+        Some(mine) => {
+            current
+                .conflicts
+                .insert(pending.instance.clone(), mine.clone());
+        }
+        None => {
+            current.conflicts.remove(&pending.instance);
+        }
+    }
+    save_conflicts(data, group, &current)
+}
+
+fn save_pending(data: &Path, group: &str, pending: &PendingSetKeys) -> Result<(), String> {
+    let text = serde_json::to_string_pretty(pending).map_err(|e| e.to_string())?;
+    write_atomic(&pending_file(data, group)?, text.as_bytes())
+}
+
+fn clear_pending(data: &Path, group: &str) -> Result<(), String> {
+    let path = pending_file(data, group)?;
+    match fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(format!("{}: {e}", path.display())),
+    }
+}
+
+/// Settles an interrupted key-selection change before a sync or resolve touches anything.
+/// The membership commit landed: the conflict-cache leg finishes. It never started (the
+/// old membership still stands): the record is dropped, the change abandoned exactly like
+/// a failed persist. Anything else - another instance's record, a membership that is
+/// neither side - fails closed with the record preserved.
+fn finish_pending_store(
+    data: &Path,
+    group: &str,
+    instance: &str,
+    membership: &Sync,
+) -> Result<(), String> {
+    if let Some(p) = inspected_pending(data, group, instance)? {
+        if *membership == p.new {
+            if p.store_changed {
+                merge_pending_store(data, group, &p)?;
+            }
+            clear_pending(data, group)?;
+        } else if *membership == p.old {
+            clear_pending(data, group)?;
+        } else {
+            return Err(
+                "an interrupted key change found a newer membership; it was left untouched"
+                    .to_string(),
+            );
+        }
+    }
+    Ok(())
+}
+
 fn load_conflicts(data: &Path, group: &str) -> Result<ConflictStore, String> {
     let path = conflicts_file(data, group)?;
     match fs::read_to_string(&path) {
@@ -1151,6 +1370,9 @@ pub fn sync(
 ) -> Result<Report, String> {
     let _lock = GroupLock::take(data, &membership.group)?;
     guard_not_running(home)?;
+    // Settle an interrupted key-selection change first; anything that is not this
+    // instance's own clean finish fails the pass closed, before any value moves.
+    finish_pending_store(data, &membership.group, instance, membership)?;
     let mut report = Report::default();
     let local = read_local(home)?;
     let mut shared = read_shared(data, &membership.group)?;
@@ -1374,9 +1596,35 @@ pub fn set_keys(
     instance: &str,
     membership: &mut Sync,
     keys: Option<BTreeSet<String>>,
+    persist: impl Fn(&str, &Sync, &Sync) -> Result<(), String>,
 ) -> Result<(), String> {
     let _lock = GroupLock::take(data, &membership.group)?;
     guard_not_running(home)?;
+    // Settle an interrupted earlier change first, and only this instance's own. The
+    // membership commit landed: finish just the conflict-cache leg. It never landed:
+    // abandon the record - its baselines were computed from files that may have moved
+    // since, so the change is never replayed; this call's own selection is computed from
+    // the current files below instead. A membership that is neither side means another
+    // writer won; leave the record and fail closed.
+    if let Some(p) = inspected_pending(data, &membership.group, instance)? {
+        if *membership == p.old {
+            clear_pending(data, &membership.group)?;
+        } else if *membership == p.new {
+            if p.store_changed {
+                merge_pending_store(data, &membership.group, &p)?;
+            }
+            clear_pending(data, &membership.group)?;
+        } else {
+            return Err(
+                "an interrupted key change found a newer membership; it was left untouched"
+                    .to_string(),
+            );
+        }
+    }
+    // Asking for the selection already in place changes nothing: no record, no commit.
+    if keys == membership.keys {
+        return Ok(());
+    }
     let old_syncs = |k: &str| membership.keys.as_ref().is_none_or(|set| set.contains(k));
     let new_syncs = |k: &str| keys.as_ref().is_none_or(|set| set.contains(k));
     let shared = read_shared(data, &membership.group)?;
@@ -1436,12 +1684,50 @@ pub fn set_keys(
         mine.retain(|k, _| new_syncs(k));
         store_changed |= mine.len() != before;
     }
-    if store_changed {
-        save_conflicts(data, &membership.group, &store)?;
-    }
+    // Commit under the group lock: a durable pending record first, then the membership
+    // through the caller's guarded CAS, then the conflict cache. A failed persist leaves
+    // every state untouched (the record is dropped, the old state is consistent); a
+    // failure after the membership commit keeps the record so the next `set_keys` or
+    // `sync` rolls the commit forward - an entering key's conflict (the owner's
+    // unsettled choice) is never lost between the two commits.
     proposed.keys = keys;
+    let pending = PendingSetKeys {
+        instance: instance.to_string(),
+        old: membership.clone(),
+        new: proposed.clone(),
+        store: store.clone(),
+        store_changed,
+    };
+    save_pending(data, &membership.group, &pending)?;
+    if let Err(e) = persist(instance, membership, &proposed) {
+        clear_pending(data, &membership.group)?;
+        return Err(e);
+    }
+    let saved = if store_changed {
+        save_conflicts(data, &membership.group, &store)
+    } else {
+        Ok(())
+    };
+    if saved.is_ok() {
+        clear_pending(data, &membership.group)?;
+    }
     *membership = proposed;
-    Ok(())
+    saved
+}
+
+/// Every setting the group file or the instance's file currently names (minus the
+/// launcher-managed `version` line), sorted: the rows a per-key picker shows.
+pub fn key_union(data: &Path, home: &Path, group: &str) -> Result<BTreeSet<String>, String> {
+    let shared = read_shared(data, group)?;
+    let local = read_local(home)?
+        .map(|(_, f)| f.values())
+        .unwrap_or_default();
+    Ok(shared
+        .keys()
+        .chain(local.keys())
+        .filter(|k| k.as_str() != "version")
+        .cloned()
+        .collect())
 }
 
 /// Picks a side for one of THIS instance's conflicted settings, or all of them with "all".
@@ -1457,6 +1743,9 @@ pub fn resolve(
 ) -> Result<Vec<String>, String> {
     let _lock = GroupLock::take(data, &membership.group)?;
     guard_not_running(home)?;
+    // Settle an interrupted key-selection change first; anything that is not this
+    // instance's own clean finish fails the resolve closed, before any value moves.
+    finish_pending_store(data, &membership.group, instance, membership)?;
     // The gate covers resolve too: a conflict recorded while the formats matched must not
     // be settled after the instance's file moved to another format.
     let group_v = group_format(data, &membership.group)?;
@@ -1555,6 +1844,15 @@ pub fn resolve(
 /// Whether a membership has anything to move right now, cheaply: the group file or the
 /// instance's file differs from its baseline. The window uses this to skip quiet instances.
 pub fn pending(data: &Path, home: &Path, membership: &Sync) -> bool {
+    // An interrupted key-selection commit is pending work even when every value matches
+    // its baseline (only its conflict-cache leg is left): the next pass settles it, and
+    // a record that cannot be read still surfaces its failure there. This check is what
+    // `sync_once`'s early return relies on, so the journal must count here.
+    if let Ok(path) = pending_file(data, &membership.group) {
+        if path.exists() {
+            return true;
+        }
+    }
     let shared = read_shared(data, &membership.group).unwrap_or_default();
     let local = read_local(home)
         .ok()

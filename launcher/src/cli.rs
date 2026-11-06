@@ -301,6 +301,8 @@ enum InstanceCmd {
     /// waiting conflicts, --resolve KEY (or "all") settles a conflict to this instance's
     /// value, or the group's with --theirs. Settings move one by one, in both directions;
     /// a setting changed on both sides waits for --resolve instead of overwriting either.
+    /// --keys a,b,c syncs only those settings from now on ("all" for everything again;
+    /// joining always starts with every setting).
     Sync {
         instance: String,
         /// Join this group
@@ -322,6 +324,10 @@ enum InstanceCmd {
         /// With --resolve: take the group's value instead
         #[arg(long, requires = "resolve")]
         theirs: bool,
+        /// Sync only these settings from now on: a comma list (e.g. --keys fov,sensitivity);
+        /// "all" syncs everything again. Joining always starts with every setting.
+        #[arg(long, conflicts_with_all = ["group", "off", "status", "resolve"], value_name = "LIST")]
+        keys: Option<String>,
     },
     /// Make Play start this instance
     Select { instance: String },
@@ -3120,6 +3126,25 @@ struct SyncOpts {
     status: bool,
     resolve: Option<String>,
     theirs: bool,
+    keys: Option<String>,
+}
+
+/// The `--keys LIST` value: "all" (any case) syncs every setting again, otherwise a comma
+/// list of setting names; blanks around commas are ignored and duplicates collapse.
+fn parse_key_list(list: &str) -> Result<Option<std::collections::BTreeSet<String>>, String> {
+    if list.trim().eq_ignore_ascii_case("all") {
+        return Ok(None);
+    }
+    let set: std::collections::BTreeSet<String> = list
+        .split(',')
+        .map(str::trim)
+        .filter(|k| !k.is_empty())
+        .map(str::to_string)
+        .collect();
+    if set.is_empty() {
+        return Err("no settings named in --keys (a comma list, or \"all\").".to_string());
+    }
+    Ok(Some(set))
 }
 
 /// `instance sync`: join, leave, settle conflicts, or run one pass and say what moved. The
@@ -3133,6 +3158,7 @@ fn instance_sync(query: &str, opts: SyncOpts, as_json: bool) -> Result<(), Strin
         status,
         resolve,
         theirs,
+        keys,
     } = opts;
     let data = backend::data_dir();
     if let Some(group) = group {
@@ -3184,6 +3210,52 @@ fn instance_sync(query: &str, opts: SyncOpts, as_json: bool) -> Result<(), Strin
         )
     })?;
     let mut membership = started_from.clone();
+    if let Some(list) = keys {
+        let parsed = parse_key_list(&list)?;
+        crate::config_sync::set_keys(
+            &data,
+            &instance.home,
+            &instance.id,
+            &mut membership,
+            parsed.clone(),
+            |id, expected, updated| instances::sync_persist(id, expected, updated.clone()),
+        )?;
+        let held = crate::config_sync::conflicts(&data, &membership.group, &instance.id)?;
+        if as_json {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "instance": instance.id,
+                    "group": started_from.group,
+                    "keys": parsed,
+                    "conflicts": held.keys().collect::<Vec<_>>(),
+                })
+            );
+        } else {
+            match &parsed {
+                None => println!(
+                    "{} now syncs every setting with {:?}.",
+                    instance.name, started_from.group
+                ),
+                Some(set) => println!(
+                    "{} now syncs only: {}.",
+                    instance.name,
+                    set.iter()
+                        .map(String::as_str)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            }
+            for (key, note) in &held {
+                println!(
+                    "conflict on {key}: yours {:?}, the group's {:?} (--resolve {key} or --resolve {key} --theirs)",
+                    note.local.show(),
+                    note.shared.show()
+                );
+            }
+        }
+        return Ok(());
+    }
     if let Some(key) = resolve {
         let side = if theirs { "the group's" } else { "its own" };
         let done = crate::config_sync::resolve(
@@ -3213,11 +3285,21 @@ fn instance_sync(query: &str, opts: SyncOpts, as_json: bool) -> Result<(), Strin
                 serde_json::json!({
                     "instance": instance.id,
                     "group": membership.group,
+                    "keys": membership.keys,
                     "conflicts": held.keys().collect::<Vec<_>>(),
                 })
             );
         } else {
             println!("{} syncs with {:?}.", instance.name, membership.group);
+            if let Some(set) = &membership.keys {
+                println!(
+                    "syncing only: {}",
+                    set.iter()
+                        .map(String::as_str)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+            }
             if held.is_empty() {
                 println!("no conflicts waiting");
             }
@@ -3444,6 +3526,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
             status,
             resolve,
             theirs,
+            keys,
         } => instance_sync(
             &instance,
             SyncOpts {
@@ -3453,6 +3536,7 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
                 status,
                 resolve,
                 theirs,
+                keys,
             },
             as_json,
         )?,
@@ -4355,6 +4439,81 @@ mod tests {
         }
         assert!(Cli::try_parse_from(["horizon-launcher", "completions"]).is_err());
         assert!(Cli::try_parse_from(["horizon-launcher", "completions", "unknown"]).is_err());
+    }
+
+    #[test]
+    fn sync_keys_flag_combinations() {
+        let cli = Cli::try_parse_from([
+            "horizon-launcher",
+            "instance",
+            "sync",
+            "alpha",
+            "--keys",
+            "fov,gamma",
+        ])
+        .unwrap();
+        let Some(Cmd::Instance {
+            action: Some(InstanceCmd::Sync { keys, .. }),
+        }) = cli.command
+        else {
+            panic!("sync command")
+        };
+        assert_eq!(keys.as_deref(), Some("fov,gamma"));
+        // conflicts with every other sync mode
+        assert!(Cli::try_parse_from([
+            "horizon-launcher",
+            "instance",
+            "sync",
+            "alpha",
+            "--keys",
+            "fov",
+            "--group",
+            "g"
+        ])
+        .is_err());
+        assert!(Cli::try_parse_from([
+            "horizon-launcher",
+            "instance",
+            "sync",
+            "alpha",
+            "--keys",
+            "fov",
+            "--off"
+        ])
+        .is_err());
+        assert!(Cli::try_parse_from([
+            "horizon-launcher",
+            "instance",
+            "sync",
+            "alpha",
+            "--keys",
+            "fov",
+            "--status"
+        ])
+        .is_err());
+        assert!(Cli::try_parse_from([
+            "horizon-launcher",
+            "instance",
+            "sync",
+            "alpha",
+            "--keys",
+            "fov",
+            "--resolve",
+            "fov"
+        ])
+        .is_err());
+        // value parsing: all (any case), blanks, duplicates, empties
+        assert_eq!(parse_key_list("all").unwrap(), None);
+        assert_eq!(parse_key_list(" ALL ").unwrap(), None);
+        assert_eq!(
+            parse_key_list("fov, gamma,,fov").unwrap(),
+            Some(std::collections::BTreeSet::from([
+                "fov".to_string(),
+                "gamma".to_string()
+            ]))
+        );
+        assert!(parse_key_list("").is_err());
+        assert!(parse_key_list(" , ,").is_err());
     }
 
     #[test]
