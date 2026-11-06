@@ -81,7 +81,7 @@ fn cli_keeps_redirected_stdout_and_stderr() {
         .arg("--version")
         .output()
         .unwrap();
-    assert!(version.status.success());
+    assert!(version.status.success(), "{version:?}");
     assert!(String::from_utf8_lossy(&version.stdout).starts_with("horizon-launcher "));
     let invalid = process::command(executable)
         .arg("--unknown-option")
@@ -116,4 +116,30 @@ fn desktop_executable_uses_the_windows_gui_subsystem() {
         u16::from_le_bytes(executable[subsystem..subsystem + 2].try_into().unwrap()),
         WINDOWS_GUI_SUBSYSTEM
     );
+}
+
+#[test]
+fn both_entry_points_reserve_the_stack_the_cli_command_tree_needs() {
+    for path in [
+        env!("CARGO_BIN_EXE_horizon-launcher"),
+        env!("CARGO_BIN_EXE_gt-cli"),
+    ] {
+        let executable = fs::read(path).unwrap();
+        let header = u32::from_le_bytes(executable[0x3c..0x40].try_into().unwrap()) as usize;
+        assert_eq!(&executable[header..header + 4], b"PE\0\0");
+        let optional = header + 24;
+        assert_eq!(
+            u16::from_le_bytes(executable[optional..optional + 2].try_into().unwrap()),
+            0x20b
+        );
+        let reserve =
+            u64::from_le_bytes(executable[optional + 72..optional + 80].try_into().unwrap());
+        assert!(
+            reserve >= 8 * 1024 * 1024,
+            "{path}: stack reserve {reserve}"
+        );
+        let output = process::command(path).arg("--version").output().unwrap();
+        assert!(output.status.success(), "{path}: {output:?}");
+        assert!(String::from_utf8_lossy(&output.stdout).starts_with("horizon-launcher "));
+    }
 }
