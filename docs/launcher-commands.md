@@ -2,7 +2,7 @@
 
 <!-- Generated from launcher/src/cli.rs by cli_tools::markdown(); a test fails when this file is out of date. Update it with: HORIZON_WRITE_DOCS=1 cargo test --manifest-path launcher/Cargo.toml the_launcher_reference -->
 
-Every command of `horizon-launcher`, and the tool `horizon-launcher mcp` offers for it. A tool's arguments are the command's, in snake_case. A tool runs the command with `--json` and returns what it printed. The tools that change the player's things for good need `confirm: true`. The tools that send something or reach other people say "only when the player asks". The game's own tools, `game_*`, are in [horizon-ctl-commands.md](engine/horizon-ctl-commands.md). With No AI on, `mcp` and `agent-config` are hidden and refuse; every other command stays. See [agent-control.md](agent-control.md#no-ai).
+Every command of `horizon-launcher`, and the tool `horizon-launcher mcp` offers for it. A tool's arguments are the command's, in snake_case. A tool runs the command with `--json` and returns what it printed. The tools that change the player's things for good need `confirm: true`. The tools that send something or reach other people say "only when the player asks". The game's own tools, `game_*`, are in [horizon-ctl-commands.md](horizon-ctl-commands.md). With No AI on, `mcp` and `agent-config` are hidden and refuse; every other command stays. See [agent-control.md](agent-control.md#no-ai).
 
 ## `horizon-launcher completions`
 
@@ -469,6 +469,22 @@ Put an instance in a sidebar group, or take it out with no group.
 - `GROUP`
 
 MCP: `instance_group`.
+
+## `horizon-launcher instance sync`
+
+Share an instance's options.txt settings (keybinds, video, controls) with a sync group: --group NAME joins (a group that doesn't exist yet starts from this instance's settings; joining one that has settings brings them in, its own file backed up first), --off leaves keeping what it has, --status shows its group and waiting conflicts, --resolve KEY (or "all") settles a conflict to this instance's value, or the group's with --theirs. Settings move one by one, in both directions; a setting changed on both sides waits for --resolve instead of overwriting either.
+
+    horizon-launcher instance sync <INSTANCE>
+
+- `INSTANCE`
+- `--group`: Join this group
+- `--take` (mine, theirs): When the group and the instance differ: whose values win the join (without it, the join lists the differing settings and writes nothing)
+- `--off`: Leave its group; its settings stay as they are
+- `--status`: Show its group and any conflicts waiting for a pick
+- `--resolve`: Settle a conflicted setting to this instance's value ("all": every conflict)
+- `--theirs`: With --resolve: take the group's value instead
+
+MCP: `instance_sync`.
 
 ## `horizon-launcher instance select`
 

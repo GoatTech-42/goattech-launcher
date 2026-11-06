@@ -294,6 +294,35 @@ enum InstanceCmd {
         instance: String,
         group: Option<String>,
     },
+    /// Share an instance's options.txt settings (keybinds, video, controls) with a sync
+    /// group: --group NAME joins (a group that doesn't exist yet starts from this
+    /// instance's settings; joining one that has settings brings them in, its own file
+    /// backed up first), --off leaves keeping what it has, --status shows its group and
+    /// waiting conflicts, --resolve KEY (or "all") settles a conflict to this instance's
+    /// value, or the group's with --theirs. Settings move one by one, in both directions;
+    /// a setting changed on both sides waits for --resolve instead of overwriting either.
+    Sync {
+        instance: String,
+        /// Join this group
+        #[arg(long, conflicts_with_all = ["off", "status", "resolve"])]
+        group: Option<String>,
+        /// When the group and the instance differ: whose values win the join (without it,
+        /// the join lists the differing settings and writes nothing)
+        #[arg(long, requires = "group", value_enum)]
+        take: Option<SyncTake>,
+        /// Leave its group; its settings stay as they are
+        #[arg(long, conflicts_with_all = ["status", "resolve"])]
+        off: bool,
+        /// Show its group and any conflicts waiting for a pick
+        #[arg(long, conflicts_with = "resolve")]
+        status: bool,
+        /// Settle a conflicted setting to this instance's value ("all": every conflict)
+        #[arg(long)]
+        resolve: Option<String>,
+        /// With --resolve: take the group's value instead
+        #[arg(long, requires = "resolve")]
+        theirs: bool,
+    },
     /// Make Play start this instance
     Select { instance: String },
     /// Keep an instance on one installed Horizon version, or "latest" to follow updates again
@@ -1175,6 +1204,257 @@ fn attached(mut cmd: Command) -> Result<(), String> {
     }
 }
 
+/// Claims the instance's sync running-mark before its game starts, when it's in a sync
+/// group. A synced instance whose mark cannot be claimed does NOT launch: starting a
+/// second, untracked game into the same folder would let it be rewritten by a sync pass
+/// once the tracked run exits.
+fn sync_claim(
+    instance: &instances::Instance,
+) -> Result<Option<crate::config_sync::RunMark>, String> {
+    match instances::sync_membership_strict(&instance.id) {
+        Ok(Some(_)) => {}
+        Ok(None) => return Ok(None),
+        Err(e) => return Err(format!("sync: instance store unreadable: {e}")),
+    }
+    match crate::config_sync::claim_running(&instance.home)? {
+        Some(mark) => Ok(Some(mark)),
+        None => Err(
+            "another run of this instance's game is still live - not starting a second one. \
+             Quit it first; a sync pass must never write into a running game's settings."
+                .to_string(),
+        ),
+    }
+}
+
+/// Like `attached`, but owns the run's sync mark end to end: records the game process's
+/// pid right after spawn, and releases the mark only when the game's exit is CONFIRMED.
+/// A run that cannot be recorded is stopped (and if stopping cannot be confirmed either,
+/// the mark becomes a non-expiring hold rather than being released over a live game).
+/// Any "held" claim is made only after the hold is VERIFIED on disk (`ensure_hold`,
+/// which re-establishes a lost mark file without ever overwriting another run's
+/// claim); a guard that cannot be verified is reported as lost, never claimed. A game
+/// that is neither confirmed stopped nor durably guarded is RETAINED until its exit
+/// is observed or the guard is restored - never dropped live and unguarded.
+fn attached_run(cmd: Command, mark: Option<crate::config_sync::RunMark>) -> Result<(), String> {
+    attached_run_with(cmd, mark, stop_child)
+}
+
+/// The stop confirmation is a seam so tests can inject its failure without a real
+/// unkillable process.
+fn attached_run_with(
+    mut cmd: Command,
+    mark: Option<crate::config_sync::RunMark>,
+    mut stop: impl FnMut(&mut std::process::Child) -> Result<(), String>,
+) -> Result<(), String> {
+    let mut child = match cmd.spawn() {
+        Ok(child) => child,
+        Err(e) => {
+            if let Some(mark) = mark {
+                if let Err(re) = mark.release() {
+                    eprintln!("sync: {re}");
+                }
+            }
+            return Err(format!("Could not start {:?}: {e}", cmd.get_program()));
+        }
+    };
+    if let Some(mark_ref) = &mark {
+        if let Err(e) = mark_ref.set_child(child.id()) {
+            // Recording failed. Stop the game, then VERIFY the durable hold is really
+            // on disk (re-establishing it if the mark file was lost, never overwriting
+            // another run's claim): a hold is claimed only after this check, never
+            // assumed from the claim alone.
+            let stopped = stop(&mut child);
+            let mark = mark.expect("just matched");
+            let held = mark.ensure_hold();
+            return Err(match (stopped, held) {
+                (Ok(()), Ok(())) => {
+                    if let Err(re) = mark.release() {
+                        eprintln!("sync: {re}");
+                    }
+                    format!(
+                        "sync: {e} - the game was confirmed stopped before it could run \
+                         unprotected; launching again retries"
+                    )
+                }
+                (Ok(()), Err(he)) => {
+                    drop(mark);
+                    format!(
+                        "sync: {e} - the game was confirmed stopped, but the sync guard \
+                         is lost: {he}. Launching again retries; if sync misbehaves, \
+                         remove the mark file"
+                    )
+                }
+                (Err(se), Ok(())) => {
+                    // The hold is verified durable; the game is not confirmed stopped.
+                    drop(mark);
+                    format!(
+                        "sync: {e}; the game could not be confirmed stopped ({se}). Sync \
+                         for this instance is held until it has fully quit and the mark \
+                         file is removed"
+                    )
+                }
+                (Err(se), Err(he)) => {
+                    // The worst case: an unconfirmed game AND no durable guard. The
+                    // child is RETAINED until its exit is confirmed or the guard is
+                    // re-established - never dropped live and unguarded.
+                    match retain_until_safe(&mut child, &mark, Some(&mut stop)) {
+                        Settled::ConfirmedExit => {
+                            drop(mark);
+                            format!(
+                                "sync: {e} - the game could not be stopped at first \
+                                 ({se}) and the sync guard could not be written ({he}), \
+                                 but the game's exit is now CONFIRMED; check this \
+                                 instance's options before syncing"
+                            )
+                        }
+                        Settled::Guarded => {
+                            drop(mark);
+                            format!(
+                                "sync: {e}; the game could not be confirmed stopped \
+                                 ({se}). Sync for this instance is held until it has \
+                                 fully quit and the mark file is removed"
+                            )
+                        }
+                    }
+                }
+            });
+        }
+    }
+    match child.wait() {
+        Ok(status) => {
+            if let Some(mark) = mark {
+                if let Err(e) = mark.release() {
+                    eprintln!("sync: {e}");
+                }
+            }
+            if status.success() {
+                Ok(())
+            } else {
+                Err(format!("Exited with {status}"))
+            }
+        }
+        Err(e) => {
+            // The game's state is unknown: the recorded mark must be a durable hold
+            // again - fail_closed restores it in place, and if the mark file itself is
+            // lost, ensure_hold re-establishes the same hold (never overwriting another
+            // run's claim). A hold is claimed only when one of those VERIFIED it.
+            if let Some(mark) = mark {
+                match mark.fail_closed().or_else(|_| mark.ensure_hold()) {
+                    Ok(()) => {
+                        drop(mark);
+                        return Err(format!(
+                            "Could not wait for {:?}: {e} - the game's state is unknown; \
+                             sync for this instance is held until the game has fully quit \
+                             and the mark file is removed",
+                            cmd.get_program()
+                        ));
+                    }
+                    Err(fe) => {
+                        // The game may be legitimately PLAYING: never kill it - retain
+                        // it until its exit is observed or the guard is restored.
+                        return Err(match retain_until_safe(&mut child, &mark, None) {
+                            Settled::ConfirmedExit => format!(
+                                "Could not wait for {:?}: {e} - the game's exit is now \
+                                 CONFIRMED, so sync is safe to use; the guard had been \
+                                 lost ({fe}), check this instance's options",
+                                cmd.get_program()
+                            ),
+                            Settled::Guarded => format!(
+                                "Could not wait for {:?}: {e} - the game's state is \
+                                 unknown; sync for this instance is held until the game \
+                                 has fully quit and the mark file is removed",
+                                cmd.get_program()
+                            ),
+                        });
+                    }
+                }
+            }
+            Err(format!("Could not wait for {:?}: {e}", cmd.get_program()))
+        }
+    }
+}
+
+/// Stops a just-spawned game and CONFIRMS it: Ok means the process was signalled and
+/// reaped, never assumed. Either failure is an error; the caller keeps the guard held.
+fn stop_child(child: &mut std::process::Child) -> Result<(), String> {
+    stop_child_with(child, |c| c.kill(), |c| c.wait().map(|_| ()))
+}
+
+/// The stop ladder with the signal and the confirmation as seams, so tests can inject
+/// either failure without a real unkillable process.
+fn stop_child_with(
+    child: &mut std::process::Child,
+    kill: impl FnOnce(&mut std::process::Child) -> std::io::Result<()>,
+    wait: impl FnOnce(&mut std::process::Child) -> std::io::Result<()>,
+) -> Result<(), String> {
+    kill(child).map_err(|e| format!("could not stop the game process: {e}"))?;
+    wait(child).map_err(|e| format!("could not confirm the game process exited: {e}"))?;
+    Ok(())
+}
+
+/// The stop seam's shape: signal the game and confirm its exit, or report the failure.
+type StopFn<'a> = dyn FnMut(&mut std::process::Child) -> Result<(), String> + 'a;
+
+/// How a retained run resolved: its exit was CONFIRMED (observed, after an optional
+/// confirmed stop), or the durable guard is verified on disk (it may still be running).
+enum Settled {
+    ConfirmedExit,
+    Guarded,
+}
+
+/// The last-resort ladder for a game that is neither confirmed stopped nor durably
+/// guarded: NEVER returns while the game is live and unguarded. The durable hold and
+/// the stop (or, with `stop` None - a game that may be legitimately playing, which is
+/// never killed - plain observation) are retried for a few seconds; if neither lands,
+/// this waits for the game's ACTUAL exit while still retrying the hold (and the
+/// stop, when there is one), and says exactly what is happening. Ctrl-C is the
+/// player's explicit abandonment, not ours.
+fn retain_until_safe(
+    child: &mut std::process::Child,
+    mark: &crate::config_sync::RunMark,
+    mut stop: Option<&mut StopFn<'_>>,
+) -> Settled {
+    for _ in 0..25 {
+        if mark.ensure_hold().is_ok() {
+            return Settled::Guarded;
+        }
+        let confirmed = match &mut stop {
+            Some(stop) => stop(child).is_ok(),
+            None => matches!(child.try_wait(), Ok(Some(_))),
+        };
+        if confirmed {
+            return Settled::ConfirmedExit;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+    eprintln!(
+        "sync: the game could not be stopped and could not be guarded. Waiting for it \
+         to exit - quit the game to continue (Ctrl-C abandons it unguarded)."
+    );
+    let mut noted = false;
+    loop {
+        if mark.ensure_hold().is_ok() {
+            return Settled::Guarded;
+        }
+        if let Some(stop) = &mut stop {
+            if stop(child).is_ok() {
+                return Settled::ConfirmedExit;
+            }
+        }
+        match child.try_wait() {
+            Ok(Some(_)) => return Settled::ConfirmedExit,
+            Ok(None) => {}
+            Err(e) => {
+                if !noted {
+                    noted = true;
+                    eprintln!("sync: the game's exit is still unobservable: {e}");
+                }
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_secs(2));
+    }
+}
+
 fn release_json(r: &Release) -> serde_json::Value {
     serde_json::json!({
         "tag": r.tag, "name": r.name, "date": r.date, "prerelease": r.prerelease,
@@ -1450,9 +1730,13 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 let vars = instance.vars(cmd.get_program());
                 cmd.envs(vars.iter().map(|(k, v)| (k, v)));
                 let started = std::time::Instant::now();
-                let played = attached(crate::launch::wrap(cmd, &instance.launch));
+                let mark = sync_claim(&instance)?;
+                let played = attached_run(crate::launch::wrap(cmd, &instance.launch), mark);
                 if let Err(e) = instances::record_play(&instance.id, started.elapsed()) {
                     eprintln!("Play time not saved: {e}");
+                }
+                if played.is_ok() {
+                    instances::sync_once(&instance, crate::config_sync::Pass::CleanExit);
                 }
                 after_exit(&instance, &vars);
                 return played;
@@ -1501,9 +1785,13 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             let vars = instance.vars(cmd.get_program());
             cmd.envs(vars.iter().map(|(k, v)| (k, v)));
             crate::launch::limit_memory(&mut cmd, &instance.launch);
-            let played = attached(crate::launch::wrap(cmd, &instance.launch));
+            let mark = sync_claim(&instance)?;
+            let played = attached_run(crate::launch::wrap(cmd, &instance.launch), mark);
             if let Err(e) = instances::record_play(&instance.id, started.elapsed()) {
                 eprintln!("Play time not saved: {e}");
+            }
+            if played.is_ok() {
+                instances::sync_once(&instance, crate::config_sync::Pass::CleanExit);
             }
             after_exit(&instance, &vars);
             played?
@@ -2815,6 +3103,165 @@ fn parse_window(text: &str) -> Result<Option<(u32, u32)>, String> {
     }
 }
 
+/// `--take` for `instance sync --group`: whose settings win when the two sides differ.
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+enum SyncTake {
+    /// The instance's own values become the group's (the group's file is backed up first)
+    Mine,
+    /// The group's values land in the instance (its file is backed up first)
+    Theirs,
+}
+
+/// The `instance sync` flags, grouped so the handler stays readable.
+struct SyncOpts {
+    group: Option<String>,
+    take: Option<SyncTake>,
+    off: bool,
+    status: bool,
+    resolve: Option<String>,
+    theirs: bool,
+}
+
+/// `instance sync`: join, leave, settle conflicts, or run one pass and say what moved. The
+/// engine and its guarantees are `config_sync`; membership lives in the instance's `Meta`.
+fn instance_sync(query: &str, opts: SyncOpts, as_json: bool) -> Result<(), String> {
+    let instance = instances::find(query)?;
+    let SyncOpts {
+        group,
+        take,
+        off,
+        status,
+        resolve,
+        theirs,
+    } = opts;
+    let data = backend::data_dir();
+    if let Some(group) = group {
+        let side = take.map(|t| match t {
+            SyncTake::Mine => crate::config_sync::Side::Mine,
+            SyncTake::Theirs => crate::config_sync::Side::Theirs,
+        });
+        let (membership, report) = crate::config_sync::join(&data, &instance.home, &group, side)?;
+        instances::edit_guarded(&instance.id, |m| m.sync = Some(membership))?;
+        if as_json {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "instance": instance.id,
+                    "group": group,
+                    "seeded": report.seeded,
+                    "pulled": report.pulled,
+                    "pushed": report.pushed,
+                    "notes": report.notes,
+                })
+            );
+        } else {
+            for line in report.lines() {
+                println!("{line}");
+            }
+            println!("{} now syncs its settings with {group:?}.", instance.name);
+        }
+        return Ok(());
+    }
+    if off {
+        instances::edit_guarded(&instance.id, |m| m.sync = None)?;
+        if as_json {
+            println!(
+                "{}",
+                serde_json::json!({"instance": instance.id, "sync": false})
+            );
+        } else {
+            println!(
+                "{} keeps its settings to itself again; nothing was changed.",
+                instance.name
+            );
+        }
+        return Ok(());
+    }
+    let started_from = instances::sync_membership_strict(&instance.id)?.ok_or_else(|| {
+        format!(
+            "{} is in no sync group (--group NAME joins one).",
+            instance.name
+        )
+    })?;
+    let mut membership = started_from.clone();
+    if let Some(key) = resolve {
+        let side = if theirs { "the group's" } else { "its own" };
+        let done = crate::config_sync::resolve(
+            &data,
+            &instance.home,
+            &instance.id,
+            &mut membership,
+            &key,
+            !theirs,
+        )?;
+        instances::sync_persist(&instance.id, &started_from, membership)?;
+        if as_json {
+            println!(
+                "{}",
+                serde_json::json!({"instance": instance.id, "resolved": done})
+            );
+        } else {
+            println!("settled to {side} value: {}", done.join(", "));
+        }
+        return Ok(());
+    }
+    if status {
+        let held = crate::config_sync::conflicts(&data, &membership.group, &instance.id)?;
+        if as_json {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "instance": instance.id,
+                    "group": membership.group,
+                    "conflicts": held.keys().collect::<Vec<_>>(),
+                })
+            );
+        } else {
+            println!("{} syncs with {:?}.", instance.name, membership.group);
+            if held.is_empty() {
+                println!("no conflicts waiting");
+            }
+            for (key, note) in &held {
+                println!(
+                    "conflict on {key}: yours {:?}, the group's {:?} (--resolve {key} or --resolve {key} --theirs)",
+                    note.local.show(),
+                    note.shared.show()
+                );
+            }
+        }
+        return Ok(());
+    }
+    let report = crate::config_sync::sync(
+        &data,
+        &instance.home,
+        &instance.id,
+        &mut membership,
+        crate::config_sync::Pass::Manual,
+    )?;
+    instances::sync_persist(&instance.id, &started_from, membership)?;
+    if as_json {
+        println!(
+            "{}",
+            serde_json::json!({
+                "instance": instance.id,
+                "pulled": report.pulled,
+                "pushed": report.pushed,
+                "conflicts": report.conflicts.iter().map(|c| &c.key).collect::<Vec<_>>(),
+                "notes": report.notes,
+            })
+        );
+    } else {
+        let lines = report.lines();
+        if lines.is_empty() {
+            println!("already in step");
+        }
+        for line in lines {
+            println!("{line}");
+        }
+    }
+    Ok(())
+}
+
 fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
     use instances::Icon;
     let value = |i: &instances::Instance, selected: bool| {
@@ -2989,6 +3436,26 @@ fn instance(action: InstanceCmd, as_json: bool) -> Result<(), String> {
         InstanceCmd::Group { instance, group } => {
             changed(instances::edit(&instance, |m| m.group = group)?)
         }
+        InstanceCmd::Sync {
+            instance,
+            group,
+            take,
+            off,
+            status,
+            resolve,
+            theirs,
+        } => instance_sync(
+            &instance,
+            SyncOpts {
+                group,
+                take,
+                off,
+                status,
+                resolve,
+                theirs,
+            },
+            as_json,
+        )?,
         InstanceCmd::Select { instance } => changed(instances::select(&instance)?),
         InstanceCmd::Version { instance, version } => {
             let pin = match version.as_str() {
@@ -3651,6 +4118,218 @@ fn modpack(action: ModpackCmd, as_json: bool) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+
+    /// The play route is fail-closed: a game whose pid cannot be recorded into the sync
+    /// mark is stopped - with its exit CONFIRMED - before it runs unprotected. The child
+    /// is long-lived: without a working stop this test would block for its full sleep.
+    #[cfg(unix)]
+    #[test]
+    fn attached_run_stops_and_confirms_the_game_when_recording_fails() {
+        use std::os::unix::fs::PermissionsExt;
+        let home = std::env::temp_dir().join(format!(
+            "horizon-launcher-cli-attachedrun-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&home);
+        std::fs::create_dir_all(&home).unwrap();
+        let mark = crate::config_sync::claim_running(&home)
+            .unwrap()
+            .expect("no mark held yet");
+        let mut perms = std::fs::metadata(&home).unwrap().permissions();
+        perms.set_mode(0o555);
+        std::fs::set_permissions(&home, perms).unwrap();
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c").arg("sleep 30");
+        let err = attached_run(cmd, Some(mark)).unwrap_err();
+        assert!(err.contains("confirmed stopped"), "{err}");
+        let mut perms = std::fs::metadata(&home).unwrap().permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&home, perms).unwrap();
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    /// Confirmed cleanup on a controlled long-lived child: Ok means actually reaped.
+    #[cfg(unix)]
+    #[test]
+    fn stop_child_confirms_a_long_lived_child_is_gone() {
+        let mut child = Command::new("sh")
+            .arg("-c")
+            .arg("sleep 30")
+            .spawn()
+            .unwrap();
+        stop_child(&mut child).unwrap();
+        assert!(
+            child.try_wait().unwrap().is_some(),
+            "the child is reaped, not assumed dead"
+        );
+    }
+
+    /// Injected failures exercise the no-release path the caller takes: a failed signal
+    /// or a failed confirmation is an error, never a claimed stop.
+    #[cfg(unix)]
+    #[test]
+    fn stop_child_errors_on_injected_kill_or_wait_failure() {
+        let mut child = Command::new("sh").arg("-c").arg("exit 0").spawn().unwrap();
+        let err = stop_child_with(
+            &mut child,
+            |_| Err(std::io::Error::other("injected kill failure")),
+            |c| c.wait().map(|_| ()),
+        )
+        .unwrap_err();
+        assert!(err.contains("could not stop"), "{err}");
+        let err = stop_child_with(
+            &mut child,
+            |_| Ok(()),
+            |_| Err(std::io::Error::other("injected wait failure")),
+        )
+        .unwrap_err();
+        assert!(err.contains("could not confirm"), "{err}");
+        let _ = child.wait();
+    }
+    /// The v8 gap, closed: a mark file lost between claim and recording must not be
+    /// ASSUMED durable. The run stops the game (confirmed), re-establishes the same
+    /// hold on disk, and only then releases it - no "held" claim for a guard that was
+    /// gone.
+    #[cfg(unix)]
+    #[test]
+    fn attached_run_re_establishes_a_lost_hold_before_releasing() {
+        let home = std::env::temp_dir().join(format!(
+            "horizon-launcher-cli-losthold-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&home);
+        std::fs::create_dir_all(&home).unwrap();
+        let mark = crate::config_sync::claim_running(&home)
+            .unwrap()
+            .expect("no mark held yet");
+        // The mark file is lost between claim and recording.
+        std::fs::remove_dir_all(&home).unwrap();
+        std::fs::create_dir_all(&home).unwrap();
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c").arg("sleep 30");
+        let err = attached_run(cmd, Some(mark)).unwrap_err();
+        assert!(err.contains("confirmed stopped"), "{err}");
+        assert!(
+            std::fs::read_dir(&home).unwrap().next().is_none(),
+            "a confirmed-stopped game releases the re-established hold"
+        );
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    /// A stop that cannot be confirmed keeps the VERIFIED hold on disk: the hold was
+    /// re-established after the mark file was lost, sync stays refused, and the error
+    /// claims held only because the hold really exists.
+    #[cfg(unix)]
+    #[test]
+    fn attached_run_with_unconfirmed_stop_re_establishes_and_holds() {
+        let home = std::env::temp_dir().join(format!(
+            "horizon-launcher-cli-holdkept-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&home);
+        std::fs::create_dir_all(&home).unwrap();
+        let mark = crate::config_sync::claim_running(&home)
+            .unwrap()
+            .expect("no mark held yet");
+        std::fs::remove_dir_all(&home).unwrap();
+        std::fs::create_dir_all(&home).unwrap();
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c").arg("sleep 2");
+        let err = attached_run_with(
+            cmd,
+            Some(mark),
+            |_| Err("injected stop failure".to_string()),
+        )
+        .unwrap_err();
+        assert!(err.contains("could not be confirmed stopped"), "{err}");
+        assert!(err.contains("is held"), "{err}");
+        let entries: Vec<_> = std::fs::read_dir(&home).unwrap().flatten().collect();
+        assert_eq!(entries.len(), 1, "the hold was re-established on disk");
+        let text = std::fs::read_to_string(entries[0].path()).unwrap();
+        assert_eq!(text.split_whitespace().nth(1), Some("unsafe"), "{text}");
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    /// A stop that fails transiently is RETRIED by the retention ladder: the real
+    /// retry stops the game for good, and the verdict is a CONFIRMED exit - never a
+    /// dropped live child.
+    #[cfg(unix)]
+    #[test]
+    fn attached_run_retries_the_stop_until_the_game_is_confirmed_gone() {
+        use std::os::unix::fs::PermissionsExt;
+        let home =
+            std::env::temp_dir().join(format!("horizon-launcher-cli-retry-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&home);
+        std::fs::create_dir_all(&home).unwrap();
+        let mark = crate::config_sync::claim_running(&home)
+            .unwrap()
+            .expect("no mark held yet");
+        std::fs::remove_dir_all(&home).unwrap();
+        std::fs::create_dir_all(&home).unwrap();
+        // The guard cannot be re-established either (unwritable folder).
+        let mut perms = std::fs::metadata(&home).unwrap().permissions();
+        perms.set_mode(0o555);
+        std::fs::set_permissions(&home, perms).unwrap();
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c").arg("sleep 30");
+        let attempts = std::cell::Cell::new(0);
+        let err = attached_run_with(cmd, Some(mark), |c| {
+            attempts.set(attempts.get() + 1);
+            if attempts.get() == 1 {
+                Err("injected stop failure".to_string())
+            } else {
+                c.kill()
+                    .and_then(|()| c.wait().map(|_| ()))
+                    .map_err(|e| e.to_string())
+            }
+        })
+        .unwrap_err();
+        assert!(err.contains("CONFIRMED"), "{err}");
+        assert!(!err.contains("is held"), "{err}");
+        assert!(attempts.get() >= 2, "the stop was retried, not abandoned");
+        let mut perms = std::fs::metadata(&home).unwrap().permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&home, perms).unwrap();
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    /// A game that can neither be stopped nor guarded is RETAINED until its ACTUAL
+    /// exit: the ladder waits for the real child (a short sleep, exiting on its own),
+    /// then reports the exit CONFIRMED. It never returns over a live unguarded game.
+    #[cfg(unix)]
+    #[test]
+    fn attached_run_retains_an_unguarded_game_until_its_exit_is_confirmed() {
+        use std::os::unix::fs::PermissionsExt;
+        let home = std::env::temp_dir().join(format!(
+            "horizon-launcher-cli-retain-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&home);
+        std::fs::create_dir_all(&home).unwrap();
+        let mark = crate::config_sync::claim_running(&home)
+            .unwrap()
+            .expect("no mark held yet");
+        std::fs::remove_dir_all(&home).unwrap();
+        std::fs::create_dir_all(&home).unwrap();
+        let mut perms = std::fs::metadata(&home).unwrap().permissions();
+        perms.set_mode(0o555);
+        std::fs::set_permissions(&home, perms).unwrap();
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c").arg("sleep 2");
+        let err = attached_run_with(
+            cmd,
+            Some(mark),
+            |_| Err("injected stop failure".to_string()),
+        )
+        .unwrap_err();
+        assert!(err.contains("CONFIRMED"), "{err}");
+        assert!(!err.contains("is held"), "{err}");
+        let mut perms = std::fs::metadata(&home).unwrap().permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&home, perms).unwrap();
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
     use super::*;
     use clap::Parser;
 

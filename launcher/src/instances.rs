@@ -193,6 +193,10 @@ pub struct Meta {
     /// Set for a Minecraft: Java Edition instance: it plays the real game, not Horizon.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub java: Option<JavaGame>,
+    /// The sync group sharing this instance's options.txt settings, if the player joined one
+    /// (`instance sync`). None: its settings stay its own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sync: Option<crate::config_sync::Sync>,
 }
 
 /// A Minecraft: Java Edition instance: the real game of one version, with the Java it runs on
@@ -251,6 +255,51 @@ struct Store {
     instances: BTreeMap<String, Meta>,
 }
 
+/// Serializes writers of instances.json around each read-modify-write. An OS advisory
+/// lock on unix (a dead holder's lock is released by the kernel); the token lock from
+/// `config_sync` elsewhere. Every mutating path takes it, so two launchers can never
+/// interleave a load-change-save and lose one side's edit.
+struct StoreLock {
+    #[cfg(unix)]
+    _file: fs::File,
+    #[cfg(not(unix))]
+    _token: crate::config_sync::TokenLock,
+}
+
+#[cfg(unix)]
+impl StoreLock {
+    fn take(data: &Path) -> Result<StoreLock, String> {
+        use std::os::unix::io::AsRawFd;
+        fs::create_dir_all(data).map_err(|e| format!("{}: {e}", data.display()))?;
+        let path = data.join("instances.json.lock");
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&path)
+            .map_err(|e| format!("{}: {e}", path.display()))?;
+        for _ in 0..20 {
+            // SAFETY: flock on a valid open fd; no memory is touched.
+            if (unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) }) == 0 {
+                return Ok(StoreLock { _file: file });
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        Err("another launcher is writing instances.json; nothing was written - try again in a moment".to_string())
+    }
+}
+
+#[cfg(not(unix))]
+impl StoreLock {
+    fn take(data: &Path) -> Result<StoreLock, String> {
+        fs::create_dir_all(data).map_err(|e| format!("{}: {e}", data.display()))?;
+        Ok(StoreLock {
+            _token: crate::config_sync::TokenLock::take(data.join("instances.json.lock"))?,
+        })
+    }
+}
+
 impl Store {
     fn load(data: &Path) -> Store {
         fs::read_to_string(data.join(FILE))
@@ -258,10 +307,42 @@ impl Store {
             .and_then(|t| serde_json::from_str(&t).ok())
             .unwrap_or_default()
     }
+
+    /// The load every WRITE path uses: a corrupt store is an error, never a silent reset
+    /// to empty that the next save would make permanent.
+    fn load_strict(data: &Path) -> Result<Store, String> {
+        let path = data.join(FILE);
+        match fs::read_to_string(&path) {
+            Ok(text) => serde_json::from_str(&text)
+                .map_err(|e| format!("{}: unreadable: {e} - nothing was written", path.display())),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Store::default()),
+            Err(e) => Err(format!("{}: {e}", path.display())),
+        }
+    }
+
+    /// Written out and flushed to a fresh temporary file, then renamed over the store: a
+    /// crash mid-save never leaves a truncated instances.json.
     fn save(&self, data: &Path) -> Result<(), String> {
+        use std::io::Write;
         fs::create_dir_all(data).map_err(|e| format!("{}: {e}", data.display()))?;
         let text = serde_json::to_string_pretty(self).unwrap();
-        fs::write(data.join(FILE), text).map_err(|e| format!("{FILE}: {e}"))
+        let path = data.join(FILE);
+        let tmp = path.with_file_name(format!("{FILE}.tmp-{}", std::process::id()));
+        let written = (|| {
+            let mut f = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&tmp)
+                .map_err(|e| format!("{}: {e}", tmp.display()))?;
+            f.write_all(text.as_bytes())
+                .and_then(|()| f.sync_all())
+                .map_err(|e| format!("{}: {e}", tmp.display()))
+        })();
+        if let Err(e) = written {
+            let _ = fs::remove_file(&tmp);
+            return Err(e);
+        }
+        fs::rename(&tmp, &path).map_err(|e| format!("{}: {e}", path.display()))
     }
 }
 
@@ -327,7 +408,7 @@ pub fn list() -> Vec<Instance> {
 }
 
 fn list_in(game_home: &Path, data: &Path) -> Vec<Instance> {
-    let mut store = Store::load(data);
+    let store = Store::load(data);
     let mut found = vec![(
         DEFAULT.to_string(),
         "Horizon".to_string(),
@@ -346,13 +427,31 @@ fn list_in(game_home: &Path, data: &Path) -> Vec<Instance> {
     // An own instance whose folder is gone (deleted outside the launcher) is forgotten, so a new
     // one of that name starts clean. Only when the folder of instances itself can be read.
     if game_home.join(OWN).is_dir() {
-        let before = store.instances.len();
-        store
+        let stale = store
             .instances
-            .retain(|id, _| id == DEFAULT || id.contains(':') || own.contains(id));
-        if store.instances.len() != before {
-            if let Err(e) = store.save(data) {
-                eprintln!("Horizon: instances.json is not saved: {e}");
+            .keys()
+            .filter(|id| *id != DEFAULT && !id.contains(':') && !own.contains(*id))
+            .count();
+        if stale > 0 {
+            // A prune is a write like any other: same lock, same strict load, same atomic
+            // save - a listing must never overwrite a concurrent sync/metadata write from
+            // a stale snapshot.
+            match StoreLock::take(data).and_then(|lock| {
+                let mut store = Store::load_strict(data)?;
+                let before = store.instances.len();
+                store
+                    .instances
+                    .retain(|id, _| id == DEFAULT || id.contains(':') || own.contains(id));
+                let result = if store.instances.len() != before {
+                    store.save(data)
+                } else {
+                    Ok(())
+                };
+                drop(lock);
+                result
+            }) {
+                Ok(()) => {}
+                Err(e) => eprintln!("Horizon: instances.json is not saved: {e}"),
             }
         }
     }
@@ -450,7 +549,8 @@ fn delete_in(
     }
     trash(&instance.work)
         .map_err(|e| format!("{} could not go to the Trash: {e}", instance.name))?;
-    let mut store = Store::load(data);
+    let _lock = StoreLock::take(data)?;
+    let mut store = Store::load_strict(data)?;
     if store.instances.remove(&instance.id).is_some() {
         store.save(data)?;
     }
@@ -606,7 +706,8 @@ fn create_in(
         let _ = fs::remove_dir_all(&dir);
         return Err(format!("Could not make {}: {e}", dir.display()));
     }
-    let mut store = Store::load(data);
+    let _lock = StoreLock::take(data)?;
+    let mut store = Store::load_strict(data)?;
     let meta = store.instances.entry(slug.clone()).or_default();
     meta.name = (name != slug).then(|| name.to_string());
     meta.icon = from.and_then(|f| f.icon.clone());
@@ -680,7 +781,8 @@ fn edit_in(
 ) -> Result<Instance, String> {
     let all = list_in(game_home, data);
     let instance = find_in(&all, query)?;
-    let mut store = Store::load(data);
+    let _lock = StoreLock::take(data)?;
+    let mut store = Store::load_strict(data)?;
     let meta = store.instances.entry(instance.id.clone()).or_default();
     change(meta);
     meta.name = meta.name.take().map(|n| n.trim().to_string());
@@ -720,7 +822,8 @@ fn record_play_in(
     played: Duration,
     ended: SystemTime,
 ) -> Result<(), String> {
-    let mut store = Store::load(data);
+    let _lock = StoreLock::take(data)?;
+    let mut store = Store::load_strict(data)?;
     let meta = store.instances.entry(id.to_string()).or_default();
     meta.played_secs = meta.played_secs.saturating_add(played.as_secs());
     meta.last_played = ended.duration_since(UNIX_EPOCH).ok().map(|d| d.as_secs());
@@ -754,7 +857,98 @@ pub fn apply(cmd: &mut Command, instance: &Instance) -> Result<(), String> {
         Kind::Port | Kind::Pack => modpacks::apply_profile(cmd, &instance.work)?,
     }
     follow_player(&backend::game_home(), &instance.home);
+    if instance.kind == Kind::Own {
+        sync_once(instance, crate::config_sync::Pass::PreLaunch);
+    }
     Ok(())
+}
+
+/// One options.txt sync pass for an instance in a sync group (`config_sync`): `PreLaunch`
+/// before a game starts (pull only - the file on disk may be a crashed game's torn write),
+/// `CleanExit` after one ends cleanly (both directions). Syncing never blocks or fails the
+/// game: a problem prints and the group keeps its state for the next pass or
+/// `instance sync --status`.
+pub fn sync_once(instance: &Instance, pass: crate::config_sync::Pass) {
+    let data = backend::data_dir();
+    let started_from = match sync_membership_strict(&instance.id) {
+        Ok(Some(membership)) => membership,
+        Ok(None) => return,
+        Err(e) => {
+            eprintln!("sync: settings not synced: {e}");
+            return;
+        }
+    };
+    if !crate::config_sync::pending(&data, &instance.home, &started_from) {
+        return;
+    }
+    let mut membership = started_from.clone();
+    match crate::config_sync::sync(&data, &instance.home, &instance.id, &mut membership, pass) {
+        Ok(report) => {
+            for line in report.lines() {
+                eprintln!("sync: {line}");
+            }
+            if let Err(e) = sync_persist(&instance.id, &started_from, membership) {
+                eprintln!("sync: new baselines not saved: {e}");
+            }
+        }
+        Err(e) => eprintln!("sync: settings not synced: {e}"),
+    }
+}
+
+/// A guarded `Meta` mutation for sync state (`config_sync`): the same locked, strict,
+/// atomic write path every mutator uses, here for the sync membership a pass or a join
+/// records. Sync's baselines are the record every pass compares against; losing or
+/// half-writing them misattributes changes.
+pub fn edit_guarded(id: &str, change: impl FnOnce(&mut Meta)) -> Result<(), String> {
+    let data = backend::data_dir();
+    let _lock = StoreLock::take(&data)?;
+    let mut store = Store::load_strict(&data)?;
+    change(store.instances.entry(id.to_string()).or_default());
+    store.save(&data)
+}
+
+/// Persists the membership a pass produced, but only over the membership the pass started
+/// from: if another writer changed it mid-pass (a fresh join, an --off), this errors and
+/// the pass's baselines are dropped instead of silently reverting the newer state.
+pub fn sync_persist(
+    id: &str,
+    expected: &crate::config_sync::Sync,
+    updated: crate::config_sync::Sync,
+) -> Result<(), String> {
+    let data = backend::data_dir();
+    let _lock = StoreLock::take(&data)?;
+    let mut store = Store::load_strict(&data)?;
+    let current = store.instances.entry(id.to_string()).or_default();
+    if current.sync.as_ref() != Some(expected) {
+        return Err(
+            "the sync membership changed while the pass ran; its result was NOT saved - the \
+             next pass works from the newer membership"
+                .to_string(),
+        );
+    }
+    current.sync = Some(updated);
+    store.save(&data)
+}
+
+/// The instance's sync-group membership, if it's in one (`instance sync`).
+pub fn sync_membership(id: &str) -> Option<crate::config_sync::Sync> {
+    meta(id).ok().flatten().and_then(|m| m.sync)
+}
+
+/// The membership read every sync DECISION uses: a corrupt instances.json is an error the
+/// caller surfaces, never a silent "not in a group" that would skip or unprotect a sync.
+pub fn sync_membership_strict(id: &str) -> Result<Option<crate::config_sync::Sync>, String> {
+    let data = backend::data_dir();
+    Ok(Store::load_strict(&data)?
+        .instances
+        .get(id)
+        .and_then(|m| m.sync.clone()))
+}
+
+/// An instance's stored `Meta`, if it has one.
+fn meta(id: &str) -> Result<Option<Meta>, String> {
+    let data = backend::data_dir();
+    Ok(Store::load(&data).instances.get(id).cloned())
 }
 
 fn follow_player(game_home: &Path, home: &Path) {

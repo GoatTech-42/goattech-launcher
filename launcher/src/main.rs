@@ -322,6 +322,19 @@ struct Launcher {
     quick_play: Option<(&'static str, String)>,
     /// The instance the running game plays and when it started: its play time grows on exit.
     client_run: Option<(String, Instant)>,
+    /// The running-game mark held while this client's game process is up; released when
+    /// the job reports its exit, so a crashed launcher never leaves a stale mark.
+    client_sync_mark: Option<horizon_launcher::config_sync::RunMark>,
+    /// Sequence of the client spawn being tracked: a late exit report from a run that was
+    /// already cleaned up must never release a NEWER run's mark.
+    client_seq: Option<u64>,
+    next_client_seq: u64,
+    /// Set while a tracked client's sync guard is LOST (could not be verified on disk):
+    /// `sync_guard_tick` keeps retrying the durable hold until the game is protected
+    /// again or its observed exit lands - the run never stays unguarded for want of a
+    /// retry.
+    client_sync_guard_lost: bool,
+    client_sync_guard_retry: Option<Instant>,
     /// The running game's basic-summaries session, when the switch is on (`basic_stats`).
     basic_session: Option<horizon_launcher::basic_stats::Session>,
     /// The basic-summaries choice status last drawn: the save worker completes off the
@@ -475,6 +488,40 @@ impl StageDrag {
 }
 
 impl Launcher {
+    /// Repairs a tracked run's lost sync guard: while the game is tracked and the
+    /// guard is lost, retry the durable hold (restore, else re-establish, never
+    /// overwriting another run's claim) every couple of seconds until storage permits
+    /// again. The run never stays unguarded for want of a retry; its observed exit
+    /// still ends the tracking either way.
+    fn sync_guard_tick(&mut self) -> bool {
+        if !self.client_sync_guard_lost {
+            return false;
+        }
+        if self.client_seq.is_none() {
+            self.client_sync_guard_lost = false;
+            self.client_sync_guard_retry = None;
+            return true;
+        }
+        let now = Instant::now();
+        if !guard_retry_due(self.client_sync_guard_retry, now) {
+            return false;
+        }
+        self.client_sync_guard_retry = Some(now);
+        if let Some(mark) = &self.client_sync_mark {
+            if mark.fail_closed().or_else(|_| mark.ensure_hold()).is_ok() {
+                self.client_sync_guard_lost = false;
+                self.client_sync_guard_retry = None;
+                self.client_error = Some(
+                    "sync: the guard is restored; sync for this instance is held until \
+                     the game has fully quit and the mark file is removed"
+                        .to_string(),
+                );
+                return true;
+            }
+        }
+        false
+    }
+
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let (tx, rx) = channel();
         let appearance = cx.observe_window_appearance(window, |this, window, cx| {
@@ -626,6 +673,11 @@ impl Launcher {
             joining: None,
             quick_play: None,
             client_run: None,
+            client_sync_mark: None,
+            client_seq: None,
+            next_client_seq: 0,
+            client_sync_guard_lost: false,
+            client_sync_guard_retry: None,
             basic_session: None,
             basic_choice_status: 0,
             client_vars: Vec::new(),
@@ -995,20 +1047,117 @@ impl Launcher {
                 Msg::OfficialPlayers(players) => self.official_players = players,
                 Msg::JavaGame(id, home, cmd) => {
                     self.starting_client = None;
+                    // Claimed before the game starts: a sync pass must never write into a
+                    // running instance's settings, and a run that cannot claim the mark
+                    // does not start.
+                    let sync_mark = match claim_sync_mark(&id, &home) {
+                        Ok(mark) => mark,
+                        Err(e) => {
+                            self.client_error = Some(e);
+                            return;
+                        }
+                    };
+                    self.next_client_seq += 1;
+                    let seq = self.next_client_seq;
                     let spawned = cmd.and_then(|(cmd, vars)| {
                         self.client_vars = vars;
-                        backend::spawn(Job::Client, cmd, self.tx.clone())
+                        backend::spawn(Job::Client, cmd, self.tx.clone(), seq)
                     });
                     match spawned {
                         Ok(r) => {
+                            let record_err = match &sync_mark {
+                                Some(mark) => set_mark_child(mark, &r).err(),
+                                None => None,
+                            };
+                            if let Some(e) = record_err {
+                                // Recording failed. The durable hold is claimed only
+                                // after VERIFYING it on disk (ensure_hold re-establishes
+                                // a lost mark file, never overwriting another run's
+                                // claim); a guard that cannot be verified is reported as
+                                // lost, never claimed.
+                                match stop_confirmed(&r) {
+                                    Ok(()) => {
+                                        if let Some(mark) = sync_mark {
+                                            match mark.ensure_hold() {
+                                                Ok(()) => {
+                                                    if let Err(re) = mark.release() {
+                                                        eprintln!("sync: {re}");
+                                                        self.client_error = Some(format!(
+                                                            "sync: {e} - the game was \
+                                                             confirmed stopped, but the \
+                                                             sync mark could not be \
+                                                             cleared: {re}. Remove the \
+                                                             mark file before syncing"
+                                                        ));
+                                                    } else {
+                                                        self.client_error = Some(format!(
+                                                            "sync: {e} - the game was \
+                                                             confirmed stopped before it \
+                                                             could run unprotected; \
+                                                             launching again retries"
+                                                        ));
+                                                    }
+                                                }
+                                                Err(he) => {
+                                                    self.client_error = Some(format!(
+                                                        "sync: {e} - the game was \
+                                                         confirmed stopped, but the sync \
+                                                         guard is lost: {he}. Launching \
+                                                         again retries; if sync \
+                                                         misbehaves, remove the mark file"
+                                                    ));
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Err(se) => {
+                                        // The game may still be running: keep tracking THIS
+                                        // run; its observed exit later releases only its
+                                        // own mark. The hold is claimed only if verified
+                                        // on disk right now.
+                                        let held = match &sync_mark {
+                                            Some(mark) => mark.ensure_hold(),
+                                            None => Ok(()),
+                                        };
+                                        let lost = held.is_err();
+                                        self.client = Some(r);
+                                        self.client_seq = Some(seq);
+                                        self.client_sync_mark = sync_mark;
+                                        self.client_sync_guard_lost = lost;
+                                        self.client_error = Some(match held {
+                                            Ok(()) => format!(
+                                                "sync: {e}; the game could not be confirmed \
+                                                 stopped ({se}). Sync for this instance is \
+                                                 held until it has fully quit"
+                                            ),
+                                            Err(he) => format!(
+                                                "sync: {e}; the game could not be confirmed \
+                                                 stopped ({se}), and sync is NOT guarded \
+                                                 yet: {he}. The guard is retried until it \
+                                                 holds; make sure the game is fully quit \
+                                                 before syncing this instance"
+                                            ),
+                                        });
+                                        self.step_aside(cx);
+                                    }
+                                }
+                                return;
+                            }
                             self.client = Some(r);
+                            self.client_seq = Some(seq);
                             self.basic_session = None; // no session events on the Java path
                             self.client_home = Some(home);
+                            self.client_sync_mark = sync_mark;
                             self.client_run = Some((id, Instant::now()));
                             self.client_error = account::take_unsaved();
                             self.step_aside(cx);
                         }
                         Err(e) => {
+                            if let Some(mark) = sync_mark {
+                                if let Err(re) = mark.release() {
+                                    eprintln!("sync: {re}");
+                                }
+                            }
                             if e == account::NoOwner.to_string() {
                                 self.owner = Some(false);
                                 self.owner_screen_open = true;
@@ -1098,16 +1247,118 @@ impl Launcher {
                         // The game emits its session events only when asked here.
                         let events = horizon_launcher::basic_stats::command_with_events(&mut cmd);
                         let started = Instant::now();
-                        match backend::spawn(Job::Client, cmd, self.tx.clone()) {
+                        let sync_mark = match (&run, &self.client_home) {
+                            (Some(id), Some(home)) => match claim_sync_mark(id, home) {
+                                Ok(mark) => mark,
+                                Err(e) => {
+                                    self.client_error = Some(e);
+                                    return;
+                                }
+                            },
+                            _ => None,
+                        };
+                        self.next_client_seq += 1;
+                        let seq = self.next_client_seq;
+                        match backend::spawn(Job::Client, cmd, self.tx.clone(), seq) {
                             Ok(r) => {
+                                let record_err = match &sync_mark {
+                                    Some(mark) => set_mark_child(mark, &r).err(),
+                                    None => None,
+                                };
+                                if let Some(e) = record_err {
+                                    // Recording failed. The durable hold is claimed only
+                                    // after VERIFYING it on disk (ensure_hold
+                                    // re-establishes a lost mark file, never overwriting
+                                    // another run's claim); a guard that cannot be
+                                    // verified is reported as lost, never claimed.
+                                    match stop_confirmed(&r) {
+                                        Ok(()) => {
+                                            if let Some(mark) = sync_mark {
+                                                match mark.ensure_hold() {
+                                                    Ok(()) => {
+                                                        if let Err(re) = mark.release() {
+                                                            eprintln!("sync: {re}");
+                                                            self.client_error = Some(format!(
+                                                                "sync: {e} - the game was \
+                                                                 confirmed stopped, but the \
+                                                                 sync mark could not be \
+                                                                 cleared: {re}. Remove the \
+                                                                 mark file before syncing"
+                                                            ));
+                                                        } else {
+                                                            self.client_error = Some(format!(
+                                                                "sync: {e} - the game was \
+                                                                 confirmed stopped before it \
+                                                                 could run unprotected; \
+                                                                 launching again retries"
+                                                            ));
+                                                        }
+                                                    }
+                                                    Err(he) => {
+                                                        self.client_error = Some(format!(
+                                                            "sync: {e} - the game was \
+                                                             confirmed stopped, but the \
+                                                             sync guard is lost: {he}. \
+                                                             Launching again retries; if \
+                                                             sync misbehaves, remove the \
+                                                             mark file"
+                                                        ));
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Err(se) => {
+                                            // The game may still be running: keep tracking
+                                            // THIS run; its observed exit later releases
+                                            // only its own mark. The hold is claimed only
+                                            // if verified on disk right now.
+                                            let held = match &sync_mark {
+                                                Some(mark) => mark.ensure_hold(),
+                                                None => Ok(()),
+                                            };
+                                            let lost = held.is_err();
+                                            self.client = Some(r);
+                                            self.client_seq = Some(seq);
+                                            self.client_sync_mark = sync_mark;
+                                            self.client_sync_guard_lost = lost;
+                                            self.client_error = Some(match held {
+                                                Ok(()) => format!(
+                                                    "sync: {e}; the game could not be \
+                                                     confirmed stopped ({se}). Sync for \
+                                                     this instance is held until it has \
+                                                     fully quit"
+                                                ),
+                                                Err(he) => format!(
+                                                    "sync: {e}; the game could not be \
+                                                     confirmed stopped ({se}), and sync is \
+                                                     NOT guarded yet: {he}. The guard is \
+                                                     retried until it holds; make sure \
+                                                     the game is fully quit before \
+                                                     syncing this instance"
+                                                ),
+                                            });
+                                            self.step_aside(cx);
+                                        }
+                                    }
+                                    return;
+                                }
                                 self.client = Some(r);
+                                self.client_seq = Some(seq);
                                 self.basic_session = events.then(|| {
                                     horizon_launcher::basic_stats::Session::start(started)
                                 });
+                                self.client_sync_mark = sync_mark;
                                 self.client_run = run.map(|id| (id, Instant::now()));
                                 self.step_aside(cx);
                             }
-                            Err(e) => self.client_error = Some(e),
+                            Err(e) => {
+                                if let Some(mark) = sync_mark {
+                                    if let Err(re) = mark.release() {
+                                        eprintln!("sync: {re}");
+                                    }
+                                }
+                                self.client_error = Some(e);
+                            }
                         }
                     }
                 }
@@ -1248,7 +1499,7 @@ impl Launcher {
                         }
                     }
                 }
-                Msg::Exit(job, result) => {
+                Msg::Exit(job, result, seq) => {
                     let error = result.err();
                     match job {
                         Job::Prepare => {
@@ -1276,7 +1527,24 @@ impl Launcher {
                             });
                         }
                         Job::Client => {
+                            // A late exit report from a run that was already cleaned up
+                            // must not touch a NEWER run's state.
+                            if self.client_seq != Some(seq) {
+                                return;
+                            }
+                            self.client_seq = None;
                             self.client = None;
+                            self.client_sync_guard_lost = false;
+                            self.client_sync_guard_retry = None;
+                            if let Some(mark) = self.client_sync_mark.take() {
+                                if let Err(e) = mark.release() {
+                                    // The leftover mark holds sync; the player must know.
+                                    eprintln!("sync: {e}");
+                                    if self.client_error.is_none() {
+                                        self.client_error = Some(e);
+                                    }
+                                }
+                            }
                             if let Some(session) = self.basic_session.take() {
                                 // A crash or a kill (an error exit, or no normal-end marker)
                                 // sends nothing; both gates are inside.
@@ -1295,6 +1563,14 @@ impl Launcher {
                                 }
                                 if let Some(i) = instances::list().into_iter().find(|i| i.id == id)
                                 {
+                                    // A clean exit syncs its settings to its group; a crash
+                                    // or kill never pushes a possibly-torn file.
+                                    if error.is_none() {
+                                        instances::sync_once(
+                                            &i,
+                                            horizon_launcher::config_sync::Pass::CleanExit,
+                                        );
+                                    }
                                     horizon_launcher::launch::run_after_exit(
                                         &i.launch, &i.home, &vars,
                                     );
@@ -1341,9 +1617,65 @@ impl Launcher {
                         Job::Server => {}
                     }
                 }
+                Msg::ExitUnknown(job, seq, e) => {
+                    // Observation failed: the process may still be running. Never treated
+                    // as an exit; the guard and tracking stay until an OBSERVED exit.
+                    // The backend observer keeps polling after a transient error, so a
+                    // later observed exit still releases this run's mark; only a poisoned
+                    // process lock ends observation, and then the hold simply stays.
+                    match job {
+                        Job::Client => {
+                            if self.client_seq != Some(seq) {
+                                return;
+                            }
+                            if let Some(mark) = &self.client_sync_mark {
+                                // Restore the recorded mark to the durable hold; if the
+                                // mark file itself is lost, re-establish the same hold
+                                // (never overwriting another run's claim). A hold is
+                                // claimed only when one of those VERIFIED it on disk.
+                                match mark.fail_closed().or_else(|_| mark.ensure_hold()) {
+                                    Ok(()) => {
+                                        self.client_sync_guard_lost = false;
+                                        self.client_error = Some(format!(
+                                            "sync: the game's exit could not be observed \
+                                             ({e}). Sync for this instance is held until \
+                                             the game has fully quit and the mark file is \
+                                             removed"
+                                        ));
+                                    }
+                                    Err(fe) => {
+                                        // The guard is retried by sync_guard_tick until
+                                        // it holds again or the observed exit lands.
+                                        self.client_sync_guard_lost = true;
+                                        self.client_error = Some(format!(
+                                            "sync: the game's exit could not be observed \
+                                             ({e}), and sync is NOT guarded yet: {fe}. \
+                                             The guard is retried until it holds; make \
+                                             sure the game is fully quit before syncing \
+                                             this instance"
+                                        ));
+                                    }
+                                }
+                                // Tracking stays: the client and its mark are never
+                                // silently dropped for an unobserved process.
+                            } else {
+                                self.client_error = Some(format!(
+                                    "the game's exit could not be observed: {e}. If it is \
+                                     still running, quit it before continuing"
+                                ));
+                            }
+                        }
+                        Job::Prepare | Job::Server => {
+                            self.preparing = false;
+                            self.prepare_error =
+                                Some(format!("the process's exit could not be observed: {e}"));
+                        }
+                    }
+                }
             }
         }
         changed |= self.servers_tick();
+        changed |= self.sync_guard_tick();
         changed |= self.mods_tick();
         changed |= self.github_tick();
         changed |= self.native_log_read(cx);
@@ -1527,7 +1859,7 @@ impl Launcher {
                 })
                 .and_then(|p| match p {
                     backend::Preparer::Process(cmd) => {
-                        backend::spawn(Job::Prepare, cmd, tx.clone()).map(|_running| false)
+                        backend::spawn(Job::Prepare, cmd, tx.clone(), 0).map(|_running| false)
                     }
                     backend::Preparer::InProcess(options) => {
                         backend::prepare_in_process(&options, &log).map(|_| true)
@@ -1537,10 +1869,10 @@ impl Launcher {
                 // A process sends its own Exit when it ends.
                 Ok(false) => {}
                 Ok(true) => {
-                    let _ = tx.send(Msg::Exit(Job::Prepare, Ok(())));
+                    let _ = tx.send(Msg::Exit(Job::Prepare, Ok(()), 0));
                 }
                 Err(e) => {
-                    let _ = tx.send(Msg::Exit(Job::Prepare, Err(e)));
+                    let _ = tx.send(Msg::Exit(Job::Prepare, Err(e), 0));
                 }
             }
         });
@@ -5179,6 +5511,59 @@ fn menus() -> Vec<Menu> {
     ]
 }
 
+/// Claims the instance's sync running-mark before its game starts. A synced instance
+/// whose mark cannot be claimed does NOT launch: a second, untracked game in the same
+/// folder would be rewritten by a sync pass once the tracked run exits. The player sees
+/// the refusal as the launch error.
+fn claim_sync_mark(
+    id: &str,
+    home: &std::path::Path,
+) -> Result<Option<horizon_launcher::config_sync::RunMark>, String> {
+    match instances::sync_membership_strict(id) {
+        Ok(Some(_)) => {}
+        Ok(None) => return Ok(None),
+        Err(e) => return Err(format!("sync: instance store unreadable: {e}")),
+    }
+    match horizon_launcher::config_sync::claim_running(home)? {
+        Some(mark) => Ok(Some(mark)),
+        None => Err(
+            "another run of this instance's game is still live - not starting a second one. \
+             Quit it first; a sync pass must never write into a running game's settings."
+                .to_string(),
+        ),
+    }
+}
+
+/// Records the game's pid in the sync mark (recovering a child lock poisoned by a
+/// panicked thread). The caller decides what a recording failure means; it is never
+/// silently ignored.
+fn set_mark_child(
+    mark: &horizon_launcher::config_sync::RunMark,
+    r: &backend::Running,
+) -> Result<(), String> {
+    let child = r.child.lock().unwrap_or_else(|e| e.into_inner());
+    mark.set_child(child.id())
+}
+
+/// The lost-guard retry is throttled: due immediately once, then every couple of
+/// seconds while the guard stays lost.
+fn guard_retry_due(last: Option<Instant>, now: Instant) -> bool {
+    !last.is_some_and(|t| now.duration_since(t) < Duration::from_secs(2))
+}
+
+/// Stops a just-spawned game and CONFIRMS it: Ok means signalled and reaped, never
+/// assumed. Either failure is an error and the caller keeps the run tracked.
+fn stop_confirmed(r: &backend::Running) -> Result<(), String> {
+    let mut child = r.child.lock().unwrap_or_else(|e| e.into_inner());
+    child
+        .kill()
+        .map_err(|e| format!("could not stop the game process: {e}"))?;
+    child
+        .wait()
+        .map_err(|e| format!("could not confirm the game process exited: {e}"))?;
+    Ok(())
+}
+
 fn main() {
     // The basic-summaries default needs to know what was here before anything (installer,
     // cleanup, settings, CLI) could create or change it. Read-only.
@@ -5451,6 +5836,21 @@ mod tests {
         assert!(matches!(
             &menus[0].items[0],
             gpui::MenuItem::Action { name, .. } if name == "Quit GoatTech Launcher"
+        ));
+    }
+
+    #[test]
+    fn the_lost_guard_retry_is_throttled() {
+        use std::time::{Duration, Instant};
+        let t0 = Instant::now();
+        assert!(super::guard_retry_due(None, t0), "due immediately once");
+        assert!(!super::guard_retry_due(
+            Some(t0),
+            t0 + Duration::from_millis(500)
+        ));
+        assert!(super::guard_retry_due(
+            Some(t0),
+            t0 + Duration::from_secs(3)
         ));
     }
 

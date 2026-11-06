@@ -1544,6 +1544,8 @@ pub fn java_game(
     server: Option<&str>,
     log: &dyn Fn(String),
 ) -> Result<Command, String> {
+    // The one prelaunch sync hook for Java instances, CLI and window alike: pull only.
+    crate::instances::sync_once(instance, crate::config_sync::Pass::PreLaunch);
     let game = instance.java.as_ref().ok_or_else(|| {
         format!(
             "{} plays Horizon, not Minecraft: Java Edition",
@@ -2521,7 +2523,7 @@ pub const LOG_KEEP: usize = 2000;
 impl Logged {
     pub fn start(job: Job, cmd: Command) -> Result<Self, String> {
         let (tx, rx) = std::sync::mpsc::channel();
-        let running = spawn(job, cmd, tx)?;
+        let running = spawn(job, cmd, tx, 0)?;
         let log = Arc::new(Mutex::new(std::collections::VecDeque::new()));
         let exit = Arc::new(Mutex::new(None));
         let (l, e) = (log.clone(), exit.clone());
@@ -2535,7 +2537,10 @@ impl Logged {
                             log.pop_front();
                         }
                     }
-                    Msg::Exit(_, result) => *e.lock().unwrap() = Some(result),
+                    Msg::Exit(_, result, _) => *e.lock().unwrap() = Some(result),
+                    Msg::ExitUnknown(_, _, err) => {
+                        *e.lock().unwrap() = Some(Err(format!("exit unobserved: {err}")))
+                    }
                     _ => {}
                 }
             }
@@ -3470,7 +3475,11 @@ pub enum Msg {
     /// What each installed version takes on disk (`disk_use`).
     DiskUse(Vec<(String, u64)>),
     Line(Job, String),
-    Exit(Job, Result<(), String>),
+    /// The process's exit was OBSERVED: Ok for a clean exit, Err for a nonzero one.
+    Exit(Job, Result<(), String>, u64),
+    /// The process's exit could NOT be observed (wait/try_wait itself failed): the
+    /// process may still be running. Never treated as an exit.
+    ExitUnknown(Job, u64, String),
     /// Boxed: two releases, the largest message by far.
     Updates(Result<Box<Updates>, String>),
     LauncherProgress(f32),
@@ -3515,7 +3524,9 @@ pub enum Msg {
     ),
 }
 
-/// A running process; its output arrives as `Msg::Line`, its end as `Msg::Exit`.
+/// A running process; its output arrives as `Msg::Line`, its end as `Msg::Exit` (an
+/// OBSERVED exit, nonzero included) or `Msg::ExitUnknown` (observation failed - never
+/// an exit; polling continues unless observation can never recover).
 pub struct Running {
     pub child: Arc<Mutex<Child>>,
     stdin: Arc<Mutex<Option<ChildStdin>>>,
@@ -3557,7 +3568,47 @@ impl Running {
     }
 }
 
-pub fn spawn(job: Job, mut cmd: Command, tx: Sender<Msg>) -> Result<Running, String> {
+/// One observation of a child process: still running, an OBSERVED exit, a failed
+/// observation (polling continues), or unobservable (the process lock is poisoned -
+/// no observation will ever succeed again).
+enum Poll<S> {
+    Running,
+    Exited(S),
+    Failed(String),
+    Unobservable,
+}
+
+/// Polls until an exit is OBSERVED. An observation error is reported once via
+/// `unknown` and polling CONTINUES, so a later real exit is still observed; an
+/// unobserved process is never reported as exited. None only when observation can
+/// never recover.
+fn observe_until_exit<S>(
+    mut poll: impl FnMut() -> Poll<S>,
+    mut unknown: impl FnMut(String),
+) -> Option<S> {
+    let mut reported = false;
+    loop {
+        match poll() {
+            Poll::Exited(s) => return Some(s),
+            Poll::Running => {}
+            Poll::Failed(e) => {
+                if !reported {
+                    reported = true;
+                    unknown(e);
+                }
+            }
+            Poll::Unobservable => {
+                if !reported {
+                    unknown("the process lock was poisoned".to_string());
+                }
+                return None;
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+}
+
+pub fn spawn(job: Job, mut cmd: Command, tx: Sender<Msg>, seq: u64) -> Result<Running, String> {
     crate::process::hide_console(&mut cmd);
     let mut child = cmd
         .stdin(Stdio::piped())
@@ -3589,18 +3640,33 @@ pub fn spawn(job: Job, mut cmd: Command, tx: Sender<Msg>) -> Result<Running, Str
         for r in readers {
             let _ = r.join();
         }
-        let status = loop {
-            if let Some(s) = waited.lock().unwrap().try_wait().transpose() {
-                break s;
+        let status = observe_until_exit(
+            || match waited.lock() {
+                Ok(mut c) => match c.try_wait() {
+                    // Observed exit (any status).
+                    Ok(Some(s)) => Poll::Exited(s),
+                    Ok(None) => Poll::Running,
+                    // Observation itself failed: reported once, polling continues -
+                    // a later real exit is still observed by this same loop.
+                    Err(e) => Poll::Failed(e.to_string()),
+                },
+                // A poisoned process lock never recovers: reported once, then no
+                // exit is ever fabricated for this run.
+                Err(_) => Poll::Unobservable,
+            },
+            |e| {
+                let _ = tx.send(Msg::ExitUnknown(job, seq, e));
+            },
+        );
+        match status {
+            Some(s) if s.success() => {
+                let _ = tx.send(Msg::Exit(job, Ok(()), seq));
             }
-            std::thread::sleep(std::time::Duration::from_millis(100));
-        };
-        let result = match status {
-            Ok(s) if s.success() => Ok(()),
-            Ok(s) => Err(format!("Exited with {s}")),
-            Err(e) => Err(e.to_string()),
-        };
-        let _ = tx.send(Msg::Exit(job, result));
+            Some(s) => {
+                let _ = tx.send(Msg::Exit(job, Err(format!("Exited with {s}")), seq));
+            }
+            None => {}
+        }
     });
     Ok(Running {
         child,
@@ -3985,6 +4051,32 @@ mod tests {
         // Today's builds have no such feed, so none of them replace themselves.
         assert!(!replacement_feed(REPO));
         assert!(!self_update_allowed());
+    }
+
+    #[test]
+    fn observation_errors_are_reported_once_and_polling_continues() {
+        let mut calls = 0;
+        let mut unknowns = Vec::new();
+        let status = observe_until_exit(
+            || {
+                calls += 1;
+                match calls {
+                    1 | 2 => Poll::Failed(format!("wait error {calls}")),
+                    _ => Poll::Exited(7),
+                }
+            },
+            |e| unknowns.push(e),
+        );
+        assert_eq!(status, Some(7), "the later OBSERVED exit still lands");
+        assert_eq!(unknowns, ["wait error 1".to_string()], "reported once");
+    }
+
+    #[test]
+    fn an_unobservable_child_is_never_reported_as_exited() {
+        let mut unknowns = Vec::new();
+        let status: Option<i32> = observe_until_exit(|| Poll::Unobservable, |e| unknowns.push(e));
+        assert_eq!(status, None, "no exit is fabricated");
+        assert_eq!(unknowns, ["the process lock was poisoned".to_string()]);
     }
 
     #[test]
