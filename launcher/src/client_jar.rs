@@ -568,7 +568,7 @@ pub fn install_reviewed(
         mark.release()?;
     }
     notes.push(
-        "Its own config file is not synced yet: the shared/per-instance choice arrives with the config stage, once the format is known from real client files. options.txt sync (`instance sync`) already covers this instance."
+        "Its own config file is not synced. options.txt sharing is available separately: join a group in this instance's sharing settings or with `instance sync`. New instances do not join automatically."
             .to_string(),
     );
     Ok(Outcome {
