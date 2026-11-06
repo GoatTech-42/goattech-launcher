@@ -4261,10 +4261,6 @@ fn modpack(action: ModpackCmd, as_json: bool) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
 
-    /// The play route is fail-closed: a game whose pid cannot be recorded into the sync
-    /// mark is stopped - with its exit CONFIRMED - before it runs unprotected. The child
-    /// is long-lived: without a working stop this test would block for its full sleep.
-    #[cfg(unix)]
     #[test]
     fn client_install_parser_preserves_explicit_scope() {
         let parse = |args: &[&str]| {
@@ -4291,6 +4287,10 @@ mod tests {
         assert!(parse(&[]).is_err());
     }
 
+    /// The play route is fail-closed: a game whose pid cannot be recorded into the sync
+    /// mark is stopped - with its exit CONFIRMED - before it runs unprotected. The child
+    /// is long-lived: without a working stop this test would block for its full sleep.
+    #[cfg(unix)]
     #[test]
     fn attached_run_stops_and_confirms_the_game_when_recording_fails() {
         use std::os::unix::fs::PermissionsExt;
