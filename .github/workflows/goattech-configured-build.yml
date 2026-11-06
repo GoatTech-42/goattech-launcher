@@ -59,17 +59,31 @@ jobs:
           $bytes = [IO.File]::ReadAllBytes($bin)
           if (-not [Text.Encoding]::ASCII.GetString($bytes).Contains($env:EXPECTED_BUILD_CLIENT_ID)) { throw 'Expected ID not embedded in final binary.' }
           Remove-Item Env:EXPECTED_BUILD_CLIENT_ID
-          $raw = & $bin --json account
-          if ($LASTEXITCODE -ne 0) { throw "account list failed: $LASTEXITCODE" }
-          $state = ($raw -join "`n") | ConvertFrom-Json
+          "binary-sha256: $((Get-FileHash $bin -Algorithm SHA256).Hash)"
+          "binary-bytes: $($bytes.Length)"
+          $out = Join-Path $env:RUNNER_TEMP 'configured-account.stdout'
+          $err = Join-Path $env:RUNNER_TEMP 'configured-account.stderr'
+          if ((Test-Path $out) -or (Test-Path $err)) { throw 'Expected fresh stdio paths.' }
+          $proc = $null
+          try {
+            $proc = Start-Process -FilePath $bin -ArgumentList '--json','account' -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+            if (-not $proc.WaitForExit(60000)) { throw 'Account list exceeded 60 seconds.' }
+            $proc.WaitForExit()
+            if ($proc.ExitCode -ne 0) { throw "Account list process failed: $($proc.ExitCode); stdout/stderr retained on runner only." }
+            if ((Get-Item $err).Length -ne 0) { throw 'Account list wrote stderr; retained on runner only.' }
+            $state = Get-Content -LiteralPath $out -Raw | ConvertFrom-Json
+          } finally {
+            if ($null -ne $proc) {
+              if (-not $proc.HasExited) { $proc.Kill($true); $proc.WaitForExit() }
+              $proc.Dispose()
+            }
+          }
           if ($state.sign_in_configured -ne $true -or $state.owner -ne $false -or @($state.accounts).Count -ne 0 -or @($state.offline).Count -ne 0) { throw 'Unexpected synthetic account state.' }
           "workflow-commit: $env:GITHUB_SHA"
           "source-commit: $((git rev-parse HEAD).Trim())"
           "rustc: $(rustc --version)"
           "cargo: $(cargo --version)"
           "runner-image: $env:ImageOS $env:ImageVersion"
-          "binary-sha256: $((Get-FileHash $bin -Algorithm SHA256).Hash)"
-          "binary-bytes: $($bytes.Length)"
           'runtime-client-id: absent'
           'embedded-client-id: exact match'
           'synthetic-sign-in-configured: true; owner: false; accounts: 0; offline: 0'
