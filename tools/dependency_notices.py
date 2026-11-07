@@ -110,8 +110,24 @@ def collect(metadata, allowed_roots, supplemental_root=None):
                 raise ValueError('VCS provenance must not be a symlink')
             vcs = json.loads(read_text(vcs_path))
             commit = supplement['commit']
-            if not re.fullmatch(r'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', supplement['repo']):
-                raise ValueError('Expected public pinned GitHub source')
+            kind = supplement.get('provenance_kind', 'upstream-vcs')
+            if kind == 'upstream-vcs':
+                if not re.fullmatch(r'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', supplement['repo']):
+                    raise ValueError('Expected public pinned GitHub source')
+            elif kind == 'distro-version-copyright':
+                # This fixed reviewed index binds a distribution record to a crate
+                # version, not to remotely verified upstream source bytes.
+                distro_name = supplement['distro_package']
+                distro_version = supplement['distro_version']
+                if (distro_name != 'rust-' + name.replace('_', '-')
+                        or distro_version != version + '-1'):
+                    raise ValueError('Distribution record version mismatch')
+                expected = (f'https://tracker.debian.org/media/packages/r/{distro_name}/copyright-{distro_version}',
+                            f'https://changelogs.ubuntu.com/changelogs/pool/universe/r/{distro_name}/{distro_name}_{distro_version}/copyright')
+                if supplement['source_url'] not in expected:
+                    raise ValueError('Expected version-bound distribution copyright URL')
+            else:
+                raise ValueError('Unknown supplemental provenance kind')
             if (not re.fullmatch(r'[0-9a-f]{40}', commit)
                     or vcs.get('git', {}).get('sha1') != commit
                     or public_source(pkg.get('source')) not in (
@@ -130,19 +146,30 @@ def collect(metadata, allowed_roots, supplemental_root=None):
                 data = read_text(path)
                 if hashlib.sha256(data).hexdigest() != text['sha256']:
                     raise ValueError('Pinned upstream text hash mismatch')
-                if not text['url'].startswith(supplement['repo'].rstrip('/') + '/blob/' + commit + '/'):
-                    raise ValueError('Supplement URL does not match its pinned source')
+                if kind == 'upstream-vcs':
+                    if not text['url'].startswith(supplement['repo'].rstrip('/') + '/blob/' + commit + '/'):
+                        raise ValueError('Supplement URL does not match its pinned source')
+                elif text['url'] != supplement['source_url']:
+                    raise ValueError('Distribution text URL mismatch')
                 dest = f'dependency-notices/{name}-{version}/upstream/{relative.name}'
                 if dest in files and files[dest] != data:
                     raise ValueError('Conflicting supplemental text')
                 files[dest] = data
                 if dest not in texts:
                     texts.append(dest)
-            provenance = {'commit': commit, 'repo': supplement['repo'],
+            provenance = {'kind': kind, 'crate_commit': commit,
                           'texts': supplement['texts']}
+            if kind == 'upstream-vcs':
+                provenance['repo'] = supplement['repo']
+                provenance['commit'] = commit
+            else:
+                provenance['distro_package'] = supplement['distro_package']
+                provenance['distro_version'] = supplement['distro_version']
+                provenance['source_url'] = supplement['source_url']
         rows.append({'name': name, 'version': version, 'source': public_source(pkg.get('source')),
                      'license': pkg.get('license'), 'texts': texts, 'upstream_provenance': provenance,
-                     'status': 'texts-collected-review-required' if texts else 'missing-text-review-required'})
+                     'status': ('distro-version-text-review-required' if provenance and provenance['kind'] == 'distro-version-copyright'
+                                else 'texts-collected-review-required' if texts else 'missing-text-review-required')})
     files['dependency-notices/index.json'] = (json.dumps({
         'scope': 'normal/build metadata reachability, not final linked inclusion or legal clearance',
         'packages': rows}, indent=2) + '\n').encode()

@@ -1,5 +1,5 @@
 {
-  "scope": "Pinned upstream source texts supplement crate archives that omit their root licenses. Source commit is read from the corresponding crate .cargo_vcs_info.json. Not legal clearance or final linked inclusion.",
+  "scope": "Pinned actual texts supplement missing crate-archive license files. Upstream texts bind crate VCS commits; distro copyright records are version-bound distribution evidence, not upstream VCS proof. No legal clearance or final linked inclusion.",
   "packages": [
     {
       "name": "accesskit",
@@ -366,6 +366,54 @@
           "path": "etemesi254__zune-image/69502ce83fdfecdd0beefd677e2abb3781b29d98/LICENSE.md",
           "sha256": "e870d7fd7819a9f0453c62798cb52ae95d148a8c91dc2de1d983f997143c72de",
           "url": "https://github.com/etemesi254/zune-image/blob/69502ce83fdfecdd0beefd677e2abb3781b29d98/LICENSE.md"
+        }
+      ]
+    },
+    {
+      "name": "pathfinder_geometry",
+      "version": "0.5.1",
+      "commit": "a5e98fac00f433fe2ff4b2135383d82491b8bfc5",
+      "provenance_kind": "distro-version-copyright",
+      "distro_package": "rust-pathfinder-geometry",
+      "distro_version": "0.5.1-1",
+      "source_url": "https://tracker.debian.org/media/packages/r/rust-pathfinder-geometry/copyright-0.5.1-1",
+      "texts": [
+        {
+          "path": "distro-version/pathfinder_geometry-0.5.1/copyright",
+          "sha256": "35aadf3ea3108cddd08dab781a88d7e836f2eda1287debf86813244f14b59544",
+          "url": "https://tracker.debian.org/media/packages/r/rust-pathfinder-geometry/copyright-0.5.1-1"
+        }
+      ]
+    },
+    {
+      "name": "simd_helpers",
+      "version": "0.1.0",
+      "commit": "ca1a2f84aa386d758e98f8a609d990263932fb85",
+      "provenance_kind": "distro-version-copyright",
+      "distro_package": "rust-simd-helpers",
+      "distro_version": "0.1.0-1",
+      "source_url": "https://tracker.debian.org/media/packages/r/rust-simd-helpers/copyright-0.1.0-1",
+      "texts": [
+        {
+          "path": "distro-version/simd_helpers-0.1.0/copyright",
+          "sha256": "30d1c88cf9fd836a27758601348a55e9b9812a65a5e61d1ceeea0e879c94344e",
+          "url": "https://tracker.debian.org/media/packages/r/rust-simd-helpers/copyright-0.1.0-1"
+        }
+      ]
+    },
+    {
+      "name": "seahash",
+      "version": "4.1.0",
+      "commit": "94b632aeac099031c373599313d5b5f0acbbaec0",
+      "provenance_kind": "distro-version-copyright",
+      "distro_package": "rust-seahash",
+      "distro_version": "4.1.0-1",
+      "source_url": "https://changelogs.ubuntu.com/changelogs/pool/universe/r/rust-seahash/rust-seahash_4.1.0-1/copyright",
+      "texts": [
+        {
+          "path": "distro-version/seahash-4.1.0/copyright",
+          "sha256": "268296361f3ec03e3dfb8a893c35318226119c818f5e8b7866d209e24beda60f",
+          "url": "https://changelogs.ubuntu.com/changelogs/pool/universe/r/rust-seahash/rust-seahash_4.1.0-1/copyright"
         }
       ]
     }

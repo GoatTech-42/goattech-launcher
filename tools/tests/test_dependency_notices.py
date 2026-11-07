@@ -73,6 +73,24 @@ class Notices(unittest.TestCase):
         (root / 'LICENSE').symlink_to(self.pkg / 'Cargo.toml')
         with self.assertRaises(ValueError):self.module.collect(self.metadata, [self.root], root)
 
+    def test_distro_evidence_is_version_bound_and_not_upstream_proof(self):
+        root, row = self.supplement()
+        del row['repo']
+        row.update(provenance_kind='distro-version-copyright', distro_package='rust-example',
+                   distro_version='1.2.3-1', source_url='https://tracker.debian.org/media/packages/r/rust-example/copyright-1.2.3-1')
+        row['texts'][0]['url'] = row['source_url']
+        (root / 'index.json').write_text(json.dumps({'packages': [row]}))
+        files = self.module.collect(self.metadata, [self.root], root)
+        result = json.loads(files['dependency-notices/index.json'])['packages'][0]
+        self.assertEqual(result['status'], 'distro-version-text-review-required')
+        self.assertEqual(result['upstream_provenance']['kind'], 'distro-version-copyright')
+        self.assertNotIn('repo', result['upstream_provenance'])
+        self.assertEqual(result['license'], 'MIT AND ISC')
+        for changed in [dict(row, distro_version='9.9.9-1'), dict(row, distro_package='rust-other'),
+                        dict(row, source_url='https://example.invalid/copyright')]:
+            (root / 'index.json').write_text(json.dumps({'packages': [changed]}))
+            with self.assertRaises(ValueError):self.module.collect(self.metadata, [self.root], root)
+
     def test_case_insensitive_direct_texts_without_recursive_scan(self):
         (self.pkg / 'license-mit').write_text('Original MIT text\n')
         (self.pkg / 'license-apache-2.0').write_text('Original Apache text\n')
