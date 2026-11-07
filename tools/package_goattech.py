@@ -59,6 +59,15 @@ def package(binary, output, platform, version, source_commit, dependency_metadat
         'notices/wgpu-hal-LICENSE.APACHE': 'third_party/wgpu-hal/LICENSE.APACHE',
     }
     files.update({name: (ROOT / path).read_bytes() for name, path in notices.items()})
+    # MPL-2.0 executable distribution: retain the exact unmodified covered
+    # source archive and tell recipients how to obtain it locally.
+    covered_source = ROOT / 'packaging/goattech/covered-source/option-ext-0.2.0.crate'
+    source_bytes = covered_source.read_bytes()
+    if hashlib.sha256(source_bytes).hexdigest() != '04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d':
+        raise ValueError('Covered source archive does not match the locked crate checksum')
+    files['covered-source/option-ext-0.2.0.crate'] = source_bytes
+    files['covered-source/README.txt'] = (ROOT / 'packaging/goattech/covered-source/README.txt').read_bytes()
+
     if dependency_metadata is not None:
         files.update(collect(dependency_metadata, dependency_roots,
                              ROOT / 'packaging/goattech/upstream-notices'))

@@ -29,4 +29,7 @@ warning on a download whose source and checksum you cannot verify.
 Built on Horizon under the MIT license. See LICENSE, THIRD_PARTY_NOTICES.md
 and notices/ for included attribution and license texts. This candidate notice
 bundle is not yet a complete linked-dependency notice inventory.
+The unmodified MPL-2.0 option-ext 0.2.0 source archive is included under
+covered-source/; see its README.txt for extraction and license details.
+
 GoatTech is a separate project, not an official Minecraft product.

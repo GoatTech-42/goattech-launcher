@@ -1,5 +1,7 @@
 """Portable packages must contain only explicit public inputs, never a profile."""
 import sys
+import io
+from unittest import mock
 import hashlib
 import importlib.util
 import json
@@ -32,7 +34,7 @@ class Packages(unittest.TestCase):
     def test_windows_contains_explicit_inputs_only_and_verifiable_manifest(self):
         archive = self.package()
         with zipfile.ZipFile(archive) as z:
-            self.assertEqual(set(z.namelist()), {'horizon-launcher.exe', 'README.txt', 'LICENSE', 'goattech.svg', 'manifest.json', 'THIRD_PARTY_NOTICES.md', 'notices/OFL-Geist.txt', 'notices/OFL-BricolageGrotesque.txt', 'notices/OFL-PixelifySans.txt', 'notices/LICENSE-lucide.txt', 'notices/LICENSE-pixelarticons.txt', 'notices/naga-LICENSE.MIT', 'notices/naga-LICENSE.APACHE', 'notices/wgpu-hal-LICENSE.MIT', 'notices/wgpu-hal-LICENSE.APACHE'})
+            self.assertEqual(set(z.namelist()), {'horizon-launcher.exe', 'README.txt', 'LICENSE', 'goattech.svg', 'manifest.json', 'THIRD_PARTY_NOTICES.md', 'notices/OFL-Geist.txt', 'notices/OFL-BricolageGrotesque.txt', 'notices/OFL-PixelifySans.txt', 'notices/LICENSE-lucide.txt', 'notices/LICENSE-pixelarticons.txt', 'notices/naga-LICENSE.MIT', 'notices/naga-LICENSE.APACHE', 'notices/wgpu-hal-LICENSE.MIT', 'notices/wgpu-hal-LICENSE.APACHE', 'covered-source/option-ext-0.2.0.crate', 'covered-source/README.txt'})
             manifest = json.loads(z.read('manifest.json'))
             self.assertEqual(manifest['platform'], 'windows-x64')
             self.assertEqual(manifest['version'], '0.1.0')
@@ -61,6 +63,26 @@ class Packages(unittest.TestCase):
             self.assertEqual(z.read('notices/OFL-Geist.txt'), (Path(__file__).parents[2] / 'crates/horizon-theme/fonts/OFL-Geist.txt').read_bytes())
             self.assertEqual(z.read('THIRD_PARTY_NOTICES.md'), (Path(__file__).parents[2] / 'THIRD_PARTY_NOTICES.md').read_bytes())
             self.assertIn('notices/LICENSE-lucide.txt', json.loads(z.read('manifest.json'))['sha256'])
+
+    def test_mpl_covered_source_is_complete_locked_and_not_only_a_link(self):
+        with zipfile.ZipFile(self.package()) as z:
+            data = z.read('covered-source/option-ext-0.2.0.crate')
+            self.assertEqual(hashlib.sha256(data).hexdigest(), '04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d')
+            with tarfile.open(fileobj=io.BytesIO(data)) as source:
+                self.assertIn('option-ext-0.2.0/src/lib.rs', source.getnames())
+                self.assertIn('option-ext-0.2.0/src/impl.rs', source.getnames())
+                self.assertIn(b'Mozilla Public License Version 2.0', source.extractfile('option-ext-0.2.0/LICENSE.txt').read())
+            self.assertIn(b'tar -xzf option-ext-0.2.0.crate', z.read('covered-source/README.txt'))
+            self.assertIn(b'covered-source/', z.read('README.txt'))
+
+    def test_wrong_covered_source_checksum_refused_before_archive_creation(self):
+        original = Path.read_bytes
+        def changed(path):
+            if path.name == 'option-ext-0.2.0.crate':return b'wrong archive'
+            return original(path)
+        with mock.patch.object(Path, 'read_bytes', changed):
+            with self.assertRaises(ValueError):self.package()
+        self.assertEqual(list(self.out.iterdir()), [])
 
     def test_linux_binary_has_executable_mode(self):
         self.binary.write_bytes(b'\x7fELFpublic-binary')
