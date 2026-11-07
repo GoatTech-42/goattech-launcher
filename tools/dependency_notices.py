@@ -40,8 +40,11 @@ def collect(metadata, allowed_roots):
         if not any(home.is_relative_to(root) for root in roots):
             raise ValueError('Dependency is outside explicitly allowed source roots')
         paths = set()
-        for pattern in ('LICENSE*', 'LICENCE*', 'COPYING*', 'NOTICE*', 'UNLICENSE*'):
-            paths.update(home.glob(pattern))
+        # Crate archives also use lowercase names (notably windows-rs).
+        # Inspect direct children only; never recurse or widen source roots.
+        for child in home.iterdir():
+            if child.name.upper().startswith(('LICENSE', 'LICENCE', 'COPYING', 'NOTICE', 'UNLICENSE')):
+                paths.add(child)
         if pkg.get('license_file'):
             relative = Path(pkg['license_file'])
             if relative.is_absolute() or '..' in relative.parts:

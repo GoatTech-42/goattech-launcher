@@ -33,6 +33,18 @@ class Notices(unittest.TestCase):
         (self.pkg / 'LICENSE-MIT').unlink()
         self.assertEqual(json.loads(self.collect()['dependency-notices/index.json'])['packages'][0]['status'], 'missing-text-review-required')
 
+    def test_case_insensitive_direct_texts_without_recursive_scan(self):
+        (self.pkg / 'license-mit').write_text('Original MIT text\n')
+        (self.pkg / 'license-apache-2.0').write_text('Original Apache text\n')
+        (self.pkg / 'nested').mkdir()
+        (self.pkg / 'nested' / 'LICENSE').write_text('Not a direct input\n')
+        files = self.collect()
+        row = json.loads(files['dependency-notices/index.json'])['packages'][0]
+        self.assertEqual(len(row['texts']), 2)
+        self.assertEqual(files['dependency-notices/example-1.2.3/license-mit'], b'Original MIT text\n')
+        self.assertEqual(files['dependency-notices/example-1.2.3/license-apache-2.0'], b'Original Apache text\n')
+        self.assertFalse(any('nested' in name for name in files))
+
     def test_symlink_or_escape_license_is_refused(self):
         outside = self.root / 'private.txt'
         outside.write_text('PRIVATE')
