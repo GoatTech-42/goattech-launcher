@@ -2,7 +2,8 @@
 
 This is build-only preparation, not a release announcement. The independent
 whole-app review is 8.8/10 as of November 6, 2026. The release gate remains
-strictly above 9/10, and client-specific settings sharing is unfinished. Release scope is not final.
+strictly above 9/10. V1 covers the core launcher and Minecraft settings sharing.
+Client-specific settings and verified named-client installs are post-v1 work.
 
 The manual `goattech-package-candidate.yml` builds Windows x64 and Linux x64
 portable archives. It has read-only repository permissions, no release job,
@@ -68,3 +69,21 @@ Before distributing a real binary, reconcile its dependency/asset license
 expressions, copyright notices and required texts, including AND expressions.
 Do not substitute a generic MIT license for every dependency or fabricate
 missing text. Crate notice reconciliation remains unfinished.
+
+## Existing dependency texts
+
+The package workflow now collects existing license/notice files from locked
+normal/build dependency metadata for its target. It searches only top-level
+license filenames plus an explicit package license-file path, within the
+checkout and Cargo registry source roots. It does not search profiles, follow
+license symlinks, fetch missing texts or execute dependency code.
+
+The archive's dependency-notices/index.json preserves each package's version,
+public crates.io source identifier (other sources are redacted) and license
+expression, lists copied texts and marks every entry as
+review required. Local paths and unverified git/registry URLs are omitted. Files are read with a
+1 MiB plus one-byte descriptor bound and metadata postcheck; this is not a
+claim of complete hostile-filesystem race resistance. Missing texts stay explicitly missing.
+All copied bytes are included in the package manifest hashes. This improves
+notice retention; it does not establish final linker inclusion, satisfy all
+license obligations or clear a distribution gate.

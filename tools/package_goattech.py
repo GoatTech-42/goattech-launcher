@@ -13,10 +13,12 @@ import stat
 import tarfile
 import zipfile
 
+from dependency_notices import collect
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def package(binary, output, platform, version, source_commit):
+def package(binary, output, platform, version, source_commit, dependency_metadata=None, dependency_roots=()):
     if platform not in ('windows-x64', 'linux-x64'):
         raise ValueError('Only Windows x64 and Linux x64 candidates are supported')
     if not re.fullmatch(r'0\.1\.[0-9]+(?:-rc\.[1-9][0-9]*)?', version):
@@ -57,10 +59,14 @@ def package(binary, output, platform, version, source_commit):
         'notices/wgpu-hal-LICENSE.APACHE': 'third_party/wgpu-hal/LICENSE.APACHE',
     }
     files.update({name: (ROOT / path).read_bytes() for name, path in notices.items()})
+    if dependency_metadata is not None:
+        files.update(collect(dependency_metadata, dependency_roots))
     manifest = {
         'product': 'GoatTech Launcher', 'version': version,
         'platform': platform, 'source_commit': source_commit,
         'kind': 'portable candidate, not publication approval',
+        'dependency_notices': ('metadata texts collected; review still required'
+                               if dependency_metadata is not None else 'not collected; review required'),
         'sha256': {n: hashlib.sha256(b).hexdigest() for n, b in files.items()},
     }
     files['manifest.json'] = (json.dumps(manifest, indent=2) + '\n').encode()
@@ -87,8 +93,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for flag in ('binary', 'output', 'platform', 'version', 'source-commit'):
         parser.add_argument('--' + flag, required=True)
+    parser.add_argument('--dependency-metadata', required=True)
+    parser.add_argument('--dependency-root', action='append', required=True)
     args = parser.parse_args()
-    print(package(args.binary, args.output, args.platform, args.version, args.source_commit))
+    metadata = json.loads(Path(args.dependency_metadata).read_text())
+    print(package(args.binary, args.output, args.platform, args.version, args.source_commit,
+                  metadata, args.dependency_root))
 
 
 if __name__ == '__main__':

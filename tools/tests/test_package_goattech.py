@@ -1,4 +1,5 @@
 """Portable packages must contain only explicit public inputs, never a profile."""
+import sys
 import hashlib
 import importlib.util
 import json
@@ -8,6 +9,7 @@ import tempfile
 import unittest
 import zipfile
 
+sys.path.insert(0, str(Path(__file__).parents[1]))
 SPEC = importlib.util.spec_from_file_location('package_goattech', Path(__file__).parents[1] / 'package_goattech.py')
 
 
@@ -40,6 +42,19 @@ class Packages(unittest.TestCase):
             self.assertNotIn(b'PRIVATE', b''.join(z.read(n) for n in z.namelist()))
         sums = (self.out / 'SHA256SUMS').read_text()
         self.assertEqual(sums, hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n')
+
+    def test_dependency_texts_are_packed_and_hash_bound(self):
+        crate = self.root / 'crate'
+        crate.mkdir()
+        (crate / 'Cargo.toml').write_text('')
+        (crate / 'LICENSE').write_text('Original dependency license')
+        metadata = {'packages': [{'id':'x','name':'example','version':'1.0','license':'MIT AND ISC','source':None,'manifest_path':str(crate / 'Cargo.toml')}], 'resolve':{'root':'x','nodes':[{'id':'x','deps':[]}]}}
+        archive = self.spec.package(self.binary, self.out, 'windows-x64', '0.1.0', 'a'*40, metadata, [self.root])
+        with zipfile.ZipFile(archive) as z:
+            self.assertEqual(z.read('dependency-notices/example-1.0/LICENSE'), b'Original dependency license')
+            manifest = json.loads(z.read('manifest.json'))
+            self.assertEqual(manifest['sha256']['dependency-notices/example-1.0/LICENSE'], hashlib.sha256(b'Original dependency license').hexdigest())
+            self.assertEqual(manifest['dependency_notices'], 'metadata texts collected; review still required')
 
     def test_notices_preserve_original_license_texts(self):
         with zipfile.ZipFile(self.package()) as z:
