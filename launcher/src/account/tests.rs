@@ -1133,7 +1133,11 @@ fn the_secrets_file_keeps_sign_ins_across_starts() {
     // No temporary file left behind.
     assert_eq!(
         files_beside(&path),
-        ["account-secrets.json", "account-secrets.lock"]
+        [
+            "account-secrets.json",
+            "account-secrets.key",
+            "account-secrets.lock"
+        ]
     );
     // Signing the last account out removes the file.
     accounts.remove(&again, UUID).unwrap();
@@ -1154,7 +1158,7 @@ fn a_broken_secrets_file_is_an_error_that_never_shows_it() {
         "[\"leaked-secret\"]",
     ] {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        let sealed = super::seal(broken.as_bytes()).unwrap();
+        let sealed = store.seal(broken.as_bytes()).unwrap();
         std::fs::write(&path, &sealed).unwrap();
         let said = store.get("a").unwrap_err();
         assert!(!said.contains("leaked-secret"), "{said}");
@@ -1189,6 +1193,58 @@ fn the_secrets_file_is_never_plain_text() {
         assert!(store.set("c", "four").is_err());
         assert_eq!(std::fs::read(&path).unwrap(), other);
     }
+    remove_secrets_dir(&path);
+}
+
+#[test]
+fn the_key_takes_the_install_secret_beside_the_file() {
+    let path = secrets_file("install");
+    let store = FileStore::new(path.clone());
+    store.set("a", "kept-secret").unwrap();
+    let secret = path.with_extension("key");
+    assert_eq!(std::fs::read(&secret).unwrap().len(), 32);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(&secret).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600, "only the player reads it");
+    }
+    // The same file in another install's folder, with a secret of its own: unreadable there.
+    let other = secrets_file("install-other");
+    let elsewhere = FileStore::new(other.clone());
+    elsewhere.set("b", "other-secret").unwrap();
+    std::fs::copy(&path, &other).unwrap();
+    let said = elsewhere.get("a").unwrap_err();
+    assert!(said.contains("Remove it and sign in again"), "{said}");
+    // Without its secret, the file can't be read either: no key is left to work out.
+    std::fs::remove_file(&secret).unwrap();
+    assert!(store.get("a").is_err());
+    assert!(!secret.exists(), "a read never makes a new secret");
+    remove_secrets_dir(&path);
+    remove_secrets_dir(&other);
+}
+
+#[test]
+fn a_file_sealed_under_the_old_key_is_read_and_sealed_again() {
+    use chacha20poly1305::{aead::Aead, KeyInit};
+    let path = secrets_file("format1");
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    // As launchers before format 2 wrote it.
+    let nonce = [7u8; 12];
+    let sealed = chacha20poly1305::ChaCha20Poly1305::new(&super::file_key_v1())
+        .encrypt(&nonce.into(), &b"{\"a\":\"old-secret\"}"[..])
+        .unwrap();
+    std::fs::write(&path, [b"HZSECv1\n".as_slice(), &nonce, &sealed].concat()).unwrap();
+    let store = FileStore::new(path.clone());
+    assert_eq!(store.get("a").unwrap().as_deref(), Some("old-secret"));
+    // Sealed again at once, under the install's secret, and still read.
+    let bytes = std::fs::read(&path).unwrap();
+    assert!(bytes.starts_with(b"HZSECv2\n"));
+    assert!(path.with_extension("key").exists());
+    assert_eq!(
+        FileStore::new(path.clone()).get("a").unwrap().as_deref(),
+        Some("old-secret")
+    );
     remove_secrets_dir(&path);
 }
 
@@ -1250,7 +1306,11 @@ fn processes_sharing_the_secrets_file_lose_nothing() {
     assert_eq!(store.get("signed-out").unwrap(), None);
     assert_eq!(
         files_beside(&path),
-        ["account-secrets.json", "account-secrets.lock"]
+        [
+            "account-secrets.json",
+            "account-secrets.key",
+            "account-secrets.lock"
+        ]
     );
     remove_secrets_dir(&path);
 }
@@ -2083,4 +2143,233 @@ fn a_launch_as_another_account_leaves_the_selected_one() {
     );
     assert_eq!(gone.unwrap_err(), "That account isn't signed in.");
     assert_eq!(accounts.player(), Player::Microsoft(UUID.into()));
+}
+
+#[test]
+fn a_ciphertext_copy_cannot_use_another_installs_key() {
+    let first = secrets_file("copy-key-first");
+    let other = secrets_file("copy-key-other");
+    let store = FileStore::new(first.clone());
+    let destination = FileStore::new(other.clone());
+    store.set("a", "fixture-secret").unwrap();
+    destination.set("a", "other-secret").unwrap();
+    let bytes = std::fs::read(&first).unwrap();
+    std::fs::write(&other, &bytes).unwrap();
+    assert!(
+        destination.get("a").is_err(),
+        "a ciphertext copy needs its install key"
+    );
+    assert!(destination.set("b", "new").is_err());
+    assert_eq!(std::fs::read(&other).unwrap(), bytes);
+    remove_secrets_dir(&first);
+    remove_secrets_dir(&other);
+}
+
+#[cfg(unix)]
+#[test]
+fn an_install_key_symlink_is_refused_without_touching_its_target() {
+    let path = secrets_file("key-symlink");
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let target = path.with_extension("fixture");
+    std::fs::write(&target, [42u8; 32]).unwrap();
+    std::os::unix::fs::symlink(&target, path.with_extension("key")).unwrap();
+    let store = FileStore::new(path.clone());
+    assert!(store.set("a", "fixture").is_err());
+    assert!(!path.exists());
+    assert_eq!(std::fs::read(&target).unwrap(), [42u8; 32]);
+    remove_secrets_dir(&path);
+}
+
+#[test]
+fn a_stale_key_temporary_file_does_not_block_a_new_install() {
+    let path = secrets_file("key-stale");
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let stale = path.with_extension(format!("key.{}.tmp", std::process::id()));
+    std::fs::write(&stale, b"crashed-write").unwrap();
+    let store = FileStore::new(path.clone());
+    store.set("a", "fixture").unwrap();
+    assert_eq!(store.get("a").unwrap().as_deref(), Some("fixture"));
+    assert_eq!(std::fs::read(&stale).unwrap(), b"crashed-write");
+    remove_secrets_dir(&path);
+}
+
+fn legacy_secrets_fixture(path: &Path, json: &[u8]) -> Vec<u8> {
+    use chacha20poly1305::{aead::Aead, KeyInit};
+    let nonce = [19u8; 12];
+    let encrypted = chacha20poly1305::ChaCha20Poly1305::new(&super::file_key_v1())
+        .encrypt(&nonce.into(), json)
+        .unwrap();
+    let bytes = [b"HZSECv1\n".as_slice(), &nonce, &encrypted].concat();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(path, &bytes).unwrap();
+    bytes
+}
+
+#[test]
+fn migration_key_failure_keeps_legacy_secrets_readable_and_unchanged() {
+    let path = secrets_file("migration-failure");
+    let bytes = legacy_secrets_fixture(&path, br#"{"a":"old-secret","signed-out":""}"#);
+    // A damaged install key makes migration fail even when tests run as root.
+    std::fs::write(path.with_extension("key"), b"partial").unwrap();
+    let store = FileStore::new(path.clone());
+    assert_eq!(store.get("a").unwrap().as_deref(), Some("old-secret"));
+    assert_eq!(
+        store
+            .entries()
+            .unwrap()
+            .get("signed-out")
+            .map(String::as_str),
+        Some("")
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    assert!(store.set("b", "new-secret").is_err());
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    remove_secrets_dir(&path);
+}
+
+#[test]
+fn malformed_legacy_json_is_never_migrated_or_quoted() {
+    let path = secrets_file("migration-malformed");
+    for json in [
+        br#""private-fixture""#.as_slice(),
+        br#"{"a":"private-fixture""#,
+    ] {
+        let bytes = legacy_secrets_fixture(&path, json);
+        let store = FileStore::new(path.clone());
+        let error = store.get("a").unwrap_err();
+        assert!(!error.contains("private-fixture"));
+        assert!(store.set("b", "new").is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        assert!(!path.with_extension("key").exists());
+    }
+    remove_secrets_dir(&path);
+}
+
+#[test]
+fn legacy_tombstones_survive_migration_and_empty_legacy_files_are_removed() {
+    let path = secrets_file("migration-tombstones");
+    legacy_secrets_fixture(&path, br#"{"signed-out":"","a":"old"}"#);
+    let store = FileStore::new(path.clone());
+    assert_eq!(
+        store
+            .entries()
+            .unwrap()
+            .get("signed-out")
+            .map(String::as_str),
+        Some("")
+    );
+    assert!(std::fs::read(&path).unwrap().starts_with(b"HZSECv2\n"));
+    assert_eq!(
+        FileStore::new(path.clone()).get("signed-out").unwrap(),
+        Some(String::new())
+    );
+    legacy_secrets_fixture(&path, b"{}");
+    assert!(store.entries().unwrap().is_empty());
+    assert!(!path.exists());
+    remove_secrets_dir(&path);
+}
+
+#[test]
+fn a_missing_or_damaged_install_key_never_replaces_ciphertext() {
+    let path = secrets_file("key-damaged");
+    let store = FileStore::new(path.clone());
+    store.set("a", "fixture-secret").unwrap();
+    let bytes = std::fs::read(&path).unwrap();
+    let key = path.with_extension("key");
+    let good = std::fs::read(&key).unwrap();
+    for length in [0usize, 31, 33, 4096] {
+        std::fs::write(&key, vec![42u8; length]).unwrap();
+        assert!(store.get("a").is_err());
+        assert!(store.set("b", "new").is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        assert_eq!(std::fs::metadata(&key).unwrap().len(), length as u64);
+    }
+    std::fs::remove_file(&key).unwrap();
+    assert!(store.get("a").is_err());
+    assert!(store.set("b", "new").is_err());
+    assert!(!key.exists());
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    std::fs::write(&key, good).unwrap();
+    assert_eq!(store.get("a").unwrap().as_deref(), Some("fixture-secret"));
+    remove_secrets_dir(&path);
+}
+
+#[test]
+fn concurrent_first_writes_share_one_install_key() {
+    let path = secrets_file("first-writes");
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(6));
+    let threads: Vec<_> = (0..6)
+        .map(|n| {
+            let path = path.clone();
+            let barrier = barrier.clone();
+            std::thread::spawn(move || {
+                let store = FileStore::new(path);
+                barrier.wait();
+                store.set(&format!("writer-{n}"), "fixture").unwrap();
+            })
+        })
+        .collect();
+    for thread in threads {
+        thread.join().unwrap();
+    }
+    let store = FileStore::new(path.clone());
+    for n in 0..6 {
+        assert_eq!(
+            store.get(&format!("writer-{n}")).unwrap().as_deref(),
+            Some("fixture")
+        );
+    }
+    assert_eq!(
+        files_beside(&path),
+        [
+            "account-secrets.json",
+            "account-secrets.key",
+            "account-secrets.lock"
+        ]
+    );
+    remove_secrets_dir(&path);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_special_install_key_file_is_refused_without_blocking() {
+    use std::os::unix::ffi::OsStrExt;
+    let path = secrets_file("key-fifo");
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let key = path.with_extension("key");
+    let name = std::ffi::CString::new(key.as_os_str().as_bytes()).unwrap();
+    assert_eq!(unsafe { libc::mkfifo(name.as_ptr(), 0o600) }, 0);
+    assert!(FileStore::new(path.clone()).set("a", "fixture").is_err());
+    assert!(!path.exists());
+    remove_secrets_dir(&path);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_failed_ciphertext_migration_keeps_the_legacy_bytes_until_retry() {
+    use std::os::unix::fs::PermissionsExt;
+    let path = secrets_file("migration-write-failure");
+    let bytes = legacy_secrets_fixture(&path, br#"{"a":"old-secret"}"#);
+    let store = FileStore::new(path.clone());
+    store.locked(|| Ok(())).unwrap();
+    std::fs::write(path.with_extension("key"), [42u8; 32]).unwrap();
+    let directory = path.parent().unwrap();
+    std::fs::set_permissions(directory, std::fs::Permissions::from_mode(0o500)).unwrap();
+    // Existing lock is writable, but directory permissions prevent the migration's temp file.
+    let result = store.get("a");
+    let unchanged = std::fs::read(&path).unwrap();
+    std::fs::set_permissions(directory, std::fs::Permissions::from_mode(0o700)).unwrap();
+    assert_eq!(result.unwrap().as_deref(), Some("old-secret"));
+    assert_eq!(unchanged, bytes);
+    assert_eq!(store.get("a").unwrap().as_deref(), Some("old-secret"));
+    assert!(std::fs::read(&path).unwrap().starts_with(b"HZSECv2\n"));
+    assert_eq!(
+        files_beside(&path),
+        [
+            "account-secrets.json",
+            "account-secrets.key",
+            "account-secrets.lock"
+        ]
+    );
+    remove_secrets_dir(&path);
 }

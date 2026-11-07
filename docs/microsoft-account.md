@@ -172,9 +172,13 @@ one is selected. "Sign out" deletes the account's secrets from the keychain.
 - Linux and FreeBSD with no keychain answering (no Secret Service, a locked keychain, #5095): the
   secrets the keychain refuses go to `account-secrets.json` in the launcher's data folder instead,
   readable and writable by the player only (0600 on Unix) and never in plain text: the file is
-  encrypted (ChaCha20-Poly1305) with a key derived from the computer's identity (`/etc/machine-id`,
-  `/etc/hostid`), so a copy taken off the computer (a backup, a synced home folder) can't be read
-  elsewhere. On the computer itself the file's mode is what keeps other users out. A file that
+  encrypted (ChaCha20-Poly1305) with a key derived from the computer's identity, when present,
+  and a random 32-byte install secret in `account-secrets.key` (0600 on Unix). Copying the encrypted
+  file alone does not copy its key. Keep both files private: encryption is not protection against
+  someone who can read the key and the encrypted file on the same computer. Old format-1 files
+  remain readable and are migrated under the file lock when possible; a failed migration leaves
+  the old file readable. A missing or damaged key never causes a format-2 file to be overwritten.
+  Existing keys must be regular files; Unix opens refuse symlinks. A file that
   doesn't open (another computer's, or changed) is never written over: remove it and sign in again. The
   launcher never picks one store for a run: every read takes the file's copy first (it was written
   while the keychain was away, so it is the newer one) and the keychain's otherwise, and every write
