@@ -1,5 +1,6 @@
 """Notice collection must preserve text and unresolved obligations without leaking paths."""
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -32,6 +33,45 @@ class Notices(unittest.TestCase):
         self.assertNotIn(str(self.root), files['dependency-notices/index.json'].decode())
         (self.pkg / 'LICENSE-MIT').unlink()
         self.assertEqual(json.loads(self.collect()['dependency-notices/index.json'])['packages'][0]['status'], 'missing-text-review-required')
+
+    def supplement(self):
+        self.metadata['packages'][0]['source'] = 'registry+https://github.com/rust-lang/crates.io-index'
+        commit = 'a' * 40
+        (self.pkg / '.cargo_vcs_info.json').write_text(json.dumps({'git': {'sha1': commit}}))
+        root = self.root / 'supplement'
+        root.mkdir()
+        data = b'Actual upstream license bytes\n'
+        (root / 'LICENSE').write_bytes(data)
+        row = {'name': 'example', 'version': '1.2.3', 'commit': commit,
+               'repo': 'https://github.com/example/project',
+               'texts': [{'path': 'LICENSE', 'sha256': hashlib.sha256(data).hexdigest(),
+                          'url': 'https://github.com/example/project/blob/' + commit + '/LICENSE'}]}
+        (root / 'index.json').write_text(json.dumps({'packages': [row]}))
+        return root, row
+
+    def test_pinned_supplement_preserves_bytes_and_provenance(self):
+        root, row = self.supplement()
+        files = self.module.collect(self.metadata, [self.root], root)
+        self.assertEqual(files['dependency-notices/example-1.2.3/upstream/LICENSE'], b'Actual upstream license bytes\n')
+        index = json.loads(files['dependency-notices/index.json'])
+        self.assertEqual(index['packages'][0]['upstream_provenance']['commit'], 'a' * 40)
+        self.assertNotIn(str(self.root), files['dependency-notices/index.json'].decode())
+        self.assertEqual(index['packages'][0]['license'], 'MIT AND ISC')
+
+    def test_supplement_refuses_commit_hash_escape_symlink_and_private_repo(self):
+        root, row = self.supplement()
+        good = json.loads(json.dumps(row))
+        for change in [{'commit': 'b' * 40}, {'repo': 'https://user:secret@private.invalid/project'},
+                       {'texts': [dict(good['texts'][0], sha256='0' * 64)]},
+                       {'texts': [dict(good['texts'][0], path='../private')]},
+                       {'texts': [dict(good['texts'][0], url='https://example.invalid/LICENSE')]}]:
+            altered = dict(good, **change)
+            (root / 'index.json').write_text(json.dumps({'packages': [altered]}))
+            with self.assertRaises(ValueError):self.module.collect(self.metadata, [self.root], root)
+        (root / 'index.json').write_text(json.dumps({'packages': [good]}))
+        (root / 'LICENSE').unlink()
+        (root / 'LICENSE').symlink_to(self.pkg / 'Cargo.toml')
+        with self.assertRaises(ValueError):self.module.collect(self.metadata, [self.root], root)
 
     def test_case_insensitive_direct_texts_without_recursive_scan(self):
         (self.pkg / 'license-mit').write_text('Original MIT text\n')

@@ -60,7 +60,8 @@ def package(binary, output, platform, version, source_commit, dependency_metadat
     }
     files.update({name: (ROOT / path).read_bytes() for name, path in notices.items()})
     if dependency_metadata is not None:
-        files.update(collect(dependency_metadata, dependency_roots))
+        files.update(collect(dependency_metadata, dependency_roots,
+                             ROOT / 'packaging/goattech/upstream-notices'))
     manifest = {
         'product': 'GoatTech Launcher', 'version': version,
         'platform': platform, 'source_commit': source_commit,
