@@ -655,6 +655,158 @@ impl SecretStore for MemoryStore {
     }
 }
 
+/// After an unreadable startup probe, unknown old accounts are not signed out. Explicit
+/// sign-ins and sign-outs still work in memory for this run, as with the old fallback.
+struct UnreadableMemory {
+    why: String,
+    entries: Mutex<HashMap<String, Option<String>>>,
+    operations: Mutex<()>,
+}
+impl UnreadableMemory {
+    fn new(why: String) -> Self {
+        Self {
+            why: keychain_read_failure(why),
+            entries: Default::default(),
+            operations: Mutex::new(()),
+        }
+    }
+}
+impl SecretStore for UnreadableMemory {
+    fn get(&self, key: &str) -> Result<Option<String>, String> {
+        self.entries
+            .lock()
+            .unwrap()
+            .get(key)
+            .cloned()
+            .ok_or_else(|| self.why.clone())
+    }
+    fn set(&self, key: &str, secret: &str) -> Result<(), String> {
+        self.entries
+            .lock()
+            .unwrap()
+            .insert(key.into(), Some(secret.into()));
+        Ok(())
+    }
+    fn delete(&self, key: &str) -> Result<(), String> {
+        self.entries.lock().unwrap().insert(key.into(), None);
+        Ok(())
+    }
+    fn persistent(&self) -> bool {
+        false
+    }
+    fn operations(&self) -> &Mutex<()> {
+        &self.operations
+    }
+}
+
+fn memory_for_failed_probe(why: String) -> Box<dyn SecretStore> {
+    Box::new(UnreadableMemory::new(why))
+}
+
+/// Only native reads known not to write credentials may be given up on. Mutators stay on
+/// their caller's thread, under the existing account and hand-over locks. In particular,
+/// macOS reads migrate legacy pieces and must not use this wrapper.
+#[cfg(any(
+    test,
+    target_os = "linux",
+    target_os = "freebsd",
+    target_os = "windows"
+))]
+struct BoundedReads {
+    native: std::sync::Arc<dyn SecretStore>,
+    reading: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    wait: Duration,
+}
+
+fn keychain_read_timeout() -> String {
+    crate::i18n::tr("The system keychain did not answer the sign-in read in time. Unlock it and restart the launcher.").into()
+}
+
+fn keychain_read_failure(error: String) -> String {
+    if error == keychain_read_timeout() {
+        error
+    } else {
+        crate::i18n::tr(
+            "The system keychain could not read your sign-in. Unlock it and restart the launcher.",
+        )
+        .into()
+    }
+}
+
+#[cfg(any(
+    test,
+    target_os = "linux",
+    target_os = "freebsd",
+    target_os = "windows"
+))]
+impl BoundedReads {
+    fn new(native: impl SecretStore + 'static, wait: Duration) -> Self {
+        Self {
+            native: std::sync::Arc::new(native),
+            reading: Default::default(),
+            wait,
+        }
+    }
+}
+
+#[cfg(any(
+    test,
+    target_os = "linux",
+    target_os = "freebsd",
+    target_os = "windows"
+))]
+impl SecretStore for BoundedReads {
+    fn get(&self, key: &str) -> Result<Option<String>, String> {
+        use std::sync::atomic::Ordering::SeqCst;
+        if self
+            .reading
+            .compare_exchange(false, true, SeqCst, SeqCst)
+            .is_err()
+        {
+            return Err(keychain_read_timeout());
+        }
+        let (answer, receive) = std::sync::mpsc::sync_channel(1);
+        let (native, reading, key) = (self.native.clone(), self.reading.clone(), key.to_string());
+        let spawned = std::thread::Builder::new()
+            .name("keychain-read".into())
+            .spawn(move || {
+                struct Reading(std::sync::Arc<std::sync::atomic::AtomicBool>);
+                impl Drop for Reading {
+                    fn drop(&mut self) {
+                        self.0.store(false, std::sync::atomic::Ordering::SeqCst);
+                    }
+                }
+                let _reading = Reading(reading);
+                // A late answer has no credential writes and cannot reach a later caller.
+                let _ = answer.send(native.get(&key));
+            });
+        if spawned.is_err() {
+            self.reading.store(false, SeqCst);
+            return Err(keychain_read_failure(String::new()));
+        }
+        match receive.recv_timeout(self.wait) {
+            Ok(answer) => answer,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => Err(keychain_read_timeout()),
+            Err(_) => Err(keychain_read_failure(String::new())),
+        }
+    }
+    fn set(&self, key: &str, secret: &str) -> Result<(), String> {
+        self.native.set(key, secret)
+    }
+    fn delete(&self, key: &str) -> Result<(), String> {
+        self.native.delete(key)
+    }
+    fn persistent(&self) -> bool {
+        self.native.persistent()
+    }
+    fn lock_file(&self) -> Option<PathBuf> {
+        self.native.lock_file()
+    }
+    fn operations(&self) -> &Mutex<()> {
+        self.native.operations()
+    }
+}
+
 /// The secrets file in the launcher's data folder, when no keychain answers (#5095): many Linux
 /// systems run no Secret Service, and sign-ins would otherwise last one run. One JSON object, key
 /// to secret, encrypted with a key of this computer's ([`seal`]), readable and writable by the
@@ -1537,7 +1689,11 @@ fn keychain_or_why() -> Result<Box<dyn SecretStore>, String> {
         if std::env::var_os("HORIZON_NO_KEYCHAIN").is_some() {
             return Err("HORIZON_NO_KEYCHAIN is set.".into());
         }
-        SystemStore.get("probe").map(|_| Box::new(SystemStore) as _)
+        #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "windows"))]
+        let native = BoundedReads::new(SystemStore, Duration::from_secs(20));
+        #[cfg(target_os = "macos")]
+        let native = SystemStore;
+        native.get("probe").map(|_| Box::new(native) as _)
     }
     #[cfg(not(all(
         not(test),
@@ -1561,11 +1717,19 @@ pub fn store() -> &'static dyn SecretStore {
         .get_or_init(|| {
             #[cfg(all(not(test), any(target_os = "linux", target_os = "freebsd")))]
             if std::env::var_os("HORIZON_NO_KEYCHAIN").is_none() {
-                return Box::new(Layered::new(Box::new(SystemStore), FileStore::launcher()));
+                return Box::new(Layered::new(
+                    Box::new(BoundedReads::new(SystemStore, Duration::from_secs(20))),
+                    FileStore::launcher(),
+                ));
             }
             keychain_or_why().unwrap_or_else(|why| {
-                let _ = NO_KEYCHAIN_WHY.set(why);
-                Box::<MemoryStore>::default()
+                if std::env::var_os("HORIZON_NO_KEYCHAIN").is_some() {
+                    let _ = NO_KEYCHAIN_WHY.set(why);
+                    Box::<MemoryStore>::default()
+                } else {
+                    let _ = NO_KEYCHAIN_WHY.set(keychain_read_failure(why.clone()));
+                    memory_for_failed_probe(why)
+                }
             })
         })
         .as_ref()
@@ -1843,11 +2007,17 @@ impl Accounts {
 }
 
 /// No account in the launcher owns Minecraft: Java Edition: the game must not start.
-#[derive(Debug, PartialEq)]
-pub struct NoOwner;
+#[derive(Debug, Default, PartialEq)]
+pub struct NoOwner {
+    /// A keychain failure is not evidence that an account does not own the game.
+    pub keyring: Option<String>,
+}
 impl std::fmt::Display for NoOwner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{NEEDS_OWNER}.")
+        match &self.keyring {
+            Some(why) => write!(f, "{why}"),
+            None => write!(f, "{NEEDS_OWNER}."),
+        }
     }
 }
 
@@ -1891,13 +2061,25 @@ pub fn launch(
     order.sort_by_key(|a| Some(&a.uuid) != selected.as_ref());
     let mut pass = Launch::default();
     let mut owned = false;
+    let mut unreadable = None;
     for account in order {
         if owned {
             break;
         }
         let plays = Some(&account.uuid) == selected.as_ref();
         let operation = session::lock(store);
-        let Some(secrets) = secrets_in(store, &account.uuid) else {
+        let read = match store.get(&account.uuid) {
+            Ok(text) => text.and_then(|text| serde_json::from_str::<Secrets>(&text).ok()),
+            Err(error) => {
+                let said = keychain_read_failure(error);
+                if plays {
+                    pass.offline = Some(said.clone());
+                }
+                unreadable = Some(said);
+                continue;
+            }
+        };
+        let Some(secrets) = read else {
             if plays {
                 pass.offline = Some(format!(
                     "{} is no longer signed in on this computer. Sign in again.",
@@ -1948,7 +2130,9 @@ pub fn launch(
     if owned {
         Ok(pass)
     } else {
-        Err(NoOwner)
+        Err(NoOwner {
+            keyring: unreadable,
+        })
     }
 }
 
@@ -1964,7 +2148,7 @@ pub fn launch_for_game(
     offline_without_owner: bool,
 ) -> Result<Launch, NoOwner> {
     match launch(ep, client_id, store, accounts) {
-        Err(NoOwner) if offline_without_owner => Ok(Launch::default()),
+        Err(NoOwner { .. }) if offline_without_owner => Ok(Launch::default()),
         pass => pass,
     }
 }
@@ -2231,7 +2415,7 @@ fn java_player_with(
         .session
         .or(pass.owner)
         .or_else(kept)
-        .ok_or_else(|| NoOwner.to_string())?;
+        .ok_or_else(|| NoOwner::default().to_string())?;
     Ok(crate::java_launch::Player {
         name: account.name,
         uuid: account.uuid,

@@ -1069,5 +1069,7 @@
   "Hide technical details": "Hide technical details",
   "Technical details": "Technical details",
   "Coarse startup, first-world load and slower-frame ranges, with game release and OS. No account or ID. Public-release sending is not enabled. Open details for sending rules and retention.": "Coarse startup, first-world load and slower-frame ranges, with game release and OS. No account or ID. Public-release sending is not enabled. Open details for sending rules and retention.",
-  "Session performance, machine specs and performance settings. Open details for the full list of fields.": "Session performance, machine specs and performance settings. Open details for the full list of fields."
+  "Session performance, machine specs and performance settings. Open details for the full list of fields.": "Session performance, machine specs and performance settings. Open details for the full list of fields.",
+  "The system keychain did not answer the sign-in read in time. Unlock it and restart the launcher.": "Der Systemschlüsselbund hat beim Lesen der Anmeldung nicht rechtzeitig geantwortet. Entsperre ihn und starte den Launcher neu.",
+  "The system keychain could not read your sign-in. Unlock it and restart the launcher.": "Der Systemschlüsselbund konnte deine Anmeldung nicht lesen. Entsperre ihn und starte den Launcher neu."
 }

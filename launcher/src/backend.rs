@@ -1654,6 +1654,7 @@ fn download_for(
              checked: {}",
             pass.offline.unwrap_or_default()
         )),
+        Err(refused) if refused.keyring.is_some() => Err(refused.to_string()),
         Err(_) if signed_in => Err(
             "\n  • No signed-in account owns Minecraft: Java Edition, so Horizon can't download it."
                 .into(),
@@ -2452,11 +2453,18 @@ pub fn client(tag: &str) -> Result<Command, String> {
 
 /// [`client`], playing as `who` for this launch only (`play --account`).
 pub fn client_as(tag: &str, who: Option<&account::Player>) -> Result<Command, String> {
+    let hint =
+        |refused: String| format!("{refused} Sign in with `horizon-launcher account sign-in`.");
     let (session, offline) = match who {
-        None => account::session_for_game(&game_home(), false).map_err(|e| e.to_string()),
-        Some(who) => account::session_for_game_as(&game_home(), who),
-    }
-    .map_err(|refused| format!("{refused} Sign in with `horizon-launcher account sign-in`."))?;
+        None => account::session_for_game(&game_home(), false).map_err(|refused| {
+            if refused.keyring.is_some() {
+                refused.to_string()
+            } else {
+                hint(refused.to_string())
+            }
+        }),
+        Some(who) => account::session_for_game_as(&game_home(), who).map_err(hint),
+    }?;
     need_prepared(tag)?;
     complete_assets(tag);
     crate::browser::horizon::before_play(&game_home());
@@ -4440,8 +4448,8 @@ mod tests {
         let log = |_: String| {};
         let no_owner = || Ok(account::Launch::default());
         for (pass, signed_in) in [
-            (Err(account::NoOwner), false),
-            (Err(account::NoOwner), true),
+            (Err(account::NoOwner::default()), false),
+            (Err(account::NoOwner::default()), true),
             (no_owner(), false),
             (no_owner(), true),
         ] {
@@ -4476,7 +4484,7 @@ mod tests {
         )
         .unwrap();
         asked.lock().unwrap().clear();
-        for (pass, signed_in) in [(Err(account::NoOwner), true), (no_owner(), true)] {
+        for (pass, signed_in) in [(Err(account::NoOwner::default()), true), (no_owner(), true)] {
             assert!(download_for(&pins, &dir, pass, signed_in, &fetch, &log).is_err());
         }
         assert!(asked.lock().unwrap().is_empty());

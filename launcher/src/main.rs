@@ -1159,7 +1159,7 @@ impl Launcher {
                                     eprintln!("sync: {re}");
                                 }
                             }
-                            if e == account::NoOwner.to_string() {
+                            if e == account::NoOwner::default().to_string() {
                                 self.owner = Some(false);
                                 self.owner_screen_open = true;
                             }
@@ -1173,10 +1173,15 @@ impl Launcher {
                         let mut cmd = backend::client_command(&tag);
                         let (file, offline) = match session {
                             Ok(pass) => pass,
-                            Err(account::NoOwner) => {
-                                self.owner = Some(false);
-                                self.owner_screen_open = true;
-                                self.client_error = Some(format!("{}.", tr(account::NEEDS_OWNER)));
+                            Err(refused) => {
+                                if refused.keyring.is_none() {
+                                    self.owner = Some(false);
+                                    self.owner_screen_open = true;
+                                }
+                                self.client_error =
+                                    Some(refused.keyring.unwrap_or_else(|| {
+                                        format!("{}.", tr(account::NEEDS_OWNER))
+                                    }));
                                 self.starting_pack = None;
                                 self.joining = None;
                                 self.quick_play = None;

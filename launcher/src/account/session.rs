@@ -187,7 +187,7 @@ pub(super) fn lock_within(
 fn read(store: &dyn SecretStore, uuid: &str) -> Result<Option<Secrets>, String> {
     store
         .get(uuid)
-        .map_err(|_| "Could not read the keychain. Unlock it and retry.".to_string())?
+        .map_err(keychain_read_failure)?
         .map(|text| serde_json::from_str(&text).map_err(|_| DAMAGED_SIGN_IN.into()))
         .transpose()
 }

@@ -2194,6 +2194,7 @@ fn account_command(action: AccountCmd, as_json: bool) -> Result<(), String> {
                      Edition: horizon-launcher account sign-in"
                 );
             } else {
+                let mut unreadable = false;
                 for a in &accounts.accounts {
                     let mark = if accounts.selected.as_ref() == Some(&a.uuid) {
                         "*"
@@ -2201,7 +2202,13 @@ fn account_command(action: AccountCmd, as_json: bool) -> Result<(), String> {
                         " "
                     };
                     let status = account::session::status(account::store(), &a.uuid);
-                    println!("{mark} {}  {}  {}", a.name, a.uuid, status.label());
+                    let why = if status.state == account::session::State::Retry {
+                        unreadable = true;
+                        format!(": {}", status.message)
+                    } else {
+                        String::new()
+                    };
+                    println!("{mark} {}  {}  {}{why}", a.name, a.uuid, status.label());
                 }
                 for n in &accounts.offline {
                     let on = accounts.player() == account::Player::Offline(n.clone());
@@ -2212,7 +2219,7 @@ fn account_command(action: AccountCmd, as_json: bool) -> Result<(), String> {
                         "Playing offline as the game's own name (`account select NAME` to switch)."
                     );
                 }
-                if !accounts.has_owner(account::store()) {
+                if !unreadable && !accounts.has_owner(account::store()) {
                     println!("{}.", account::NEEDS_OWNER);
                 }
             }

@@ -457,16 +457,16 @@ fn a_no_from_the_services_blocks_at_once() {
     assert!(accounts.has_owner(&store));
     assert_eq!(
         launch(&ep, Some("test-client"), &store, &mut accounts).unwrap_err(),
-        NoOwner
+        NoOwner::default()
     );
     // The answer is kept beside the tokens: offline now, it still says no.
     assert!(!kept(&store).owns && !accounts.has_owner(&store));
     assert_eq!(
         launch(&offline(), Some("test-client"), &store, &mut accounts).unwrap_err(),
-        NoOwner
+        NoOwner::default()
     );
     assert_eq!(
-        NoOwner.to_string(),
+        NoOwner::default().to_string(),
         "Sign in with a Microsoft account that owns Minecraft: Java Edition to play."
     );
 }
@@ -560,10 +560,10 @@ fn the_developer_option_off_is_the_owner_gate() {
     assert_eq!(accounts, Accounts::default());
     let (_, ep) = mock(|m| m.owns_game = false);
     let refused = launch_for_game(&ep, Some("test-client"), &store, &mut accounts, false);
-    assert_eq!(refused.unwrap_err(), NoOwner);
+    assert_eq!(refused.unwrap_err(), NoOwner::default());
     let mut accounts = signed_in(&store, &secrets("mc-token", true));
     let refused = launch_for_game(&ep, Some("test-client"), &store, &mut accounts, false);
-    assert_eq!(refused.unwrap_err(), NoOwner);
+    assert_eq!(refused.unwrap_err(), NoOwner::default());
 }
 
 #[test]
@@ -1079,7 +1079,7 @@ fn the_java_edition_plays_as_an_owner_even_offline() {
     let mut accounts = signed_in(&store, &secrets("mc-token", false));
     assert_eq!(
         java_player_with(&offline(), Some("test-client"), &store, &mut accounts).unwrap_err(),
-        NoOwner.to_string()
+        NoOwner::default().to_string()
     );
 }
 
@@ -2372,4 +2372,302 @@ fn a_failed_ciphertext_migration_keeps_the_legacy_bytes_until_retry() {
         ]
     );
     remove_secrets_dir(&path);
+}
+
+/// An external credential read held until the test releases it. Only mock tokens are used.
+type DeliveredReads = Arc<Mutex<Vec<Option<String>>>>;
+struct GatedRead {
+    gate: Arc<(Mutex<bool>, std::sync::Condvar)>,
+    entered: std::sync::mpsc::Sender<()>,
+    store: Arc<MemoryStore>,
+    delivered: DeliveredReads,
+}
+impl SecretStore for GatedRead {
+    fn get(&self, key: &str) -> Result<Option<String>, String> {
+        let snapshot = self.store.get(key);
+        self.entered.send(()).unwrap();
+        let (open, changed) = &*self.gate;
+        let open = open.lock().unwrap();
+        drop(changed.wait_while(open, |open| !*open).unwrap());
+        if let Ok(value) = &snapshot {
+            self.delivered.lock().unwrap().push(value.clone());
+        }
+        snapshot
+    }
+    fn set(&self, key: &str, value: &str) -> Result<(), String> {
+        self.store.set(key, value)
+    }
+    fn delete(&self, key: &str) -> Result<(), String> {
+        self.store.delete(key)
+    }
+    fn persistent(&self) -> bool {
+        true
+    }
+    fn operations(&self) -> &Mutex<()> {
+        self.store.operations()
+    }
+}
+struct ReadGate(Arc<(Mutex<bool>, std::sync::Condvar)>);
+impl Drop for ReadGate {
+    fn drop(&mut self) {
+        let (open, changed) = &*self.0;
+        *open.lock().unwrap() = true;
+        changed.notify_all();
+    }
+}
+fn gated_read() -> (
+    BoundedReads,
+    ReadGate,
+    std::sync::mpsc::Receiver<()>,
+    Arc<MemoryStore>,
+    DeliveredReads,
+) {
+    let gate = Arc::new((Mutex::new(false), std::sync::Condvar::new()));
+    let (entered, rx) = std::sync::mpsc::channel();
+    let store = Arc::new(MemoryStore::default());
+    let delivered = Arc::new(Mutex::new(Vec::new()));
+    let native = GatedRead {
+        delivered: delivered.clone(),
+        gate: gate.clone(),
+        entered,
+        store: store.clone(),
+    };
+    (
+        BoundedReads::new(native, Duration::from_millis(40)),
+        ReadGate(gate),
+        rx,
+        store,
+        delivered,
+    )
+}
+#[test]
+fn bounded_read_releases_account_lock_and_does_not_pile_up() {
+    let (bounded, _gate, entered, _, _) = gated_read();
+    let status = session::status(&bounded, UUID);
+    assert_eq!(status.state, session::State::Retry);
+    assert_eq!(status.message, keychain_read_timeout());
+    entered.recv_timeout(Duration::from_secs(1)).unwrap();
+    assert!(
+        bounded.operations().try_lock().is_ok(),
+        "caller account lock stayed held"
+    );
+    assert_eq!(bounded.get(UUID), Err(keychain_read_timeout()));
+    assert!(
+        entered.try_recv().is_err(),
+        "a second native read was queued"
+    );
+}
+#[test]
+fn late_read_result_is_discarded_and_next_read_sees_current_value() {
+    let (bounded, gate, entered, store, delivered) = gated_read();
+    store.set(UUID, "old mock token").unwrap();
+    assert!(bounded.get(UUID).is_err());
+    entered.recv_timeout(Duration::from_secs(1)).unwrap();
+    store.set(UUID, "new mock token").unwrap();
+    drop(gate);
+    let end = std::time::Instant::now() + Duration::from_secs(2);
+    loop {
+        if let Ok(value) = bounded.get(UUID) {
+            assert_eq!(value.as_deref(), Some("new mock token"));
+            let answers = delivered.lock().unwrap();
+            assert_eq!(answers.first().unwrap().as_deref(), Some("old mock token"));
+            assert_eq!(answers.last().unwrap().as_deref(), Some("new mock token"));
+            break;
+        }
+        assert!(std::time::Instant::now() < end);
+        std::thread::yield_now();
+    }
+}
+#[test]
+fn synchronous_mutators_are_not_abandoned_by_a_stuck_read() {
+    let (bounded, _gate, _entered, store, _) = gated_read();
+    assert!(bounded.get(UUID).is_err());
+    bounded.set(UUID, "new mock token").unwrap();
+    assert_eq!(store.get(UUID).unwrap().as_deref(), Some("new mock token"));
+    bounded.delete(UUID).unwrap();
+    assert_eq!(store.get(UUID).unwrap(), None);
+}
+#[test]
+fn late_read_cannot_replace_newer_fallback_or_signout() {
+    let path = secrets_file("bounded-read-late");
+    let (bounded, gate, entered, store, _) = gated_read();
+    store.set(UUID, "old mock token").unwrap();
+    let layered = Layered::new(Box::new(bounded), FileStore::new(path.clone()));
+    assert!(layered.get(UUID).is_err());
+    entered.recv_timeout(Duration::from_secs(1)).unwrap();
+    layered.set(UUID, "new fallback mock token").unwrap();
+    drop(gate);
+    assert_eq!(
+        layered.get(UUID).unwrap().as_deref(),
+        Some("new fallback mock token")
+    );
+    layered.delete(UUID).unwrap();
+    assert_eq!(layered.get(UUID).unwrap(), None);
+    assert!(FileStore::new(path.clone()).entry(UUID).unwrap().is_some());
+    remove_secrets_dir(&path);
+}
+#[test]
+fn unreadable_keychain_is_not_reported_as_no_game_owner() {
+    let (bounded, _gate, _entered, store, _) = gated_read();
+    let mut accounts = signed_in(&store, &secrets("mock-token", true));
+    let refused = launch(&offline(), Some("test-client"), &bounded, &mut accounts).unwrap_err();
+    assert_eq!(
+        refused.keyring.as_deref(),
+        Some(keychain_read_timeout().as_str())
+    );
+    assert!(!refused.to_string().contains(NEEDS_OWNER));
+    assert!(bounded.operations().try_lock().is_ok());
+}
+#[test]
+fn provider_error_text_cannot_escape_through_keychain_failure() {
+    struct Refuse;
+    impl SecretStore for Refuse {
+        fn get(&self, _: &str) -> Result<Option<String>, String> {
+            Err("mock-secret-should-not-leak".into())
+        }
+        fn set(&self, _: &str, _: &str) -> Result<(), String> {
+            unreachable!()
+        }
+        fn delete(&self, _: &str) -> Result<(), String> {
+            unreachable!()
+        }
+        fn persistent(&self) -> bool {
+            true
+        }
+    }
+    let store = MemoryStore::default();
+    let mut accounts = signed_in(&store, &secrets("mock-token", true));
+    let error = launch(&offline(), None, &Refuse, &mut accounts).unwrap_err();
+    assert!(error.keyring.is_some());
+    assert!(!error.to_string().contains("mock-secret"));
+    assert!(!session::status(&Refuse, UUID)
+        .message
+        .contains("mock-secret"));
+}
+
+#[test]
+fn mutating_calls_stay_on_caller_under_the_existing_account_lock() {
+    struct Mutating {
+        gate: Arc<(Mutex<bool>, std::sync::Condvar)>,
+        entered: std::sync::mpsc::Sender<()>,
+        store: Arc<MemoryStore>,
+    }
+    impl Mutating {
+        fn wait(&self) {
+            self.entered.send(()).unwrap();
+            let (open, changed) = &*self.gate;
+            drop(
+                changed
+                    .wait_while(open.lock().unwrap(), |open| !*open)
+                    .unwrap(),
+            );
+        }
+    }
+    impl SecretStore for Mutating {
+        fn get(&self, key: &str) -> Result<Option<String>, String> {
+            self.store.get(key)
+        }
+        fn set(&self, key: &str, value: &str) -> Result<(), String> {
+            self.wait();
+            self.store.set(key, value)
+        }
+        fn delete(&self, key: &str) -> Result<(), String> {
+            self.wait();
+            self.store.delete(key)
+        }
+        fn persistent(&self) -> bool {
+            true
+        }
+        fn operations(&self) -> &Mutex<()> {
+            self.store.operations()
+        }
+    }
+    for deleting in [false, true] {
+        let gate = Arc::new((Mutex::new(false), std::sync::Condvar::new()));
+        let release = ReadGate(gate.clone());
+        let store = Arc::new(MemoryStore::default());
+        store.set(UUID, "old mock token").unwrap();
+        let (entered, rx) = std::sync::mpsc::channel();
+        let bounded = Arc::new(BoundedReads::new(
+            Mutating {
+                gate,
+                entered,
+                store: store.clone(),
+            },
+            Duration::from_millis(10),
+        ));
+        let (done, finished) = std::sync::mpsc::channel();
+        let worker = bounded.clone();
+        let thread = std::thread::spawn(move || {
+            let _operation = session::lock(worker.as_ref()).unwrap();
+            if deleting {
+                worker.delete(UUID).unwrap()
+            } else {
+                worker.set(UUID, "new mock token").unwrap()
+            }
+            done.send(()).unwrap();
+        });
+        rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        assert!(
+            finished.recv_timeout(Duration::from_millis(40)).is_err(),
+            "mutator returned before native completion"
+        );
+        assert!(
+            store.operations().try_lock().is_err(),
+            "existing account lock released during native write"
+        );
+        drop(release);
+        thread.join().unwrap();
+        finished.recv_timeout(Duration::from_secs(1)).unwrap();
+        assert_eq!(
+            store.get(UUID).unwrap(),
+            if deleting {
+                None
+            } else {
+                Some("new mock token".into())
+            }
+        );
+    }
+}
+
+#[test]
+fn probe_timeout_preserves_unreadable_existing_accounts_and_ephemeral_signin() {
+    let (native, _gate, _entered, _, _) = gated_read();
+    let why = native.get("probe").unwrap_err();
+    let fallback = memory_for_failed_probe(why);
+    let source = MemoryStore::default();
+    let mut accounts = signed_in(&source, &secrets("mock-token", true));
+    assert_eq!(
+        session::status(fallback.as_ref(), UUID).state,
+        session::State::Retry
+    );
+    let refused = launch(&offline(), None, fallback.as_ref(), &mut accounts).unwrap_err();
+    assert_eq!(
+        refused.keyring.as_deref(),
+        Some(keychain_read_timeout().as_str())
+    );
+    assert!(!refused.to_string().contains(NEEDS_OWNER));
+    assert!(!fallback.persistent());
+    // A new explicit sign-in is usable this run, never written to the unreadable native store.
+    let value = serde_json::to_string(&secrets("fresh mock-token", true)).unwrap();
+    fallback.set(UUID, &value).unwrap();
+    assert_eq!(
+        session::status(fallback.as_ref(), UUID).state,
+        session::State::Ready
+    );
+    assert!(launch(&offline(), None, fallback.as_ref(), &mut accounts).is_ok());
+    fallback.delete(UUID).unwrap();
+    assert_eq!(fallback.get(UUID).unwrap(), None);
+    assert_eq!(
+        session::status(fallback.as_ref(), UUID).state,
+        session::State::SignInRequired
+    );
+    assert!(launch(&offline(), None, fallback.as_ref(), &mut accounts)
+        .unwrap_err()
+        .keyring
+        .is_none());
+    assert_eq!(
+        session::status(fallback.as_ref(), "another-existing-account").state,
+        session::State::Retry
+    );
 }
