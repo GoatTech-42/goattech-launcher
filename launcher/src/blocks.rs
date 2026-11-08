@@ -16,7 +16,16 @@ impl gpui::AssetSource for Assets {
         let name = path
             .strip_prefix("icons/")
             .and_then(|p| p.strip_suffix(".svg"));
-        Ok(name.and_then(horizon_theme::icons::get).map(Cow::Borrowed))
+        let bytes = match name {
+            Some("goattech") => {
+                Some(include_bytes!("../assets/branding/goattech-mark-small.svg").as_slice())
+            }
+            Some("goattech-full") => {
+                Some(include_bytes!("../assets/branding/goattech-mark.svg").as_slice())
+            }
+            _ => name.and_then(horizon_theme::icons::get),
+        };
+        Ok(bytes.map(Cow::Borrowed))
     }
 
     fn list(&self, _path: &str) -> gpui::Result<Vec<SharedString>> {
@@ -179,5 +188,33 @@ pub fn slot(source: Option<ImageSource>, name: &str, size: f32, t: &Theme) -> Di
                         .to_string(),
                 ),
         ),
+    }
+}
+
+#[cfg(test)]
+mod branding_tests {
+    use super::*;
+    use gpui::AssetSource;
+
+    #[test]
+    fn launcher_branding_serves_exact_full_and_small_assets() {
+        let assets = Assets;
+        assert_eq!(
+            assets.load("icons/goattech.svg").unwrap().unwrap().as_ref(),
+            include_bytes!("../assets/branding/goattech-mark-small.svg")
+        );
+        assert_eq!(
+            assets
+                .load("icons/goattech-full.svg")
+                .unwrap()
+                .unwrap()
+                .as_ref(),
+            include_bytes!("../assets/branding/goattech-mark.svg")
+        );
+        assert_eq!(
+            assets.load("icons/play.svg").unwrap().unwrap().as_ref(),
+            horizon_theme::icons::get("play").unwrap()
+        );
+        assert!(assets.load("icons/missing.svg").unwrap().is_none());
     }
 }

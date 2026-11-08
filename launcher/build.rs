@@ -1,8 +1,8 @@
-//! Embeds Horizon's icon (`packaging/icons/horizon.ico`) in the Windows executables, as icon
+//! Embeds GoatTech's launcher icon (`packaging/icons/goattech/launcher.ico`) in the Windows executables, as icon
 //! resource 1: Explorer and the task bar show it, and the window takes it as its icon.
 fn main() {
     let dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default();
-    let ico = format!("{dir}/../packaging/icons/horizon.ico");
+    let ico = format!("{dir}/../packaging/icons/goattech/launcher.ico");
     println!("cargo:rerun-if-changed={ico}");
     // The debug CLI command tree exceeds Windows' default 1 MiB main stack.
     // Keep both entry points at the same 8 MiB reserve as the game executable.

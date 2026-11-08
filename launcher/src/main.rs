@@ -2237,13 +2237,17 @@ fn version_tag(tag: &str) -> Div {
         )
 }
 
-/// Horizon's mark: two stems, their reflection below, and the horizon across in the accent.
+/// GoatTech's summit mark; its counter-free cut stays clear below 48 logical pixels.
 fn mark(size: f32, t: &Theme) -> Div {
-    // The GoatTech mark: the pixel goat head glyph (horizon_theme::icons::GOATTECH), in ink.
+    let name = if size < 48. {
+        "goattech"
+    } else {
+        "goattech-full"
+    };
     div()
         .flex_none()
         .size(px(size))
-        .child(blocks::icon("goattech", size, t.ink))
+        .child(blocks::icon(name, size, t.ink))
 }
 
 /// The last thing the player did was press Tab: focused controls show a ring (a click focuses them
@@ -5562,6 +5566,11 @@ impl Render for Launcher {
                             .relative()
                             .top(px(-24. * (1. - gone)))
                             .opacity(gone)
+                            .flex()
+                            .flex_col()
+                            .items_center()
+                            .gap(px(32.))
+                            .child(mark(112., &t))
                             .child(word),
                     )
                     .when(reveal == 0., |d| {

@@ -52,6 +52,46 @@ const ICONS: [(&str, &[u8]); 9] = [
     ),
 ];
 
+/// Launcher-only branding; the Horizon game icon set above stays unchanged.
+const LAUNCHER_ICONS: [(&str, &[u8]); 9] = [
+    (
+        "16x16",
+        include_bytes!("../../packaging/icons/goattech/launcher-16.png"),
+    ),
+    (
+        "24x24",
+        include_bytes!("../../packaging/icons/goattech/launcher-24.png"),
+    ),
+    (
+        "32x32",
+        include_bytes!("../../packaging/icons/goattech/launcher-32.png"),
+    ),
+    (
+        "48x48",
+        include_bytes!("../../packaging/icons/goattech/launcher-48.png"),
+    ),
+    (
+        "64x64",
+        include_bytes!("../../packaging/icons/goattech/launcher-64.png"),
+    ),
+    (
+        "128x128",
+        include_bytes!("../../packaging/icons/goattech/launcher-128.png"),
+    ),
+    (
+        "256x256",
+        include_bytes!("../../packaging/icons/goattech/launcher-256.png"),
+    ),
+    (
+        "512x512",
+        include_bytes!("../../packaging/icons/goattech/launcher-512.png"),
+    ),
+    (
+        "scalable",
+        include_bytes!("../../packaging/icons/goattech/launcher.svg"),
+    ),
+];
+
 const LAUNCHER_ENTRY: &str = "horizon-launcher.desktop";
 const GAME_ENTRY: &str = "horizon.desktop";
 const GAME_ENTRY_TEXT: &str = include_str!("../../packaging/linux/horizon.desktop");
@@ -82,12 +122,12 @@ pub fn launcher_entry(exe: &Path) -> String {
     format!(
         "[Desktop Entry]\n\
          Type=Application\n\
-         Name=Horizon\n\
+         Name=GoatTech Launcher\n\
          GenericName=Game launcher\n\
          Comment=Install, prepare and play Horizon, Minecraft: Java Edition {minecraft} rewritten in Rust\n\
          Exec={}\n\
          TryExec={}\n\
-         Icon=horizon\n\
+         Icon=goattech-launcher\n\
          Terminal=false\n\
          Categories=Game;\n\
          StartupWMClass=horizon-launcher\n",
@@ -114,6 +154,20 @@ fn files(data: &Path, exe: &Path) -> Vec<(PathBuf, Vec<u8>)> {
             "horizon.svg"
         } else {
             "horizon.png"
+        };
+        out.push((
+            data.join("icons/hicolor")
+                .join(size)
+                .join("apps")
+                .join(name),
+            bytes.to_vec(),
+        ));
+    }
+    for (size, bytes) in LAUNCHER_ICONS {
+        let name = if size == "scalable" {
+            "goattech-launcher.svg"
+        } else {
+            "goattech-launcher.png"
         };
         out.push((
             data.join("icons/hicolor")
@@ -258,11 +312,42 @@ mod tests {
     use super::*;
 
     #[test]
+    fn launcher_branding_leaves_the_game_icons_unchanged() {
+        let exe = Path::new("/opt/goattech-launcher");
+        let data = Path::new("/tmp/branding-test-data");
+        let all = files(data, exe);
+        let icon = |name: &str| {
+            all.iter()
+                .find(|(path, _)| path.ends_with(name))
+                .unwrap()
+                .1
+                .as_slice()
+        };
+        assert_eq!(
+            icon("48x48/apps/horizon.png"),
+            ICONS.iter().find(|(size, _)| *size == "48x48").unwrap().1
+        );
+        assert_eq!(
+            icon("48x48/apps/goattech-launcher.png"),
+            LAUNCHER_ICONS
+                .iter()
+                .find(|(size, _)| *size == "48x48")
+                .unwrap()
+                .1
+        );
+        assert_eq!(
+            all.iter().find(|(p, _)| p.ends_with(GAME_ENTRY)).unwrap().1,
+            GAME_ENTRY_TEXT.as_bytes()
+        );
+    }
+
+    #[test]
     fn exec_paths_are_quoted() {
         let entry = launcher_entry(Path::new("/home/a b/Horizon \"x\"/horizon-launcher"));
         assert!(entry.contains("Exec=\"/home/a b/Horizon \\\"x\\\"/horizon-launcher\"\n"));
         assert!(entry.contains("TryExec=/home/a b/Horizon \"x\"/horizon-launcher\n"));
-        assert!(entry.contains("Icon=horizon\n"));
+        assert!(entry.contains("Icon=goattech-launcher\n"));
+        assert!(entry.contains("Name=GoatTech Launcher\n"));
     }
 
     #[test]
