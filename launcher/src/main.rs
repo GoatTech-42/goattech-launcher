@@ -5356,8 +5356,8 @@ impl Render for Launcher {
             let gone = 1. - ease_out_cubic(reveal / 0.6);
             let word = div()
                 .flex()
-                // The intro-only cut removes the H's M-like central notch.
-                .font_family("GoatTech Opening")
+                // One bundled display face keeps every letter in the wordmark consistent.
+                .font_family(theme::DISPLAY_FONT)
                 .text_size(px(theme::WORDMARK.px * 0.5))
                 .line_height(px(theme::WORDMARK.px * 0.5))
                 .font_weight(FontWeight::BOLD)
