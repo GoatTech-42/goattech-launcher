@@ -1,11 +1,12 @@
 //! The anonymous "I'm playing" ping, and the live count it feeds ("N playing now" in the
 //! launcher).
 //!
-//! Unlike everything else in this crate it does not wait for consent: Ludovic decided
-//! (2026-10-22) to count every player and tell them, in the launcher's first-run question, its
-//! Settings and the privacy page. So a ping holds only what the count needs: a random session ID
-//! made when the game starts and kept only in its memory (not the install ID), the Horizon
-//! version, the platform and whether a LAN or play-with-friends world is open. The game sends
+//! Unlike everything else in this crate it does not wait for consent: GoatTech's
+//! 2026-11-03 decision is to count every player and tell them, in the launcher's first-run
+//! question, its Settings and once on the Play page. So a ping holds only what the count needs:
+//! a random session ID made when the game starts and kept only in its memory (not the install
+//! ID), the Horizon version, the platform and whether a LAN or play-with-friends world is open.
+//! The game sends
 //! one every [`INTERVAL`]; the server counts a session while its last ping is under
 //! [`WINDOW`] old and serves the counts exactly. It writes down only the totals, once a minute,
 //! for the history on playhorizon.dev/stats: never a session.
