@@ -1,15 +1,16 @@
 # goattech launcher
 
-A small desktop app that installs Horizon builds, prepares them from your own copy of
-Minecraft, and starts the client or a dedicated server. Built with [GPUI Fast](https://github.com/longbridge/gpui-fast),
+The desktop app: ordinary Java Edition instances and the Horizon Rust engine in one home.
+Each instance keeps its own game folder, mods, settings and saves; config sync shares the
+settings you choose across them. The look is monochrome: pure black, white and grey, square
+edges, your own 3D player on Home. Built with [GPUI Fast](https://github.com/longbridge/gpui-fast),
 a fork of Zed's UI framework [GPUI](https://www.gpui.rs) that draws unchanged views from the last frame;
 it has its own Cargo workspace and is not part of the game's builds.
 
 ![Play](docs/play.png)
 
-The opening, then Play ([clip](docs/opening.webm)):
-
-![Opening](docs/opening-1.png)
+<!-- docs/play.png is replaced in place by the lead's mono capture (build 0.1.0-rc.1).
+     the opening clip and the other pre-mono captures are delete-or-recapture, see the change list. -->
 
 ## What it does
 
@@ -152,19 +153,18 @@ The opening, then Play ([clip](docs/opening.webm)):
   Share log takes the names out of the log too. `horizon-launcher account offline
   [NAME]`, `account select <name>` (an account or an offline name), `account forget-offline
   <name>`.
-- **Accent and Home background**: on top of Dark, Light or System, Settings > Launcher picks an
-  accent (Horizon's violet, blue, teal, green, amber, red or pink) and a picture of the player's
-  own behind Home (PNG, JPEG or WebP, cropped to fill; **Landscape** brings Horizon's back). An
-  accent turns the violet tokens to its hue, then darkens or lightens them just enough to keep
-  white on the Play button at 4.5:1 and the accent at 3:1 on every background (a test holds every
-  accent in both looks to it). The picture is copied into the data folder.
+- **Accent and Home background**: Settings > Launcher picks an accent and a picture behind Home.
+  mono - true black and white - is the default and the theme's identity; the older hue accents
+  remain as a setting. Home's background is the drawn animated night sky - stars, clouds,
+  sun, skylines - by default, or the player's own picture. A picture of the player's own
+  (PNG, JPEG or WebP, cropped to fill) is copied into the data folder.
   `horizon-launcher settings accent NAME`, `settings background PATH|default`.
-- **Language**: English, French, Russian, German, Simplified Chinese, Spanish, Ukrainian and Polish.
-  The window follows the system's language unless the player picks one in Settings > Launcher
-  (each named in itself); a string a table lacks shows in English. The tables are
-  `launcher/lang/<code>.json`, English text to its translation, Horizon's own; a test fails when
-  the code asks `tr("…")` for a string a table lacks, or a table keeps one the code dropped.
-  `horizon-launcher settings language system|en|fr|ru|de|zh|es|uk|pl`.
+- **Language**: eleven languages today - English built in, plus ten translation tables,
+  `launcher/lang/<code>.json`, English text to its translation: German, Spanish, French,
+  Japanese, Polish, Brazilian Portuguese, Russian, Turkish, Ukrainian and Simplified Chinese. The window follows the system's language unless the
+  player picks one in Settings > Launcher; a string a table lacks shows in English. A test fails
+  when the code asks `tr("…")` for a string a table lacks, or a table keeps one the code dropped.
+  `horizon-launcher settings language system|<code>` - the cli accepts all ten tables.
 - **Skin and cape**: each offline name's **Skin…** in Settings > Account shows the front of its
   skin and cape, takes a skin PNG (64×64, or the older 64×32) and a cape PNG (64×32), and picks
   classic or slim arms. The launcher keeps copies in its `skins/` folder and gives the game
@@ -215,7 +215,7 @@ The opening, then Play ([clip](docs/opening.webm)):
   keeping every field the launcher doesn't show and the servers joined with Direct Connection. The
   same from the command line: `horizon-launcher multiplayer [list|add|remove] [--instance <name>]`
   and `horizon-launcher play --server <address or name>`.
-- **Patch notes**: each release's notes, newest first, with a link to GitHub Sponsors. Quiet "Sponsor", "Discord" and "Website" links sit in the sidebar footer.
+- **Patch notes**: each release's notes, newest first. The sidebar footer carries one quiet SITE link; the old sponsor card is gone.
 
 Data lives in the platform's data directory (`~/.local/share/horizon-launcher` on Linux,
 `~/Library/Application Support/horizon-launcher` on macOS, `%APPDATA%\horizon-launcher` on
@@ -254,14 +254,18 @@ page `servers.json` (the list), `servers/<name>/` (the servers created there) an
   Without one, `HTTPS_PROXY` and `HTTP_PROXY` are used when the launcher is started with them, and
   `NO_PROXY` names the hosts to reach directly, a modpack import's jars included. A server on this
   computer never goes through it.
-- **Links**: the Discord invite, the Sponsors page and the website come from `launcher/links.json` on main
-  (`{"discord": "...", "sponsor": "...", "website": "..."}`), so they change without a launcher release. Offline,
-  the launcher uses the same values built in; an empty address hides its button.
+- **Links**: the website and optional Discord, sponsor and official-server addresses come from
+  `launcher/links.json` on main (`{"discord": "...", "sponsor": "...", "website": "...",
+  "official_server": "...", "official_server_previous": "..."}`), so they change without a launcher
+  release. As shipped it sets only the website, https://launcher.goattech.us - discord, sponsor
+  and official_server are empty (no Discord server exists); an empty address hides its button and
+  `horizon-launcher links` prints "(none)" for it. Offline, the launcher uses the same values
+  built in.
 
 Long pages, dialogs, the server console and data previews have a visible scrollbar when
 their content overflows. Drag the thumb or click the track to navigate without a mouse wheel.
 
-Pages and Home's landscape fill the window as it resizes. Windows uses a matching title
+Pages and Home's sky fill the window as it resizes. Windows uses a matching title
 bar with native dragging, resizing, Snap,
 minimize, maximize/restore and close; macOS and Linux keep their system title bars.
 
@@ -352,7 +356,7 @@ and don't set `%ERRORLEVEL%` / `$LASTEXITCODE`. Scripts that need the exit code 
     horizon-launcher play [--version <tag>] [--instance <name>] [--arg <ARG>]...   start the client; --arg passes an extra argument through (repeatable)
     horizon-launcher server [--dir <dir>] [--version <tag>] [--accept-eula]
     horizon-launcher notes [<tag>]                  patch notes as plain text
-    horizon-launcher links                          the Discord, sponsor and website links
+    horizon-launcher links                          the website and any discord, sponsor and official-server links ("(none)" for empty)
     horizon-launcher game-args [<line>]             show or set the extra arguments the game starts with
     horizon-launcher update [--check]               Horizon and the launcher
     horizon-launcher logs [--lines N] [--crash]     the end of the game's log, or its newest crash report
@@ -480,9 +484,12 @@ machine only if you turn on crash reports (below).
 
 ## Data collection
 
-The first time it opens, the launcher asks whether you want to send performance statistics,
-crash reports, bug reports and benchmark uploads, each on its own switch and all off until you
-turn one on ("Send nothing" is one click). Settings → Data collection changes them any time, shows
+The first time it opens, the launcher asks about data collection. Basic performance summaries
+are on by default only on a genuinely new install; existing installs stay off unless you turn
+them on. The four detailed report kinds - performance statistics, crash reports, bug reports
+and benchmark uploads - each sit on their own switch, all off until you turn one on
+("Keep optional data off" is one click). The player-count ping is separate from these switches.
+Settings → Data collection changes them any time, shows
 exactly what would be sent (the JSON), and deletes everything sent from your install. It asks
 again only when what is collected changes. The game obeys the same answer, kept in
 `telemetry/consent.json` in the game folder. What waits is sent when the launcher starts and
@@ -524,15 +531,15 @@ client starts (`--help`) and that the binaries import only system libraries (Win
     cargo test --lib    # tag separation, version order, update selection, notes as text,
                         # the auto-install default, the links fallback
 
-Geist and Geist Mono (SIL Open Font License, `crates/horizon-theme/fonts/OFL-*.txt`, shared with the game's on-screen keyboard) are
-bundled so the type is the same on every platform.
+The interface type is bundled so it looks the same on every platform
+[confirm the v1 family; previously Geist and Geist Mono, SIL OFL, `crates/horizon-theme/fonts/`].
 
 
 ## Screenshots
 
-![Servers](docs/servers.png)
-![Friends over the internet](docs/servers-tailscale.png)
-![Modpacks](docs/modpacks.png)
-![Versions](docs/versions.png)
-![Patch notes](docs/patch-notes.png)
 ![Settings](docs/settings.png)
+
+<!-- docs/settings.png is replaced in place by the lead's mono capture.
+     the servers, modpacks, versions and patch-notes captures were pre-mono; they come
+     back only if those pages are recaptured on qualified hardware (delete vs recapture
+     proposal lives in the docs change list). -->

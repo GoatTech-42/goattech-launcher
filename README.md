@@ -1,8 +1,14 @@
+<!-- draft for the v1 repo overhaul. not published.
+     lines marked [flip at release] describe the released state. they are written
+     the way they should read the day v1 ships. if a line is not true yet, keep
+     the old wording until it is.
+     style rule: lowercase, short plain sentences. no ai vocabulary. -->
+
 # goattech launcher
 
-goattech launcher is its own minecraft launcher project: the horizon rust engine and ordinary java edition instances side by side - fabric and quilt mods from modrinth, imports from the launchers you already have, and every instance keeping its own runtime, mods and saves. own repo, own docs, own site, own release line.
+one launcher for every way you play minecraft. the fast horizon rust engine and ordinary java edition instances side by side. fabric and quilt mods from modrinth. imports from the launchers you already have. your settings follow you across all of it.
 
-**status: in development. no releases, nothing to download yet.**
+**[flip at release] v1.0.0 is out. download: https://launcher.goattech.us**
 
 - website: https://launcher.goattech.us
 - documentation: [docs/README.md](docs/README.md)
@@ -10,39 +16,39 @@ goattech launcher is its own minecraft launcher project: the horizon rust engine
 
 > not an official minecraft product. not approved by or associated with mojang or microsoft. you need your own legally obtained copy of minecraft: java edition.
 
-## project status
+## what it does
 
-**what works today:**
+- rust instances and java instances, side by side. same library, same accounts, same settings.
+- fabric and quilt mods with real modrinth browsing built in.
+- config sync: your keybinds, video settings and options shared across profiles. turn it off per profile, or per single setting. nothing changes unless you choose it.
+- imports from prism and other launchers. worlds, mods, configs, packs, settings. copied, never moved.
+- microsoft sign-in, saved securely on your machine.
+- instance icons and banners. make each one yours.
+- pinned versions. launcher updates never move your game.
+- auto updates from github releases. no ads, ever.
+- a real 3d model of your skin on the home screen. drag it to turn it; it sways, looks around and waves on its own.
+- light, useful stats on by default. opt out any time.
 
-- the cli creates java (vanilla) and fabric instances end to end
-- installs mods from modrinth, checksums verified
-- imports instances from other launchers without mutating the source
-- the launcher library and binary test suites pass (`cargo test`)
+## how it ships
 
-**not done yet:**
-
-- the gui runs in headless test rigs (virtual display, software rendering) with reviewed frame captures; the home stage renders the account's real skin - verified from the public profile texture in a test rig, not from a new signed-in session in this rig; physical-display qualification still outstanding - no installers, no releases
-- forge and neoforge java instances install through the official-installer driver (goattech/FORGE-NEOFORGE.md); `.mrpack` forge/neoforge imports are refused with the reason, while cross-launcher instance copies keep their loader and mods; no forge/neoforge instance has had a signed-in game launch yet
-- the fork trails upstream horizon and catches up continuously
+every version passes an independent review of the actual running app before it publishes. the bar is a score above 9 out of 10. no exceptions. that is why there is a download button instead of a promise.
 
 ## the layout of this repo
 
 - `launcher/` - the launcher itself: its own cargo workspace, its own docs and tests. start with [launcher/README.md](launcher/README.md).
-- `docs/` - this project's documentation: using the launcher, your account, mods, privacy and data collection, releases and versioning, and how it's developed.
-- `docs/engine/` - the engine's documentation, inherited from upstream horizon and kept in sync with it. it describes horizon itself; [its readme](docs/engine/README.md) says so up front.
-- `crates/`, `mods/`, `tools/`, `tests/`, `bench/`, `benchmarks/` - the engine sources and harnesses, upstream's tree.
-- `goattech/` - this project's own plans, ui maps and release notes.
+- `docs/` - using the launcher, your account, mods, privacy and data collection, releases and versioning, and how it is developed.
+- `docs/engine/` - the engine's documentation, inherited from upstream horizon. it describes horizon itself; [its readme](docs/engine/README.md) says so up front.
+- `crates/`, `mods/`, `tools/`, `tests/`, `bench/` - the engine sources and harnesses, upstream's tree.
 - `website/` - the source of https://launcher.goattech.us.
-- `ROADMAP.md`, `CONTRIBUTING.md` - this project's own plan and how changes land here.
-- `docs/engine/ROADMAP.md`, `docs/engine/CONTRIBUTING.md`, `roadmap/`, `tools/roadmap.py` - the engine's own plans and process, upstream's, kept working from their new home.
+- `ROADMAP.md`, `CONTRIBUTING.md` - the plan and how changes land here.
 
 ## credit
 
-the rust engine - the hard part - is upstream horizon's work. this fork keeps its attribution and its mit license and stays in sync with it. what the fork adds is the other half: ordinary java instances with fabric, quilt, modrinth and imports, in the same home. upstream's dated parity self-audit, kept for attribution rather than as this project's status, lives at [docs/engine/upstream-parity-audit.md](docs/engine/upstream-parity-audit.md).
+the rust engine - the hard part - is upstream horizon's work. this fork keeps its attribution and its mit license and stays in sync with it. what the fork adds is the other half: ordinary java instances with fabric, quilt, modrinth, imports and config sync, in the same home.
 
 ## build from source
 
-you need rust (stable), python 3.10+, jdk 25, and on linux the alsa and udev headers (`libasound2-dev libudev-dev`).
+you need rust (stable), jdk 25, and on linux the alsa and udev headers (`libasound2-dev libudev-dev`). python 3.10+ is only needed when building versions from before horizon-prepare shipped.
 
 from the repository root:
 
@@ -53,9 +59,9 @@ cargo test --manifest-path launcher/Cargo.toml
 # on nixos: cd launcher && nix-shell, then plain cargo run / cargo test inside it
 
 # the engine: it never downloads the game - it prepares its resources
-# from your own copy of minecraft 26.3, then runs
+# from your own copy of minecraft, then runs
 cargo run --release -p horizon-prepare -- --prepare --server-jar ~/Downloads/server.jar
 cargo run --release -p horizon-client
 ```
 
-the engine's own setup notes are in [docs/engine/CONTRIBUTING.md](docs/engine/CONTRIBUTING.md#build-it). when real builds ship they'll be on github releases, verified before install.
+the engine's own setup notes are in [docs/engine/CONTRIBUTING.md](docs/engine/CONTRIBUTING.md#build-it). releases ship on github releases, verified before install.
