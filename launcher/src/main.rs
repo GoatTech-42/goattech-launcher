@@ -258,6 +258,9 @@ struct Launcher {
     language_menu: bool,
     /// The top bar's quick switch of who plays (`switch_page.rs`).
     account_menu: bool,
+    /// Which opener owns the open account menu: the top bar's pill (true) or the rail's chip
+    /// (false). The menu renders only at that anchor.
+    account_menu_top: bool,
     /// Where the mouse went down to close a menu by pressing outside it, so that the
     /// same press, ending on the menu's own button, doesn't open it again.
     menu_closed_at: Option<Point<Pixels>>,
@@ -650,6 +653,7 @@ impl Launcher {
             hue_dragging: false,
             language_menu: false,
             account_menu: false,
+            account_menu_top: false,
             menu_closed_at: None,
             skin: None,
             // Face the camera by default (Luke, Nov 3): yaw 0 is the model's
@@ -3067,8 +3071,8 @@ impl Launcher {
             .child(div().relative().child(picture))
             .child(
                 shell::text(theme::night::CAPTION, shell::c(n.muted))
-                    .text_size(px(8.))
-                    .max_w(px(56.))
+                    .text_size(px(10.))
+                    .max_w(px(64.))
                     .truncate()
                     .child(name.to_lowercase()),
             )
@@ -3078,6 +3082,7 @@ impl Launcher {
                 }
                 this.account_menu = !this.account_menu;
                 if this.account_menu {
+                    this.account_menu_top = false;
                     // Who can play may have changed elsewhere since the window opened.
                     this.accounts = Accounts::load();
                 }
@@ -3086,12 +3091,12 @@ impl Launcher {
         let account = div()
             .relative()
             .child(account)
-            .children(self.account_menu(cx));
+            .children(self.account_menu(false, cx));
         foot = foot.child(account);
         foot = foot.child(
             shell::text(theme::night::CAPTION, shell::c(n.muted))
                 .id("launcher-version")
-                .text_size(px(9.))
+                .text_size(px(11.))
                 .pt(px(2.))
                 .child(backend::VERSION)
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {

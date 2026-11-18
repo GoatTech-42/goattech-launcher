@@ -92,7 +92,7 @@ impl Launcher {
                     if prepared && signed { t.success } else { t.warn },
                 )
                 .font_family(theme::PIXEL)
-                .text_size(px(10.))
+                .text_size(px(11.))
                 .child(
                     tr(if !prepared {
                         "needs preparing"
@@ -191,7 +191,7 @@ impl Launcher {
                     .child(
                         shell::text(night::CAPTION, c(n.muted))
                             .relative()
-                            .child(tr(telemetry::PING_SHORT)),
+                            .child(tr(telemetry::PING_HOME)),
                     )
                     .when(ping_detail, |d| {
                         d.child(
@@ -230,7 +230,7 @@ impl Launcher {
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .cursor_pointer()
                                     .hover(|s| s.opacity(0.8))
-                                    .child(tr("got it"))
+                                    .child(tr("dismiss"))
                                     .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
                                         if drag_not_click(event) {
                                             return;
@@ -308,6 +308,7 @@ impl Launcher {
                 }
                 this.account_menu = !this.account_menu;
                 if this.account_menu {
+                    this.account_menu_top = true;
                     // Who can play may have changed elsewhere since the window opened.
                     this.accounts = Accounts::load();
                 }
@@ -316,7 +317,7 @@ impl Launcher {
         let account = div()
             .relative()
             .child(account)
-            .children(self.account_menu(cx));
+            .children(self.account_menu(true, cx));
         // Safe area under the window chrome: the bar owns the full TOPBAR band and centers its
         // buttons, so neither the New instance button nor the account pill can touch the title
         // bar's bottom border (Luke, 2026-11-17).
@@ -677,7 +678,7 @@ impl Launcher {
                 .when(!subtitle.is_empty(), |d| {
                     d.child(
                         shell::text(theme::MICRO, c(t.night.on_accent))
-                            .text_size(px(10.))
+                            .text_size(px(12.))
                             .child(subtitle.to_lowercase()),
                     )
                 }),

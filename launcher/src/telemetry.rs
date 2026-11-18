@@ -59,6 +59,12 @@ pub const PERF_SHORT: &str = "session performance, machine specs and performance
 /// the only off switch.
 pub const PING_SHORT: &str = "once a minute while you play: a player-count ping, on by default regardless of the switches; only a configuration change turns it off. no account, install id, world or server names. session rows use an approximately one-hour cleanup schedule; aggregate minute counts are kept for 7 days and hourly peaks for 90 days. cleanup failures can delay deletion. open details for temporary ip use and other limits.";
 
+/// The Play page notice's first layer: what is sent, how to stop, then details. It must not
+/// hide that the ping is on by default and that only configuration turns it off, and its
+/// dismiss button only closes the notice - it is not consent. Retention and temporary ip use
+/// stay in the full disclosure behind details (PING).
+pub const PING_HOME: &str = "what is sent: a player-count ping, once a minute while you play. no account, install id, world or server names. how to stop: it is on by default regardless of the switches; only a configuration change turns it off. retention and temporary ip use are under details.";
+
 /// The dialog row caption for `kind`: the short form where a long one exists.
 pub fn short_what(kind: Kind) -> &'static str {
     match kind {

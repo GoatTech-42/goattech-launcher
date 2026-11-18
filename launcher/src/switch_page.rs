@@ -62,18 +62,25 @@ impl Launcher {
         out
     }
 
-    /// The menu under the account chip, while open.
-    pub(super) fn account_menu(&self, cx: &mut Context<Self>) -> Option<impl IntoElement> {
-        if !self.account_menu {
+    /// The menu under the account chip, while open. `top` is which opener is asking: the
+    /// rail's chip (false, menu opens upward over it) or the top bar's pill (true, menu opens
+    /// downward under it, right-aligned). Only the opener that opened the menu renders it.
+    pub(super) fn account_menu(&self, top: bool, cx: &mut Context<Self>) -> Option<impl IntoElement> {
+        if !self.account_menu || top != self.account_menu_top {
             return None;
         }
         let t = self.theme;
         let now = self.accounts.player();
-        let mut menu = div()
+        let anchor = div()
             .id("account-menu")
             .absolute()
-            .bottom(px(46.))
-            .left_0()
+            .w(px(280.));
+        let anchor = if top {
+            anchor.top(px(46.)).right_0()
+        } else {
+            anchor.bottom(px(46.)).left_0()
+        };
+        let mut menu = anchor
             .w(px(280.))
             .p(px(6.))
             .border_2()
