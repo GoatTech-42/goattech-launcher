@@ -72,6 +72,8 @@ pub(super) struct InstanceDialog {
     /// Why the section's state is unavailable (a store that would not parse). While set
     /// the section shows only this - never a false "no group / no conflicts".
     pub(super) sync_error: Option<String>,
+    /// The body's scroll: the footer stays pinned, the bar shows there is more.
+    dialog_scroll: Scrollbar,
     sync_validation: Option<String>,
     /// Bumped as each sync request starts; a task's result applies only while no newer
     /// request has started (a late reload must not revert a finished leave).
@@ -789,6 +791,7 @@ impl Launcher {
             sync_report: Vec::new(),
             sync_busy: false,
             sync_error: None,
+            dialog_scroll: Scrollbar::default(),
             sync_validation: None,
             sync_req: 0,
             java: Default::default(),
@@ -1586,11 +1589,14 @@ impl Launcher {
                 .child(control)
         };
         let mut body = div()
+            .id("instance-body")
             .relative()
             .flex()
             .flex_col()
+            .min_h_0()
             .gap(px(20.))
             .p(px(28.))
+            .overflow_y_scroll()
             .child(
                 shell::text(theme::night::TITLE, shell::c(n.ink)).child(
                     tr(if editing {
@@ -1927,6 +1933,7 @@ impl Launcher {
         let foot = div()
             .relative()
             .flex()
+            .flex_none()
             .justify_end()
             .gap(px(8.))
             .px(px(28.))
@@ -1947,7 +1954,9 @@ impl Launcher {
                 cx.notify();
             })))
         };
-        // Opaque, as the sign-in sheet: it sits over the page's content.
+        // Opaque, as the sign-in sheet: it sits over the page's content. Capped at the
+        // window's height: the body scrolls with its bar, the footer stays pinned.
+        let scroll = self.instances.dialog.as_ref()?.dialog_scroll.clone();
         let card = plate::cut(
             theme::night::PIXEL_CORNER,
             2,
@@ -1959,7 +1968,8 @@ impl Launcher {
         .flex_none()
         .w_full()
         .max_w(px(600.))
-        .child(body)
+        .max_h_full()
+        .child(scroll.wrap(body, &t))
         .child(foot);
         let out = Some(
             div()
@@ -1973,8 +1983,6 @@ impl Launcher {
                 .items_center()
                 .px(px(32.))
                 .py(px(24.))
-                // A Java kind's list can make it taller than the window.
-                .overflow_y_scroll()
                 .bg(plate::alpha(n.page, 0.8))
                 .on_scroll(|_, _, cx| cx.stop_propagation())
                 .occlude()
@@ -2226,6 +2234,7 @@ mod tests {
             sync_report: Vec::new(),
             sync_busy: false,
             sync_error: None,
+            dialog_scroll: Scrollbar::default(),
             sync_validation: None,
             sync_req: 0,
             java: Default::default(),

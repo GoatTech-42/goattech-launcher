@@ -86,8 +86,8 @@ pub mod icons {
         "zap",
     );
 
-    /// The GoatTech mark: an original pixel goat head drawn for the launcher (2026-10-31),
-    /// not part of the Lucide set.
+    /// The GoatTech mark: "Summit A", the flat-top peak approved 2026-11-07 (small variant:
+    /// plain peak, readable at the launcher's sizes), not part of the Lucide set.
     pub const GOATTECH: &[u8] = include_bytes!("../icons/goattech.svg");
 
     /// An icon's SVG by name.

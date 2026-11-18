@@ -1,13 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="currentColor">
-  <!-- horns: two-segment backward sweep -->
-  <path d="M18 4 L30 14 L42 32 L34 40 L22 24 L6 14 Z"/>
-  <path d="M82 4 L70 14 L58 32 L66 40 L78 24 L94 14 Z"/>
-  <!-- ears -->
-  <path d="M24 48 L5 58 L26 64 Z"/>
-  <path d="M76 48 L95 58 L74 64 Z"/>
-  <!-- head with negative-space eyes and nose -->
-  <path fill-rule="evenodd" d="M29 34 L71 34 L77 55 L63 88 L50 94 L37 88 L23 55 Z
-    M36 55 L46 55 L46 63 L36 63 Z
-    M54 55 L64 55 L64 63 L54 63 Z
-    M45 76 L55 76 L52 84 L48 84 Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <!-- Summit A: flat-top peak (the approved GoatTech mark, 2026-11-07). Small variant: at the
+       sizes the launcher draws it (titlebar, sidebar, play page, all <= 30px) the counter peak
+       would fill in, so the plain peak is the readable form (logo-v2 README's responsive rule). -->
+  <path d="M3.5 22 L10.2 5 L13.4 5 L20.5 22 Z"/>
 </svg>
