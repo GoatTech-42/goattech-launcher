@@ -92,7 +92,7 @@ impl Launcher {
                     if prepared && signed { t.success } else { t.warn },
                 )
                 .font_family(theme::PIXEL)
-                .text_size(px(11.))
+                .text_size(px(12.))
                 .child(
                     tr(if !prepared {
                         "needs preparing"
@@ -191,14 +191,26 @@ impl Launcher {
                     .child(
                         shell::text(night::CAPTION, c(n.muted))
                             .relative()
-                            .child(tr(telemetry::PING_HOME)),
+                            .child(tr(telemetry::PING_HOME_SENT)),
+                    )
+                    .child(
+                        shell::text(night::CAPTION, c(n.ink))
+                            .relative()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(tr(telemetry::PING_HOME_STOP)),
+                    )
+                    .child(
+                        shell::text(night::CAPTION, c(n.muted))
+                            .relative()
+                            .child(tr(telemetry::PING_HOME_DETAILS)),
                     )
                     .when(ping_detail, |d| {
-                        d.child(
+                        d.children(telemetry::bullets(telemetry::PING).into_iter().map(|line| {
                             shell::text(night::CAPTION, c(n.muted))
                                 .relative()
-                                .child(tr(telemetry::PING)),
-                        )
+                                .child(line)
+                                .into_any_element()
+                        }))
                     })
                     .child(
                         div()
@@ -440,14 +452,14 @@ impl Launcher {
                     )
                     .child(
                         shell::text(night::CAPTION, c(n.muted))
-                            .text_size(px(10.))
+                            .text_size(px(11.))
                             .w_full()
                             .truncate()
                             .child(sub),
                     )
                     .child(
                         shell::text(night::CAPTION, c(n.muted))
-                            .text_size(px(10.))
+                            .text_size(px(11.))
                             .w_full()
                             .truncate()
                             .child(played),
@@ -481,7 +493,7 @@ impl Launcher {
                 )
                 .child(
                     shell::text(night::CAPTION, c(n.muted))
-                        .text_size(px(10.))
+                        .text_size(px(11.))
                         .child(tr("new instance").to_string()),
                 )
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -497,7 +509,7 @@ impl Launcher {
             .child(
                 shell::text(night::CAPTION, c(n.muted))
                     .font_family(theme::PIXEL)
-                    .text_size(px(10.))
+                    .text_size(px(11.))
                     .child(tr("playing next").to_string()),
             )
             .child(row)

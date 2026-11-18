@@ -166,9 +166,14 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
         div()
             .flex()
             .flex_col()
-            .gap(px(2.))
+            .gap(px(4.))
             .child(text(theme::UI).text_color(t.ink).child(tr(name)))
-            .child(text(theme::UI).text_color(t.ink_soft).child(tr(what)))
+            .children(telemetry::bullets(what).into_iter().map(|line| {
+                text(theme::UI)
+                    .text_color(t.ink_soft)
+                    .child(format!("\u{b7} {line}"))
+                    .into_any_element()
+            }))
     };
     let kinds = telemetry::SWITCHES
         .iter()
@@ -176,7 +181,7 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
     div()
         .flex()
         .flex_col()
-        .gap(px(8.))
+        .gap(px(12.))
         .child(
             // How to read on, said where the reading starts.
             text(theme::CAPTION)
@@ -188,7 +193,7 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(10.))
+                .gap(px(16.))
                 .child(detail(telemetry::BASIC_NAME, telemetry::BASIC_WHAT).into_any_element())
                 .children(kinds)
                 .child(detail(telemetry::PING_NAME, telemetry::ping_text()).into_any_element()),
@@ -693,12 +698,23 @@ impl Launcher {
                     .child(tr("data collection")),
             )
             .child(
-                text(theme::UI)
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(6.))
                     .max_w(px(600.))
-                    .text_color(t.muted)
-                    .child(tr(
-                        "basic performance summaries are on by default only on a genuinely new install; existing installs stay off unless you turn them on. every other switch is off unless you turn it on. the player-count ping is separate from these switches. the details below describe each path and its source-defined retention; production basic-summary sending is not enabled yet.",
-                    )),
+                    .child(text(theme::UI).text_color(t.muted).child(tr(
+                        "basic performance summaries are on by default only on a genuinely new install; existing installs stay off unless you turn them on.",
+                    )))
+                    .child(text(theme::UI).text_color(t.muted).child(tr(
+                        "every other switch is off unless you turn it on.",
+                    )))
+                    .child(text(theme::UI).text_color(t.muted).child(tr(
+                        "the player-count ping is separate from these switches.",
+                    )))
+                    .child(text(theme::UI).text_color(t.muted).child(tr(
+                        "the details below describe each path and its source-defined retention; production basic-summary sending is not enabled yet.",
+                    ))),
             )
             .child(
                 button("data-details-top", if self.collection.view.is_some() { "hide details and example reports" } else { "view details and example reports" }, Kind::Ghost, &t)

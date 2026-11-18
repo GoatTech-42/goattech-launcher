@@ -1661,7 +1661,7 @@ impl Launcher {
                             .p(px(12.))
                             .bg(t.well)
                             .font_family(theme::MONO)
-                            .text_size(px(11.))
+                            .text_size(px(12.))
                             .text_color(t.muted)
                             .child(raw),
                     )

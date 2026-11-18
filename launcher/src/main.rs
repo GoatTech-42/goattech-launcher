@@ -2956,7 +2956,7 @@ impl Launcher {
                     )
                     .child(
                         shell::text(theme::night::CAPTION, shell::c(n.muted))
-                            .text_size(px(8.))
+                            .text_size(px(10.))
                             .child(label),
                     )
                     .on_click(move |_, _, cx| cx.open_url(&url)),
@@ -3071,7 +3071,7 @@ impl Launcher {
             .child(div().relative().child(picture))
             .child(
                 shell::text(theme::night::CAPTION, shell::c(n.muted))
-                    .text_size(px(10.))
+                    .text_size(px(11.))
                     .max_w(px(64.))
                     .truncate()
                     .child(name.to_lowercase()),
@@ -4066,7 +4066,7 @@ impl Launcher {
                                     .p(px(12.))
                                     .bg(t.well)
                                     .font_family(theme::MONO)
-                                    .text_size(px(11.))
+                                    .text_size(px(12.))
                                     .text_color(t.muted)
                                     .child(raw),
                             )
@@ -4928,7 +4928,7 @@ impl Launcher {
                                 .p(px(12.))
                                 .bg(t.well)
                                 .font_family(theme::MONO)
-                                .text_size(px(11.))
+                                .text_size(px(12.))
                                 .text_color(t.muted)
                                 .child(raw),
                         )
@@ -5137,7 +5137,7 @@ impl Launcher {
                                 .p(px(12.))
                                 .bg(t.well)
                                 .font_family(theme::MONO)
-                                .text_size(px(11.))
+                                .text_size(px(12.))
                                 .text_color(t.muted)
                                 .child(raw),
                         )
