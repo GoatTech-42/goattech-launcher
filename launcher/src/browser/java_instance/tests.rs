@@ -347,5 +347,5 @@ fn the_page_search_keeps_the_players_filters_but_not_their_version() {
     assert!(t.takes(Kind::Mod) && t.takes(Kind::ResourcePack));
     assert!(!t.takes(Kind::Modpack) && !t.takes(Kind::Shader) && !t.takes(Kind::DataPack));
     assert_eq!(t.describe(Kind::Mod), "Minecraft 1.21.1 with fabric");
-    assert_eq!(t.describe(Kind::ResourcePack), "Minecraft 1.21.1");
+    assert_eq!(t.describe(Kind::ResourcePack), "minecraft 1.21.1");
 }

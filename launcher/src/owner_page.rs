@@ -47,7 +47,7 @@ impl Launcher {
         let state = match &self.sign_in_state {
             _ if sign_in_preview() => Shown::Code("https://www.microsoft.com/link", "K7Q-4MXR"),
             _ if !configured => Shown::Error(tr(account::NOT_CONFIGURED)),
-            Some(SignInState::Starting) => Shown::Starting("Asking Microsoft…"),
+            Some(SignInState::Starting) => Shown::Starting("asking microsoft…"),
             Some(SignInState::Working(phase)) => Shown::Starting(phase.label()),
             Some(SignInState::Code(code)) => Shown::Code(&code.verification_uri, &code.user_code),
             Some(SignInState::Done(Err(e))) => Shown::Error(e),
@@ -66,23 +66,23 @@ impl Launcher {
             .child(
                 shell::text(theme::night::CAPTION, shell::c(n.muted))
                     .font_weight(FontWeight::SEMIBOLD)
-                    .child(tr("Microsoft account").to_string()),
+                    .child(tr("microsoft account").to_string()),
             )
             .child(
                 shell::text(theme::night::TITLE, shell::c(n.ink))
                     .mb(px(4.))
-                    .child(tr("Sign in to play").to_string()),
+                    .child(tr("sign in to play").to_string()),
             )
             .child(line(
-                "GoatTech Launcher needs a Microsoft account that owns Minecraft: Java Edition, like other launchers.",
+                "GoatTech Launcher needs a microsoft account that owns minecraft: java edition, like other launchers.",
                 n.ink_soft,
             ))
             .child(line(
-                "No Minecraft install needed: Horizon downloads it from Mojang for your account.",
+                "no minecraft install needed: horizon downloads it from mojang for your account.",
                 n.ink_soft,
             ))
             .child(line(
-                "Your worlds, offline names and settings stay where they are.",
+                "your worlds, offline names and settings stay where they are.",
                 n.muted,
             ));
         let raised = || {
@@ -114,7 +114,7 @@ impl Launcher {
                                 .child(
                                     shell::text(theme::night::CAPTION, shell::c(n.ink_soft)).child(
                                         trf(
-                                            "Open {link} in your browser and enter this code:",
+                                            "open {link} in your browser and enter this code:",
                                             // The page as the player would type it.
                                             &[("link", short_link(uri))],
                                         ),
@@ -132,7 +132,7 @@ impl Launcher {
                         )
                         .child(
                             shell::action("owner-copy", shell::Action::Raised, &t)
-                                .child(shell::label(tr("Copy code").to_string()))
+                                .child(shell::label(tr("copy code").to_string()))
                                 .on_click(move |_, _, cx| {
                                     copy_to_clipboard(
                                         cx,
@@ -156,7 +156,7 @@ impl Launcher {
                 let uri = uri.to_string();
                 Some(
                     shell::action("owner-open", shell::Action::Main, &t)
-                        .child(shell::label(tr("Open link").to_string()))
+                        .child(shell::label(tr("open link").to_string()))
                         .on_click(move |_, _, cx| cx.open_url(&uri)),
                 )
             }
@@ -174,7 +174,7 @@ impl Launcher {
         let waiting = matches!(state, Shown::Code(..)).then(|| {
             shell::text(theme::night::CAPTION, shell::c(n.muted))
                 .relative()
-                .child(tr("Waiting for Microsoft… the window goes on by itself.").to_string())
+                .child(tr("waiting for microsoft… the window goes on by itself.").to_string())
         });
         let answers = div()
             .relative()
@@ -185,7 +185,7 @@ impl Launcher {
             .children(main)
             .child(
                 shell::action("owner-later", shell::Action::Quiet, &t)
-                    .child(shell::label(tr("Not now").to_string()))
+                    .child(shell::label(tr("not now").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.close_owner_screen();
                         cx.notify();

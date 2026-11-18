@@ -117,7 +117,7 @@ fn trash_stopped_server(
         .open(state.join("lock"))
         .map_err(|e| e.to_string())?;
     lock.try_lock()
-        .map_err(|_| "Stop the server before deleting it.".to_string())?;
+        .map_err(|_| "stop the server before deleting it.".to_string())?;
     // Windows can't move a folder while a file in it is open, the lock included: let it go
     // first. Still safe: a supervisor starting in between opens the lock again, and then the
     // move fails instead of taking a live server.
@@ -523,7 +523,7 @@ pub struct NewServer {
 impl Default for NewServer {
     fn default() -> Self {
         Self {
-            name: "My server".into(),
+            name: "my server".into(),
             world: World::New {
                 seed: String::new(),
             },
@@ -653,7 +653,7 @@ pub fn create(spec: &NewServer, tag: Option<&str>, log: &dyn Fn(String)) -> Resu
         })?;
     }
     let name = if spec.name.trim().is_empty() {
-        "My server".to_string()
+        "my server".to_string()
     } else {
         spec.name.trim().to_string()
     };

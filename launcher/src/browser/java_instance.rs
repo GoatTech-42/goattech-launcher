@@ -80,7 +80,7 @@ impl Target {
     pub fn describe(&self, kind: Kind) -> String {
         match (&self.loader, kind) {
             (Some(l), Kind::Mod) => format!("Minecraft {} with {l}", self.minecraft),
-            _ => format!("Minecraft {}", self.minecraft),
+            _ => format!("minecraft {}", self.minecraft),
         }
     }
 

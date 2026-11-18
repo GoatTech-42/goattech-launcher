@@ -95,7 +95,7 @@ fn a_background_is_a_picture_kept_once() {
     std::fs::write(&text, "hi").unwrap();
     assert!(keep_background(&dir, &text)
         .unwrap_err()
-        .contains("PNG, JPEG or WebP"));
+        .contains("png, jpeg or webp"));
     let fake = root.join("fake.png");
     std::fs::write(&fake, "not a picture").unwrap();
     assert!(keep_background(&dir, &fake)

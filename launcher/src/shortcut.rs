@@ -73,7 +73,7 @@ pub fn file_name(name: &str, system: System) -> String {
         })
         .collect();
     let clean = clean.trim().trim_matches('.');
-    let clean = if clean.is_empty() { "Instance" } else { clean };
+    let clean = if clean.is_empty() { "instance" } else { clean };
     format!("{clean} (Horizon).{}", system.extension())
 }
 

@@ -227,8 +227,8 @@ pub fn rail_item(
             .child(
                 text(night::CAPTION, c(fg))
                     .font_family(crate::theme::PIXEL)
-                    .text_size(px(9.))
-                    .line_height(px(11.))
+                    .text_size(px(11.))
+                    .line_height(px(13.))
                     .relative()
                     .child(label),
             ),

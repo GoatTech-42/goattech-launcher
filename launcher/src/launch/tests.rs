@@ -249,7 +249,7 @@ fn the_linux_switches_act_only_where_their_tools_are() {
     assert!(!none.any() && all.any());
     assert_eq!(
         launch.summary().unwrap(),
-        "through nice, with GameMode, with MangoHud, on the dedicated GPU"
+        "through nice, with gamemode, with mangohud, on the dedicated gpu"
     );
     // Off switches aren't written.
     let text = serde_json::to_string(&Launch::default()).unwrap();

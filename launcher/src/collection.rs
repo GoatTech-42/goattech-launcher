@@ -123,11 +123,11 @@ fn kind_id(prefix: &str, kind: DataKind) -> &'static str {
 /// (`horizon_telemetry::live_endpoint`), unless `HORIZON_TELEMETRY_URL=off`.
 fn ping_state(t: &Theme) -> Div {
     let label = if horizon_telemetry::live_endpoint().is_some() {
-        tr("On while playing")
+        tr("on while playing")
     } else {
-        tr("Off by default")
+        tr("off by default")
     };
-    caps(label).flex_none().text_color(t.muted)
+    micro(label).flex_none().text_color(t.muted)
 }
 
 /// The "I'm playing" ping on the first-run question, laid out as the switches' rows.
@@ -181,7 +181,7 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
             // How to read on, said where the reading starts.
             text(theme::CAPTION)
                 .text_color(t.accent)
-                .child(tr("Down and Up read through the examples.")),
+                .child(tr("down and up read through the examples.")),
         )
         .child(text(theme::UI).text_color(t.ink_soft).child(view.0.clone()))
         .child(
@@ -312,19 +312,19 @@ impl Launcher {
                             .text_color(t.muted)
                             .child(match row {
                                 horizon_launcher::basic_stats::RowState::Saving(true) => {
-                                    tr("Turning on...")
+                                    tr("turning on...")
                                 }
                                 horizon_launcher::basic_stats::RowState::Saving(false) => {
-                                    tr("Turning off...")
+                                    tr("turning off...")
                                 }
                                 horizon_launcher::basic_stats::RowState::OffThisSession => {
-                                    tr("Off for this session.")
+                                    tr("off for this session.")
                                 }
                                 horizon_launcher::basic_stats::RowState::OnForInstall => {
-                                    tr("On for this install.")
+                                    tr("on for this install.")
                                 }
                                 horizon_launcher::basic_stats::RowState::OffForInstall => {
-                                    tr("Off for this install.")
+                                    tr("off for this install.")
                                 }
                             }),
                     )
@@ -335,12 +335,12 @@ impl Launcher {
                         let (on, error) = failed.as_ref().unwrap();
                         d.child(text(theme::CAPTION).text_color(t.warn).child(if *on {
                             trf(
-                                "The choice could not be saved ({error}): basic summaries stay as they were.",
+                                "the choice could not be saved ({error}): basic summaries stay as they were.",
                                 &[("error", error)],
                             )
                         } else {
                             trf(
-                                "Basic summaries are off for the rest of this session, but the choice could not be saved ({error}): they may be on again the next time the launcher starts.",
+                                "basic summaries are off for the rest of this session, but the choice could not be saved ({error}): they may be on again the next time the launcher starts.",
                                 &[("error", error)],
                             )
                         }))
@@ -366,7 +366,7 @@ impl Launcher {
                 // The consent file is not written and the question stays exactly as it
                 // was - open details included; only its foot gains the reason.
                 self.collection.note =
-                    Some(trf("Could not save your choice: {error}", &[("error", &e)]))
+                    Some(trf("could not save your choice: {error}", &[("error", &e)]))
             }
         }
         // The question and Settings say what the "I'm playing" ping holds, beside the switches.
@@ -442,17 +442,17 @@ impl Launcher {
             .pt(px(28.))
             .pb(px(24.))
             .overflow_y_scroll()
-            .child(caps(tr("Data collection")).text_color(t.muted))
+            .child(micro(tr("data collection")).text_color(t.muted))
             .child(
                 text(theme::HEADING)
                     .text_color(t.ink)
-                    .child(tr("Help make GoatTech faster and steadier?")),
+                    .child(tr("help make GoatTech faster and steadier?")),
             )
             .child(text(theme::UI).text_color(t.muted).child(tr(
                 if horizon_telemetry::live_endpoint().is_some() {
-                    "The short version: on a new install, basic performance summaries start on; the four report kinds start off. \"Keep optional data off\" turns all five off in one click - the anonymous player-count ping runs while you play either way. Settings can change any choice later."
+                    "the short version: on a new install, basic performance summaries start on; the four report kinds start off. \"keep optional data off\" turns all five off in one click - the anonymous player-count ping runs while you play either way. settings can change any choice later."
                 } else {
-                    "The short version: on a new install, basic performance summaries start on; the four report kinds start off. \"Keep optional data off\" turns all five off in one click - the player-count ping is off in this configuration. Settings can change any choice later."
+                    "the short version: on a new install, basic performance summaries start on; the four report kinds start off. \"keep optional data off\" turns all five off in one click - the player-count ping is off in this configuration. settings can change any choice later."
                 },
             )))
             .child(basic)
@@ -469,9 +469,9 @@ impl Launcher {
                         .cursor_pointer()
                         .hover(|s| s.opacity(0.8))
                         .child(tr(if viewing {
-                            "Hide details and example reports"
+                            "hide details and example reports"
                         } else {
-                            "View details and example reports"
+                            "view details and example reports"
                         })),
                     &t,
                 )
@@ -506,11 +506,11 @@ impl Launcher {
                 div().flex_1().min_w_0().flex().items_center().child(
                     text(theme::CAPTION)
                         .text_color(t.muted)
-                        .child(tr("The anonymous player-count ping stays on.")),
+                        .child(tr("the anonymous player-count ping stays on.")),
                 )
             }))
             .child(
-                button("ask-none", "Keep optional data off", Kind::Secondary, &t)
+                button("ask-none", "keep optional data off", Kind::Secondary, &t)
                     .track_focus(&self.consent_keys.keep_off)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.answer_consent(Choices::NONE);
@@ -521,7 +521,7 @@ impl Launcher {
                     })),
             )
             .child(
-                button("ask-save", "Save choices", Kind::Primary, &t)
+                button("ask-save", "save choices", Kind::Primary, &t)
                     .track_focus(&self.consent_keys.save)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.answer_consent(this.collection.draft);
@@ -613,9 +613,9 @@ impl Launcher {
         ));
         let waiting = horizon_telemetry::outbox::pending(&telemetry::home()).len();
         let id = match consent.install_id.as_str() {
-            "" => tr("No optional-data install ID is recorded").to_string(),
+            "" => tr("no optional-data install id is recorded").to_string(),
             id => trf(
-                "Install ID {prefix}…{suffix}",
+                "install id {prefix}…{suffix}",
                 &[("prefix", &id[..4]), ("suffix", &id[id.len() - 4..])],
             ),
         };
@@ -625,7 +625,7 @@ impl Launcher {
                 &[("count", &waiting.to_string())],
             )
         } else {
-            tr("Optional uploads are unavailable: no upload server is configured. The player-count ping is separate.").into()
+            tr("optional uploads are unavailable: no upload server is configured. the player-count ping is separate.").into()
         };
         let confirm = self.collection.confirm_delete;
         let actions = div()
@@ -635,9 +635,9 @@ impl Launcher {
                 button(
                     "data-view",
                     if self.collection.view.is_some() {
-                        "Hide"
+                        "hide"
                     } else {
-                        "View details and example reports"
+                        "view details and example reports"
                     },
                     Kind::Ghost,
                     &t,
@@ -651,9 +651,9 @@ impl Launcher {
                 button(
                     "data-delete",
                     if confirm {
-                        "Delete everything?"
+                        "delete everything?"
                     } else {
-                        "Delete my data"
+                        "delete my data"
                     },
                     Kind::Secondary,
                     &t,
@@ -673,7 +673,7 @@ impl Launcher {
             );
         list = list.child(index_row(
             telemetry::SWITCHES.len() + 2,
-            tr("Your data"),
+            tr("your data"),
             Some(
                 div()
                     .font_family(theme::MONO)
@@ -690,18 +690,18 @@ impl Launcher {
             .child(
                 text(theme::HEADING)
                     .text_color(t.ink)
-                    .child(tr("Data collection")),
+                    .child(tr("data collection")),
             )
             .child(
                 text(theme::UI)
                     .max_w(px(600.))
                     .text_color(t.muted)
                     .child(tr(
-                        "Basic performance summaries are on by default only on a genuinely new install; existing installs stay off unless you turn them on. Every other switch is off unless you turn it on. The player-count ping is separate from these switches. The details below describe each path and its source-defined retention; production basic-summary sending is not enabled yet.",
+                        "basic performance summaries are on by default only on a genuinely new install; existing installs stay off unless you turn them on. every other switch is off unless you turn it on. the player-count ping is separate from these switches. the details below describe each path and its source-defined retention; production basic-summary sending is not enabled yet.",
                     )),
             )
             .child(
-                button("data-details-top", if self.collection.view.is_some() { "Hide details and example reports" } else { "View details and example reports" }, Kind::Ghost, &t)
+                button("data-details-top", if self.collection.view.is_some() { "hide details and example reports" } else { "view details and example reports" }, Kind::Ghost, &t)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| { this.toggle_view(); cx.notify(); })),
             )
             .children(self.collection.view.as_ref().map(|v| json_view(v, &t, &self.collection.json_scroll)))

@@ -78,8 +78,8 @@ pub fn clients(exe: &Path) -> Vec<Client> {
         },
         Client {
             id: "generic",
-            name: "Any MCP client",
-            file: "its MCP settings (a stdio server)",
+            name: "any mcp client",
+            file: "its mcp settings (a stdio server)",
             config: mcp_servers_json(exe),
             add: None,
         },

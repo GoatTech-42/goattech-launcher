@@ -49,8 +49,8 @@ impl Launcher {
     ) -> Stateful<Div> {
         let t = self.theme;
         let label = match self.has_shortcut(&instance.id) {
-            true => "Remove shortcut",
-            false => "Shortcut",
+            true => "remove shortcut",
+            false => "shortcut",
         };
         let (id, name) = (instance.id.clone(), instance.name.clone());
         button("instance-shortcut", label, Kind::Ghost, &t).on_click(cx.listener(

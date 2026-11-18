@@ -23,10 +23,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 /// The keychain service name every secret is stored under.
 pub const SERVICE: &str = "dev.playhorizon.launcher";
 const SCOPE: &str = "XboxLive.signin offline_access";
-pub const NOT_CONFIGURED: &str = "This build of the launcher has no Microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.";
+pub const NOT_CONFIGURED: &str = "this build of the launcher has no microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.";
 /// What every Play says while no account in the launcher owns the game.
 pub const NEEDS_OWNER: &str =
-    "Sign in with a Microsoft account that owns Minecraft: Java Edition to play";
+    "sign in with a microsoft account that owns minecraft: java edition to play";
 const DOES_NOT_OWN: &str = "This account doesn't own Minecraft: Java Edition.";
 const NO_PROFILE: &str =
     "This account has no Minecraft profile yet. Create one at minecraft.net, then sign in again.";
@@ -719,7 +719,7 @@ struct BoundedReads {
 }
 
 fn keychain_read_timeout() -> String {
-    crate::i18n::tr("The system keychain did not answer the sign-in read in time. Unlock it and restart the launcher.").into()
+    crate::i18n::tr("the system keychain did not answer the sign-in read in time. unlock it and restart the launcher.").into()
 }
 
 fn keychain_read_failure(error: String) -> String {
@@ -727,7 +727,7 @@ fn keychain_read_failure(error: String) -> String {
         error
     } else {
         crate::i18n::tr(
-            "The system keychain could not read your sign-in. Unlock it and restart the launcher.",
+            "the system keychain could not read your sign-in. unlock it and restart the launcher.",
         )
         .into()
     }

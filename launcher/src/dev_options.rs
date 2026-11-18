@@ -39,18 +39,17 @@ impl Launcher {
                 .flex()
                 .flex_col()
                 .child(
-                    section_title("Developer options", "terminal", &t)
+                    section_title("developer options", "terminal", &t)
                         .mt(px(20.))
                         .mb(px(12.)),
                 )
                 .child(index_row(
                     0,
-                    tr("Offline names without an account"),
+                    tr("offline names without an account"),
                     Some(
                         div()
                             .child(tr(
-                                "Offline names play without a Microsoft account that owns the game. \
-                                 Minecraft still comes from your own install.",
+                                "offline names play without a microsoft account that owns the game. minecraft still comes from your own install.",
                             ))
                             .into_any_element(),
                     ),

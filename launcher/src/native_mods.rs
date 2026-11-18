@@ -176,12 +176,12 @@ pub enum Plan {
 impl Plan {
     pub fn label(&self) -> String {
         match self {
-            Self::UpToDate => tr("Up to date (no build needed)").into(),
+            Self::UpToDate => tr("up to date (no build needed)").into(),
             Self::Incremental(changes) => trf(
-                "Incremental rebuild: {changes}",
+                "incremental rebuild: {changes}",
                 &[("changes", &changes.join("; "))],
             ),
-            Self::First => tr("First build: the whole game (several minutes)").into(),
+            Self::First => tr("first build: the whole game (several minutes)").into(),
         }
     }
 
@@ -1312,20 +1312,20 @@ impl Step {
     pub fn label(&self) -> String {
         match self {
             Self::Rust(done) => trf(
-                "Downloading Rust {version} (once): {done}%",
+                "downloading rust {version} (once): {done}%",
                 &[
                     ("version", rust_toolchain::VERSION),
                     ("done", &format!("{:.0}", done * 100.0)),
                 ],
             ),
-            Self::Tool => tr("Building horizon-mixins (once)").into(),
+            Self::Tool => tr("building horizon-mixins (once)").into(),
             Self::Source(revision) => trf(
-                "Downloading Horizon's source at {revision}",
+                "downloading horizon's source at {revision}",
                 &[("revision", &revision[..7])],
             ),
-            Self::Mixins => tr("Applying the mixins").into(),
-            Self::CachedMixins => tr("Reusing patched game source").into(),
-            Self::Crates => tr("Checking the mods' crates against Horizon's Cargo.lock").into(),
+            Self::Mixins => tr("applying the mixins").into(),
+            Self::CachedMixins => tr("reusing patched game source").into(),
+            Self::Crates => tr("checking the mods' crates against horizon's cargo.lock").into(),
             Self::Plan(plan, profile) => format!("{} ({})", plan.label(), profile.name()),
             Self::Compile {
                 done,
@@ -1334,7 +1334,7 @@ impl Step {
                 profile,
             } => match total {
                 Some(total) => trf(
-                    "Compiling the game ({profile}): {done} of {total} crates, now {name}",
+                    "compiling the game ({profile}): {done} of {total} crates, now {name}",
                     &[
                         ("profile", profile.name()),
                         ("done", &done.to_string()),
@@ -1343,7 +1343,7 @@ impl Step {
                     ],
                 ),
                 None => trf(
-                    "Compiling the game ({profile}): {done} crates, now {name}",
+                    "compiling the game ({profile}): {done} crates, now {name}",
                     &[
                         ("profile", profile.name()),
                         ("done", &done.to_string()),
@@ -1351,15 +1351,15 @@ impl Step {
                     ],
                 ),
             },
-            Self::PostBuildCompile(id) => trf("Building {name}'s post-build step", &[("name", id)]),
-            Self::PostBuild(id) => trf("Running {name}'s post-build step", &[("name", id)]),
-            Self::Install => tr("Installing the build").into(),
+            Self::PostBuildCompile(id) => trf("building {name}'s post-build step", &[("name", id)]),
+            Self::PostBuild(id) => trf("running {name}'s post-build step", &[("name", id)]),
+            Self::Install => tr("installing the build").into(),
             Self::Done {
                 secs,
                 profile,
                 plan,
             } => trf(
-                "Built in {duration} ({profile}, {plan})",
+                "built in {duration} ({profile}, {plan})",
                 &[
                     ("duration", &duration_label(*secs)),
                     ("profile", profile.name()),
@@ -2075,7 +2075,7 @@ pub fn build_server(
     logged(|| {
         if output.symlink_metadata().is_ok() {
             return Err(trf(
-                "{path} already exists. Move it away, or build into another folder.",
+                "{path} already exists. move it away, or build into another folder.",
                 &[("path", &output.display().to_string())],
             ));
         }
@@ -2087,14 +2087,14 @@ pub fn build_server(
         let output = parent.canonicalize().map_err(|e| e.to_string())?.join(
             output
                 .file_name()
-                .ok_or_else(|| tr("Choose a new folder for the server export."))?,
+                .ok_or_else(|| tr("choose a new folder for the server export."))?,
         );
         for managed in [backend::version_dir(""), root()] {
             if managed
                 .canonicalize()
                 .is_ok_and(|dir| output.starts_with(dir))
             {
-                return Err(tr("Export the server outside the launcher's managed folders.").into());
+                return Err(tr("export the server outside the launcher's managed folders.").into());
             }
         }
         let built = pipeline(base, folder, anyway, profile, Target::Server, &progress)?;
@@ -2150,21 +2150,21 @@ fn export(from: &Path, output: &Path) -> Result<(), String> {
     if let Err(e) = copy_runtime(from, &staging) {
         let _ = fs::remove_dir_all(&staging);
         return Err(trf(
-            "Could not copy the build: {error}",
+            "could not copy the build: {error}",
             &[("error", &e.to_string())],
         ));
     }
     if output.symlink_metadata().is_ok() {
         let _ = fs::remove_dir_all(&staging);
         return Err(trf(
-            "{path} already exists. Move it away, or build into another folder.",
+            "{path} already exists. move it away, or build into another folder.",
             &[("path", &output.display().to_string())],
         ));
     }
     fs::rename(&staging, output).map_err(|e| {
         let _ = fs::remove_dir_all(&staging);
         trf(
-            "Could not move the build to {path}: {error}",
+            "could not move the build to {path}: {error}",
             &[
                 ("path", &output.display().to_string()),
                 ("error", &e.to_string()),
@@ -3538,7 +3538,7 @@ mod tests {
         assert_eq!(classify(false, None, &now), Plan::First);
         assert_eq!(
             First_label(),
-            "First build: the whole game (several minutes)"
+            "first build: the whole game (several minutes)"
         );
         let before = record("aaaaaaa1111", &[("zoom", "1"), ("keys", "0")]);
         assert_eq!(
@@ -3549,7 +3549,7 @@ mod tests {
         let plan = classify(false, Some(&before), &next);
         assert_eq!(
             plan.label(),
-            "Incremental rebuild: Horizon commit aaaaaaa to bbbbbbb; mods keys, zoom"
+            "incremental rebuild: Horizon commit aaaaaaa to bbbbbbb; mods keys, zoom"
         );
         // A removed mod counts as a change too.
         next = record("aaaaaaa1111", &[("zoom", "1")]);
@@ -3570,7 +3570,7 @@ mod tests {
     fn the_steps_name_the_profile_and_the_outcome() {
         assert_eq!(
             Step::Plan(Plan::UpToDate, Profile::Performance).label(),
-            "Up to date (no build needed) (performance)"
+            "up to date (no build needed) (performance)"
         );
         let compile = Step::Compile {
             done: 12,
@@ -3580,7 +3580,7 @@ mod tests {
         };
         assert_eq!(
             compile.label(),
-            "Compiling the game (performance): 12 of 430 crates, now serde"
+            "compiling the game (performance): 12 of 430 crates, now serde"
         );
         let done = |secs, profile, plan| Step::Done {
             secs,
@@ -3589,11 +3589,11 @@ mod tests {
         };
         assert_eq!(
             done(42, Profile::Performance, Plan::Incremental(vec![])).label(),
-            "Built in 42 s (performance, incremental)"
+            "built in 42 s (performance, incremental)"
         );
         assert_eq!(
             done(125, Profile::Release, Plan::First).label(),
-            "Built in 2 min 5 s (release, first build)"
+            "built in 2 min 5 s (release, first build)"
         );
     }
 

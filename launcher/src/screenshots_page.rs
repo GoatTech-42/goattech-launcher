@@ -86,10 +86,10 @@ impl Launcher {
                     cx,
                     ClipboardItem::new_image(&Image::from_bytes(format, bytes)),
                 );
-                Ok(tr("Copied to the clipboard.").into())
+                Ok(tr("copied to the clipboard.").into())
             }
             Err(e) => Err(trf(
-                "Could not read {name}: {error}",
+                "could not read {name}: {error}",
                 &[("name", &shot.name), ("error", &e.to_string())],
             )),
         });
@@ -132,8 +132,8 @@ impl Launcher {
         let mut buttons = div().flex().items_center().gap(px(8.));
         if list.len() > FIRST {
             let label = match self.screenshots.all {
-                true => tr("Show fewer").to_string(),
-                false => trf("Show all {count}", &[("count", &list.len().to_string())]),
+                true => tr("show fewer").to_string(),
+                false => trf("show all {count}", &[("count", &list.len().to_string())]),
             };
             buttons = buttons.child(tab_action("screenshots-all", label, &t).on_click(
                 cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -143,7 +143,7 @@ impl Launcher {
             ));
         }
         buttons = buttons.child(
-            tab_action("screenshots-folder", "Open folder", &t)
+            tab_action("screenshots-folder", "open folder", &t)
                 .on_click(move |_, _, cx| cx.open_with_system(&folder)),
         );
         let grid = div().flex().flex_wrap().gap(px(10.)).children(
@@ -183,12 +183,27 @@ impl Launcher {
     /// The viewer over the whole window, while a picture is open.
     pub(super) fn screenshot_viewer(&mut self, cx: &mut Context<Self>) -> Option<Stateful<Div>> {
         let t = self.theme;
+        self.servers.rendered_fields.clear();
+        let keys: std::collections::HashMap<&'static str, FocusHandle> = [
+            "screenshot-newer",
+            "screenshot-older",
+            "screenshot-close",
+            "screenshot-keep",
+            "screenshot-trash",
+            "screenshot-copy",
+            "screenshot-open",
+            "screenshot-show",
+            "screenshot-delete",
+        ]
+        .into_iter()
+        .map(|n| (n, self.key_handle(n, cx)))
+        .collect();
         let i = self.screenshots.viewing?;
         let shot = self.screenshots.list.get(i)?.clone();
         let count = self.screenshots.list.len();
         let taken: chrono::DateTime<chrono::Local> = shot.taken.into();
-        let step = |id: &'static str, label: &'static str, older: bool, can: bool| {
-            let b = button(id, label, Kind::Ghost, &t);
+        let step = |id: &'static str, key: &FocusHandle, label: &'static str, older: bool, can: bool| {
+            let b = button(id, label, Kind::Ghost, &t).track_focus(key);
             if can {
                 b.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                     this.screenshot_step(older);
@@ -206,16 +221,16 @@ impl Launcher {
                     .child(
                         text(theme::CAPTION)
                             .text_color(t.danger)
-                            .child(tr("Move it to the trash?")),
+                            .child(tr("move it to the trash?")),
                     )
-                    .child(button("screenshot-keep", "Keep", Kind::Ghost, &t).on_click(
+                    .child(button("screenshot-keep", "keep", Kind::Ghost, &t).track_focus(&keys["screenshot-keep"]).on_click(
                         cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.screenshots.confirm_delete = false;
                             cx.notify();
                         }),
                     ))
                     .child(
-                        button("screenshot-trash", "Move to trash", Kind::Secondary, &t).on_click(
+                        button("screenshot-trash", "move to trash", Kind::Secondary, &t).track_focus(&keys["screenshot-trash"]).on_click(
                             cx.listener(move |this, _: &ClickEvent, _, cx| {
                                 this.delete_screenshot(&gone);
                                 cx.notify();
@@ -226,22 +241,24 @@ impl Launcher {
             let (copy, open, show) = (shot.clone(), shot.path.clone(), shot.path.clone());
             actions =
                 actions
-                    .child(button("screenshot-copy", "Copy", Kind::Ghost, &t).on_click(
+                    .child(button("screenshot-copy", "copy", Kind::Ghost, &t).track_focus(&keys["screenshot-copy"]).on_click(
                         cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.copy_screenshot(&copy, cx);
                             cx.notify();
                         }),
                     ))
                     .child(
-                        button("screenshot-open", "Open", Kind::Ghost, &t)
+                        button("screenshot-open", "open", Kind::Ghost, &t)
+                            .track_focus(&keys["screenshot-open"])
                             .on_click(move |_, _, cx| cx.open_with_system(&open)),
                     )
                     .child(
-                        button("screenshot-show", "Show in folder", Kind::Ghost, &t)
+                        button("screenshot-show", "show in folder", Kind::Ghost, &t)
+                            .track_focus(&keys["screenshot-show"])
                             .on_click(move |_, _, cx| cx.reveal_path(&show)),
                     )
                     .child(
-                        button("screenshot-delete", "Delete", Kind::Ghost, &t).on_click(
+                        button("screenshot-delete", "delete", Kind::Ghost, &t).track_focus(&keys["screenshot-delete"]).on_click(
                             cx.listener(|this, _: &ClickEvent, _, cx| {
                                 this.screenshots.confirm_delete = true;
                                 cx.notify();
@@ -283,10 +300,10 @@ impl Launcher {
                             )),
                     ),
             )
-            .child(step("screenshot-newer", "← Newer", false, i > 0))
-            .child(step("screenshot-older", "Older →", true, i + 1 < count))
+            .child(step("screenshot-newer", &keys["screenshot-newer"], "← newer", false, i > 0))
+            .child(step("screenshot-older", &keys["screenshot-older"], "older →", true, i + 1 < count))
             .child(
-                button("screenshot-close", "Close", Kind::Secondary, &t).on_click(cx.listener(
+                button("screenshot-close", "close", Kind::Secondary, &t).track_focus(&keys["screenshot-close"]).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.screenshot_escape();
                         cx.notify();
@@ -300,7 +317,7 @@ impl Launcher {
             .gap(px(12.))
             .child(div().children(note))
             .child(actions);
-        Some(
+        let out = Some(
             div()
                 .id("screenshot-viewer")
                 .absolute()
@@ -335,6 +352,26 @@ impl Launcher {
                         ),
                 )
                 .child(bottom),
-        )
+        );
+        // The viewer's keyboard set, top bar first (Newer, Older, Close), then the
+        // actions showing now: the confirm pair while it asks, the four actions else.
+        let mut order: Vec<(&'static str, FocusHandle)> = [
+            ("screenshot-newer", keys["screenshot-newer"].clone()),
+            ("screenshot-older", keys["screenshot-older"].clone()),
+            ("screenshot-close", keys["screenshot-close"].clone()),
+        ]
+        .into_iter()
+        .collect();
+        if self.screenshots.confirm_delete {
+            order.push(("screenshot-keep", keys["screenshot-keep"].clone()));
+            order.push(("screenshot-trash", keys["screenshot-trash"].clone()));
+        } else {
+            order.push(("screenshot-copy", keys["screenshot-copy"].clone()));
+            order.push(("screenshot-open", keys["screenshot-open"].clone()));
+            order.push(("screenshot-show", keys["screenshot-show"].clone()));
+            order.push(("screenshot-delete", keys["screenshot-delete"].clone()));
+        }
+        self.modal_keys(&order, cx);
+        out
     }
 }

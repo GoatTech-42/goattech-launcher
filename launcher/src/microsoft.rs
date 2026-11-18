@@ -59,6 +59,6 @@ pub(super) fn sign_in_button(id: &'static str, t: &Theme) -> Stateful<Div> {
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(gpui::rgb(ink))
                 .whitespace_nowrap()
-                .child(tr("Sign in with Microsoft").to_string()),
+                .child(tr("sign in with microsoft").to_string()),
         )
 }

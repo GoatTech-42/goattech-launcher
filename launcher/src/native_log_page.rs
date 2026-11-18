@@ -109,10 +109,8 @@ impl NativeLog {
 }
 
 impl Launcher {
-    /// The top bar's Build log opens the panel; its button shows only while a log exists.
-    // The top bar's Build log button calls this once it is wired.
-    #[allow(dead_code)]
-    pub(super) fn native_log_open(&mut self) {
+    /// The top bar's build log button opens the panel; it shows only while a log exists.
+    pub(crate) fn native_log_open(&mut self) {
         self.native_log.open = true;
         self.native_log.note = None;
         self.native_log.stale = true;
@@ -176,6 +174,12 @@ impl Launcher {
             return None;
         }
         let t = self.theme;
+        self.servers.rendered_fields.clear();
+        let copy_key = self.key_handle("native-log-copy", cx);
+        let file_key = self.key_handle("native-log-file", cx);
+        let reveal_key = self.key_handle("native-log-reveal", cx);
+        let refresh_key = self.key_handle("native-log-refresh", cx);
+        let close_key = self.key_handle("native-log-close", cx);
         let path = native_mods::log_path();
         // Rendering clones only the preview lines' shared text handles.
         let loaded = &self.native_log.loaded;
@@ -183,7 +187,7 @@ impl Launcher {
         let open = path.clone();
         let reveal = path.clone();
         let copy = {
-            let b = button("native-log-copy", "Copy log", Kind::Ghost, &t);
+            let b = button("native-log-copy", "copy log", Kind::Ghost, &t).track_focus(&copy_key);
             match loaded {
                 Some(Ok(_)) => b.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     // The whole file as it was read, never a stale or missing one.
@@ -191,7 +195,7 @@ impl Launcher {
                         return;
                     };
                     copy_to_clipboard(cx, ClipboardItem::new_string(log.full.as_str().to_string()));
-                    this.native_log.note = Some(tr("Copied build log.").into());
+                    this.native_log.note = Some(tr("copied build log.").into());
                     cx.notify();
                 })),
                 _ => disabled(b),
@@ -204,7 +208,7 @@ impl Launcher {
             .gap(px(8.))
             .child(copy)
             .child({
-                let b = button("native-log-file", "Open full log", Kind::Ghost, &t);
+                let b = button("native-log-file", "open full log", Kind::Ghost, &t).track_focus(&file_key);
                 if gone {
                     disabled(b)
                 } else {
@@ -212,7 +216,7 @@ impl Launcher {
                 }
             })
             .child({
-                let b = button("native-log-reveal", "Show in folder", Kind::Ghost, &t);
+                let b = button("native-log-reveal", "show in folder", Kind::Ghost, &t).track_focus(&reveal_key);
                 if gone {
                     disabled(b)
                 } else {
@@ -220,7 +224,7 @@ impl Launcher {
                 }
             })
             .child(
-                button("native-log-refresh", "Refresh", Kind::Ghost, &t).on_click(cx.listener(
+                button("native-log-refresh", "refresh", Kind::Ghost, &t).track_focus(&refresh_key).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.native_log.stale = true;
                         cx.notify();
@@ -249,7 +253,7 @@ impl Launcher {
                     .child(
                         blocks::pixel(17., FontWeight::MEDIUM)
                             .text_color(t.ink)
-                            .child(tr("Native build log")),
+                            .child(tr("native build log")),
                     )
                     // The actual file the actions below work on, wrapping rather than cut off.
                     .child(
@@ -262,7 +266,7 @@ impl Launcher {
                     ),
             )
             .child(
-                button("native-log-close", "Close", Kind::Secondary, &t).on_click(cx.listener(
+                button("native-log-close", "close", Kind::Secondary, &t).track_focus(&close_key).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.native_log_escape();
                         cx.notify();
@@ -270,11 +274,11 @@ impl Launcher {
                 )),
             );
         let body = match loaded {
-            None => centered(tr("Loading build log…"), &t),
-            Some(Err(Missing::None)) => centered(tr("No native build log is available yet."), &t),
+            None => centered(tr("loading build log…"), &t),
+            Some(Err(Missing::None)) => centered(tr("no native build log is available yet."), &t),
             Some(Err(Missing::Failed(e))) => notice(
                 trf(
-                    "Could not read the build log: {error}",
+                    "could not read the build log: {error}",
                     &[("error", e.as_str())],
                 ),
                 &t,
@@ -287,8 +291,7 @@ impl Launcher {
                 .children((log.lines > SHOWN).then(|| {
                     quiet_note(
                         trf(
-                            "Only the last {lines} lines are shown. Copy or open the full \
-                             log for all details.",
+                            "only the last {lines} lines are shown. copy or open the full log for all details.",
                             &[("lines", &SHOWN.to_string())],
                         ),
                         &t,
@@ -314,7 +317,7 @@ impl Launcher {
                         ),
                 ),
         };
-        Some(
+        let out = Some(
             div()
                 .id("native-log")
                 .absolute()
@@ -339,7 +342,19 @@ impl Launcher {
                         .map(|step| quiet_note(step.clone(), &t)),
                 )
                 .child(body.flex_1().min_h_0().min_w_0()),
-        )
+        );
+        // The panel's keyboard set, top bar first: Close, then the log's actions.
+        self.modal_keys(
+            &[
+                ("native-log-close", close_key),
+                ("native-log-copy", copy_key),
+                ("native-log-file", file_key),
+                ("native-log-reveal", reveal_key),
+                ("native-log-refresh", refresh_key),
+            ],
+            cx,
+        );
+        out
     }
 }
 

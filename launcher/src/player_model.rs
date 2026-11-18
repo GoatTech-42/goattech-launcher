@@ -256,6 +256,26 @@ impl Pose {
         p.arm_r = idle.arm_r + (Pose::wave(t).arm_r - idle.arm_r) * w;
         p
     }
+
+    /// A wave the player asked for with a click: blends in fast, holds, blends out over
+    /// the stage cycle's own pose (so clicking while the cycle's wave is up doesn't snap
+    /// the arm down). None once it's over, and the stage clock carries on.
+    pub fn click_wave(t: f32, since: f32) -> Option<Pose> {
+        /// Seconds from the click back to rest.
+        const HOLD: f32 = 1.6;
+        if since >= HOLD {
+            return None;
+        }
+        fn smooth(a: f32, b: f32, x: f32) -> f32 {
+            let t = ((x - a) / (b - a)).clamp(0., 1.);
+            t * t * (3. - 2. * t)
+        }
+        let w = smooth(0., 0.35, since) * (1. - smooth(HOLD - 0.35, HOLD, since));
+        let base = Pose::stage(t);
+        let mut p = base;
+        p.arm_r = base.arm_r + (Pose::wave(t).arm_r - base.arm_r) * w;
+        Some(p)
+    }
 }
 
 /// Rotate `v` around the X axis.
@@ -279,6 +299,9 @@ fn swing(f: &mut Face, pivot: [f32; 3], a: f32, around_y: bool) {
     f.u = r(f.u);
     f.v = r(f.v);
 }
+
+/// Depth slack for seam ties; see the depth test in `render_grid`.
+const SEAM_TIE: f32 = 1e-3;
 
 /// Render size in texels before `art::bake` scales it.
 pub const W: usize = 40;
@@ -445,7 +468,15 @@ fn render_grid(
                 }
                 let sd = od + a * su.2 / mag + b * sv.2 / mag;
                 let idx = py as usize * out_w + px as usize;
-                if sd >= depth[idx] {
+                // Touching parts' overlays share a plane at the seams (the jacket over
+                // the trouser tops, the sleeve over the jacket's edge), where coplanar
+                // depths differ only by rounding: a strict `>=` let either face win
+                // pixel to pixel - barcode noise at the hip and armpit speckles on a
+                // turned model. A hair of slack hands the seam deterministically to
+                // the later-drawn part (legs, body, arms, head: the outer garment is
+                // drawn last). SEAM_TIE is far above float error (~1e-5 here) and far
+                // below the 0.5-texel overlay offset, so no real depth loses to it.
+                if sd > depth[idx] + SEAM_TIE {
                     continue;
                 }
                 // Nearest skin texel: the blocky texture look survives, the coarse
@@ -647,6 +678,34 @@ mod tests {
     }
 
     #[test]
+    fn click_wave_runs_and_rests_without_a_snap() {
+        // From click to rest the arm never jumps, even when the click lands while the
+        // stage cycle's own wave is up.
+        for t0 in [0., 6.] {
+            let mut prev = Pose::click_wave(t0, 0.).unwrap();
+            let mut since = 0.02;
+            while since < 1.6 {
+                let pose = Pose::click_wave(t0, since).unwrap();
+                let step = (pose.arm_r - prev.arm_r).abs();
+                assert!(
+                    step < 0.35,
+                    "arm snaps {step} rad at t {t0}, {since}s after the click"
+                );
+                prev = pose;
+                since += 0.02;
+            }
+        }
+        assert!(Pose::click_wave(0., 1.6).is_none(), "the wave rests after its hold");
+        let peak = (0..160)
+            .map(|i| Pose::click_wave(0., i as f32 * 0.01).unwrap().arm_r)
+            .fold(0f32, f32::max);
+        assert!(peak > 2.5, "the click wave raises the arm, peak {peak}");
+        // Clicking mid-cycle-wave starts from where the arm already is.
+        let mid = Pose::click_wave(6., 0.).unwrap();
+        assert!((mid.arm_r - Pose::stage(6.).arm_r).abs() < 1e-6);
+    }
+
+    #[test]
     fn stage_pose_transitions_without_a_snap() {
         // The wave blends in and out: nowhere in the cycle may the right arm jump.
         // QA caught idle(t4.999).arm_r 0.072 -> wave(t5.001) 3.337, a 187 deg snap.
@@ -664,6 +723,91 @@ mod tests {
             .map(|i| Pose::stage(i as f32 * 0.01).arm_r)
             .fold(0f32, f32::max);
         assert!(peak > 2.5, "the wave still raises the arm, peak {peak}");
+    }
+
+    /// The jacket hangs over the trouser tops and the sleeve over the jacket's edge:
+    /// touching parts' overlays share a plane at the seams, and the later-drawn part
+    /// (legs, body, arms, head) must win the tie everywhere. A strict depth compare
+    /// flickered per pixel there - barcode noise at the hip, speckles at the armpits.
+    #[test]
+    fn overlay_seams_resolve_to_the_outer_garment_not_z_fight_noise() {
+        let mut skin = image::RgbaImage::new(64, 64);
+        let fill = |skin: &mut image::RgbaImage, x0: u32, y0: u32, w: u32, c: [u8; 4]| {
+            for y in y0..y0 + 16 {
+                for x in x0..x0 + w {
+                    skin.put_pixel(x, y, c.into());
+                }
+            }
+        };
+        let (red, green, blue, white) = (
+            [255, 0, 0, 255],
+            [0, 255, 0, 255],
+            [0, 0, 255, 255],
+            [200, 200, 200, 255],
+        );
+        // Base and overlay columns: legs red, body green, arms blue, head/hat white.
+        // A column is 2 * (depth + width) texels wide: 16 for limbs, 24 for the
+        // body, 32 for the head.
+        for (x0, y0, w, c) in [
+            (0, 16, 16, red),
+            (0, 32, 16, red),
+            (16, 48, 16, red),
+            (0, 48, 16, red), // legs
+            (16, 16, 24, green),
+            (16, 32, 24, green), // body
+            (40, 16, 16, blue),
+            (40, 32, 16, blue),
+            (32, 48, 16, blue),
+            (48, 48, 16, blue), // arms
+            (0, 0, 32, white),
+            (32, 0, 32, white), // head
+        ] {
+            fill(&mut skin, x0, y0, w, c);
+        }
+        // Front view at 4x: feet sit at device row 168, so model y 11.5..12.5 (the
+        // jacket/trouser tie band) maps to rows 118..=121 by pixel centers, and the
+        // left armpit strip (model x 3.5..4.5, y 13..23) to cols 94..=98, rows 76..=116.
+        let buf = render_posed_hi(&skin, 0., 0., &Pose::default(), false, W * 4, H * 4);
+        let px = |x: usize, y: usize| buf[y * W * 4 + x];
+        for y in 118..=121 {
+            // Cols 68..92 stay clear of the armpit strips (model |x| 3.5..4.5),
+            // where the sleeve is the outer garment instead.
+            for x in 68..92 {
+                let p = px(x, y);
+                assert_eq!(p[3], 255, "hip band ({x},{y}) must be covered");
+                assert_eq!(p[0], 0, "hip band ({x},{y}) shows trouser red: {p:?}");
+                assert!(p[1] > 150, "hip band ({x},{y}) must be the jacket's green: {p:?}");
+            }
+        }
+        for y in 76..=116 {
+            for x in 94..=98 {
+                let p = px(x, y);
+                if p[3] == 0 {
+                    continue; // background beside the silhouette
+                }
+                assert_eq!(p[0], 0, "armpit strip ({x},{y}) shows jacket red-mix: {p:?}");
+                assert_eq!(p[1], 0, "armpit strip ({x},{y}) shows jacket green: {p:?}");
+            }
+        }
+        // Same seams on the back: the model turned around keeps the jacket on top.
+        let back = render_posed_hi(
+            &skin,
+            std::f32::consts::PI,
+            0.,
+            &Pose::default(),
+            false,
+            W * 4,
+            H * 4,
+        );
+        let bp = |x: usize, y: usize| back[y * W * 4 + x];
+        for y in 118..=121 {
+            for x in 68..92 {
+                let p = bp(x, y);
+                assert_eq!(p[3], 255, "back hip band ({x},{y}) must be covered");
+                assert_eq!(p[0], 0, "back hip band ({x},{y}) shows trouser red: {p:?}");
+                assert!(p[1] > 150, "back hip band ({x},{y}) must be the jacket's green: {p:?}");
+            }
+        }
     }
 
     #[test]

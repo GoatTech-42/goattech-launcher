@@ -97,7 +97,7 @@ impl Launcher {
                     )
                 }),
                 Action::Copy => worlds::copy(&world)
-                    .map(|c| (trf("Copied to {name}.", &[("name", &c.name)]), None)),
+                    .map(|c| (trf("copied to {name}.", &[("name", &c.name)]), None)),
                 Action::Delete => worlds::delete(&world).map(|()| {
                     (
                         trf("{name} moved to the trash.", &[("name", &world.name)]),
@@ -142,7 +142,7 @@ impl Launcher {
                 if let Some(zip) = zip.clone() {
                     let dir = zip.parent().map(Path::to_path_buf).unwrap_or(zip);
                     line = line.child(
-                        button("world-backups", "Open backups", Kind::Ghost, &t)
+                        button("world-backups", "open backups", Kind::Ghost, &t)
                             .on_click(move |_, _, cx| cx.open_with_system(&dir)),
                     );
                 }
@@ -162,10 +162,10 @@ impl Launcher {
                         .child(
                             text(theme::CAPTION)
                                 .text_color(t.muted)
-                                .child(tr("No worlds yet: they appear here once you play one.")),
+                                .child(tr("no worlds yet: they appear here once you play one.")),
                         )
                         .child(
-                            button("worlds-folder", "Open folder", Kind::Ghost, &t).on_click(
+                            button("worlds-folder", "open folder", Kind::Ghost, &t).on_click(
                                 move |_, _, cx| {
                                     let _ = std::fs::create_dir_all(&saves);
                                     cx.open_with_system(&saves);
@@ -228,16 +228,16 @@ impl Launcher {
                 .child(
                     text(theme::CAPTION)
                         .text_color(t.danger)
-                        .child(tr("Move it to the trash?")),
+                        .child(tr("move it to the trash?")),
                 )
-                .child(act("world-keep", "Keep", Kind::Ghost).on_click(cx.listener(
+                .child(act("world-keep", "keep", Kind::Ghost).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.worlds.confirm_delete = None;
                         cx.notify();
                     },
                 )))
                 .child(
-                    act("world-trash", "Move to trash", Kind::Secondary).on_click(cx.listener(
+                    act("world-trash", "move to trash", Kind::Secondary).on_click(cx.listener(
                         move |this, _: &ClickEvent, _, cx| {
                             this.world_action(Action::Delete, gone.clone(), cx);
                             cx.notify();
@@ -248,12 +248,12 @@ impl Launcher {
             actions = actions.child(
                 text(theme::CAPTION)
                     .text_color(t.muted)
-                    .child(tr("Working…")),
+                    .child(tr("working…")),
             );
         } else {
             let (backup, copy, folder) = (w.clone(), w.clone(), w.path.clone());
             let (delete, play) = (w.folder.clone(), w.folder.clone());
-            let play_button = act("world-play", "Play", Kind::Secondary);
+            let play_button = act("world-play", "play", Kind::Secondary);
             let play_button = if !self.can_start_selected() {
                 disabled(play_button)
             } else {
@@ -267,21 +267,21 @@ impl Launcher {
                     })),
                 )
                 .child(
-                    act("world-backup", "Back up", Kind::Ghost).on_click(cx.listener(
+                    act("world-backup", "back up", Kind::Ghost).on_click(cx.listener(
                         move |this, _: &ClickEvent, _, cx| {
                             this.world_action(Action::Backup, backup.clone(), cx);
                             cx.notify();
                         },
                     )),
                 )
-                .child(act("world-copy", "Copy", Kind::Ghost).on_click(cx.listener(
+                .child(act("world-copy", "copy", Kind::Ghost).on_click(cx.listener(
                     move |this, _: &ClickEvent, _, cx| {
                         this.world_action(Action::Copy, copy.clone(), cx);
                         cx.notify();
                     },
                 )))
                 .child(
-                    act("world-delete", "Delete", Kind::Ghost).on_click(cx.listener(
+                    act("world-delete", "delete", Kind::Ghost).on_click(cx.listener(
                         move |this, _: &ClickEvent, _, cx| {
                             // Buttons look disabled while something runs, but still click.
                             if this.worlds.busy.is_none() {
@@ -294,8 +294,8 @@ impl Launcher {
                 .child({
                     let world = w.clone();
                     let label = match self.world_packs_open(&w) {
-                        true => "Hide data packs",
-                        false => "Data packs",
+                        true => "hide data packs",
+                        false => "data packs",
                     };
                     act("world-packs", label, Kind::Ghost).on_click(cx.listener(
                         move |this, _: &ClickEvent, _, cx| {
@@ -305,7 +305,7 @@ impl Launcher {
                     ))
                 })
                 .child(
-                    act("world-folder", "Open folder", Kind::Ghost)
+                    act("world-folder", "open folder", Kind::Ghost)
                         .on_click(move |_, _, cx| cx.open_with_system(&folder)),
                 );
         }

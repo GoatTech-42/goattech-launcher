@@ -19,11 +19,11 @@ use std::path::PathBuf;
 
 /// The kinds, as the Mods page's tabs: name and icon. Only [`SHOWN`]'s have a tab.
 const KINDS: [(PackKind, &str, &str); 5] = [
-    (PackKind::Mod, "Mods", "box"),
-    (PackKind::Modpack, "Modpacks", "archive"),
-    (PackKind::ResourcePack, "Resource packs", "image"),
-    (PackKind::Shader, "Shader packs", "zap"),
-    (PackKind::DataPack, "Data packs", "notes"),
+    (PackKind::Mod, "mods", "box"),
+    (PackKind::Modpack, "modpacks", "archive"),
+    (PackKind::ResourcePack, "resource packs", "image"),
+    (PackKind::Shader, "shader packs", "zap"),
+    (PackKind::DataPack, "data packs", "notes"),
 ];
 /// The kinds with a tab: Horizon's registry's, and Modrinth's resource packs. Modrinth's mods and
 /// data packs aren't usable yet; the Modpacks tab shows while the sidebar has it open.
@@ -32,8 +32,8 @@ const SHOWN: [PackKind; 3] = [PackKind::Mod, PackKind::ResourcePack, PackKind::S
 const CHECKING: usize = 2;
 /// The sources to pick from on the Resource packs and Modpacks tabs; CurseForge is shown beside them as coming soon.
 const SOURCES: [(SourceId, &str); 2] = [
-    (SourceId::Modrinth, "Modrinth"),
-    (SourceId::Horizon, "Horizon"),
+    (SourceId::Modrinth, "modrinth"),
+    (SourceId::Horizon, "horizon"),
 ];
 const PAGE: usize = 20;
 
@@ -225,9 +225,9 @@ impl Mods {
         match self.checks.get(&(p.source, p.id.clone())) {
             Some(Checking::Done(c)) => java::support_of(c),
             Some(Checking::Failed(e)) => {
-                Support::Partial(trf("Not checked: {error}", &[("error", e)]))
+                Support::Partial(trf("not checked: {error}", &[("error", e)]))
             }
-            _ => Support::Partial(tr("Checking its jar…").into()),
+            _ => Support::Partial(tr("checking its jar…").into()),
         }
     }
 }
@@ -237,7 +237,7 @@ fn count(n: u64) -> String {
     match n {
         0..1_000 => n.to_string(),
         1_000..1_000_000 => format!("{:.1}k", n as f64 / 1e3),
-        _ => format!("{:.1}M", n as f64 / 1e6),
+        _ => format!("{:.1}m", n as f64 / 1e6),
     }
 }
 
@@ -246,7 +246,7 @@ fn count(n: u64) -> String {
 pub(super) fn stars(id: &str, t: &theme::Theme) -> Option<Div> {
     let row = div().flex().items_center().gap(px(2.));
     Some(match horizon::rating(id)? {
-        None => row.text_color(t.muted).child(tr("No ratings yet")),
+        None => row.text_color(t.muted).child(tr("no ratings yet")),
         Some(r) => {
             // Partial stars: the lit part is clipped to the mean's fraction, so a 4.7
             // reads differently from a 5.0 without relying on colour alone.
@@ -504,7 +504,7 @@ impl Launcher {
             let on = !java_instance::is_on(&home, e);
             self.mods.message = Some(java_instance::set_on(&home, e, on).map(|()| {
                 format!(
-                    "{} is {}. The game reads this when it starts.",
+                    "{} is {}. the game reads this when it starts.",
                     e.title,
                     if on { "on" } else { "off" }
                 )
@@ -523,7 +523,7 @@ impl Launcher {
             Some(reason) => Err(format!("{} was taken down: {reason}", e.title)),
             None => java::set_enabled(&home, id, on).map(|()| {
                 format!(
-                    "{} is {}. The game reads this when it starts.",
+                    "{} is {}. the game reads this when it starts.",
                     e.title,
                     if on { "on" } else { "off" }
                 )
@@ -630,7 +630,7 @@ impl Launcher {
             .collect();
         todo.dedup_by(|a, b| a.0 == b.0 && a.1 == b.1);
         self.mods.message = None;
-        self.mods.busy = Some(("all".into(), "Updating…".into(), 0.));
+        self.mods.busy = Some(("all".into(), "updating…".into(), 0.));
         self.mods.updates.clear();
         let tx = self.mods.tx.clone();
         let home = self.mods.home();
@@ -669,11 +669,11 @@ impl Launcher {
             }
             let updated = match done.is_empty() {
                 true => String::new(),
-                false => format!("Updated {}, checksums checked.", done.join(", ")),
+                false => format!("updated {}, checksums checked.", done.join(", ")),
             };
             let result = match failed.is_empty() {
                 true => Ok(updated),
-                false => Err(format!("{updated} Not updated: {}", failed.join("; "))
+                false => Err(format!("{updated} not updated: {}", failed.join("; "))
                     .trim()
                     .to_string()),
             };
@@ -697,7 +697,7 @@ impl Launcher {
         }
         self.mods.native_notice = None;
         self.mods.message = None;
-        self.mods.busy = Some((id.clone(), format!("Asking {}…", source.label()), 0.));
+        self.mods.busy = Some((id.clone(), format!("asking {}…", source.label()), 0.));
         self.mods.updates.remove(&(source, id.clone()));
         let everything = self.mods.everything || self.mods.browse.filters.other_version();
         // A modpack is ported for the selected version as soon as it is imported.
@@ -710,7 +710,7 @@ impl Launcher {
         let java = self.mods.java.clone();
         let instance = self
             .selected_instance()
-            .map_or_else(|| "Horizon".to_string(), |i| i.name.clone());
+            .map_or_else(|| "horizon".to_string(), |i| i.name.clone());
         let world = self.mods.world.clone().and_then(|path| {
             let (_, name) = self.mods.worlds.iter().find(|(p, _)| *p == path)?;
             Some((path, name.clone()))
@@ -738,20 +738,19 @@ impl Launcher {
                             .map(|e| format!("{} {}", e.title, e.number))
                             .collect();
                         return Ok(format!(
-                            "Installed {}, checksums checked.",
+                            "installed {}, checksums checked.",
                             names.join(", ")
                         ));
                     }
                     if p.kind == PackKind::DataPack {
                         let (world, name) =
-                            world.ok_or("Pick the world the data pack goes into first.")?;
+                            world.ok_or("pick the world the data pack goes into first.")?;
                         let done =
                             installed::install_datapack(&*source, &p, everything, &world, &|f| {
                                 progress(&p.title, f)
                             })?;
                         return Ok(format!(
-                            "Put {} {} in {name}'s data packs, checksum checked: the game turns \
-                             it on when the world opens. {}",
+                            "put {} {} in {name}'s data packs, checksum checked: the game turns it on when the world opens. {}",
                             p.title,
                             done.number,
                             done.coverage.summary()
@@ -767,8 +766,7 @@ impl Launcher {
                             );
                         }
                         return Ok(format!(
-                            "Installed {} {} as its own profile with {}, each checked. Play it \
-                             from the list above.",
+                            "installed {} {} as its own profile with {}, each checked. play it from the list above.",
                             pack.name,
                             pack.version,
                             pack.mods.join(", ")
@@ -788,7 +786,7 @@ impl Launcher {
                             );
                         }
                         return Ok(format!(
-                            "{} Play it from the list above.",
+                            "{} play it from the list above.",
                             modpacks::outcome(&pack)
                         ));
                     }
@@ -799,33 +797,30 @@ impl Launcher {
                         .collect();
                     if done.iter().any(|e| native_status::is_native_file(&e.file)) {
                         return Ok(format!(
-                            "Installed {} into {instance}. Build to play with it.",
+                            "installed {} into {instance}. build to play with it.",
                             names.join(", ")
                         ));
                     }
                     if p.source == SourceId::Horizon && p.kind == PackKind::Mod {
                         return Ok(format!(
-                            "Installed {} into horizon-mods and turned it on, checksum checked \
-                             (Options > Mods in the game).",
+                            "installed {} into horizon-mods and turned it on, checksum checked (options > mods in the game).",
                             names.join(", ")
                         ));
                     }
                     if p.kind == PackKind::Mod {
                         let skipped = done.last().map_or(0, |e| e.skipped.len());
                         return Ok(format!(
-                            "Ported {} into horizon-mods and turned on (Options > Mods in the \
-                             game).{}",
+                            "ported {} into horizon-mods and turned on (options > mods in the game).{}",
                             names.join(", "),
                             if skipped > 0 {
-                                " What didn't port is listed under Installed."
+                                " what didn't port is listed under installed."
                             } else {
                                 ""
                             }
                         ));
                     }
                     Ok(format!(
-                        "Installed {}, checksums checked. Turn it on in the game: Options > \
-                         Resource Packs.",
+                        "installed {}, checksums checked. turn it on in the game: options > resource packs.",
                         names.join(", ")
                     ))
                 });
@@ -859,7 +854,7 @@ impl Launcher {
                 focused,
                 false,
                 false,
-                tr("Search, then Enter"),
+                tr("search, then enter"),
             ))
             .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
                 window.focus(&this.mods.focus, cx);
@@ -913,10 +908,8 @@ impl Launcher {
             self.mods_search(0);
         }
         let header = page_header(
-            "Mods",
-            "Mods and shader packs made for Horizon from its own reviewed registry, and \
-             resource packs from Modrinth. Each file is checked against its source's checksum \
-             before it reaches your game folder.",
+            "mods",
+            "mods and shader packs made for horizon from its own reviewed registry, and resource packs from modrinth. each file is checked against its source's checksum before it reaches your game folder.",
             &t,
         );
         let this = cx.entity().downgrade();
@@ -952,7 +945,7 @@ impl Launcher {
             .child(
                 text(theme::LABEL)
                     .text_color(t.ink_soft)
-                    .child(tr("Show everything")),
+                    .child(tr("show everything")),
             )
             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.mods.everything = !this.mods.everything;
@@ -1006,7 +999,7 @@ impl Launcher {
             body = body
                 .child(self.imported_packs(cx))
                 .child(div().h(px(2.)).bg(t.rule))
-                .child(section_title("Browse modpacks", "search", &t));
+                .child(section_title("browse modpacks", "search", &t));
         }
         body = body.child(controls);
         // Native mods from a GitHub link: Horizon instances, on the Mods tab.
@@ -1039,10 +1032,10 @@ impl Launcher {
                 None => format!("vanilla {}", target.minecraft),
             };
             let line = if self.instances.list.len() < 2 {
-                format!("Installs into {} ({plays}).", instance.name)
+                format!("installs into {} ({plays}).", instance.name)
             } else {
                 format!(
-                    "Installs into {} ({plays}): switch it on the Play page.",
+                    "installs into {} ({plays}): switch it on the play page.",
                     instance.name
                 )
             };
@@ -1056,7 +1049,7 @@ impl Launcher {
             return None;
         }
         Some(text(theme::CAPTION).text_color(self.theme.muted).child(trf(
-            "Installs into {instance}: switch it on the Play page.",
+            "installs into {instance}: switch it on the play page.",
             &[("instance", &instance.name)],
         )))
     }
@@ -1067,7 +1060,7 @@ impl Launcher {
         let caption = |s: String| text(theme::CAPTION).text_color(t.muted).child(s);
         if self.mods.worlds.is_empty() {
             return div().child(caption(trf(
-                "A data pack goes into a world, and {instance} has none yet: create one in the game, then come back.",
+                "a data pack goes into a world, and {instance} has none yet: create one in the game, then come back.",
                 &[("instance", instance)],
             )));
         }
@@ -1094,7 +1087,7 @@ impl Launcher {
             .flex_col()
             .gap(px(8.))
             .child(caption(trf(
-                "Installs into a world of {instance}; the game turns the pack on when the world opens.",
+                "installs into a world of {instance}; the game turns the pack on when the world opens.",
                 &[("instance", instance)],
             )))
             .child(chips)
@@ -1120,7 +1113,7 @@ impl Launcher {
                         .flex()
                         .gap(px(8.))
                         .child(
-                            button("native-notice-install", "Install", Kind::Primary, &t).on_click(
+                            button("native-notice-install", "install", Kind::Primary, &t).on_click(
                                 cx.listener(|this, _: &ClickEvent, _, cx| {
                                     this.settings.native_mods_noticed = true;
                                     let _ = this.settings.save();
@@ -1134,7 +1127,7 @@ impl Launcher {
                             ),
                         )
                         .child(
-                            button("native-notice-cancel", "Cancel", Kind::Secondary, &t).on_click(
+                            button("native-notice-cancel", "cancel", Kind::Secondary, &t).on_click(
                                 cx.listener(|this, _: &ClickEvent, _, cx| {
                                     this.mods.native_notice = None;
                                     cx.notify();
@@ -1150,9 +1143,9 @@ impl Launcher {
         let mut out = Vec::new();
         if let Some((what, line, f)) = &self.mods.busy {
             let caption = if what == "all" {
-                tr("Updating")
+                tr("updating")
             } else {
-                tr("Installing")
+                tr("installing")
             };
             out.push(
                 plate(&t)
@@ -1160,7 +1153,7 @@ impl Launcher {
                     .flex_col()
                     .gap(px(8.))
                     .p(px(16.))
-                    .child(caps(caption).text_color(t.accent))
+                    .child(micro(caption).text_color(t.accent))
                     .child(
                         text(theme::CAPTION)
                             .font_family(theme::MONO)
@@ -1248,7 +1241,7 @@ impl Launcher {
             if let Some(number) = self.mods.updates.get(&key) {
                 let mut update = button(
                     SharedString::from(format!("mods-update-{}", e.project)),
-                    trf("Update to {version}", &[("version", number)]),
+                    trf("update to {version}", &[("version", number)]),
                     Kind::Secondary,
                     &t,
                 );
@@ -1268,9 +1261,9 @@ impl Launcher {
             let remove = button(
                 SharedString::from(format!("mods-remove-{}", e.project)),
                 if confirming {
-                    "Remove for good"
+                    "remove for good"
                 } else {
-                    "Remove"
+                    "remove"
                 },
                 if confirming {
                     Kind::Secondary
@@ -1288,7 +1281,7 @@ impl Launcher {
                         None => installed::remove(&home, &id),
                     };
                     this.mods.message =
-                        Some(removed.map(|e| trf("Removed {name}.", &[("name", &e.title)])));
+                        Some(removed.map(|e| trf("removed {name}.", &[("name", &e.title)])));
                     this.mods.installed = installed::Installed::load(&home).entries;
                     this.mods.installed_list.reset();
                     this.mods.confirm_remove = None;
@@ -1317,9 +1310,9 @@ impl Launcher {
                         // Its id sits under the row's own, so one name serves every row.
                         .child(switch("mods-switch-knob", on, &t))
                         .child(text(theme::LABEL).text_color(t.ink_soft).child(if on {
-                            tr("On")
+                            tr("on")
                         } else {
-                            tr("Off")
+                            tr("off")
                         }))
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.mods_switch(&entry);
@@ -1332,7 +1325,7 @@ impl Launcher {
                 right = right.child(
                     button(
                         SharedString::from(format!("mods-folder-{}", e.project)),
-                        "Open folder",
+                        "open folder",
                         Kind::Ghost,
                         &t,
                     )
@@ -1364,12 +1357,12 @@ impl Launcher {
                 .children(instance.as_ref().filter(|_| is_native).map(|name| {
                     div()
                         .text_color(t.ink)
-                        .child(trf("Installed in {instance}", &[("instance", name)]))
+                        .child(trf("installed in {instance}", &[("instance", name)]))
                 }))
                 .children(e.skipped.iter().map(|s| {
                     div()
                         .text_color(t.ink_soft)
-                        .child(trf("Not ported: {item}", &[("item", s)]))
+                        .child(trf("not ported: {item}", &[("item", s)]))
                 }))
                 .child(div().font_family(theme::MONO).child(trf(
                     "checked: {checksum}",
@@ -1393,7 +1386,7 @@ impl Launcher {
             let b = button(
                 "mods-update-all",
                 trf(
-                    "Update all ({count})",
+                    "update all ({count})",
                     &[("count", &self.mods.updates.len().to_string())],
                 ),
                 Kind::Secondary,
@@ -1429,7 +1422,7 @@ impl Launcher {
                         .flex()
                         .items_center()
                         .justify_between()
-                        .child(caps(tr("Installed")).text_color(t.muted))
+                        .child(micro(tr("installed")).text_color(t.muted))
                         .children(update_all),
                 )
                 .children(native.then(|| self.native_build(cx)).flatten())
@@ -1478,27 +1471,27 @@ impl Launcher {
                     )
                 ))
                 .text_color(t.accent),
-                Some((tr("Building"), t.accent)),
+                Some((tr("building"), t.accent)),
             ),
             (None, Some(e), _) => (line(e.clone()).text_color(t.danger), None),
-            (None, None, State::NoMods) => (line(tr("No native mod is turned on.").into()), None),
+            (None, None, State::NoMods) => (line(tr("no native mod is turned on.").into()), None),
             (None, None, State::NotBuilt) => (
                 line(trf(
                     "{instance} doesn't play its native mods yet: build the game with them.",
                     &name,
                 )),
-                Some((tr("Not built"), t.warn)),
+                Some((tr("not built"), t.warn)),
             ),
             (None, None, State::Outdated) => (
                 line(trf(
-                    "The native mods turned on changed since {instance} was built: build again to play them.",
+                    "the native mods turned on changed since {instance} was built: build again to play them.",
                     &name,
                 )),
-                Some((tr("Needs rebuild"), t.warn)),
+                Some((tr("needs rebuild"), t.warn)),
             ),
             (None, None, State::UpToDate) => (
-                line(trf("Up to date: {instance} plays these mods.", &name)),
-                Some((tr("Up to date"), t.success)),
+                line(trf("up to date: {instance} plays these mods.", &name)),
+                Some((tr("up to date"), t.success)),
             ),
         };
         let mut detail = div().flex().flex_col().gap(px(4.)).child(status);
@@ -1507,7 +1500,7 @@ impl Launcher {
         }
         if let (Some(tag), Some(build)) = (&version, &build) {
             detail = detail.child(div().text_color(t.muted).child(trf(
-                "Plays {build}, built on Horizon {version}.",
+                "plays {build}, built on horizon {version}.",
                 &[("build", tag), ("version", &build.horizon())],
             )));
         }
@@ -1540,7 +1533,7 @@ impl Launcher {
                 button(
                     "native-update",
                     trf(
-                        "Rebuild on Horizon {version}",
+                        "rebuild on horizon {version}",
                         &[("version", &native_status::horizon_label(&newer))],
                     ),
                     Kind::Secondary,
@@ -1554,7 +1547,7 @@ impl Launcher {
             );
         }
         if can_build {
-            right = right.child(button("native-build", "Build", Kind::Primary, &t).on_click(
+            right = right.child(button("native-build", "build", Kind::Primary, &t).on_click(
                 cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.native_update = None;
                     this.native_confirm = Some(this.native_mods_to_build().map(|(_, b)| b));
@@ -1566,9 +1559,9 @@ impl Launcher {
         let picker = segments(
             "native-profile",
             &[
-                (native_mods::Profile::Performance, "Performance build"),
-                (native_mods::Profile::Dev, "Dev build"),
-                (native_mods::Profile::Release, "Release build"),
+                (native_mods::Profile::Performance, "performance build"),
+                (native_mods::Profile::Dev, "dev build"),
+                (native_mods::Profile::Release, "release build"),
             ],
             profile,
             &t,
@@ -1586,12 +1579,12 @@ impl Launcher {
             },
         );
         let said = match profile {
-            native_mods::Profile::Performance => tr("The everyday build for playing with mods"),
+            native_mods::Profile::Performance => tr("the everyday build for playing with mods"),
             native_mods::Profile::Dev => {
-                tr("For developing a mod: about 6× faster to rebuild a mod edit, game logic up to about twice as slow")
+                tr("for developing a mod: about 6× faster to rebuild a mod edit, game logic up to about twice as slow")
             }
             native_mods::Profile::Release => {
-                tr("Release build: slower to build, slightly faster game")
+                tr("release build: slower to build, slightly faster game")
             }
         };
         detail = detail.child(
@@ -1610,7 +1603,7 @@ impl Launcher {
         }
         Some(index_row(
             0,
-            trf("Native build of {instance}", &name),
+            trf("native build of {instance}", &name),
             Some(detail.into_any_element()),
             Some(right.into_any_element()),
             &t,
@@ -1621,25 +1614,76 @@ impl Launcher {
         let t = self.theme;
         let m = &self.mods;
         if let Some(e) = &m.error {
-            return div().child(notice(e.clone(), &t));
+            // The versions/patch notes pattern: one plain line carries the state, a try
+            // again restarts the search, and the raw error sits behind details.
+            let detail = self.mods_error_detail;
+            let raw = e.clone();
+            return div()
+                .flex()
+                .flex_col()
+                .gap(px(8.))
+                .child(notice(
+                    tr("the mod registry can't be reached. check the connection and try again in a few minutes.")
+                        .to_string(),
+                    &t,
+                ))
+                .child(
+                    div()
+                        .flex()
+                        .gap(px(8.))
+                        .child(
+                            button("retry-mods", "try again", Kind::Secondary, &t).on_click(
+                                cx.listener(|this, _: &ClickEvent, _, cx| {
+                                    this.mods.error = None;
+                                    this.mods_error_detail = false;
+                                    this.mods_search(0);
+                                    cx.notify();
+                                }),
+                            ),
+                        )
+                        .child(
+                            button(
+                                "mods-error-detail",
+                                if detail { "hide details" } else { "details" },
+                                Kind::Ghost,
+                                &t,
+                            )
+                            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                                this.mods_error_detail = !this.mods_error_detail;
+                                cx.notify();
+                            })),
+                        ),
+                )
+                .when(detail, |d| {
+                    d.child(
+                        div()
+                            .max_w(px(560.))
+                            .p(px(12.))
+                            .bg(t.well)
+                            .font_family(theme::MONO)
+                            .text_size(px(11.))
+                            .text_color(t.muted)
+                            .child(raw),
+                    )
+                });
         }
         if m.results.is_empty() {
             let line = if m.searching || !m.searched {
-                tr("Searching…")
+                tr("searching…")
             } else if let Some(target) = m.java_for(m.kind) {
                 return centered(
                     &trf(
-                        "Nothing found for {target}.",
+                        "nothing found for {target}.",
                         &[("target", &target.describe(m.kind))],
                     ),
                     &t,
                 );
             } else if m.source == SourceId::Horizon {
-                tr("Nothing in Horizon's registry matches yet.")
+                tr("nothing in horizon's registry matches yet.")
             } else if m.everything {
-                tr("Nothing found.")
+                tr("nothing found.")
             } else {
-                tr("Nothing found that runs in Horizon. Show everything lists the rest.")
+                tr("nothing found that runs in horizon. show everything lists the rest.")
             };
             return centered(line, &t);
         }
@@ -1669,7 +1713,7 @@ impl Launcher {
                 right = right.child(
                     button(
                         SharedString::from(format!("mods-page-{}", p.id)),
-                        "Page",
+                        "page",
                         Kind::Ghost,
                         &t,
                     )
@@ -1677,16 +1721,16 @@ impl Launcher {
                 );
             }
             if busy == Some(p.id.as_str()) {
-                right = right.child(caps(tr("Installing")).text_color(t.accent));
+                right = right.child(micro(tr("installing")).text_color(t.accent));
             } else if m.entry(p).is_some() {
-                right = right.child(caps(tr("Installed")).text_color(t.muted));
+                right = right.child(micro(tr("installed")).text_color(t.muted));
             } else if checking {
-                right = right.child(caps(tr("Checking")).text_color(t.muted));
+                right = right.child(micro(tr("checking")).text_color(t.muted));
             } else if support.installable() {
                 let label = if p.kind == PackKind::Modpack {
-                    "Import"
+                    "import"
                 } else {
-                    "Install"
+                    "install"
                 };
                 let mut install = button(
                     SharedString::from(format!("mods-install-{}", p.id)),
@@ -1760,7 +1804,7 @@ impl Launcher {
         let mut out = div().flex().flex_col().child(list);
         let m = &self.mods;
         if m.more {
-            let mut more = button("mods-more", "More", Kind::Ghost, &t);
+            let mut more = button("mods-more", "more", Kind::Ghost, &t);
             if m.searching {
                 more = disabled(more);
             } else {
@@ -1819,7 +1863,7 @@ fn source_switch(
         .child(
             blocks::pixel(14., FontWeight::MEDIUM)
                 .text_color(t.muted)
-                .child(tr("CurseForge (coming soon)")),
+                .child(tr("curseforge (coming soon)")),
         );
     segments("mods-source", &SOURCES, current, t, on_pick).child(soon)
 }
@@ -1832,7 +1876,7 @@ mod tests {
     fn counts_and_checksums_read_short() {
         assert_eq!(count(999), "999");
         assert_eq!(count(1_500), "1.5k");
-        assert_eq!(count(51_404_735), "51.4M");
+        assert_eq!(count(51_404_735), "51.4m");
         let sum = format!("SHA-512:{}", "ab".repeat(64));
         assert_eq!(short_sum(&sum), "SHA-512 abababababab…abababab");
         assert_eq!(short_sum("SHA-1:abcd"), "SHA-1:abcd");

@@ -9,7 +9,7 @@ use horizon_launcher::i18n::Language;
 /// the very entry a player looks for).
 fn choice_name(choice: Option<Language>) -> &'static str {
     match choice {
-        None => tr("System"),
+        None => tr("system"),
         Some(language) => language.name(),
     }
 }
@@ -99,13 +99,12 @@ impl Launcher {
         let said = self.settings.language.is_none().then(|| {
             div()
                 .child(trf(
-                    "System follows your computer's language: {language} here. A string not \
-                     translated yet shows in English.",
+                    "system follows your computer's language: {language} here. a string not translated yet shows in english.",
                     &[("language", Language::system().name())],
                 ))
                 .into_any_element()
         });
-        index_row(0, tr("Language"), said, Some(wrap.into_any_element()), &t)
+        index_row(0, tr("language"), said, Some(wrap.into_any_element()), &t)
     }
 }
 
@@ -118,6 +117,6 @@ mod tests {
     fn a_language_is_named_in_itself_and_the_system_choice_in_the_launchers_language() {
         assert_eq!(choice_name(Some(Language::Russian)), "Русский");
         assert_eq!(choice_name(Some(Language::English)), "English");
-        assert_eq!(choice_name(None), tr_in(current(), "System"));
+        assert_eq!(choice_name(None), tr_in(current(), "system"));
     }
 }

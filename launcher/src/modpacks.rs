@@ -79,7 +79,7 @@ impl Imported {
     pub fn summary(&self) -> String {
         let mut parts = Vec::new();
         if !self.pack.minecraft.is_empty() {
-            parts.push(format!("Minecraft {}", self.pack.minecraft));
+            parts.push(format!("minecraft {}", self.pack.minecraft));
         }
         if !self.pack.loader.is_empty() {
             parts.push(format!("{} {}", self.pack.loader, self.pack.loader_version));
@@ -105,8 +105,7 @@ impl Imported {
             (How::Present, "already here"),
             (
                 How::NeedsKey,
-                "only on CurseForge (CurseForge downloads coming soon: choose your installed \
-                 instance instead)",
+                "only on curseforge (curseforge downloads coming soon: choose your installed instance instead)",
             ),
             (How::NotFound, "not found"),
             (How::Failed, "failed"),
@@ -117,7 +116,7 @@ impl Imported {
             }
         }
         Some(crate::i18n::trf(
-            "Jars: {summary}.",
+            "jars: {summary}.",
             &[("summary", &parts.join(", "))],
         ))
     }
@@ -136,7 +135,7 @@ pub fn load(work: &Path) -> Result<Imported, String> {
             .files
             .iter()
             .filter(|o| o.how == How::NeedsKey)
-            .map(|o| format!("{}: CurseForge downloads coming soon", o.key)),
+            .map(|o| format!("{}: curseforge downloads coming soon", o.key)),
     );
     let resources = ResourceReport::load(work);
     let profile: ResourceReport =
@@ -362,12 +361,12 @@ mod tests {
         let pack = load(&work).unwrap();
         assert_eq!(
             pack.left_off,
-            ["allthemodium: CurseForge downloads coming soon"]
+            ["allthemodium: curseforge downloads coming soon"]
         );
         assert!(pack
             .jars()
             .unwrap()
-            .contains("CurseForge downloads coming soon"));
+            .contains("curseforge downloads coming soon"));
         fs::remove_dir_all(&work).unwrap();
     }
 

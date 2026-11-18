@@ -277,18 +277,18 @@ impl Launch {
         }
         if let Some(mb) = self.memory_limit_mb {
             parts.push(crate::i18n::trf(
-                "limited to {mb} MB",
+                "limited to {mb} mb",
                 &[("mb", &mb.to_string())],
             ));
         }
         if self.gamemode {
-            parts.push(crate::i18n::tr("with GameMode").to_string());
+            parts.push(crate::i18n::tr("with gamemode").to_string());
         }
         if self.mangohud {
-            parts.push(crate::i18n::tr("with MangoHud").to_string());
+            parts.push(crate::i18n::tr("with mangohud").to_string());
         }
         if self.dedicated_gpu {
-            parts.push(crate::i18n::tr("on the dedicated GPU").to_string());
+            parts.push(crate::i18n::tr("on the dedicated gpu").to_string());
         }
         match self.env.len() {
             0 => {}

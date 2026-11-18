@@ -117,7 +117,7 @@ fn holes(s: &str) -> BTreeSet<&str> {
 #[test]
 fn every_language_has_every_string_the_code_asks_for() {
     let (mut asked, all) = strings();
-    assert!(asked.contains("Language"), "the scan finds tr(\"…\")");
+    assert!(asked.contains("language"), "the scan finds tr(\"…\")");
     let tables: Vec<_> = Language::ALL
         .into_iter()
         .filter(|language| *language != Language::English)
@@ -204,19 +204,19 @@ fn the_system_language_is_the_first_one_the_launcher_has() {
 
 #[test]
 fn a_missing_string_shows_in_english() {
-    assert_eq!(tr_in(Language::Polish, "Settings"), "Ustawienia");
-    assert_eq!(tr_in(Language::Japanese, "Settings"), "設定");
-    assert_eq!(tr_in(Language::Turkish, "Settings"), "Ayarlar");
-    assert_eq!(tr_in(Language::French, "Settings"), "Paramètres");
-    assert_eq!(tr_in(Language::Russian, "Settings"), "Настройки");
-    assert_eq!(tr_in(Language::German, "Settings"), "Einstellungen");
-    assert_eq!(tr_in(Language::Chinese, "Settings"), "设置");
-    assert_eq!(tr_in(Language::Spanish, "Settings"), "Ajustes");
-    assert_eq!(tr_in(Language::Ukrainian, "Settings"), "Налаштування");
-    assert_eq!(tr_in(Language::English, "Settings"), "Settings");
+    assert_eq!(tr_in(Language::Polish, "settings"), "Ustawienia");
+    assert_eq!(tr_in(Language::Japanese, "settings"), "設定");
+    assert_eq!(tr_in(Language::Turkish, "settings"), "Ayarlar");
+    assert_eq!(tr_in(Language::French, "settings"), "Paramètres");
+    assert_eq!(tr_in(Language::Russian, "settings"), "Настройки");
+    assert_eq!(tr_in(Language::German, "settings"), "Einstellungen");
+    assert_eq!(tr_in(Language::Chinese, "settings"), "设置");
+    assert_eq!(tr_in(Language::Spanish, "settings"), "Ajustes");
+    assert_eq!(tr_in(Language::Ukrainian, "settings"), "Налаштування");
+    assert_eq!(tr_in(Language::English, "settings"), "settings");
     assert_eq!(tr_in(Language::French, "No such string"), "No such string");
     assert_eq!(
-        tr_in(Language::PortugueseBrazil, "Settings"),
+        tr_in(Language::PortugueseBrazil, "settings"),
         "Configurações"
     );
 }

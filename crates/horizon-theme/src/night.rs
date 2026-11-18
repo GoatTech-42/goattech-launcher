@@ -88,7 +88,7 @@ pub const NIGHT: Night = Night {
     rule_alpha: 0.10,
     ink: 0xf4f2ff,
     ink_soft: 0xcfc9ea,
-    muted: 0xa59fc6,
+    muted: 0xb5b0d4,
     accent: 0x7656fa,
     accent_hi: 0xa08cff,
     on_accent: 0xffffff,

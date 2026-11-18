@@ -31,7 +31,7 @@ impl Launcher {
                     self.show_modpack(None);
                     self.pack_job(move |log| horizon_launcher::modpacks::import(&file, log));
                     self.importing.note = Some(Ok(trf(
-                        "{name} is a Java modpack: importing it on the Modpacks page.",
+                        "{name} is a java modpack: importing it on the modpacks page.",
                         &[("name", &name)],
                     )));
                 }
@@ -42,7 +42,7 @@ impl Launcher {
                     self.importing.note =
                         Some(horizon_launcher::packs::add(&i.home, &file).map(|p| {
                             trf(
-                                "Added {title} to {instance}'s packs: switch it on under Packs.",
+                                "added {title} to {instance}'s packs: switch it on under packs.",
                                 &[("title", &p.title), ("instance", &i.name)],
                             )
                         }));
@@ -50,8 +50,7 @@ impl Launcher {
                 }
                 Ok(Dropped::DataPack) => {
                     self.importing.note = Some(Err(trf(
-                        "{name} is a data pack: drop it on a world on Home, or install it into \
-                         one from there.",
+                        "{name} is a data pack: drop it on a world on home, or install it into one from there.",
                         &[("name", &name)],
                     )))
                 }
@@ -73,7 +72,7 @@ impl Launcher {
                     this.reload_instances();
                     this.select_instance(&i);
                     this.go(Page::Play);
-                    format!("Made the Java instance {} from the modpack.", i.name)
+                    format!("made the java instance {} from the modpack.", i.name)
                 }));
                 cx.notify();
             });
@@ -96,7 +95,7 @@ impl Launcher {
                     this.select_instance(&i);
                     this.go(Page::Play);
                     trf(
-                        "Made the instance {name} from the shared file.",
+                        "made the instance {name} from the shared file.",
                         &[("name", &i.name)],
                     )
                 }));
@@ -124,7 +123,7 @@ impl Launcher {
         let line = match (&self.importing.note, self.importing.busy) {
             (_, n) if n > 0 => text(theme::LABEL)
                 .text_color(t.ink_soft)
-                .child(tr("Making the instance from the shared file…")),
+                .child(tr("making the instance from the shared file…")),
             (Some(Ok(said)), _) => text(theme::LABEL)
                 .text_color(t.ink_soft)
                 .child(said.clone()),
@@ -150,7 +149,7 @@ impl Launcher {
                         .bg(t.page)
                         .child(blocks::icon("download", 18., t.accent))
                         .child(div().flex_1().min_w_0().child(line))
-                        .child(button("import-close", "Close", Kind::Ghost, &t).on_click(
+                        .child(button("import-close", "close", Kind::Ghost, &t).on_click(
                             cx.listener(|this, _: &ClickEvent, _, cx| {
                                 this.importing.note = None;
                                 cx.notify();

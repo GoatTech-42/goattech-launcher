@@ -175,7 +175,7 @@ pub fn slot(source: Option<ImageSource>, name: &str, size: f32, t: &Theme) -> Di
                     name.chars()
                         .find(|c| c.is_alphanumeric())
                         .unwrap_or('?')
-                        .to_uppercase()
+                        .to_lowercase()
                         .to_string(),
                 ),
         ),

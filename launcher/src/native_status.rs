@@ -6,7 +6,7 @@ use std::fs;
 use std::path::Path;
 
 /// Shown once, before the first native mod is installed.
-pub const NOTICE: &str = "Native mods aren't sandboxed: they run with full access to your computer, like any program. Install only mods whose authors you trust. To play with one, build the game on the Mods page; the first build downloads Rust and takes 20 to 30 minutes.";
+pub const NOTICE: &str = "native mods aren't sandboxed: they run with full access to your computer, like any program. install only mods whose authors you trust. to play with one, build the game on the mods page; the first build downloads rust and takes 20 to 30 minutes.";
 
 /// A native mod: its id, its version and a digest of its files (None for a build from before
 /// `native-mods.json` kept them).

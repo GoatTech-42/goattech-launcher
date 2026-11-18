@@ -197,7 +197,7 @@ impl Launcher {
             files: true,
             directories: false,
             multiple: false,
-            prompt: Some("Choose".into()),
+            prompt: Some("choose".into()),
         });
         let scale = self.scale;
         cx.spawn(async move |this, cx| {
@@ -242,7 +242,7 @@ impl Launcher {
             files: true,
             directories: false,
             multiple: false,
-            prompt: Some("Choose".into()),
+            prompt: Some("choose".into()),
         });
         let scale = self.scale;
         cx.spawn(async move |this, cx| {

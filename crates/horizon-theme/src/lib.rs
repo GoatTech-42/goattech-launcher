@@ -157,7 +157,7 @@ const fn step(
 }
 
 /// Indices (`01`), counts and timestamps, in mono.
-pub const MICRO: Step = step("micro", 11., Web::Fixed, 1.5, 0.04, 400, true);
+pub const MICRO: Step = step("micro", 12., Web::Fixed, 1.5, 0.04, 400, true);
 /// Footnotes and help under a control.
 pub const CAPTION: Step = step("caption", 12., Web::Fixed, 1.5, 0., 400, false);
 /// Row labels, navigation and buttons.

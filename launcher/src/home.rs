@@ -24,9 +24,9 @@ impl Launcher {
             .as_ref()
             .map_or(
                 if tag.is_empty() {
-                    "Minecraft"
+                    "minecraft"
                 } else {
-                    "Horizon"
+                    "horizon"
                 },
                 |i| i.name.as_str(),
             )
@@ -37,20 +37,20 @@ impl Launcher {
         let mut facts: Vec<String> = Vec::new();
         match &java {
             Some(j) => {
-                facts.push("Java".to_string());
+                facts.push("java".to_string());
                 if let Some(l) = &j.loader {
                     facts.push(format!("{} {}", l.kind.name(), l.version));
                 }
-                facts.push(format!("Minecraft {}", j.minecraft));
+                facts.push(format!("minecraft {}", j.minecraft));
             }
             None if !tag.is_empty() => {
                 facts.push(format!(
-                    "Horizon {}",
+                    "horizon {}",
                     horizon_launcher::nightly::label(tag)
                         .or_else(|| horizon_launcher::build_import::label(tag))
                         .unwrap_or_else(|| tag.trim_start_matches('v').to_string())
                 ));
-                facts.push(format!("Minecraft {game}"));
+                facts.push(format!("minecraft {game}"));
             }
             None => {}
         }
@@ -95,22 +95,21 @@ impl Launcher {
                 .text_size(px(10.))
                 .child(
                     tr(if !prepared {
-                        "Needs preparing"
+                        "needs preparing"
                     } else if signed {
-                        "Ready to launch"
+                        "ready to launch"
                     } else if self.owner.is_none() {
-                        "Checking sign-in…"
+                        "checking sign-in…"
                     } else {
-                        "Sign in to launch"
+                        "sign in to launch"
                     })
-                    .to_string()
-                    .to_uppercase(),
+                    .to_string(),
                 ),
             )
             .children(self.playing.map(|playing| {
                 shell::text(night::CAPTION, c(n.muted))
                     .relative()
-                    .child(trf("{n} playing Horizon now", &[("n", &thousands(playing))]))
+                    .child(trf("{n} playing horizon now", &[("n", &thousands(playing))]))
             }))
             // Words sit on a plate where the sky would cross them (docs/design-system.md).
             .child(
@@ -120,7 +119,7 @@ impl Launcher {
                     .py(px(4.))
                     .max_w(px(560.))
                     .child(
-                        tr("Own runtime, mods and saves - nothing mixes with your other instances.")
+                        tr("own runtime, mods and saves - nothing mixes with your other instances.")
                             .to_string(),
                     ),
             )
@@ -153,7 +152,7 @@ impl Launcher {
                         .font_weight(FontWeight::SEMIBOLD)
                         .cursor_pointer()
                         .hover(|s| s.opacity(0.8))
-                        .child(tr("Install"))
+                        .child(tr("install"))
                         .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.install_update();
                             cx.notify();
@@ -171,6 +170,10 @@ impl Launcher {
             && !self.collection.consent.needs_asking()
             && !self.asking_owner()
         {
+            // The short first layer carries what the ping is and that it's on; the full
+            // disclosure sits behind details. A press that travels is a scroll drag, not a
+            // click, so neither button answers it.
+            let ping_detail = self.ping_notice_detail;
             hero = hero.child(
                 crate::plate::plate(&n)
                     .flex()
@@ -188,21 +191,55 @@ impl Launcher {
                     .child(
                         shell::text(night::CAPTION, c(n.muted))
                             .relative()
-                            .child(tr(telemetry::PING)),
+                            .child(tr(telemetry::PING_SHORT)),
                     )
+                    .when(ping_detail, |d| {
+                        d.child(
+                            shell::text(night::CAPTION, c(n.muted))
+                                .relative()
+                                .child(tr(telemetry::PING)),
+                        )
+                    })
                     .child(
-                        shell::text(night::UI, c(n.accent_hi))
-                            .relative()
-                            .id("ping-notice-ok")
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .cursor_pointer()
-                            .hover(|s| s.opacity(0.8))
-                            .child(tr("Got it"))
-                            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                                this.settings.ping_notice_seen = true;
-                                let _ = this.settings.save();
-                                cx.notify();
-                            })),
+                        div()
+                            .flex()
+                            .gap(px(16.))
+                            .child(
+                                shell::text(night::UI, c(n.accent_hi))
+                                    .relative()
+                                    .id("ping-notice-detail")
+                                    .cursor_pointer()
+                                    .hover(|s| s.opacity(0.8))
+                                    .child(tr(if ping_detail {
+                                        "hide details"
+                                    } else {
+                                        "details"
+                                    }))
+                                    .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
+                                        if drag_not_click(event) {
+                                            return;
+                                        }
+                                        this.ping_notice_detail = !this.ping_notice_detail;
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                shell::text(night::UI, c(n.accent_hi))
+                                    .relative()
+                                    .id("ping-notice-ok")
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .cursor_pointer()
+                                    .hover(|s| s.opacity(0.8))
+                                    .child(tr("got it"))
+                                    .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
+                                        if drag_not_click(event) {
+                                            return;
+                                        }
+                                        this.settings.ping_notice_seen = true;
+                                        let _ = this.settings.save();
+                                        cx.notify();
+                                    })),
+                            ),
                     ),
             );
         }
@@ -280,9 +317,13 @@ impl Launcher {
             .relative()
             .child(account)
             .children(self.account_menu(cx));
+        // Safe area under the window chrome: the bar owns the full TOPBAR band and centers its
+        // buttons, so neither the New instance button nor the account pill can touch the title
+        // bar's bottom border (Luke, 2026-11-17).
         div()
             .flex()
             .flex_none()
+            .h(px(theme::TOPBAR))
             .items_center()
             .justify_between()
             .child(
@@ -307,10 +348,18 @@ impl Launcher {
                     .flex()
                     .items_center()
                     .gap(px(10.))
+                    .children(self.native_log.available.then(|| {
+                        shell::action("topbar-build-log", shell::Action::Quiet, &t)
+                            .child(shell::label("build log".to_string()))
+                            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                                this.native_log_open();
+                                cx.notify();
+                            }))
+                    }))
                     .child(
                         shell::action("topbar-new-instance", shell::Action::Raised, &t)
                             .child(div().relative().child(blocks::icon("plus", 16., c(n.ink))))
-                            .child(shell::label(tr("New instance").to_string()))
+                            .child(shell::label(tr("new instance").to_string()))
                             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                                 this.open_instance_dialog(None, cx);
                                 cx.notify();
@@ -338,12 +387,12 @@ impl Launcher {
             let sub = match &instance.java {
                 Some(j) => match &j.loader {
                     Some(l) => format!(
-                        "Minecraft {} · {} {}",
+                        "minecraft {} · {} {}",
                         j.minecraft,
                         l.kind.name(),
                         l.version
                     ),
-                    None => format!("Minecraft {}", j.minecraft),
+                    None => format!("minecraft {}", j.minecraft),
                 },
                 None => self
                     .version_of(&instance)
@@ -432,7 +481,7 @@ impl Launcher {
                 .child(
                     shell::text(night::CAPTION, c(n.muted))
                         .text_size(px(10.))
-                        .child(tr("New instance").to_string().to_uppercase()),
+                        .child(tr("new instance").to_string()),
                 )
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.open_instance_dialog(None, cx);
@@ -448,7 +497,7 @@ impl Launcher {
                 shell::text(night::CAPTION, c(n.muted))
                     .font_family(theme::PIXEL)
                     .text_size(px(10.))
-                    .child(tr("Playing next").to_string().to_uppercase()),
+                    .child(tr("playing next").to_string()),
             )
             .child(row)
     }
@@ -477,7 +526,17 @@ impl Launcher {
         });
         // The stage is alive: the clock from drain drives idle sway, a wave every few
         // seconds, and a look around; dragging turns the model. Rendered fresh each frame.
-        let pose = player_model::Pose::stage(self.stage_t);
+        // A click's wave runs on its own clock over the stage's cycle, then hands back.
+        let pose = match self.stage_click_wave {
+            Some(at) => match player_model::Pose::click_wave(self.stage_t, self.stage_t - at) {
+                Some(p) => p,
+                None => {
+                    self.stage_click_wave = None;
+                    player_model::Pose::stage(self.stage_t)
+                }
+            },
+            None => player_model::Pose::stage(self.stage_t),
+        };
         let (yaw, pitch) = (self.stage_yaw, self.stage_pitch);
         // Rasterize at real display resolution (texel 8 in device pixels): geometry edges
         // are sharp at any window scale while the skin texture stays nearest-blocky.
@@ -511,7 +570,7 @@ impl Launcher {
             .child(
                 shell::text(night::CAPTION, c(n.ink))
                     .font_family(theme::PIXEL)
-                    .child(who.to_uppercase()),
+                    .child(who.to_lowercase()),
             );
         if let Some(i) = baked {
             stage = stage.child(
@@ -534,7 +593,7 @@ impl Launcher {
             stage
         } else {
             stage.child(
-                shell::text(night::CAPTION, c(n.muted)).child(tr("Preview player").to_string()),
+                shell::text(night::CAPTION, c(n.muted)).child(tr("preview player").to_string()),
             )
         }
     }
@@ -551,10 +610,10 @@ impl Launcher {
             let busy = match download {
                 Some((done, total)) => format!(
                     "{} {:.0}%",
-                    tr("Getting ready…"),
+                    tr("getting ready…"),
                     done as f32 * 100. / total as f32
                 ),
-                None => tr("Getting ready…").to_string(),
+                None => tr("getting ready…").to_string(),
             };
             return div()
                 .flex()
@@ -568,7 +627,7 @@ impl Launcher {
                 )
                 .children(download.map(|_| {
                     action("download-cancel", Action::Quiet, &t)
-                        .child(label(tr("Cancel").to_string()))
+                        .child(label(tr("cancel").to_string()))
                         .on_click(|_, _, _| {
                             horizon_launcher::mojang::CANCEL.store(true, Ordering::Relaxed)
                         })
@@ -585,7 +644,7 @@ impl Launcher {
             return div().flex().child(
                 action("play", Action::Main, &t)
                     .min_w(px(320.))
-                    .child(label(tr("New instance").to_string()))
+                    .child(label(tr("new instance").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.open_instance_dialog(None, cx);
                         cx.notify();
@@ -612,14 +671,14 @@ impl Launcher {
                             c(t.night.on_accent),
                         )))
                         .child(label(
-                            tr(if running { "Running" } else { "LAUNCH" }).to_string(),
+                            tr(if running { "running" } else { "launch" }).to_string(),
                         )),
                 )
                 .when(!subtitle.is_empty(), |d| {
                     d.child(
                         shell::text(theme::MICRO, c(t.night.on_accent))
                             .text_size(px(10.))
-                            .child(subtitle.to_uppercase()),
+                            .child(subtitle.to_lowercase()),
                     )
                 }),
         );
@@ -718,7 +777,7 @@ impl Launcher {
             .gap(px(10.))
             .child(
                 action("home-mods", Action::Quiet, &t)
-                    .child(label(tr("Mods").to_string()))
+                    .child(label(tr("mods").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.go(Page::Mods);
                         cx.notify();
@@ -726,7 +785,7 @@ impl Launcher {
             )
             .children(folder.map(|home| {
                 action("home-folder", Action::Quiet, &t)
-                    .child(label(tr("Folder").to_string()))
+                    .child(label(tr("folder").to_string()))
                     .on_click(move |_, _, cx| {
                         let _ = std::fs::create_dir_all(&home);
                         cx.open_with_system(&home);
@@ -757,7 +816,7 @@ impl Launcher {
                     shell::text(night::CAPTION, c(n.muted))
                         .relative()
                         .w_full()
-                        .child(tr("You").to_string()),
+                        .child(tr("you").to_string()),
                 )
                 .child(
                     div()
@@ -772,7 +831,7 @@ impl Launcher {
                 )
                 .child(
                     shell::text(night::CAPTION, c(n.muted)).relative().child(
-                        tr("A stand-in plays for now - sign in with your Microsoft account to play as yourself.")
+                        tr("a stand-in plays for now - sign in with your microsoft account to play as yourself.")
                             .to_string(),
                     ),
                 )
@@ -817,7 +876,7 @@ impl Launcher {
             .p(px(20.));
         if let Some(line) = summary {
             card = card
-                .child(heading("What's new"))
+                .child(heading("what's new"))
                 .child(
                     shell::text(night::UI, c(n.ink))
                         .relative()
@@ -842,7 +901,7 @@ impl Launcher {
                         .bg(alpha(n.stroke, n.rule_alpha)),
                 );
         }
-        card.child(heading("Join a friend"))
+        card.child(heading("join a friend"))
             .child(self.friend_box(self.can_start(tag), cx))
     }
 
@@ -880,7 +939,7 @@ impl Launcher {
                 focused,
                 false,
                 false,
-                tr("Paste an invite code"),
+                tr("paste an invite code"),
             ))
             .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
                 window.focus(&this.friend_focus, cx);
@@ -899,7 +958,7 @@ impl Launcher {
         let field = line_edit::mouse(field, cx, |this| &mut this.friend_code);
         let valid = horizon_friends::invite::parse(self.friend_code.text()).is_some();
         let mut join =
-            action("join-friend", Action::Raised, &t).child(label(tr("Join").to_string()));
+            action("join-friend", Action::Raised, &t).child(label(tr("join").to_string()));
         if can_play && valid {
             join = join.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.join_friend();
@@ -949,7 +1008,7 @@ impl Launcher {
         let download = download_progress();
         let doing = match (download, now) {
             (Some((done, total)), backend::PrepareStep::Files) => trf(
-                "Downloading Minecraft {version} from Mojang · {done} of {total} files",
+                "downloading minecraft {version} from mojang · {done} of {total} files",
                 &[
                     ("version", version),
                     ("done", &thousands(done as u64)),
@@ -957,7 +1016,7 @@ impl Launcher {
                 ],
             ),
             (Some((done, total)), _) => trf(
-                "Downloading from Mojang · {done} of {total} files",
+                "downloading from mojang · {done} of {total} files",
                 &[
                     ("done", &thousands(done as u64)),
                     ("total", &thousands(total as u64)),
@@ -1038,7 +1097,7 @@ impl Launcher {
                             .iter()
                             .map(|s| pill(s.name(), s.cmp(&now))),
                     )
-                    .children(play.then(|| pill("Play", std::cmp::Ordering::Greater))),
+                    .children(play.then(|| pill("play", std::cmp::Ordering::Greater))),
             )
     }
 }

@@ -68,7 +68,7 @@ impl Launcher {
                 added.push(packs::add(home, file)?.title);
             }
             Ok(trf(
-                "Added {names}: turn it on below.",
+                "added {names}: turn it on below.",
                 &[("names", &added.join(", "))],
             ))
         });
@@ -79,7 +79,7 @@ impl Launcher {
             files: true,
             directories: false,
             multiple: true,
-            prompt: Some(tr("Add").into()),
+            prompt: Some(tr("add").into()),
         });
         cx.spawn(async move |this, cx| {
             if let Ok(Ok(Some(paths))) = paths.await {
@@ -111,7 +111,7 @@ impl Launcher {
             .items_center()
             .gap(px(8.))
             .child(
-                tab_action("packs-add", "Add pack…", &t).on_click(cx.listener(
+                tab_action("packs-add", "add pack…", &t).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.choose_packs(cx);
                         cx.notify();
@@ -119,7 +119,7 @@ impl Launcher {
                 )),
             )
             .child(
-                tab_action("packs-folder", "Open folder", &t).on_click(move |_, _, cx| {
+                tab_action("packs-folder", "open folder", &t).on_click(move |_, _, cx| {
                     let dir = home.join(PackKind::Resource.folder());
                     let _ = std::fs::create_dir_all(&dir);
                     cx.open_with_system(&dir);
@@ -149,7 +149,7 @@ impl Launcher {
         }
         if self.client.is_some() {
             section = section.child(quiet_note(
-                tr("The game is running: change packs in its own menus, or here once it is closed."),
+                tr("the game is running: change packs in its own menus, or here once it is closed."),
                 &t,
             ));
         }
@@ -162,10 +162,10 @@ impl Launcher {
             .px(px(12.))
             .py(px(8.))
             .mt(px(4.))
-            .child(caps(tr("Resource packs")).text_color(t.muted));
+            .child(micro(tr("resource packs")).text_color(t.muted));
         if resource.is_empty() {
             head = head.child(text(theme::CAPTION).text_color(t.muted).child(tr(
-                "None yet: drop a .zip here, or find some on the Mods page.",
+                "none yet: drop a .zip here, or find some on the mods page.",
             )));
         }
         section = section.child(head);
@@ -180,12 +180,12 @@ impl Launcher {
             .px(px(12.))
             .py(px(8.))
             .mt(px(8.))
-            .child(caps(tr("Shader packs")).text_color(t.muted));
+            .child(micro(tr("shader packs")).text_color(t.muted));
         if shader.is_empty() {
             head = head.child(
                 text(theme::CAPTION)
                     .text_color(t.muted)
-                    .child(tr("None yet: drop a .hshader or a shader pack .zip here.")),
+                    .child(tr("none yet: drop a .hshader or a shader pack .zip here.")),
             );
         }
         section = section.child(head);
@@ -236,10 +236,10 @@ impl Launcher {
                 .child(
                     text(theme::CAPTION)
                         .text_color(t.danger)
-                        .child(tr("Move it to the trash?")),
+                        .child(tr("move it to the trash?")),
                 )
                 .child(
-                    button(id("keep"), "Keep", Kind::Ghost, &t).on_click(cx.listener(
+                    button(id("keep"), "keep", Kind::Ghost, &t).on_click(cx.listener(
                         |this, _: &ClickEvent, _, cx| {
                             this.game_packs.confirm_remove = None;
                             cx.notify();
@@ -247,7 +247,7 @@ impl Launcher {
                     )),
                 )
                 .child(
-                    button(id("trash"), "Move to trash", Kind::Secondary, &t).on_click(
+                    button(id("trash"), "move to trash", Kind::Secondary, &t).on_click(
                         cx.listener(move |this, _: &ClickEvent, _, cx| {
                             let gone = gone.clone();
                             this.pack_action(move |home| {
@@ -278,7 +278,7 @@ impl Launcher {
                     cx.notify();
                 }))
             };
-            let remove = button(id("remove"), "Remove", Kind::Ghost, &t);
+            let remove = button(id("remove"), "remove", Kind::Ghost, &t);
             let remove = if running {
                 disabled(remove)
             } else {

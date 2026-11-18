@@ -261,7 +261,7 @@ impl Launcher {
             .is_some_and(|(what, at)| what == &text && at.elapsed() < Duration::from_secs(2));
         button(
             id,
-            if copied { "Copied" } else { "Copy" },
+            if copied { "copied" } else { "copy" },
             kind,
             &self.theme,
         )
@@ -280,27 +280,27 @@ impl Launcher {
             .flex_col()
             .gap(px(12.))
             .p(px(20.))
-            .child(caps(tr("Friends over the internet · Tailscale")).text_color(t.muted));
+            .child(micro(tr("friends over the internet · tailscale")).text_color(t.muted));
         let line = |s: String| text(theme::CAPTION).text_color(t.muted).child(s);
-        let check = button("ts-check", "Check again", Kind::Ghost, &t).on_click(cx.listener(
+        let check = button("ts-check", "check again", Kind::Ghost, &t).on_click(cx.listener(
             |this, _: &ClickEvent, _, cx| {
                 this.internet_refresh();
                 cx.notify();
             },
         ));
         match self.internet.state.clone() {
-            None => return panel.child(line(tr("Looking for Tailscale…").into())),
+            None => return panel.child(line(tr("looking for tailscale…").into())),
             Some(State::Missing) => {
                 return panel
                     .child(text(theme::UI).text_color(t.ink).child(tr(
-                        "Tailscale lets friends anywhere join without opening your router to the internet. It's free: install it, sign in, then invite them here.",
+                        "tailscale lets friends anywhere join without opening your router to the internet. it's free: install it, sign in, then invite them here.",
                     )))
                     .child(
                         div()
                             .flex()
                             .gap(px(8.))
                             .child(
-                                button("ts-install", "Install Tailscale", Kind::Secondary, &t)
+                                button("ts-install", "install tailscale", Kind::Secondary, &t)
                                     .bg(t.plate)
                                     .on_click(|_, _, cx| cx.open_url(tailscale::install_url())),
                             )
@@ -308,7 +308,7 @@ impl Launcher {
                     );
             }
             Some(State::Off(why)) => {
-                let open = button("ts-open", "Open Tailscale", Kind::Secondary, &t)
+                let open = button("ts-open", "open tailscale", Kind::Secondary, &t)
                     .bg(t.plate)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         if let Err(e) = tailscale::open_app() {
@@ -319,14 +319,14 @@ impl Launcher {
                     }));
                 panel = panel
                     .child(text(theme::UI).text_color(t.ink).child(tr(
-                        "Tailscale is installed but not running. Open it and switch it on.",
+                        "tailscale is installed but not running. open it and switch it on.",
                     )))
                     .when(!why.is_empty(), |d| d.child(line(why)))
                     .child(div().flex().gap(px(8.)).child(open).child(check));
                 return self.internet_message(panel);
             }
             Some(State::SignedOut { auth_url }) => {
-                let sign_in = button("ts-login", "Sign in to Tailscale", Kind::Secondary, &t)
+                let sign_in = button("ts-login", "sign in to tailscale", Kind::Secondary, &t)
                     .bg(t.plate)
                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                         match &auth_url {
@@ -342,11 +342,11 @@ impl Launcher {
                     }));
                 panel = panel
                     .child(text(theme::UI).text_color(t.ink).child(tr(
-                        "Tailscale is installed. Sign in with your own account in Tailscale (Horizon never sees it), then come back here.",
+                        "tailscale is installed. sign in with your own account in tailscale (horizon never sees it), then come back here.",
                     )))
                     .when(cfg!(target_os = "linux"), |d| {
                         d.child(line(trf(
-                            "On Linux, run `{cmd}` in a terminal and open the link it prints.",
+                            "on linux, run `{cmd}` in a terminal and open the link it prints.",
                             &[("cmd", tailscale::LINUX_LOGIN)],
                         )))
                     })
@@ -378,12 +378,12 @@ impl Launcher {
                 format!("{ip}:{port}")
             };
             where_ = where_.child(line(trf(
-                "Or {address}. Friends type it in Multiplayer, Add Server, once this computer is shared with them and Tailscale runs on theirs.",
+                "or {address}. friends type it in multiplayer, add server, once this computer is shared with them and tailscale runs on theirs.",
                 &[("address", &ip_port)],
             )));
         } else {
             where_ = where_.child(line(
-                tr("Friends type it in Multiplayer, Add Server, once this computer is shared with them and Tailscale runs on theirs.")
+                tr("friends type it in multiplayer, add server, once this computer is shared with them and tailscale runs on theirs.")
                     .into(),
             ));
         }
@@ -399,7 +399,7 @@ impl Launcher {
                 .child(
                     text(theme::UI)
                         .text_color(t.ink)
-                        .child(tr("Invite a friend")),
+                        .child(tr("invite a friend")),
                 )
                 .child(self.invite_section(&ip, port, cx)),
         );
@@ -430,16 +430,16 @@ impl Launcher {
         let token = self.internet.token();
         if token.is_none() {
             let mut d = div().flex().flex_col().gap(px(10.)).child(line(
-                tr("Share this computer with a friend: they get it in their own Tailscale, and nothing else of yours. Do it in Tailscale's admin console (Machines, this computer, Share), or here with an access token you make there.")
+                tr("share this computer with a friend: they get it in their own tailscale, and nothing else of yours. do it in tailscale's admin console (machines, this computer, share), or here with an access token you make there.")
                     .into(),
             ));
             let machines = link(
                 "ts-console",
-                "Open the admin console",
+                "open the admin console",
                 "https://login.tailscale.com/admin/machines",
             );
             if self.internet.asking_token {
-                let save = button("ts-token-save", "Save", Kind::Secondary, &t)
+                let save = button("ts-token-save", "save", Kind::Secondary, &t)
                     .bg(t.plate)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.save_token();
@@ -453,15 +453,15 @@ impl Launcher {
                             .gap(px(8.))
                             .child(self.field(Field::Token, "tskey-api-…", 300., cx))
                             .child(save)
-                            .child(link("ts-keys", "Make a token", tailscale::KEYS)),
+                            .child(link("ts-keys", "make a token", tailscale::KEYS)),
                     )
                     .child(line(
-                        tr("Settings, Keys, Generate access token. It's kept in this computer's keychain and only sent to Tailscale.")
+                        tr("settings, keys, generate access token. it's kept in this computer's keychain and only sent to tailscale.")
                             .into(),
                     ));
             } else {
                 d = d.child(div().flex().gap(px(8.)).child(machines).child(
-                    button("ts-token", "Use an access token…", Kind::Ghost, &t).on_click(
+                    button("ts-token", "use an access token…", Kind::Ghost, &t).on_click(
                         cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.internet.asking_token = true;
                             this.internet.message = None;
@@ -475,7 +475,7 @@ impl Launcher {
 
         // Invite.
         let busy = self.internet.busy;
-        let invite = button("ts-invite", "Make an invitation", Kind::Secondary, &t).bg(t.plate);
+        let invite = button("ts-invite", "make an invitation", Kind::Secondary, &t).bg(t.plate);
         let invite = if busy {
             disabled(invite)
         } else {
@@ -497,7 +497,7 @@ impl Launcher {
                     .child(invite),
             )
             .child(line(
-                tr("One invitation per friend. With an email Tailscale sends it; without, send them the link. They accept it in their own Tailscale account.")
+                tr("one invitation per friend. with an email tailscale sends it; without, send them the link. they accept it in their own tailscale account.")
                     .into(),
             ));
         if let Some(fresh) = self.internet.fresh.clone() {
@@ -599,7 +599,7 @@ impl Launcher {
                                     .flex()
                                     .gap(px(8.))
                                     .child(
-                                        button("ts-limit-go", "Change the access controls", Kind::Primary, &t)
+                                        button("ts-limit-go", "change the access controls", Kind::Primary, &t)
                                             .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                                                 if let Some(new) = new.clone() {
                                                     this.change_policy(
@@ -611,7 +611,7 @@ impl Launcher {
                                                 cx.notify();
                                             })),
                                     )
-                                    .child(button("ts-limit-cancel", "Cancel", Kind::Ghost, &t).on_click(
+                                    .child(button("ts-limit-cancel", "cancel", Kind::Ghost, &t).on_click(
                                         cx.listener(|this, _: &ClickEvent, _, cx| {
                                             this.internet.confirm_limit = false;
                                             cx.notify();
@@ -619,7 +619,7 @@ impl Launcher {
                                     )),
                             );
                     } else {
-                        let b = button("ts-limit", "Limit them to Minecraft", Kind::Secondary, &t)
+                        let b = button("ts-limit", "limit them to minecraft", Kind::Secondary, &t)
                             .bg(t.plate);
                         safety = safety.child(div().flex().child(if busy {
                             disabled(b)
@@ -633,7 +633,7 @@ impl Launcher {
                 }
                 Reach::ServerOnly => {
                     let undo = tailscale::unlimit_shared(&policy, ip, port);
-                    let b = button("ts-unlimit", "Remove the limit", Kind::Ghost, &t);
+                    let b = button("ts-unlimit", "remove the limit", Kind::Ghost, &t);
                     safety = safety.child(
                         div()
                             .flex()
@@ -698,7 +698,7 @@ impl Launcher {
             d = d.child(safety);
         }
         d.child(div().flex().child(
-            button("ts-forget", tr("Forget the access token"), Kind::Ghost, &t).on_click(
+            button("ts-forget", tr("forget the access token"), Kind::Ghost, &t).on_click(
                 cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.forget_token();
                     cx.notify();

@@ -68,11 +68,11 @@ impl Launcher {
         }
         index_row(
             0,
-            tr("Accent colour"),
+            tr("accent colour"),
             Some(
                 div()
                     .child(tr(
-                        "True monochrome by default. Every colour keeps text as easy to read.",
+                        "true monochrome by default. every colour keeps text as easy to read.",
                     ))
                     .into_any_element(),
             ),
@@ -194,7 +194,7 @@ impl Launcher {
             files: true,
             directories: false,
             multiple: false,
-            prompt: Some(tr("Choose").to_string().into()),
+            prompt: Some(tr("choose").to_string().into()),
         });
         cx.spawn(async move |this, cx| {
             let Ok(Ok(Some(mut paths))) = paths.await else {
@@ -228,7 +228,7 @@ impl Launcher {
         let mut actions = div().flex().gap(px(4.)).child(
             button(
                 "background-choose",
-                "Choose a picture…",
+                "choose a picture…",
                 Kind::Secondary,
                 &t,
             )
@@ -239,7 +239,7 @@ impl Launcher {
         );
         if custom {
             actions = actions.child(
-                button("background-reset", "Landscape", Kind::Ghost, &t).on_click(cx.listener(
+                button("background-reset", "landscape", Kind::Ghost, &t).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.settings.background = None;
                         let _ = this.settings.save();
@@ -249,9 +249,9 @@ impl Launcher {
             );
         }
         let said = if custom {
-            tr("Your picture, behind Home, cropped to fill it.")
+            tr("your picture, behind home, cropped to fill it.")
         } else {
-            tr("GoatTech's landscape. Pick a PNG, JPEG or WebP picture of your own.")
+            tr("GoatTech's landscape. pick a png, jpeg or webp picture of your own.")
         };
         let detail = div().flex().flex_col().child(said.to_string()).children(
             self.background_error
@@ -260,7 +260,7 @@ impl Launcher {
         );
         index_row(
             0,
-            tr("Home background"),
+            tr("home background"),
             Some(detail.into_any_element()),
             Some(actions.into_any_element()),
             &t,

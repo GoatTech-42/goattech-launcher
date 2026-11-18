@@ -62,7 +62,7 @@ impl Launcher {
             files: true,
             directories: false,
             multiple: false,
-            prompt: Some(tr("Choose").into()),
+            prompt: Some(tr("choose").into()),
         });
         cx.spawn(async move |this, cx| {
             let Ok(Ok(Some(mut paths))) = paths.await else {
@@ -162,7 +162,7 @@ impl Launcher {
         let weak = cx.entity().downgrade();
         let model = segments(
             "skin-model",
-            &[(Model::Classic, "Classic arms"), (Model::Slim, "Slim arms")],
+            &[(Model::Classic, "classic arms"), (Model::Slim, "slim arms")],
             look.model,
             &t,
             move |m, _, cx| {
@@ -195,17 +195,17 @@ impl Launcher {
             div()
                 .flex()
                 .gap(px(6.))
-                .child(pick("skin-choose", "Choose a skin…", false, cx));
+                .child(pick("skin-choose", "choose a skin…", false, cx));
         if look.skin {
-            skin_buttons = skin_buttons.child(drop("skin-remove", "Default skin", false, cx));
+            skin_buttons = skin_buttons.child(drop("skin-remove", "default skin", false, cx));
         }
         let mut cape_buttons =
             div()
                 .flex()
                 .gap(px(6.))
-                .child(pick("cape-choose", "Choose a cape…", true, cx));
+                .child(pick("cape-choose", "choose a cape…", true, cx));
         if look.cape {
-            cape_buttons = cape_buttons.child(drop("cape-remove", "No cape", true, cx));
+            cape_buttons = cape_buttons.child(drop("cape-remove", "no cape", true, cx));
         }
         let note = self.skin.as_ref().and_then(|p| p.note.clone());
         Some(
@@ -215,8 +215,8 @@ impl Launcher {
                 .px(px(16.))
                 .py(px(14.))
                 .ml(px(40.))
-                .child(frame(16. * TEXEL, 32. * TEXEL, skin, "Default"))
-                .child(frame(10. * TEXEL, 16. * TEXEL, cape, "No cape"))
+                .child(frame(16. * TEXEL, 32. * TEXEL, skin, "default"))
+                .child(frame(10. * TEXEL, 16. * TEXEL, cape, "no cape"))
                 .child(
                     div()
                         .flex()
@@ -224,7 +224,7 @@ impl Launcher {
                         .flex_1()
                         .min_w_0()
                         .gap(px(12.))
-                        .child(caps(trf("{name}'s skin", &[("name", &name)])).text_color(t.muted))
+                        .child(micro(trf("{name}'s skin", &[("name", &name)])).text_color(t.muted))
                         .child(skin_buttons)
                         .child(model)
                         .child(cape_buttons)
@@ -233,10 +233,7 @@ impl Launcher {
                             Err(e) => text(theme::CAPTION).text_color(t.danger).child(e),
                         }))
                         .child(text(theme::CAPTION).text_color(t.muted).child(tr(
-                            "A 64×64 (or 64×32) skin PNG and a 64×32 cape PNG, kept by the \
-                             launcher and given to the game when this name plays. The game \
-                             draws the default skins for now; it uses these once it can. A \
-                             Microsoft account's skin and cape: coming soon.",
+                            "a 64×64 (or 64×32) skin png and a 64×32 cape png, kept by the launcher and given to the game when this name plays. the game draws the default skins for now; it uses these once it can. a microsoft account's skin and cape: coming soon.",
                         ))),
                 ),
         )

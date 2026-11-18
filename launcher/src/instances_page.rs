@@ -83,7 +83,7 @@ pub(super) struct InstanceDialog {
 impl InstanceDialog {
     fn validate_sync_join(&mut self, group: &str) -> bool {
         if group.trim().is_empty() {
-            self.sync_validation = Some(tr("Name a sync group to join.").into());
+            self.sync_validation = Some(tr("name a sync group to join.").into());
             return false;
         }
         self.sync_validation = None;
@@ -392,26 +392,26 @@ impl Launcher {
             None => rows.push(
                 shell::text(theme::night::CAPTION, shell::c(n.muted))
                     .child(
-                        "Find the instances other launchers on this computer already have."
+                        "find the instances other launchers on this computer already have."
                             .to_string(),
                     )
                     .into_any_element(),
             ),
             Some(found) if found.is_empty() => rows.push(
                 shell::text(theme::night::CAPTION, shell::c(n.muted))
-                    .child("No other launchers' instances found.".to_string())
+                    .child("no other launchers' instances found.".to_string())
                     .into_any_element(),
             ),
             Some(found) => {
                 for (i, (f, blocked)) in found.iter().enumerate() {
                     let plays = match (&f.minecraft, &f.loader) {
                         (None, _) => {
-                            "its launcher doesn't record its Minecraft version".to_string()
+                            "its launcher doesn't record its minecraft version".to_string()
                         }
                         (Some(v), Some(l)) => {
-                            format!("Minecraft {v} with {} {}", l.name, l.version)
+                            format!("minecraft {v} with {} {}", l.name, l.version)
                         }
-                        (Some(v), None) => format!("Minecraft {v}"),
+                        (Some(v), None) => format!("minecraft {v}"),
                     };
                     let mut text_col = div()
                         .flex()
@@ -432,9 +432,9 @@ impl Launcher {
                         );
                     }
                     let label = if blocked.is_some() {
-                        "Import without mods"
+                        "import without mods"
                     } else {
-                        "Import"
+                        "import"
                     };
                     let mut b = button(format!("import-other-{i}"), label, Kind::Secondary, &t);
                     if !busy && f.minecraft.is_some() {
@@ -462,7 +462,7 @@ impl Launcher {
                 }
             }
         }
-        let mut find = button("find-other-launchers", "Find", Kind::Secondary, &t);
+        let mut find = button("find-other-launchers", "find", Kind::Secondary, &t);
         if busy {
             find = find.opacity(0.5);
         } else {
@@ -491,7 +491,7 @@ impl Launcher {
                     .justify_between()
                     .child(
                         shell::text(theme::night::CAPTION, shell::c(n.muted))
-                            .child("From other launchers".to_string()),
+                            .child("from other launchers".to_string()),
                     )
                     .child(
                         shell::text(theme::night::CAPTION, shell::c(n.muted))
@@ -568,12 +568,12 @@ impl Launcher {
                     .items_end()
                     .justify_between()
                     .child(page_header(
-                        "Instances",
-                        "Rust and Java live side by side. Each instance keeps its own version, runtime, mods, configs and saves.",
+                        "instances",
+                        "rust and java live side by side. each instance keeps its own version, runtime, mods, configs and saves.",
                         &t,
                     ))
                     .child(
-                        button("new-instance", "New instance", Kind::Primary, &t).on_click(
+                        button("new-instance", "new instance", Kind::Primary, &t).on_click(
                             cx.listener(|this, _: &ClickEvent, _, cx| {
                                 this.open_instance_dialog(None, cx);
                                 cx.notify();
@@ -583,13 +583,13 @@ impl Launcher {
             )
             .child(self.client_install_section(cx))
             .child(section(
-                "Java",
+                "java",
                 Some(
-                    "Software is chosen inside each Java instance - vanilla, Fabric, Quilt, Forge or NeoForge.",
+                    "software is chosen inside each java instance - vanilla, fabric, quilt, forge or neoforge.",
                 ),
                 java,
             ))
-            .child(section("Rust", None, rust))
+            .child(section("rust", None, rust))
             .child(self.other_launchers_section(cx))
     }
 
@@ -602,18 +602,18 @@ impl Launcher {
         let mut chips: Vec<Div> = Vec::new();
         match &i.java {
             Some(j) => {
-                chips.push(shell::chip_tag("Java", &t));
+                chips.push(shell::chip_tag("java", &t));
                 chips.push(shell::chip_tag(
                     match &j.loader {
                         Some(l) => l.kind.name().to_string(),
-                        None => tr("Vanilla").to_string(),
+                        None => tr("vanilla").to_string(),
                     },
                     &t,
                 ));
                 chips.push(shell::chip_tag(j.minecraft.clone(), &t));
             }
             None => {
-                chips.push(shell::chip_tag("Horizon engine", &t));
+                chips.push(shell::chip_tag("horizon engine", &t));
                 if let Some(tag) = self.version_of(i) {
                     chips.push(shell::chip_tag(
                         horizon_launcher::nightly::label(tag)
@@ -689,7 +689,7 @@ impl Launcher {
                                     &t,
                                 )
                                 .h(px(30.))
-                                .child(shell::label(tr("Open").to_string()))
+                                .child(shell::label(tr("open").to_string()))
                                 .on_click(cx.listener(
                                     move |this, _: &ClickEvent, _, cx| {
                                         this.select_instance(&open);
@@ -718,7 +718,7 @@ impl Launcher {
                                 .relative()
                                 .child(blocks::icon("play", 14., shell::c(n.ink))),
                         )
-                        .child(shell::label(tr("Play").to_string()))
+                        .child(shell::label(tr("play").to_string()))
                         .on_click(cx.listener(
                             move |this, _: &ClickEvent, _, cx| {
                                 this.select_instance(&play);
@@ -1026,7 +1026,7 @@ impl Launcher {
         self.sync_run(
             |id, home| {
                 let started = instances::sync_membership_strict(id)?
-                    .ok_or_else(|| "This instance is in no sync group.".to_string())?;
+                    .ok_or_else(|| "this instance is in no sync group.".to_string())?;
                 let mut membership = started.clone();
                 let report = config_sync::sync(
                     &backend::data_dir(),
@@ -1053,7 +1053,7 @@ impl Launcher {
         self.sync_run(
             move |id, home| {
                 let started = instances::sync_membership_strict(id)?
-                    .ok_or_else(|| "This instance is in no sync group.".to_string())?;
+                    .ok_or_else(|| "this instance is in no sync group.".to_string())?;
                 let mut membership = started.clone();
                 let done = config_sync::resolve(
                     &backend::data_dir(),
@@ -1076,7 +1076,7 @@ impl Launcher {
         self.sync_run(
             move |id, home| {
                 let mut membership = instances::sync_membership_strict(id)?
-                    .ok_or_else(|| "This instance is in no sync group.".to_string())?;
+                    .ok_or_else(|| "this instance is in no sync group.".to_string())?;
                 let data = backend::data_dir();
                 let union = config_sync::key_union(&data, home, &membership.group)?;
                 let mut set = membership.keys.clone().unwrap_or_else(|| union.clone());
@@ -1185,7 +1185,7 @@ impl Launcher {
             (Some(group), _) => {
                 let quoted = format!("\"{group}\"");
                 section = section.child(text(theme::CAPTION).text_color(t.muted).child(trf(
-                    "Shares its options.txt settings (keybinds, video, controls) with {group}, both ways.",
+                    "shares its options.txt settings (keybinds, video, controls) with {group}, both ways.",
                     &[("group", &quoted)],
                 )));
                 if !key_union.is_empty() {
@@ -1193,13 +1193,13 @@ impl Launcher {
                     picker = picker.child(
                         text(theme::CAPTION)
                             .text_color(t.muted)
-                            .child(tr("Settings that sync").to_string()),
+                            .child(tr("settings that sync").to_string()),
                     );
                     if keys.is_none() {
                         picker = picker.child(
                             text(theme::CAPTION)
                                 .text_color(t.muted)
-                                .child(tr("New settings sync too, as they appear.").to_string()),
+                                .child(tr("new settings sync too, as they appear.").to_string()),
                         );
                     }
                     for pick in &key_union {
@@ -1250,12 +1250,12 @@ impl Launcher {
                     let groups = note.shared.show();
                     let (key_keep, key_take, key_label) = (key.clone(), key.clone(), key.clone());
                     let keep = shell::action(format!("sync-keep-{key}"), shell::Action::Quiet, &t)
-                        .child(shell::label(tr("Keep mine").to_string()))
+                        .child(shell::label(tr("keep mine").to_string()))
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.sync_resolve_click(key_keep.clone(), true, cx);
                         }));
                     let take = shell::action(format!("sync-take-{key}"), shell::Action::Quiet, &t)
-                        .child(shell::label(tr("Use the group's").to_string()))
+                        .child(shell::label(tr("use the group's").to_string()))
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.sync_resolve_click(key_take.clone(), false, cx);
                         }));
@@ -1277,10 +1277,10 @@ impl Launcher {
                     );
                 }
                 let now = shell::action("sync-now", shell::Action::Quiet, &t)
-                    .child(shell::label(tr("Sync now").to_string()))
+                    .child(shell::label(tr("sync now").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.sync_now_click(cx)));
                 let leave = shell::action("sync-leave", shell::Action::Quiet, &t)
-                    .child(shell::label(tr("Leave").to_string()))
+                    .child(shell::label(tr("leave").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.sync_leave_click(cx)));
                 section = section.child(
                     div()
@@ -1297,21 +1297,21 @@ impl Launcher {
                 let quoted = format!("\"{group}\"");
                 let list = keys.join(", ");
                 section = section.child(text(theme::CAPTION).text_color(t.muted).child(trf(
-                    "The group {group} and this instance differ on: {keys}. Whose values win? The side that loses is backed up first.",
+                    "the group {group} and this instance differ on: {keys}. whose values win? the side that loses is backed up first.",
                     &[("group", &quoted), ("keys", &list)],
                 )));
                 let theirs = shell::action("sync-diff-theirs", shell::Action::Main, &t)
-                    .child(shell::label(tr("Use the group's").to_string()))
+                    .child(shell::label(tr("use the group's").to_string()))
                     .on_click(
                         cx.listener(|this, _: &ClickEvent, _, cx| this.sync_take_click(false, cx)),
                     );
                 let mine = shell::action("sync-diff-mine", shell::Action::Quiet, &t)
-                    .child(shell::label(tr("Keep mine").to_string()))
+                    .child(shell::label(tr("keep mine").to_string()))
                     .on_click(
                         cx.listener(|this, _: &ClickEvent, _, cx| this.sync_take_click(true, cx)),
                     );
                 let back = shell::action("sync-diff-back", shell::Action::Quiet, &t)
-                    .child(shell::label(tr("Back").to_string()))
+                    .child(shell::label(tr("back").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         if let Some(d) = &mut this.instances.dialog {
                             d.sync_join_diff = None;
@@ -1329,17 +1329,17 @@ impl Launcher {
             }
             (None, None) => {
                 section = section.child(text(theme::CAPTION).text_color(t.muted).child(tr(
-                    "Keep its options.txt settings (keybinds, video, controls) the same across the instances of a group. A new group starts from this instance's settings.",
+                    "keep its options.txt settings (keybinds, video, controls) the same across the instances of a group. a new group starts from this instance's settings.",
                 )));
                 let join = shell::action("sync-join", shell::Action::Main, &t)
-                    .child(shell::label(tr("Join").to_string()))
+                    .child(shell::label(tr("join").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.sync_join_click(cx)));
                 section = section.child(
                     div()
                         .flex()
                         .gap(px(8.))
                         .items_center()
-                        .child(self.field(Field::InstanceSyncGroup, tr("Group name"), 200., cx))
+                        .child(self.field(Field::InstanceSyncGroup, tr("group name"), 200., cx))
                         .child(if busy { disabled(join) } else { join }),
                 );
             }
@@ -1416,7 +1416,7 @@ impl Launcher {
         };
         let (java, name) = match (java, minecraft) {
             (Some(_), Some(None)) => {
-                d.error = Some(tr("Mojang's version list isn't here yet.").into());
+                d.error = Some(tr("mojang's version list isn't here yet.").into());
                 return;
             }
             (Some(j), Some(Some(mc))) => {
@@ -1435,7 +1435,7 @@ impl Launcher {
                 Ok(m) if (512..=65536).contains(&m) => Some(m),
                 _ => {
                     d.error = Some(format!(
-                        "Memory is 512 to 65536 MiB, or empty for the default ({} MiB).",
+                        "memory is 512 to 65536 mib, or empty for the default ({} mib).",
                         instances::DEFAULT_MEMORY_MB
                     ));
                     return;
@@ -1525,6 +1525,7 @@ impl Launcher {
 
     pub(super) fn instance_dialog(&mut self, cx: &mut Context<Self>) -> Option<Stateful<Div>> {
         let t = self.theme;
+        self.servers.rendered_fields.clear();
         let d = self.instances.dialog.as_ref()?;
         let editing_id = d.editing.clone();
         let chosen = d
@@ -1571,7 +1572,7 @@ impl Launcher {
         let n = t.night;
         let from = self
             .selected_instance()
-            .map_or_else(|| "Horizon".into(), |i| i.name.clone());
+            .map_or_else(|| "horizon".into(), |i| i.name.clone());
         let row = |label: &'static str, control: AnyElement| {
             div()
                 .flex()
@@ -1593,9 +1594,9 @@ impl Launcher {
             .child(
                 shell::text(theme::night::TITLE, shell::c(n.ink)).child(
                     tr(if editing {
-                        "Edit instance"
+                        "edit instance"
                     } else {
-                        "New instance"
+                        "new instance"
                     })
                     .to_string(),
                 ),
@@ -1607,17 +1608,17 @@ impl Launcher {
             body = body.child(self.java_choice_rows(cx));
         }
         body = body.child(row(
-            "Name",
-            self.field(Field::InstanceName, tr("My instance"), 400., cx)
+            "name",
+            self.field(Field::InstanceName, tr("my instance"), 400., cx)
                 .into_any_element(),
         ));
         if !editing && !java {
             let weak = cx.entity().downgrade();
             body = body.child(row(
-                "Start from",
+                "start from",
                 segments(
                     "instance-from",
-                    &[(false, "Empty"), (true, "A copy of the selected one")],
+                    &[(false, "empty"), (true, "a copy of the selected one")],
                     copy,
                     &t,
                     move |copy, _, cx| {
@@ -1637,17 +1638,17 @@ impl Launcher {
                     &[("from", &from)],
                 )
             } else {
-                tr("Its own worlds and packs; your options and player name come along.").to_string()
+                tr("its own worlds and packs; your options and player name come along.").to_string()
             }));
         }
         body = body.child(row(
-            "Group",
-            self.field(Field::InstanceGroup, tr("No group"), 400., cx)
+            "group",
+            self.field(Field::InstanceGroup, tr("no group"), 400., cx)
                 .into_any_element(),
         ));
         if editing {
             body = body.child(row(
-                "Synced settings",
+                "synced settings",
                 self.sync_section(
                     SyncSection {
                         group: sync_group,
@@ -1665,7 +1666,7 @@ impl Launcher {
         }
         if editing_java {
             body = body.child(row(
-                "Memory (MiB)",
+                "memory (mib)",
                 self.field(
                     Field::InstanceMemory,
                     instances::DEFAULT_MEMORY_MB.to_string(),
@@ -1675,43 +1676,43 @@ impl Launcher {
                 .into_any_element(),
             ));
             body = body.child(text(theme::CAPTION).text_color(t.muted).child(format!(
-                "The most the game may use (-Xmx). Empty uses the default ({} MiB).",
+                "the most the game may use (-Xmx). empty uses the default ({} mib).",
                 instances::DEFAULT_MEMORY_MB
             )));
             body = body.child(row(
-                "Java home",
-                self.field(Field::InstanceJavaHome, "Automatic pick", 400., cx)
+                "java home",
+                self.field(Field::InstanceJavaHome, "automatic pick", 400., cx)
                     .into_any_element(),
             ));
             body = body.child(
                 text(theme::CAPTION).text_color(t.muted).child(
-                    "The Java that runs it. Empty: the launcher picks one for its Minecraft."
+                    "the java that runs it. empty: the launcher picks one for its minecraft."
                         .to_string(),
                 ),
             );
             body = body.child(row(
-                "JVM arguments",
-                self.field(Field::InstanceJvmArgs, "None", 400., cx)
+                "jvm arguments",
+                self.field(Field::InstanceJvmArgs, "none", 400., cx)
                     .into_any_element(),
             ));
         }
         if let Some(game) = &editing_game {
             // What it plays, read-only here: changing them is a new instance, not an edit.
             body = body.child(row(
-                "Minecraft",
+                "minecraft",
                 text(theme::CAPTION)
                     .text_color(t.muted)
                     .child(game.minecraft.clone())
                     .into_any_element(),
             ));
             body = body.child(row(
-                "Loader",
+                "loader",
                 text(theme::CAPTION)
                     .text_color(t.muted)
                     .child(
                         game.loader
                             .as_ref()
-                            .map_or("Vanilla".to_string(), |l| l.kind.name().to_string()),
+                            .map_or("vanilla".to_string(), |l| l.kind.name().to_string()),
                     )
                     .into_any_element(),
             ));
@@ -1723,7 +1724,7 @@ impl Launcher {
                 .and_then(|i| i.notes.clone());
             if let Some(notes) = notes {
                 body = body.child(row(
-                    "Notes",
+                    "notes",
                     text(theme::CAPTION)
                         .text_color(t.muted)
                         .child(notes)
@@ -1771,7 +1772,7 @@ impl Launcher {
                     None => text(theme::MICRO)
                         .text_size(px(8.5))
                         .text_color(t.muted)
-                        .child(tr("NONE"))
+                        .child(tr("none"))
                         .into_any_element(),
                 })
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -1819,7 +1820,7 @@ impl Launcher {
             );
         }
         let choose = shell::action("instance-picture", shell::Action::Quiet, &t)
-            .child(shell::label(tr("Choose image…").to_string()))
+            .child(shell::label(tr("choose image…").to_string()))
             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.choose_instance_picture(cx);
             }));
@@ -1830,7 +1831,7 @@ impl Launcher {
             rows.push(div().flex().gap(px(6.)).children(tiles.by_ref().take(11)));
         }
         body = body.child(row(
-            "Icon",
+            "icon",
             div()
                 .flex()
                 .flex_col()
@@ -1847,13 +1848,13 @@ impl Launcher {
                 .and_then(|i| self.instance_banner(i, 160.)),
         };
         let choose_banner = shell::action("instance-banner", shell::Action::Quiet, &t)
-            .child(shell::label(tr("Choose image…").to_string()))
+            .child(shell::label(tr("choose image…").to_string()))
             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.choose_instance_banner(cx);
             }));
         let remove_banner = banner_now.is_some().then(|| {
             shell::action("instance-banner-remove", shell::Action::Quiet, &t)
-                .child(shell::label(tr("Remove").to_string()))
+                .child(shell::label(tr("remove").to_string()))
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     if let Some(d) = &mut this.instances.dialog {
                         d.banner = Some(None);
@@ -1862,7 +1863,7 @@ impl Launcher {
                 }))
         });
         body = body.child(row(
-            "Banner",
+            "banner",
             div()
                 .flex()
                 .items_center()
@@ -1891,27 +1892,31 @@ impl Launcher {
             body = body.child(
                 text(theme::CAPTION)
                     .text_color(t.muted)
-                    .child(tr("Block and item icons come from your prepared game files: prepare a version to see them.")),
+                    .child(tr("block and item icons come from your prepared game files: prepare a version to see them.")),
             );
         }
         if let Some(e) = error {
             body = body.child(text(theme::CAPTION).text_color(t.danger).child(e));
         }
+        let cancel_key = self.key_handle("instance-cancel", cx);
         let cancel = shell::action("instance-cancel", shell::Action::Quiet, &t)
-            .child(shell::label(tr("Cancel").to_string()));
+            .track_focus(&cancel_key)
+            .child(shell::label(tr("cancel").to_string()));
         let label = match (editing, busy, copy) {
-            (_, true, true) if !java => "Copying…",
-            (true, false, _) => "Save",
-            _ => "Create",
+            (_, true, true) if !java => "copying…",
+            (true, false, _) => "save",
+            _ => "create",
         };
+        let save_key = self.key_handle("instance-save", cx);
         let save = shell::action("instance-save", shell::Action::Main, &t)
+            .track_focus(&save_key)
             .h(px(theme::CONTROL + 6.))
             .text_size(px(theme::night::UI.px))
             .child(shell::label(tr(label).to_string()));
         // A modpack becomes an instance by being imported, on the Mods page.
         let import = (!editing && !busy).then(|| {
             shell::action("instance-import", shell::Action::Quiet, &t)
-                .child(shell::label(tr("Import a modpack…").to_string()))
+                .child(shell::label(tr("import a modpack…").to_string()))
                 .mr_auto()
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.instances.dialog = None;
@@ -1956,7 +1961,7 @@ impl Launcher {
         .max_w(px(600.))
         .child(body)
         .child(foot);
-        Some(
+        let out = Some(
             div()
                 .id("instance-dialog")
                 .absolute()
@@ -1974,7 +1979,14 @@ impl Launcher {
                 .on_scroll(|_, _, cx| cx.stop_propagation())
                 .occlude()
                 .child(card),
-        )
+        );
+        // The dialog's keyboard set: its rendered fields (name, group, and - when they
+        // show - memory, Java home and JVM arguments, sync group), then Cancel, Save.
+        self.modal_keys(
+            &[("instance-cancel", cancel_key), ("instance-save", save_key)],
+            cx,
+        );
+        out
     }
 
     /// The Play page's row for the selected instance: its folder, and changing, copying or
@@ -1995,7 +2007,7 @@ impl Launcher {
             .mt(px(6.))
             .ml(px(-14.))
             .child(
-                button("instance-edit", "Edit…", Kind::Ghost, &t).on_click(cx.listener(
+                button("instance-edit", "edit…", Kind::Ghost, &t).on_click(cx.listener(
                     move |this, _: &ClickEvent, _, cx| {
                         this.open_instance_dialog(Some(edit.clone()), cx);
                         cx.notify();
@@ -2003,7 +2015,7 @@ impl Launcher {
                 )),
             )
             .child(
-                button("instance-copy", "Copy…", Kind::Ghost, &t).on_click(cx.listener(
+                button("instance-copy", "copy…", Kind::Ghost, &t).on_click(cx.listener(
                     move |this, _: &ClickEvent, _, cx| {
                         this.open_instance_dialog(None, cx);
                         this.servers
@@ -2020,9 +2032,9 @@ impl Launcher {
                 button(
                     "instance-export",
                     if self.export.is_some() {
-                        "Close export"
+                        "close export"
                     } else {
-                        "Export…"
+                        "export…"
                     },
                     Kind::Ghost,
                     &t,
@@ -2036,9 +2048,9 @@ impl Launcher {
                 button(
                     "instance-launch",
                     if self.launch.is_some() {
-                        "Close launch"
+                        "close launch"
                     } else {
-                        "Launch…"
+                        "launch…"
                     },
                     Kind::Ghost,
                     &t,
@@ -2050,7 +2062,7 @@ impl Launcher {
             )
             .child(self.shortcut_button(&instance, cx))
             .child(
-                button("instance-folder", "Open folder", Kind::Ghost, &t).on_click(
+                button("instance-folder", "open folder", Kind::Ghost, &t).on_click(
                     move |_, _, cx| {
                         let _ = std::fs::create_dir_all(&home);
                         cx.open_with_system(&home);
@@ -2060,7 +2072,7 @@ impl Launcher {
             .children(self.delete_button(&instance, cx));
         Some(index_row(
             n,
-            tr("Instance"),
+            tr("instance"),
             Some(
                 div()
                     .flex()
@@ -2095,7 +2107,7 @@ impl Launcher {
             return None;
         }
         let t = self.theme;
-        let delete = button("instance-delete", "Delete…", Kind::Ghost, &t);
+        let delete = button("instance-delete", "delete…", Kind::Ghost, &t);
         if self.client.is_some() || self.starting_client.is_some() {
             return Some(disabled(delete));
         }
@@ -2119,7 +2131,7 @@ impl Launcher {
         let line = match &self.instances.delete_error {
             Some(e) => e.clone(),
             None => trf(
-                "Move {name} to the Trash, with its worlds and settings? You can get it back from there.",
+                "move {name} to the trash, with its worlds and settings? you can get it back from there.",
                 &[("name", &instance.name)],
             ),
         };
@@ -2132,7 +2144,7 @@ impl Launcher {
                 .mt(px(8.))
                 .child(text(theme::CAPTION).text_color(t.danger).child(line))
                 .child(
-                    button("instance-keep", "Keep", Kind::Ghost, &t).on_click(cx.listener(
+                    button("instance-keep", "keep", Kind::Ghost, &t).on_click(cx.listener(
                         |this, _: &ClickEvent, _, cx| {
                             this.instances.confirm_delete = None;
                             this.instances.delete_error = None;
@@ -2141,7 +2153,7 @@ impl Launcher {
                     )),
                 )
                 .child(
-                    button("instance-trash", "Move to Trash", Kind::Secondary, &t).on_click(
+                    button("instance-trash", "move to trash", Kind::Secondary, &t).on_click(
                         cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.delete_instance(&id);
                             cx.notify();
@@ -2180,7 +2192,7 @@ pub(super) fn played_line(instance: &Instance) -> String {
                 ("when", &worlds_page::ago(when)),
             ],
         ),
-        None => tr("Not played yet").into(),
+        None => tr("not played yet").into(),
     }
 }
 
@@ -2189,7 +2201,7 @@ fn initial(name: &str) -> String {
     name.chars()
         .find(|c| c.is_alphanumeric())
         .unwrap_or('?')
-        .to_uppercase()
+        .to_lowercase()
         .to_string()
 }
 

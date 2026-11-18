@@ -479,10 +479,12 @@ impl Default for Links {
     /// What the launcher uses until (or unless) it can read links.json.
     fn default() -> Self {
         Self {
-            discord: "https://discord.gg/playhorizon".into(),
-            sponsor: "https://github.com/sponsors/ludovic111".into(),
-            website: "https://playhorizon.dev".into(),
-            official_server: crate::server_list::OFFICIAL_ADDRESS.into(),
+            // Ad-free (owner decision 2026-10-31, applied 2026-11-17): no Discord,
+            // no sponsor link, no official server. The site's button is GoatTech's own site.
+            discord: String::new(),
+            sponsor: String::new(),
+            website: "https://launcher.goattech.us".into(),
+            official_server: String::new(),
             official_server_previous: crate::server_list::OFFICIAL_PREVIOUS
                 .iter()
                 .map(|a| a.to_string())
@@ -938,13 +940,12 @@ pub fn resources_summary(prepared: bool, sounds: bool, version: &str) -> String 
     use crate::i18n::trf;
     match (prepared, sounds) {
         (false, _) => trf(
-            "Not prepared. Horizon needs the files of your own Minecraft {version}.",
+            "not prepared. horizon needs the files of your own minecraft {version}.",
             &[("version", version)],
         ),
-        (true, true) => trf("Prepared for Minecraft {version}", &[("version", version)]),
+        (true, true) => trf("prepared for minecraft {version}", &[("version", version)]),
         (true, false) => trf(
-            "Prepared for Minecraft {version}, without its sounds: the game will be silent. \
-             Prepare again to copy them from your Minecraft install.",
+            "prepared for minecraft {version}, without its sounds: the game will be silent. prepare again to copy them from your minecraft install.",
             &[("version", version)],
         ),
     }
@@ -1796,10 +1797,10 @@ impl PrepareStep {
 
     pub fn name(self) -> &'static str {
         match self {
-            Self::Files => "Game files",
-            Self::Java => "Java",
-            Self::Sounds => "Sounds",
-            Self::Prepare => "Prepare",
+            Self::Files => "game files",
+            Self::Java => "java",
+            Self::Sounds => "sounds",
+            Self::Prepare => "prepare",
         }
     }
 }
@@ -2326,7 +2327,7 @@ pub fn resolve_version(requested: Option<&str>) -> Result<String, String> {
     let selected = Settings::load().selected.filter(|s| installed.contains(s));
     selected
         .or_else(|| installed.first().cloned())
-        .ok_or_else(|| "No version is installed yet.".into())
+        .ok_or_else(|| "no version is installed yet.".into())
 }
 
 /// Removes an installed version, unless a program runs from it, and moves the selection to the
@@ -2473,7 +2474,7 @@ pub fn client_as(tag: &str, who: Option<&account::Player>) -> Result<Command, St
         cmd.arg("--session-file").arg(file);
     }
     if let Some(e) = offline {
-        eprintln!("Playing offline: {e}");
+        eprintln!("playing offline: {e}");
     }
     if let Some(e) = account::take_unsaved() {
         eprintln!("{e}");
@@ -4625,10 +4626,10 @@ pub fn {f}("
 
         assert_eq!(
             resources_summary(true, true, "26.3"),
-            "Prepared for Minecraft 26.3"
+            "prepared for minecraft 26.3"
         );
         let silent = resources_summary(true, false, "26.3");
-        assert!(silent.contains("without its sounds") && silent.contains("Prepare again"));
+        assert!(silent.contains("without its sounds") && silent.contains("prepare again"));
         // Not prepared says only that, sounds or not.
         assert_eq!(
             resources_summary(false, false, "26.3"),
@@ -4889,7 +4890,7 @@ pub fn {f}("
             (WhilePlaying::Stay, "--x")
         );
         assert_eq!(
-            WhilePlaying::parse("Minimise"),
+            WhilePlaying::parse("minimise"),
             Some(WhilePlaying::Minimize)
         );
         assert_eq!(WhilePlaying::parse("off"), Some(WhilePlaying::Stay));
@@ -5372,9 +5373,10 @@ pub fn {f}("
     #[test]
     fn links_fall_back_to_the_built_in_ones() {
         let defaults = Links::default();
-        assert_eq!(defaults.discord, "https://discord.gg/playhorizon");
-        assert_eq!(defaults.sponsor, "https://github.com/sponsors/ludovic111");
-        assert_eq!(defaults.website, "https://playhorizon.dev");
+        assert_eq!(defaults.discord, "");
+        assert_eq!(defaults.sponsor, "");
+        assert_eq!(defaults.website, "https://launcher.goattech.us");
+        assert_eq!(defaults.official_server, "");
         // The file on main says the same thing as the defaults.
         assert_eq!(Links::parse(include_str!("../links.json")), defaults);
         // Unreadable or missing, offline included: the defaults.

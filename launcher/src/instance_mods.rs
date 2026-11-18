@@ -344,7 +344,7 @@ impl Launcher {
             .children((updates > 0 && !busy).then(|| {
                 shell::action("instance-mods-update-all", Action::Raised, &t)
                     .child(shell::label(trf(
-                        "Update all ({count})",
+                        "update all ({count})",
                         &[("count", &updates.to_string())],
                     )))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -354,7 +354,7 @@ impl Launcher {
             }))
             .child(
                 shell::action("instance-mods-add", Action::Raised, &t)
-                    .child(shell::label(tr("Add mods").to_string()))
+                    .child(shell::label(tr("add mods").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.go(Page::Mods);
                         cx.notify();
@@ -366,14 +366,14 @@ impl Launcher {
             .map(|j| j.loader.as_ref().map(|l| l.kind.name()));
         let title = match loader {
             Some(Some(loader)) => trf("{loader} mods", &[("loader", loader)]),
-            _ => tr("Horizon mods").to_string(),
+            _ => tr("horizon mods").to_string(),
         };
         let filter = self
             .servers
             .value(Field::InstanceModsFilter)
             .trim()
             .to_lowercase();
-        let field = self.field(Field::InstanceModsFilter, tr("Filter installed"), 240., cx);
+        let field = self.field(Field::InstanceModsFilter, tr("filter installed"), 240., cx);
         let m = &self.instance_mods;
         let rows: Vec<ModRow> = m
             .list
@@ -407,11 +407,11 @@ impl Launcher {
                 .child(row)
         };
         let body = if !m.fresh {
-            rule(empty("Reading the mods…").into_any_element())
+            rule(empty("reading the mods…").into_any_element())
         } else if m.list.is_empty() {
-            rule(empty("No mods yet: Add mods finds some for this instance.").into_any_element())
+            rule(empty("no mods yet: add mods finds some for this instance.").into_any_element())
         } else if rows.is_empty() {
-            rule(empty("No mod matches.").into_any_element())
+            rule(empty("no mod matches.").into_any_element())
         } else {
             let shown = (rows.len(), filter);
             if self.instance_mods.shown != shown {
@@ -479,7 +479,7 @@ impl Launcher {
             )
         };
         let source = if let Some(origin) = row.native.as_ref().and_then(|n| n.origin.as_ref()) {
-            trf("from GitHub: {source}", &[("source", &origin.label())])
+            trf("from github: {source}", &[("source", &origin.label())])
         } else {
             match &row.entry {
                 Some(e) if e.dependency => trf(
@@ -488,7 +488,7 @@ impl Launcher {
                 ),
                 Some(e) => e.source.label().to_string(),
                 None => trf(
-                    "Local file · {file}",
+                    "local file · {file}",
                     &[("file", row.file.trim_start_matches("mods/"))],
                 ),
             }
@@ -511,7 +511,7 @@ impl Launcher {
                 .child(
                     shell::text(night::CAPTION, c(n.warn))
                         .font_weight(FontWeight::SEMIBOLD)
-                        .child(trf("Update {version}", &[("version", &number)])),
+                        .child(trf("update {version}", &[("version", &number)])),
                 );
             Some(match busy {
                 true => chip.opacity(theme::DISABLED),

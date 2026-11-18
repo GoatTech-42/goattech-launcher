@@ -26,7 +26,7 @@ impl ClientInstall {
             Some(Ok(path)) => Some(path),
             Some(Err(e)) => {
                 self.busy = false;
-                self.report = Some(tr("The file picker is unavailable. On Linux, check that your desktop's file chooser portal and session bus are running, then try again.").to_string());
+                self.report = Some(tr("the file picker is unavailable. on linux, check that your desktop's file chooser portal and session bus are running, then try again.").to_string());
                 self.picker_error = Some(e);
                 None
             }
@@ -56,7 +56,7 @@ impl Launcher {
             files: true,
             directories: false,
             multiple: false,
-            prompt: Some(tr("Choose client JAR").into()),
+            prompt: Some(tr("choose client jar").into()),
         });
         cx.spawn(async move |this, cx| {
             let result = match paths.await {
@@ -79,7 +79,7 @@ impl Launcher {
             let task = cx.background_executor().spawn(async move {
                 let (info, hash) = client_jar::inspect_for_review(&path)?;
                 if info.side == client_jar::Side::Server {
-                    return Err("This JAR is server-only, not a client mod.".to_string());
+                    return Err("this jar is server-only, not a client mod.".to_string());
                 }
                 Ok::<_, String>((path, info, hash))
             });
@@ -127,7 +127,7 @@ impl Launcher {
                         this.reload_instances();
                         this.instances.client.chosen = None;
                         this.instances.client.report = Some(format!(
-                            "Installed {} {} in new instance {}: Minecraft {}, {}. {}",
+                            "installed {} {} in new instance {}: minecraft {}, {}. {}",
                             done.jar.name,
                             done.jar.version,
                             done.instance,
@@ -149,13 +149,13 @@ impl Launcher {
         let n = t.night;
         let busy = self.instances.client.busy;
         let mut section=div().flex().flex_col().gap(px(10.)).mt(px(26.))
-            .child(shell::text(theme::night::CAPTION,shell::c(n.ink)).child(tr("Client JAR").to_string()))
-            .child(shell::text(theme::night::CAPTION,shell::c(n.muted)).child(tr("Choose a local Fabric client mod from its own website. Inspect it here, then install it in a new Java instance. Existing instances stay unchanged.").to_string()))
-            .child(shell::text(theme::night::CAPTION,shell::c(n.muted)).child(tr("Some clients and Fabric API bundles need dependency resolution not supported here yet. Client-specific config sharing is not available; options.txt sharing is separate.").to_string()));
+            .child(shell::text(theme::night::CAPTION,shell::c(n.ink)).child(tr("client jar").to_string()))
+            .child(shell::text(theme::night::CAPTION,shell::c(n.muted)).child(tr("choose a local fabric client mod from its own website. inspect it here, then install it in a new java instance. existing instances stay unchanged.").to_string()))
+            .child(shell::text(theme::night::CAPTION,shell::c(n.muted)).child(tr("some clients and fabric api bundles need dependency resolution not supported here yet. client-specific config sharing is not available; options.txt sharing is separate.").to_string()));
         let label = if busy {
-            "Working..."
+            "working..."
         } else {
-            "Choose client JAR"
+            "choose client jar"
         };
         let mut choose = button("choose-client-jar", label, Kind::Secondary, &t);
         if !busy {
@@ -176,9 +176,9 @@ impl Launcher {
             let mut install = button(
                 "install-client-jar",
                 if busy {
-                    "Installing..."
+                    "installing..."
                 } else {
-                    "Install in new instance"
+                    "install in new instance"
                 },
                 Kind::Secondary,
                 &t,
@@ -199,9 +199,9 @@ impl Launcher {
                 button(
                     "client-picker-details",
                     if self.instances.client.show_picker_error {
-                        "Hide technical details"
+                        "hide technical details"
                     } else {
-                        "Technical details"
+                        "technical details"
                     },
                     Kind::Ghost,
                     &t,
@@ -263,7 +263,7 @@ mod tests {
     fn parser_and_server_only_errors_do_not_become_transport_failures() {
         for error in [
             "invalid fabric.mod.json",
-            "This JAR is server-only, not a client mod.",
+            "this jar is server-only, not a client mod.",
         ] {
             let mut state = ClientInstall::default();
             state.begin_pick();

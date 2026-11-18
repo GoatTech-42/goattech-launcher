@@ -96,7 +96,7 @@ impl Launcher {
         let t = self.theme;
         let home = self.selected_instance()?.home.clone();
         self.load_servers(home);
-        let actions = div().child(tab_action("server-add", "Add server", &t).on_click(
+        let actions = div().child(tab_action("server-add", "add server", &t).on_click(
             cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.multiplayer.adding = !this.multiplayer.adding;
                 this.multiplayer.error = None;
@@ -120,7 +120,7 @@ impl Launcher {
                     .py(px(10.))
                     .child(self.field(Field::ServerName, tr("Minecraft Server"), 220., cx))
                     .child(self.field(Field::ServerAddress, "play.example.com", 300., cx))
-                    .child(button("server-save", "Add", Kind::Secondary, &t).on_click(
+                    .child(button("server-save", "add", Kind::Secondary, &t).on_click(
                         cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.add_server();
                             cx.notify();
@@ -131,7 +131,7 @@ impl Launcher {
         let list = self.multiplayer.list.clone();
         if list.is_empty() && !self.multiplayer.adding {
             section = section.child(text(theme::CAPTION).text_color(t.muted).child(tr(
-                "No servers yet: add one here or in the game's Multiplayer screen.",
+                "no servers yet: add one here or in the game's multiplayer screen.",
             )));
         }
         for (i, (server, icon)) in list.into_iter().enumerate() {
@@ -167,12 +167,12 @@ impl Launcher {
                 .child(
                     text(theme::CAPTION)
                         .text_color(t.danger)
-                        .child(tr("Remove it from the list?")),
+                        .child(tr("remove it from the list?")),
                 )
                 .child(
                     button(
                         SharedString::from(format!("server-keep-{i}")),
-                        "Keep",
+                        "keep",
                         Kind::Ghost,
                         &t,
                     )
@@ -184,7 +184,7 @@ impl Launcher {
                 .child(
                     button(
                         SharedString::from(format!("server-remove-{i}")),
-                        "Remove",
+                        "remove",
                         Kind::Secondary,
                         &t,
                     )
@@ -200,7 +200,7 @@ impl Launcher {
             let busy = !self.can_join_selected();
             let join = button(
                 SharedString::from(format!("server-join-{i}")),
-                "Join",
+                "join",
                 Kind::Secondary,
                 &t,
             );
@@ -215,7 +215,7 @@ impl Launcher {
                 .child(
                     button(
                         SharedString::from(format!("server-delete-{i}")),
-                        "Remove",
+                        "remove",
                         Kind::Ghost,
                         &t,
                     )

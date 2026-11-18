@@ -85,7 +85,7 @@ fn finish(
         .map(|o| format!("{} {}", o.id, o.version))
         .collect();
     Ok(trf(
-        "Installed {mods} from GitHub ({source}). Build it on the Mods page.",
+        "installed {mods} from github ({source}). build it on the mods page.",
         &[("mods", &names.join(", ")), ("source", &found.label())],
     ))
 }
@@ -144,7 +144,7 @@ impl Launcher {
         }
         self.github.message = None;
         self.github.stage = Stage::Working(trf(
-            "Asking GitHub about {owner}/{repo}…",
+            "asking github about {owner}/{repo}…",
             &[("owner", &link.owner), ("repo", &link.repo)],
         ));
         let tx = self.github.tx.clone();
@@ -166,7 +166,7 @@ impl Launcher {
     /// Downloads and checks what the player agreed to; installs it unless there is a choice.
     fn github_install(&mut self, found: Resolved, only: Option<String>) {
         self.github.stage =
-            Stage::Working(trf("Downloading {source}…", &[("source", &found.label())]));
+            Stage::Working(trf("downloading {source}…", &[("source", &found.label())]));
         let tx = self.github.tx.clone();
         let home = self.mods.home();
         std::thread::spawn(move || {
@@ -188,7 +188,7 @@ impl Launcher {
         let done = finish(&home, &found, &mods, id.as_deref(), id.is_none());
         github_mods::discard(&found);
         let _ = self.github.tx.send(Event::Installed(done));
-        self.github.stage = Stage::Working(tr("Installing…").into());
+        self.github.stage = Stage::Working(tr("installing…").into());
     }
 
     fn github_field(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
@@ -243,7 +243,7 @@ impl Launcher {
             self.github.newer.clear();
         }
         let busy = self.github.busy();
-        let mut add = button("github-add", "Add from GitHub", Kind::Secondary, &t);
+        let mut add = button("github-add", "add from github", Kind::Secondary, &t);
         add = match busy {
             true => disabled(add),
             false => add.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -255,10 +255,10 @@ impl Launcher {
             .flex()
             .flex_col()
             .gap(px(12.))
-            .child(caps(tr("Add a native mod from GitHub")).text_color(t.muted))
+            .child(micro(tr("add a native mod from github")).text_color(t.muted))
             .child(
                 text(theme::CAPTION).text_color(t.muted).child(
-                    tr("A link to a repository (its latest release), a release, a branch or tag, or a commit. The launcher installs one exact release file or commit, never a branch that moves."),
+                    tr("a link to a repository (its latest release), a release, a branch or tag, or a commit. the launcher installs one exact release file or commit, never a branch that moves."),
                 ),
             )
             .child(
@@ -300,15 +300,15 @@ impl Launcher {
         let t = self.theme;
         let what = match (&found.asset, &found.content_only) {
             (Some(asset), _) => trf(
-                "The release file {file} ({source}).",
+                "the release file {file} ({source}).",
                 &[("file", &asset.name), ("source", &found.label())],
             ),
             (None, Some(file)) => trf(
-                "The source of {source}. Its release ships {file}, a content mod: installing those from GitHub is not supported yet.",
+                "the source of {source}. its release ships {file}, a content mod: installing those from github is not supported yet.",
                 &[("source", &found.label()), ("file", file)],
             ),
             (None, None) => trf(
-                "The source at commit {commit}.",
+                "the source at commit {commit}.",
                 &[("commit", &found.commit)],
             ),
         };
@@ -321,10 +321,10 @@ impl Launcher {
             .p(px(16.))
             .text_size(px(theme::UI.px))
             .text_color(t.ink)
-            .child(caps(tr("Not reviewed by the Horizon registry")).text_color(t.danger))
+            .child(micro(tr("not reviewed by the horizon registry")).text_color(t.danger))
             .child(what)
             .child(
-                tr("Native mods run with full access to this computer. Read the source before you install it."),
+                tr("native mods run with full access to this computer. read the source before you install it."),
             )
             .child(text(theme::CAPTION).font_family(theme::MONO).text_color(t.ink_soft).child(url))
             .child(
@@ -333,18 +333,18 @@ impl Launcher {
                     .flex_wrap()
                     .gap(px(8.))
                     .child(
-                        button("github-source", "Open the source", Kind::Secondary, &t)
+                        button("github-source", "open the source", Kind::Secondary, &t)
                             .on_click(move |_, _, cx| cx.open_url(&open)),
                     )
                     .child(
-                        button("github-trust", "I read it and trust it: install", Kind::Primary, &t)
+                        button("github-trust", "i read it and trust it: install", Kind::Primary, &t)
                             .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                                 this.github_install(install.clone(), only.clone());
                                 cx.notify();
                             })),
                     )
                     .child(
-                        button("github-cancel", "Cancel", Kind::Ghost, &t).on_click(cx.listener(
+                        button("github-cancel", "cancel", Kind::Ghost, &t).on_click(cx.listener(
                             |this, _: &ClickEvent, _, cx| {
                                 this.github.stage = Stage::Idle;
                                 cx.notify();
@@ -375,7 +375,7 @@ impl Launcher {
         }
         let (every, listed) = (found.clone(), mods.to_vec());
         buttons = buttons.child(
-            button("github-pick-all", "Install all", Kind::Primary, &t).on_click(cx.listener(
+            button("github-pick-all", "install all", Kind::Primary, &t).on_click(cx.listener(
                 move |this, _: &ClickEvent, _, cx| {
                     this.github_pick(every.clone(), listed.clone(), None);
                     cx.notify();
@@ -390,7 +390,7 @@ impl Launcher {
             .text_size(px(theme::UI.px))
             .text_color(t.ink)
             .child(trf(
-                "{name} holds {count} mods. Install which?",
+                "{name} holds {count} mods. install which?",
                 &[("name", &found.name()), ("count", &mods.len().to_string())],
             ))
             .child(buttons)
@@ -412,7 +412,7 @@ impl Launcher {
                 let (latest, only) = (latest.clone(), id.clone());
                 button(
                     SharedString::from(format!("github-update-{id}")),
-                    trf("Update to {version}", &[("version", &latest.label())]),
+                    trf("update to {version}", &[("version", &latest.label())]),
                     Kind::Primary,
                     &t,
                 )
@@ -426,7 +426,7 @@ impl Launcher {
                 let (link, only) = (origin.follows(), id.clone());
                 let check = button(
                     SharedString::from(format!("github-check-{id}")),
-                    "Check for updates",
+                    "check for updates",
                     Kind::Secondary,
                     &t,
                 );
@@ -445,7 +445,7 @@ impl Launcher {
         right = right.child(
             button(
                 SharedString::from(format!("github-src-{id}")),
-                "Source",
+                "source",
                 Kind::Ghost,
                 &t,
             )
@@ -486,9 +486,9 @@ impl Launcher {
         let remove = button(
             SharedString::from(format!("native-remove-{}", row.file)),
             if confirming {
-                "Remove for good"
+                "remove for good"
             } else {
-                "Remove"
+                "remove"
             },
             Kind::Ghost,
             &t,
@@ -506,7 +506,7 @@ impl Launcher {
                         std::fs::remove_file(home.join(&row.file)).map_err(|e| e.to_string())
                     };
                     this.mods.message =
-                        Some(result.map(|_| trf("Removed {name}.", &[("name", &row.id)])));
+                        Some(result.map(|_| trf("removed {name}.", &[("name", &row.id)])));
                     this.github.reread(&home);
                     this.github.confirm_remove = None;
                     this.instance_mods_changed();
@@ -527,8 +527,8 @@ impl Launcher {
     ) -> Div {
         let t = self.theme;
         let source = row.origin.as_ref().map_or_else(
-            || trf("Local file · {file}", &[("file", &row.file)]),
-            |o| trf("from GitHub: {source}", &[("source", &o.label())]),
+            || trf("local file · {file}", &[("file", &row.file)]),
+            |o| trf("from github: {source}", &[("source", &o.label())]),
         );
         slot_row(
             Some(blocks::slot(None, &row.id, 40., &t)),

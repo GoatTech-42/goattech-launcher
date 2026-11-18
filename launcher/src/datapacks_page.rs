@@ -53,7 +53,7 @@ impl Launcher {
             list: datapacks::list(&world),
             note: Some(added.map(|names| {
                 trf(
-                    "Added {names}: the game turns it on when the world opens.",
+                    "added {names}: the game turns it on when the world opens.",
                     &[("names", &names.join(", "))],
                 )
             })),
@@ -67,7 +67,7 @@ impl Launcher {
             files: true,
             directories: false,
             multiple: true,
-            prompt: Some(tr("Add").into()),
+            prompt: Some(tr("add").into()),
         });
         cx.spawn(async move |this, cx| {
             if let Ok(Ok(Some(paths))) = paths.await {
@@ -129,13 +129,13 @@ impl Launcher {
                     .flex()
                     .items_center()
                     .justify_between()
-                    .child(caps(tr("Data packs")).text_color(t.muted))
+                    .child(micro(tr("data packs")).text_color(t.muted))
                     .child(
                         div()
                             .flex()
                             .gap(px(6.))
                             .child(
-                                button("world-packs-add", "Add data pack…", Kind::Ghost, &t)
+                                button("world-packs-add", "add data pack…", Kind::Ghost, &t)
                                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                                         this.choose_world_packs(path.clone(), cx);
                                         cx.notify();
@@ -143,7 +143,7 @@ impl Launcher {
                             )
                             .child({
                                 let dir = world.path.join("datapacks");
-                                button("world-packs-folder", "Open folder", Kind::Ghost, &t)
+                                button("world-packs-folder", "open folder", Kind::Ghost, &t)
                                     .on_click(move |_, _, cx| {
                                         let _ = std::fs::create_dir_all(&dir);
                                         cx.open_with_system(&dir);
@@ -161,7 +161,7 @@ impl Launcher {
         }
         if self.world_packs.list.is_empty() {
             head = head.child(text(theme::CAPTION).text_color(t.muted).child(tr(
-                "None yet: drop a data pack .zip on the world, or use Add data pack…",
+                "none yet: drop a data pack .zip on the world, or use add data pack…",
             )));
         }
         panel = panel.child(head).children(failed);
@@ -174,12 +174,12 @@ impl Launcher {
                     .child(
                         text(theme::CAPTION)
                             .text_color(t.danger)
-                            .child(tr("Move it to the trash?")),
+                            .child(tr("move it to the trash?")),
                     )
                     .child(
                         button(
                             SharedString::from(format!("world-pack-keep-{i}")),
-                            "Keep",
+                            "keep",
                             Kind::Ghost,
                             &t,
                         )
@@ -193,7 +193,7 @@ impl Launcher {
                     .child(
                         button(
                             SharedString::from(format!("world-pack-trash-{i}")),
-                            "Move to trash",
+                            "move to trash",
                             Kind::Secondary,
                             &t,
                         )
@@ -215,13 +215,13 @@ impl Launcher {
                     actions = actions.child(
                         text(theme::CAPTION)
                             .text_color(t.muted)
-                            .child(tr("Off in the game")),
+                            .child(tr("off in the game")),
                     );
                 }
                 actions = actions.child(
                     button(
                         SharedString::from(format!("world-pack-remove-{i}")),
-                        "Remove",
+                        "remove",
                         Kind::Ghost,
                         &t,
                     )

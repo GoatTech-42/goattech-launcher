@@ -258,7 +258,7 @@ fn deleting_refuses_a_live_supervisor_even_when_its_api_is_unavailable() {
     let lock = fs::File::create(root.join(".horizon/lock")).unwrap();
     lock.try_lock().unwrap();
     let result = trash_stopped_server(&root, |_| panic!("must not move a running server"));
-    assert!(result.unwrap_err().contains("Stop the server"));
+    assert!(result.unwrap_err().contains("stop the server"));
     assert!(root.join("server.toml").exists());
     drop(lock);
     fs::remove_dir_all(root).unwrap();

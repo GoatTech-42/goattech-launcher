@@ -23,15 +23,15 @@ pub enum Phase {
 impl Phase {
     pub fn label(self) -> &'static str {
         match self {
-            Self::Queued => "Waiting for account access…",
-            Self::Keychain => "Reading keychain…",
-            Self::Microsoft => "Renewing Microsoft sign-in…",
-            Self::Xbox => "Signing in to Xbox Live…",
-            Self::Minecraft => "Getting Minecraft session…",
-            Self::Ownership => "Checking Minecraft ownership…",
-            Self::Profile => "Loading Minecraft profile…",
-            Self::Saving => "Saving sign-in…",
-            Self::SigningOut => "Signing out…",
+            Self::Queued => "waiting for account access…",
+            Self::Keychain => "reading keychain…",
+            Self::Microsoft => "renewing microsoft sign-in…",
+            Self::Xbox => "signing in to xbox live…",
+            Self::Minecraft => "getting minecraft session…",
+            Self::Ownership => "checking minecraft ownership…",
+            Self::Profile => "loading minecraft profile…",
+            Self::Saving => "saving sign-in…",
+            Self::SigningOut => "signing out…",
         }
     }
 }
@@ -54,16 +54,16 @@ pub struct Status {
     pub message: String,
 }
 
-const DAMAGED_SIGN_IN: &str = "Could not read the saved sign-in. Sign in again.";
+const DAMAGED_SIGN_IN: &str = "could not read the saved sign-in. sign in again.";
 
 impl Status {
     pub fn label(&self) -> &'static str {
         match self.state {
-            State::Ready => "Ready for online play",
-            State::NeedsRefresh => "Needs refresh",
-            State::SignInRequired => "Sign in again",
-            State::Retry => "Could not check sign-in",
-            State::OwnershipRequired => "Minecraft account needs attention",
+            State::Ready => "ready for online play",
+            State::NeedsRefresh => "needs refresh",
+            State::SignInRequired => "sign in again",
+            State::Retry => "could not check sign-in",
+            State::OwnershipRequired => "minecraft account needs attention",
         }
     }
 
@@ -93,9 +93,9 @@ impl Status {
             message: String::new(),
         };
         status.message = match state {
-            State::SignInRequired => "Sign in again in your browser.".into(),
+            State::SignInRequired => "sign in again in your browser.".into(),
             State::OwnershipRequired => {
-                "Check Minecraft: Java Edition ownership and your profile at minecraft.net.".into()
+                "check minecraft: java edition ownership and your profile at minecraft.net.".into()
             }
             _ => status.label().into(),
         };
@@ -117,7 +117,7 @@ pub(super) struct Operation<'a> {
 /// How long a status read waits behind another account operation (a refresh or a launch check
 /// can hold the lock for a network timeout) before it answers "busy" instead.
 const STATUS_WAIT: Duration = Duration::from_secs(3);
-const BUSY: &str = "Another account operation is running. Try again in a moment.";
+const BUSY: &str = "another account operation is running. try again in a moment.";
 
 /// Serialize refresh with sign-in, sign-out and launch, before reading any credential.
 /// The file is a lock only: it never contains tokens. Fail closed if locking fails.
@@ -275,7 +275,7 @@ pub(super) fn refresh_account(
             return Ok(Status::from_secrets(None));
         };
         let before =
-            serde_json::to_string(&secrets).map_err(|_| "Could not read the saved sign-in.")?;
+            serde_json::to_string(&secrets).map_err(|_| "could not read the saved sign-in.")?;
         let (mut status, secrets) =
             match check_with(ep, client_id, account, secrets, true, progress) {
                 Check::Owns(renewed, s) => {
@@ -303,14 +303,14 @@ pub(super) fn refresh_account(
                 }
             };
         let after =
-            serde_json::to_string(&secrets).map_err(|_| "Could not save the renewed sign-in.")?;
+            serde_json::to_string(&secrets).map_err(|_| "could not save the renewed sign-in.")?;
         if before != after {
             progress(Phase::Saving);
         }
         if before != after && store.set(&account.uuid, &after).is_err() {
             status.state = State::Retry;
             status.message =
-                "The renewed sign-in could not be saved in the keychain. Unlock it and retry."
+                "the renewed sign-in could not be saved in the keychain. unlock it and retry."
                     .into();
         }
         Ok::<_, String>(status)

@@ -17,7 +17,7 @@ fn names_fit_every_system() {
         file_name("A/B: C?", System::Windows),
         "A-B- C- (Horizon).lnk"
     );
-    assert_eq!(file_name(" .. ", System::Mac), "Instance (Horizon).app");
+    assert_eq!(file_name(" .. ", System::Mac), "instance (Horizon).app");
     assert_eq!(slug("port:all the mods"), "port-all-the-mods");
 }
 

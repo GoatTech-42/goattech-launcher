@@ -49,7 +49,7 @@ impl Launcher {
             true => {
                 let path = home.join("logs/latest.log");
                 std::fs::read_to_string(&path)
-                    .map_err(|_| tr("There is no log to share yet.").to_string())?
+                    .map_err(|_| tr("there is no log to share yet.").to_string())?
             }
         };
         Ok((text, vec![home, backend::game_home()]))
@@ -151,7 +151,7 @@ impl Launcher {
             .child(
                 text(theme::LABEL)
                     .text_color(t.ink_soft)
-                    .child(tr("Follow")),
+                    .child(tr("follow")),
             )
             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.console.follow = !this.console.follow;
@@ -164,11 +164,11 @@ impl Launcher {
             .flex_wrap()
             .items_center()
             .gap(px(10.))
-            .child(self.field(Field::ConsoleSearch, tr("Search the log"), 260., cx))
+            .child(self.field(Field::ConsoleSearch, tr("search the log"), 260., cx))
             .child(follow)
             .child(div().flex_1())
             .child(
-                button("console-copy", "Copy", Kind::Ghost, &t).on_click(cx.listener(
+                button("console-copy", "copy", Kind::Ghost, &t).on_click(cx.listener(
                     move |this, _: &ClickEvent, _, cx| {
                         copy_to_clipboard(cx, ClipboardItem::new_string(copied.clone()));
                         this.console.shared = None;
@@ -177,7 +177,7 @@ impl Launcher {
                 )),
             )
             .child({
-                let b = button("console-share", "Share log…", Kind::Ghost, &t);
+                let b = button("console-share", "share log…", Kind::Ghost, &t);
                 match self.console.sharing {
                     true => disabled(b),
                     false => b.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -193,7 +193,7 @@ impl Launcher {
                     .or_else(|| self.selected_instance().map(|i| i.home.clone()))
                     .unwrap_or_else(backend::game_home)
                     .join("logs");
-                button("console-folder", "Open logs folder", Kind::Ghost, &t).on_click(
+                button("console-folder", "open logs folder", Kind::Ghost, &t).on_click(
                     move |_, _, cx| {
                         let _ = std::fs::create_dir_all(&logs);
                         cx.open_with_system(&logs);
@@ -211,14 +211,11 @@ impl Launcher {
                     .py(px(10.))
                     .child(div().flex_1().min_w_0().child(
                         text(theme::CAPTION).text_color(t.ink_soft).child(tr(
-                            "Upload this log to mclo.gs, a paste service for Minecraft logs? \
-                             Anyone with the link can read it, until it is deleted or unread \
-                             for 90 days. Your home folder, user name and account names are \
-                             taken out first.",
+                            "upload this log to mclo.gs, a paste service for minecraft logs? anyone with the link can read it, until it is deleted or unread for 90 days. your home folder, user name and account names are taken out first.",
                         )),
                     ))
                     .child(
-                        button("console-share-no", "Cancel", Kind::Ghost, &t).on_click(
+                        button("console-share-no", "cancel", Kind::Ghost, &t).on_click(
                             cx.listener(|this, _: &ClickEvent, _, cx| {
                                 this.console.confirm_share = false;
                                 cx.notify();
@@ -226,7 +223,7 @@ impl Launcher {
                         ),
                     )
                     .child(
-                        button("console-share-yes", "Upload", Kind::Secondary, &t).on_click(
+                        button("console-share-yes", "upload", Kind::Secondary, &t).on_click(
                             cx.listener(|this, _: &ClickEvent, _, cx| {
                                 this.share_log(cx);
                                 cx.notify();
@@ -240,7 +237,7 @@ impl Launcher {
                 section = section.child(
                     text(theme::CAPTION)
                         .text_color(t.muted)
-                        .child(tr("Sending…")),
+                        .child(tr("sending…")),
                 )
             }
             Some(Ok(shared)) => {
@@ -253,21 +250,21 @@ impl Launcher {
                         .child(
                             text(theme::CAPTION)
                                 .text_color(t.ink_soft)
-                                .child(trf("Shared: {url}", &[("url", &url)])),
+                                .child(trf("shared: {url}", &[("url", &url)])),
                         )
                         .child(
-                            button("console-link-copy", "Copy link", Kind::Ghost, &t).on_click(
+                            button("console-link-copy", "copy link", Kind::Ghost, &t).on_click(
                                 move |_, _, cx| {
                                     copy_to_clipboard(cx, ClipboardItem::new_string(url.clone()))
                                 },
                             ),
                         )
                         .child(
-                            button("console-link-open", "Open", Kind::Ghost, &t)
+                            button("console-link-open", "open", Kind::Ghost, &t)
                                 .on_click(move |_, _, cx| cx.open_url(&open_url)),
                         )
                         .child(
-                            button("console-unshare", "Delete it", Kind::Ghost, &t).on_click(
+                            button("console-unshare", "delete it", Kind::Ghost, &t).on_click(
                                 cx.listener(|this, _: &ClickEvent, _, cx| {
                                     this.unshare_log(cx);
                                     cx.notify();

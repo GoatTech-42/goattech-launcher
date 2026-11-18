@@ -250,11 +250,11 @@ impl Launcher {
             _ => memory,
         };
         let unit = (memory.is_some() || self.servers.has_focus(Field::MemoryLimit))
-            .then(|| text(theme::LABEL).text_color(t.ink_soft).child("MB"));
-        let input = self.field(Field::MemoryLimit, tr("No limit"), 120., cx);
+            .then(|| text(theme::LABEL).text_color(t.ink_soft).child("mb"));
+        let input = self.field(Field::MemoryLimit, tr("no limit"), 120., cx);
         let about = match java {
-            Some(_) => "How much memory Java may use (-Xmx). Set it too low and the game can crash.",
-            None => "The game stays under this. Very low values make it slower, and it crashes only if it can't run at all. Change it while playing with /ramlimit.",
+            Some(_) => "how much memory java may use (-Xmx). set it too low and the game can crash.",
+            None => "the game stays under this. very low values make it slower, and it crashes only if it can't run at all. change it while playing with /ramlimit.",
         };
         let track = div()
             .id("launch-memory")
@@ -310,14 +310,14 @@ impl Launcher {
             );
         let result = self.memory_slider.saved.as_ref().map(|s| match s {
             MemorySaved::Ok(Some(mb)) => text(theme::CAPTION).text_color(t.muted).child(trf(
-                "Saved: the next Play uses at most {mb} MB.",
+                "saved: the next play uses at most {mb} mb.",
                 &[("mb", &mb.to_string())],
             )),
             MemorySaved::Ok(None) => text(theme::CAPTION)
                 .text_color(t.muted)
-                .child(tr("Saved: no memory limit on the next Play.")),
+                .child(tr("saved: no memory limit on the next play.")),
             MemorySaved::Invalid => text(theme::CAPTION).text_color(t.danger).child(tr(
-                "Type a number of MB like 4096, or 4gb, or leave it empty for no limit.",
+                "type a number of mb like 4096, or 4gb, or leave it empty for no limit.",
             )),
             MemorySaved::Error(e) => text(theme::CAPTION).text_color(t.danger).child(e.clone()),
         });
@@ -337,7 +337,7 @@ impl Launcher {
                         .child(
                             blocks::pixel(16., FontWeight::MEDIUM)
                                 .text_color(t.ink)
-                                .child(tr("Maximum memory")),
+                                .child(tr("maximum memory")),
                         )
                         .child(
                             div()
@@ -361,8 +361,8 @@ impl Launcher {
         let found = self.launch.as_ref()?.found;
         let now = self.selected_instance()?.launch.clone();
         let gpu_about = match found.nvidia {
-            true => "NVIDIA render offload: __NV_PRIME_RENDER_OFFLOAD and its Vulkan layer.",
-            false => "Mesa's DRI_PRIME=1, so Vulkan picks the other card.",
+            true => "nvidia render offload: __nv_prime_render_offload and its vulkan layer.",
+            false => "mesa's DRI_PRIME=1, so vulkan picks the other card.",
         };
         let mut list = div().flex().flex_col().gap(px(10.));
         for (toggle, shown, on, label, about) in [
@@ -370,21 +370,21 @@ impl Launcher {
                 Toggle::GameMode,
                 found.gamemode,
                 now.gamemode,
-                "GameMode",
-                "Feral's gamemoderun: CPU and scheduler tuned while you play.",
+                "gamemode",
+                "feral's gamemoderun: cpu and scheduler tuned while you play.",
             ),
             (
                 Toggle::MangoHud,
                 found.mangohud,
                 now.mangohud,
-                "MangoHud",
-                "The frame time, CPU and GPU overlay.",
+                "mangohud",
+                "the frame time, cpu and gpu overlay.",
             ),
             (
                 Toggle::Gpu,
                 found.two_gpus,
                 now.dedicated_gpu,
-                "Dedicated graphics card",
+                "dedicated graphics card",
                 gpu_about,
             ),
         ] {
@@ -416,7 +416,7 @@ impl Launcher {
                 .flex()
                 .flex_col()
                 .gap(px(8.))
-                .child(caps(tr("On this computer")).text_color(t.muted))
+                .child(micro(tr("on this computer")).text_color(t.muted))
                 .child(list)
         })
     }
@@ -439,43 +439,43 @@ impl Launcher {
                 .flex()
                 .flex_col()
                 .gap(px(6.))
-                .child(caps(tr(label)).text_color(t.muted))
+                .child(micro(tr(label)).text_color(t.muted))
                 .child(this.field(field, tr(placeholder), 520., cx))
                 .child(text(theme::CAPTION).text_color(t.muted).child(tr(about)))
         };
         let pre = row(
             self,
             cx,
-            "Before the game",
+            "before the game",
             Field::PreLaunch,
-            "For example ./backup.sh",
-            "A shell command, run in the instance's folder. The game starts only if it succeeds.",
+            "for example ./backup.sh",
+            "a shell command, run in the instance's folder. the game starts only if it succeeds.",
         );
         let wrapper = row(
             self,
             cx,
-            "Run the game through",
+            "run the game through",
             Field::Wrapper,
-            "For example nice -n 5",
-            "A program and its arguments; the game's command line goes after them.",
+            "for example nice -n 5",
+            "a program and its arguments; the game's command line goes after them.",
         );
         let env = row(
             self,
             cx,
-            "Environment variables",
+            "environment variables",
             Field::LaunchEnv,
-            "For example NAME=value OTHER=\"two words\"",
-            "For the game and the commands; INST_NAME, INST_DIR and the other instance variables are set too.",
+            "for example name=value other=\"two words\"",
+            "for the game and the commands; INST_NAME, INST_DIR and the other instance variables are set too.",
         );
         let post = row(
             self,
             cx,
-            "After the game",
+            "after the game",
             Field::PostExit,
-            "For example ./backup.sh",
-            "A shell command, run in the instance's folder once the game has exited.",
+            "for example ./backup.sh",
+            "a shell command, run in the instance's folder once the game has exited.",
         );
-        let save = button("launch-save", "Save", Kind::Secondary, &t).on_click(cx.listener(
+        let save = button("launch-save", "save", Kind::Secondary, &t).on_click(cx.listener(
             |this, _: &ClickEvent, _, cx| {
                 this.save_launch();
                 cx.notify();
@@ -484,10 +484,10 @@ impl Launcher {
         let result = saved.map(|s| match s {
             Ok(Some(what)) => text(theme::CAPTION)
                 .text_color(t.muted)
-                .child(trf("Saved: the next Play {what}.", &[("what", &what)])),
+                .child(trf("saved: the next play {what}.", &[("what", &what)])),
             Ok(None) => text(theme::CAPTION)
                 .text_color(t.muted)
-                .child(tr("Saved: nothing runs around the game.")),
+                .child(tr("saved: nothing runs around the game.")),
             Err(e) => text(theme::CAPTION).text_color(t.danger).child(e),
         });
         Some(
@@ -498,7 +498,7 @@ impl Launcher {
                 .px(px(14.))
                 .py(px(12.))
                 .ml(px(40.))
-                .child(caps(tr("When it starts")).text_color(t.muted))
+                .child(micro(tr("when it starts")).text_color(t.muted))
                 .child(pre)
                 .child(wrapper)
                 .child(env)

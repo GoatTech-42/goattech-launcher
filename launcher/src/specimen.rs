@@ -191,7 +191,7 @@ pub fn render(t: &Theme) -> Div {
                     control(true, night::PLAY, Some(rgb(n.accent)), None)
                         .px(px(26.))
                         .child(icon("play", 20., rgb(n.on_accent).into()))
-                        .child(text(night::TITLE, rgb(n.on_accent)).child("Play")),
+                        .child(text(night::TITLE, rgb(n.on_accent)).child("play")),
                 )
                 .child(button(
                     "Spring Valley",
@@ -199,7 +199,7 @@ pub fn render(t: &Theme) -> Div {
                     ink,
                 ))
                 .child(
-                    button("Folder", None, ink_soft)
+                    button("folder", None, ink_soft)
                         .border_2()
                         .border_color(rgb(n.accent_hi)),
                 ),
@@ -228,7 +228,7 @@ pub fn render(t: &Theme) -> Div {
             .child(
                 control(pixel, night::PLAY, Some(rgb(n.accent)), None)
                     .child(icon("play", 20., rgb(n.on_accent).into()))
-                    .child(text(night::TITLE, rgb(n.on_accent)).child("Play")),
+                    .child(text(night::TITLE, rgb(n.on_accent)).child("play")),
             )
             .child(
                 control(
@@ -246,12 +246,12 @@ pub fn render(t: &Theme) -> Div {
             )
             .child(
                 control(pixel, theme::CONTROL, None, Some((rgb(n.accent_hi), 2.)))
-                    .child(text(night::UI, ink_soft).child("Folder")),
+                    .child(text(night::UI, ink_soft).child("folder")),
             )
             .child(
                 control(pixel, 26., Some(alpha(n.card_hi, n.card_hi_alpha)), None)
                     .px(px(10.))
-                    .child(text(night::CAPTION, ink_soft).child("Update")),
+                    .child(text(night::CAPTION, ink_soft).child("update")),
             )
     };
     let comparison = plate(&n)

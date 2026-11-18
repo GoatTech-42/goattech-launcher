@@ -12,12 +12,12 @@ impl Launcher {
                 self.accounts
                     .selected()
                     .map_or_else(String::new, |a| a.name.clone()),
-                tr("Microsoft account"),
+                tr("microsoft account"),
             ),
-            Player::Offline(name) => (name, tr("Offline")),
+            Player::Offline(name) => (name, tr("offline")),
             Player::GameName => (
-                self.offline_name.clone().unwrap_or_else(|| "Player".into()),
-                tr("Offline"),
+                self.offline_name.clone().unwrap_or_else(|| "player".into()),
+                tr("offline"),
             ),
         }
     }
@@ -44,7 +44,7 @@ impl Launcher {
                 (
                     Player::Microsoft(a.uuid.clone()),
                     a.name.clone(),
-                    tr("Microsoft"),
+                    tr("microsoft"),
                 )
             })
             .collect();
@@ -52,12 +52,12 @@ impl Launcher {
             self.accounts
                 .offline
                 .iter()
-                .map(|n| (Player::Offline(n.clone()), n.clone(), tr("Offline"))),
+                .map(|n| (Player::Offline(n.clone()), n.clone(), tr("offline"))),
         );
         out.push((
             Player::GameName,
-            self.offline_name.clone().unwrap_or_else(|| "Player".into()),
-            tr("Offline, the game's name"),
+            self.offline_name.clone().unwrap_or_else(|| "player".into()),
+            tr("offline, the game's name"),
         ));
         out
     }
@@ -140,7 +140,7 @@ impl Launcher {
                 .text_color(t.muted)
                 .cursor_pointer()
                 .hover(move |s| s.bg(t.plate_soft).text_color(t.ink))
-                .child(tr("Manage accounts"))
+                .child(tr("manage accounts"))
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.account_menu = false;
                     this.go(Page::Settings);
@@ -178,7 +178,7 @@ impl Launcher {
             if !plays {
                 let who = Player::Offline(name.clone());
                 actions = actions.child(
-                    button(format!("offline-play-{i}"), "Play as", Kind::Secondary, &t).on_click(
+                    button(format!("offline-play-{i}"), "play as", Kind::Secondary, &t).on_click(
                         cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.play_as(who.clone());
                             cx.notify();
@@ -188,7 +188,7 @@ impl Launcher {
             }
             let dressed = name.clone();
             actions = actions.child(
-                button(format!("offline-skin-{i}"), "Skin…", Kind::Ghost, &t).on_click(
+                button(format!("offline-skin-{i}"), "skin…", Kind::Ghost, &t).on_click(
                     cx.listener(move |this, _: &ClickEvent, _, cx| {
                         this.open_skin(dressed.clone());
                         cx.notify();
@@ -197,7 +197,7 @@ impl Launcher {
             );
             let forget = name.clone();
             actions = actions.child(
-                button(format!("offline-forget-{i}"), "Forget", Kind::Ghost, &t).on_click(
+                button(format!("offline-forget-{i}"), "forget", Kind::Ghost, &t).on_click(
                     cx.listener(move |this, _: &ClickEvent, _, cx| {
                         let mut accounts = Accounts::load();
                         if accounts
@@ -218,9 +218,9 @@ impl Launcher {
                 Some(
                     div()
                         .child(tr(if plays {
-                            "Offline name · plays"
+                            "offline name · plays"
                         } else {
-                            "Offline name"
+                            "offline name"
                         }))
                         .into_any_element(),
                 ),
@@ -240,14 +240,14 @@ impl Launcher {
                 Some(
                     div()
                         .child(tr(if plays {
-                            "Offline name · the game's own · plays"
+                            "offline name · the game's own · plays"
                         } else {
-                            "Offline name · the game's own"
+                            "offline name · the game's own"
                         }))
                         .into_any_element(),
                 ),
                 Some(
-                    button("game-name-new", "New name", Kind::Ghost, &t)
+                    button("game-name-new", "new name", Kind::Ghost, &t)
                         .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             match instances::new_player_name() {
                                 Ok(name) => this.offline_name = Some(name),
@@ -265,9 +265,9 @@ impl Launcher {
             .flex()
             .items_center()
             .gap(px(8.))
-            .child(self.field(Field::OfflineName, tr("A name, 3 to 16 letters"), 220., cx))
+            .child(self.field(Field::OfflineName, tr("a name, 3 to 16 letters"), 220., cx))
             .child(
-                button("offline-add", "Add", Kind::Secondary, &t).on_click(cx.listener(
+                button("offline-add", "add", Kind::Secondary, &t).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.add_offline_name();
                         cx.notify();
@@ -276,12 +276,11 @@ impl Launcher {
             );
         rows = rows.child(index_row(
             n,
-            tr("Offline name"),
+            tr("offline name"),
             Some(
                 div()
                     .child(tr(
-                        "Play offline under another name, and switch from the top bar. Online \
-                         servers don't take offline names.",
+                        "play offline under another name, and switch from the top bar. online servers don't take offline names.",
                     ))
                     .into_any_element(),
             ),

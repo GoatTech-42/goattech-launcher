@@ -62,7 +62,7 @@ pub fn ensure(version: &Path) -> io::Result<PathBuf> {
     let plist = INFO_PLIST.replacen(
         MIC_DESCRIPTION,
         &crate::shortcut::xml(crate::i18n::tr(
-            "Native mods can use your microphone for voice chat when you enable it.",
+            "native mods can use your microphone for voice chat when you enable it.",
         )),
         1,
     );

@@ -70,9 +70,9 @@ pub(super) enum Tab {
 }
 
 const TABS: [(Tab, &str); 3] = [
-    (Tab::Description, "Description"),
-    (Tab::Gallery, "Gallery"),
-    (Tab::Versions, "Versions"),
+    (Tab::Description, "description"),
+    (Tab::Gallery, "gallery"),
+    (Tab::Versions, "versions"),
 ];
 
 /// The open project page.
@@ -298,7 +298,7 @@ impl Launcher {
         } else {
             &Sort::ALL
         };
-        std::iter::once((None, "Best match"))
+        std::iter::once((None, "best match"))
             .chain(all.iter().map(|s| (Some(*s), s.label())))
             .collect()
     }
@@ -348,7 +348,7 @@ impl Launcher {
                         .text_size(px(15.))
                         .font_weight(FontWeight::MEDIUM)
                         .text_color(t.ink)
-                        .child(trf("Sort by: {order}", &[("order", tr(name))])),
+                        .child(trf("sort by: {order}", &[("order", tr(name))])),
                 )
                 .child(blocks::icon("chevron-down", 16., t.muted))
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -417,9 +417,9 @@ impl Launcher {
         let toggle = button(
             "mods-filters",
             if active > 0 {
-                trf("Filters ({count})", &[("count", &active.to_string())])
+                trf("filters ({count})", &[("count", &active.to_string())])
             } else {
-                tr("Filters").to_string()
+                tr("filters").to_string()
             },
             if shown { Kind::Secondary } else { Kind::Ghost },
             &t,
@@ -441,7 +441,7 @@ impl Launcher {
             return bar;
         }
         let Some(tags) = self.mods_tags().cloned() else {
-            return bar.child(caps(tr("Loading filters")).text_color(t.muted));
+            return bar.child(micro(tr("loading filters")).text_color(t.muted));
         };
         // A chip: on or off, one value of a filter.
         let chip = |id: String, label: String, on: bool| {
@@ -458,9 +458,9 @@ impl Launcher {
                 .flex_wrap()
                 .items_center()
                 .gap(px(4.))
-                .child(caps(tr(title)).text_color(t.muted).w(px(120.)))
+                .child(micro(tr(title)).text_color(t.muted).w(px(120.)))
         };
-        let mut loaders = row("Loader");
+        let mut loaders = row("loader");
         for l in &tags.loaders {
             let on = f.loader.as_deref() == Some(l.as_str());
             let value = l.clone();
@@ -472,7 +472,7 @@ impl Launcher {
                 }),
             ));
         }
-        let mut versions = row("Game version");
+        let mut versions = row("game version");
         if let Some(path) = self.vanilla_icon() {
             versions = versions.child(img(path).size(px(20.)).flex_none());
         }
@@ -499,7 +499,7 @@ impl Launcher {
                 ),
             );
         }
-        let mut categories = row("Categories");
+        let mut categories = row("categories");
         for c in &tags.categories {
             let on = f.categories.contains(&c.name);
             let value = c.name.clone();
@@ -520,7 +520,7 @@ impl Launcher {
             );
         }
         let _ = CATEGORY_NAMES;
-        let clear = button("mods-clear", "Clear filters", Kind::Ghost, &t).on_click(cx.listener(
+        let clear = button("mods-clear", "clear filters", Kind::Ghost, &t).on_click(cx.listener(
             |this, _: &ClickEvent, _, cx| {
                 this.mods_filter(|f| *f = Filters::default());
                 cx.notify();
@@ -555,7 +555,7 @@ impl Launcher {
             Support::Partial(_) => t.warn,
             Support::No(_) => t.muted,
         };
-        let back = button("mods-back", "Back to results", Kind::Ghost, &t).on_click(cx.listener(
+        let back = button("mods-back", "back to results", Kind::Ghost, &t).on_click(cx.listener(
             |this, _: &ClickEvent, _, cx| {
                 this.mods.browse.open = None;
                 cx.notify();
@@ -590,8 +590,8 @@ impl Launcher {
         let installed = self.mods.entry(&p).is_some();
         let checking = self.mods.checking(&p);
         let mut action = div().flex().items_center().gap(px(8.)).child(
-            caps(if checking {
-                tr("Checking")
+            micro(if checking {
+                tr("checking")
             } else {
                 tr(support.label())
             })
@@ -599,14 +599,14 @@ impl Launcher {
             .text_color(color),
         );
         if busy.as_deref() == Some(p.id.as_str()) {
-            action = action.child(caps(tr("Installing")).text_color(t.accent));
+            action = action.child(micro(tr("installing")).text_color(t.accent));
         } else if installed {
-            action = action.child(caps(tr("Installed")).text_color(t.muted));
+            action = action.child(micro(tr("installed")).text_color(t.muted));
         } else if support.installable() && !checking {
             let label = if p.kind == PackKind::Modpack {
-                "Import"
+                "import"
             } else {
-                "Install"
+                "install"
             };
             let mut install = button("mods-page-install", label, Kind::Primary, &t);
             if busy.is_some() {
@@ -669,7 +669,7 @@ impl Launcher {
                     .gap(px(16.))
                     .children(super::mods_page::stars(&p.id, &t).map(|s| text(theme::UI).child(s)))
                     .child(
-                        button("mods-rate", "Sign in with GitHub to rate", Kind::Ghost, &t)
+                        button("mods-rate", "sign in with github to rate", Kind::Ghost, &t)
                             .on_click(move |_, _, cx| cx.open_url(&url)),
                     ),
             );
@@ -687,7 +687,7 @@ impl Launcher {
                     .flex()
                     .flex_col()
                     .gap(px(2.))
-                    .child(caps(tr(title)).text_color(t.muted))
+                    .child(micro(tr(title)).text_color(t.muted))
                     .children(
                         list.iter()
                             .map(|l| text(theme::CAPTION).text_color(t.ink_soft).child(l.clone())),
@@ -695,10 +695,10 @@ impl Launcher {
             };
             let mut what = div().flex().gap(px(32.));
             if !c.ports.is_empty() {
-                what = what.child(lines("Ports", &c.ports));
+                what = what.child(lines("ports", &c.ports));
             }
             if !c.skipped.is_empty() {
-                what = what.child(lines("Doesn't port", &c.skipped));
+                what = what.child(lines("doesn't port", &c.skipped));
             }
             page = page.child(what);
         }
@@ -738,14 +738,14 @@ impl Launcher {
         })));
         let body = match tab {
             Tab::Description => match &details {
-                None => centered(tr("Loading…"), &t),
+                None => centered(tr("loading…"), &t),
                 Some(Err(e)) => notice(e.clone(), &t),
                 Some(Ok(d)) => div().max_w(px(760.)).child(markdown::render(&d.body, &t)),
             },
             Tab::Gallery => match &details {
-                None => centered(tr("Loading…"), &t),
+                None => centered(tr("loading…"), &t),
                 Some(Err(e)) => notice(e.clone(), &t),
-                Some(Ok(d)) if d.gallery.is_empty() => centered(tr("No gallery images."), &t),
+                Some(Ok(d)) if d.gallery.is_empty() => centered(tr("no gallery images."), &t),
                 Some(Ok(d)) => {
                     let mut grid = div().flex().flex_wrap().gap(px(16.));
                     for g in &d.gallery {
@@ -773,7 +773,7 @@ impl Launcher {
                 }
             },
             Tab::Versions => match &versions {
-                None => centered(tr("Loading…"), &t),
+                None => centered(tr("loading…"), &t),
                 Some(Err(e)) => notice(e.clone(), &t),
                 Some(Ok(list)) => version_list.column(
                     &self.content_scroll.handle,
@@ -803,7 +803,7 @@ impl Launcher {
                             v.number.clone(),
                             Some(detail.join(" · ").into_any_element()),
                             list[i].verdict.as_ref().map(|verdict| {
-                                caps(tr(verdict.label()))
+                                micro(tr(verdict.label()))
                                     .text_color(t.muted)
                                     .into_any_element()
                             }),

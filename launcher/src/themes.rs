@@ -239,12 +239,12 @@ pub fn keep_background(dir: &Path, file: &Path) -> Result<String, String> {
         .and_then(|e| e.to_str())
         .map(str::to_ascii_lowercase)
         .filter(|e| PICTURES.contains(&e.as_str()))
-        .ok_or_else(|| format!("{shown}: a PNG, JPEG or WebP picture, please."))?;
+        .ok_or_else(|| format!("{shown}: a png, jpeg or webp picture, please."))?;
     let size = std::fs::metadata(file)
         .map_err(|e| format!("{shown}: {e}"))?
         .len();
     if size > MAX_BYTES {
-        return Err(format!("{shown} is over 40 MB."));
+        return Err(format!("{shown} is over 40 mb."));
     }
     let bytes = std::fs::read(file).map_err(|e| format!("{shown}: {e}"))?;
     let (w, h) = image::ImageReader::new(std::io::Cursor::new(&bytes))
@@ -253,7 +253,7 @@ pub fn keep_background(dir: &Path, file: &Path) -> Result<String, String> {
         .and_then(|r| r.into_dimensions().ok())
         .ok_or_else(|| format!("{shown} isn't a picture the launcher can read."))?;
     if w < 64 || h < 64 {
-        return Err(format!("{shown} is {w}×{h}: too small to fill Home."));
+        return Err(format!("{shown} is {w}×{h}: too small to fill home."));
     }
     std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let hash = crate::sources::sha1_hex(&bytes);

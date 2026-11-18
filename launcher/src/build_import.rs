@@ -30,7 +30,7 @@ pub fn is_imported(version: &str) -> bool {
 /// An imported build as a player reads it: `Imported · 2026-11-01`, or None for any other version.
 pub fn label(version: &str) -> Option<String> {
     let date = version.strip_prefix(PREFIX)?.get(..10)?;
-    Some(trf("Imported · {date}", &[("date", date)]))
+    Some(trf("imported · {date}", &[("date", date)]))
 }
 
 /// What an imported build was made from: its `imported.json`.
@@ -79,8 +79,7 @@ fn base_for(
                 .map(str::to_owned)
                 .or_else(|| native_mods::newest_installed(installed).cloned())
                 .ok_or_else(|| {
-                    tr("Install a release or Nightly first: an imported build plays with its game \
-                    files.")
+                    tr("install a release or nightly first: an imported build plays with its game files.")
                 .to_string()
                 })
         }
@@ -120,7 +119,7 @@ pub fn import(path: &Path, requested: Option<&str>) -> Result<String, String> {
 
 fn not_a_game(file: &str) -> String {
     trf(
-        "{file} is not a Horizon game for this computer.",
+        "{file} is not a horizon game for this computer.",
         &[("file", file)],
     )
 }
@@ -282,7 +281,7 @@ fn install_in(
         .and_then(|()| finish(&partial, &dir, program, &record).map_err(|e| e.to_string()));
     let _ = retried(|| fs::remove_dir_all(&partial).or_else(|_| gone(&partial)));
     if let Err(e) = made {
-        return Err(trf("Could not import the build: {error}", &[("error", &e)]));
+        return Err(trf("could not import the build: {error}", &[("error", &e)]));
     }
     Ok(tag)
 }
@@ -397,7 +396,7 @@ mod tests {
             "{tag}"
         );
         assert!(is_imported(&tag) && !official(&tag));
-        assert_eq!(label(&tag).as_deref(), Some("Imported · 2026-11-01"));
+        assert_eq!(label(&tag).as_deref(), Some("imported · 2026-11-01"));
         let dir = versions.join(&tag);
         assert_eq!(fs::read(dir.join(CLIENT)).unwrap(), built);
         assert_eq!(fs::read(base.join(CLIENT)).unwrap(), b"signed");

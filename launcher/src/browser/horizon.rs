@@ -481,11 +481,11 @@ impl Source for Registry {
             body,
             links: [
                 Link {
-                    label: "Source".into(),
+                    label: "source".into(),
                     url: p.source.clone(),
                 },
                 Link {
-                    label: "Page".into(),
+                    label: "page".into(),
                     url: project.page.clone(),
                 },
                 Link {

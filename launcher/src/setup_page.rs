@@ -60,11 +60,11 @@ pub fn open(mode: Mode, cx: &mut App) {
 
 fn step_text(step: Step) -> String {
     match step {
-        Step::Files => tr("Copying files").to_string(),
-        Step::Shortcuts => tr("Making shortcuts").to_string(),
-        Step::Registry => tr("Registering with Windows").to_string(),
-        Step::Removing => tr("Removing files").to_string(),
-        Step::Data => tr("Removing the launcher's data").to_string(),
+        Step::Files => tr("copying files").to_string(),
+        Step::Shortcuts => tr("making shortcuts").to_string(),
+        Step::Registry => tr("registering with windows").to_string(),
+        Step::Removing => tr("removing files").to_string(),
+        Step::Data => tr("removing the launcher's data").to_string(),
     }
 }
 
@@ -170,7 +170,7 @@ impl Setup {
             files: false,
             directories: true,
             multiple: false,
-            prompt: Some(tr("Choose").into()),
+            prompt: Some(tr("choose").into()),
         });
         cx.spawn(async move |this, cx| {
             if let Ok(Ok(Some(mut paths))) = paths.await {
@@ -235,7 +235,7 @@ impl Setup {
                     .flex_col()
                     .flex_1()
                     .min_w_0()
-                    .child(text(night::CAPTION, c(n.muted)).child(tr("Install to").to_string()))
+                    .child(text(night::CAPTION, c(n.muted)).child(tr("install to").to_string()))
                     .child(
                         text(theme::MICRO, c(n.ink_soft))
                             .font_family(theme::MONO)
@@ -246,7 +246,7 @@ impl Setup {
             .child(
                 action("change", Action::Raised, &t)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.choose_folder(cx)))
-                    .child(label(tr("Change…").to_string())),
+                    .child(label(tr("change…").to_string())),
             )
     }
 
@@ -257,14 +257,14 @@ impl Setup {
             Stage::Welcome if self.mode == Mode::Install => {
                 body = body
                     .child(text(night::UI, c(n.ink_soft)).child(
-                        tr("Installs Horizon Launcher for this account. No administrator needed.")
+                        tr("installs horizon launcher for this account. no administrator needed.")
                             .to_string(),
                     ))
                     .child(self.folder_row(cx))
                     .child(self.toggle(
                         "desktop",
                         self.options.desktop,
-                        tr("Desktop shortcut").to_string(),
+                        tr("desktop shortcut").to_string(),
                         None,
                         |o| o.desktop = !o.desktop,
                         cx,
@@ -273,24 +273,24 @@ impl Setup {
                         action("go", Action::Main, &t)
                             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.start(cx)))
                             .child(label(if self.update {
-                                tr("Update").to_string()
+                                tr("update").to_string()
                             } else {
-                                tr("Install").to_string()
+                                tr("install").to_string()
                             })),
                     ));
             }
             Stage::Welcome => {
                 body = body
                     .child(text(night::UI, c(n.ink_soft)).child(
-                        tr("Removes Horizon Launcher from this computer. Your worlds and the game's folder stay.")
+                        tr("removes horizon launcher from this computer. your worlds and the game's folder stay.")
                             .to_string(),
                     ))
                     .child(self.toggle(
                         "data",
                         self.options.remove_data,
-                        tr("Also delete the launcher's data").to_string(),
+                        tr("also delete the launcher's data").to_string(),
                         Some(
-                            tr("Game builds, servers made in the launcher, settings, skins.")
+                            tr("game builds, servers made in the launcher, settings, skins.")
                                 .to_string(),
                         ),
                         |o| o.remove_data = !o.remove_data,
@@ -305,14 +305,14 @@ impl Setup {
                             .child(
                                 action("cancel", Action::Raised, &t)
                                     .on_click(cx.listener(|_, _: &ClickEvent, _, cx| cx.quit()))
-                                    .child(label(tr("Cancel").to_string())),
+                                    .child(label(tr("cancel").to_string())),
                             )
                             .child(
                                 action("go", Action::Main, &t)
                                     .on_click(
                                         cx.listener(|this, _: &ClickEvent, _, cx| this.start(cx)),
                                     )
-                                    .child(label(tr("Uninstall").to_string())),
+                                    .child(label(tr("uninstall").to_string())),
                             ),
                     );
             }
@@ -323,14 +323,14 @@ impl Setup {
             }
             Stage::Done { left } => {
                 let said = match self.mode {
-                    Mode::Install => tr("Horizon Launcher is installed.").to_string(),
-                    Mode::Uninstall => tr("Horizon Launcher was removed.").to_string(),
+                    Mode::Install => tr("horizon launcher is installed.").to_string(),
+                    Mode::Uninstall => tr("horizon launcher was removed.").to_string(),
                 };
                 body = body.child(text(night::TITLE, c(n.ink)).child(said));
                 if !left.is_empty() {
                     body = body.child(
                         text(night::CAPTION, c(n.warn))
-                            .child(tr("These could not be removed:").to_string()),
+                            .child(tr("these could not be removed:").to_string()),
                     );
                     for item in left {
                         body = body.child(
@@ -349,7 +349,7 @@ impl Setup {
                                 .on_click(
                                     cx.listener(|this, _: &ClickEvent, _, cx| this.launch(cx)),
                                 )
-                                .child(label(tr("Launch Horizon").to_string())),
+                                .child(label(tr("launch horizon").to_string())),
                         ),
                     );
                 }
@@ -357,14 +357,14 @@ impl Setup {
             Stage::Failed(error) => {
                 body = body
                     .child(
-                        text(night::TITLE, c(n.ink)).child(tr("Something went wrong.").to_string()),
+                        text(night::TITLE, c(n.ink)).child(tr("something went wrong.").to_string()),
                     )
                     .child(text(night::CAPTION, c(n.danger)).child(error.clone()))
                     .child(
                         div().flex().justify_end().child(
                             action("close", Action::Raised, &t)
                                 .on_click(cx.listener(|_, _: &ClickEvent, _, cx| cx.quit()))
-                                .child(label(tr("Close").to_string())),
+                                .child(label(tr("close").to_string())),
                         ),
                     );
             }
@@ -375,7 +375,7 @@ impl Setup {
             .flex()
             .flex_col()
             .gap(px(18.))
-            .child(text(night::DISPLAY, c(n.ink)).child("Horizon"))
+            .child(text(night::DISPLAY, c(n.ink)).child("horizon"))
             .child(body)
     }
 }

@@ -148,9 +148,9 @@ impl Launcher {
         let now = self.instances.dialog.as_ref().map(|d| d.java.kind);
         div().flex().gap(px(4.)).children(
             [
-                (NewKind::Vanilla, "Vanilla", "Vanilla"),
-                (NewKind::Modded, "Modded", "Modded"),
-                (NewKind::Horizon, "Horizon", "Horizon (Rust)"),
+                (NewKind::Vanilla, "vanilla", "vanilla"),
+                (NewKind::Modded, "modded", "modded"),
+                (NewKind::Horizon, "horizon", "horizon (rust)"),
             ]
             .map(|(kind, id, label)| {
                 shell::tab(format!("new-kind-{id}"), tr(label), now == Some(kind), &t).on_click(
@@ -193,11 +193,66 @@ impl Launcher {
         });
         let list: AnyElement = match &self.instances.versions {
             VersionList::NotAsked | VersionList::Loading => shell::text(night::UI, c(n.muted))
-                .child(tr("Asking Mojang for its versions…").to_string())
+                .child(tr("asking mojang for its versions…").to_string())
                 .into_any_element(),
-            VersionList::Failed(e) => shell::text(night::UI, c(n.danger))
-                .child(e.clone())
-                .into_any_element(),
+            VersionList::Failed(e) => {
+                // The versions/patch notes pattern: one plain line carries the state, a try
+                // again restarts the fetch, and the raw error sits behind details.
+                let detail = self.new_version_error_detail;
+                let raw = e.clone();
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(8.))
+                    .child(
+                        shell::text(night::UI, c(n.danger)).child(
+                            tr("mojang's version list could not be fetched. check the connection and try again in a few minutes.")
+                                .to_string(),
+                        ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .gap(px(8.))
+                            .child(
+                                button("retry-mc-versions", "try again", Kind::Secondary, &t)
+                                    .on_click(cx.listener(
+                                        |this, _: &ClickEvent, _, cx| {
+                                            this.instances.versions = VersionList::NotAsked;
+                                            this.new_version_error_detail = false;
+                                            this.ensure_versions(cx);
+                                            cx.notify();
+                                        },
+                                    )),
+                            )
+                            .child(
+                                button(
+                                    "mc-versions-error-detail",
+                                    if detail { "hide details" } else { "details" },
+                                    Kind::Ghost,
+                                    &t,
+                                )
+                                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                                    this.new_version_error_detail =
+                                        !this.new_version_error_detail;
+                                    cx.notify();
+                                })),
+                            ),
+                    )
+                    .when(detail, |d| {
+                        d.child(
+                            div()
+                                .max_w(px(560.))
+                                .p(px(12.))
+                                .bg(t.well)
+                                .font_family(theme::MONO)
+                                .text_size(px(11.))
+                                .text_color(t.muted)
+                                .child(raw),
+                        )
+                    })
+                    .into_any_element()
+            }
             VersionList::Ready(versions) => {
                 let rows: Vec<_> = versions
                     .of(choice.snapshots, choice.old)
@@ -207,10 +262,10 @@ impl Launcher {
                         let selected = chosen.as_deref() == Some(v.id.as_str());
                         let id = v.id.clone();
                         let kind = match v.kind {
-                            VersionKind::Release => "Release",
-                            VersionKind::Snapshot => "Snapshot",
-                            VersionKind::OldBeta => "Beta",
-                            VersionKind::OldAlpha => "Alpha",
+                            VersionKind::Release => "release",
+                            VersionKind::Snapshot => "snapshot",
+                            VersionKind::OldBeta => "beta",
+                            VersionKind::OldAlpha => "alpha",
                         };
                         shell::row(format!("mc-{}", v.id), selected, &t)
                             .flex_none()
@@ -234,7 +289,7 @@ impl Launcher {
                     .collect();
                 if rows.is_empty() {
                     shell::text(night::UI, c(n.muted))
-                        .child(tr("No version matches.").to_string())
+                        .child(tr("no version matches.").to_string())
                         .into_any_element()
                 } else {
                     div()
@@ -256,16 +311,16 @@ impl Launcher {
             .flex()
             .items_center()
             .gap(px(8.))
-            .child(self.field(Field::InstanceVersion, tr("Search versions"), 240., cx))
+            .child(self.field(Field::InstanceVersion, tr("search versions"), 240., cx))
             .child(
-                toggle("mc-snapshots", "Snapshots", choice.snapshots).on_click(cx.listener(
+                toggle("mc-snapshots", "snapshots", choice.snapshots).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.change(|j| j.snapshots = !j.snapshots);
                         cx.notify();
                     },
                 )),
             )
-            .child(toggle("mc-old", "Old", choice.old).on_click(cx.listener(
+            .child(toggle("mc-old", "old", choice.old).on_click(cx.listener(
                 |this, _: &ClickEvent, _, cx| {
                     this.change(|j| j.old = !j.old);
                     cx.notify();
@@ -275,7 +330,7 @@ impl Launcher {
             .flex()
             .flex_col()
             .gap(px(10.))
-            .child(heading("Minecraft version"))
+            .child(heading("minecraft version"))
             .child(filters)
             .child(list);
         if choice.kind == NewKind::Modded {
@@ -316,7 +371,7 @@ impl Launcher {
             };
             // All four loaders install (Forge and NeoForge through the verified installer
             // driver); their cards carry no service logo, as only Fabric and Quilt have one.
-            rows = rows.child(heading("Loader")).child(
+            rows = rows.child(heading("loader")).child(
                 div()
                     .flex()
                     .flex_wrap()
@@ -328,7 +383,7 @@ impl Launcher {
             );
         }
         rows.child(shell::text(night::CAPTION, c(n.muted)).child(
-            tr("Play downloads the game from Mojang for your account the first time, with the Java it needs.")
+            tr("play downloads the game from mojang for your account the first time, with the java it needs.")
                 .to_string(),
         ))
     }

@@ -56,7 +56,7 @@ enum ServersCmd {
     List,
     /// Create a server; with no options it is a new world, survival, normal, 10 players, friends only
     Create {
-        #[arg(long, default_value = "My server")]
+        #[arg(long, default_value = "my server")]
         name: String,
         /// The new world's seed (default: random)
         #[arg(long, conflicts_with = "copy_world")]
@@ -1297,9 +1297,7 @@ fn attached_run_with(
                 (Ok(()), Err(he)) => {
                     drop(mark);
                     format!(
-                        "sync: {e} - the game was confirmed stopped, but the sync guard \
-                         is lost: {he}. Launching again retries; if sync misbehaves, \
-                         remove the mark file"
+                        "sync: {e} - the game was confirmed stopped, but the sync guard is lost: {he}. launching again retries; if sync misbehaves, remove the mark file"
                     )
                 }
                 (Err(se), Ok(())) => {
@@ -1585,7 +1583,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                     // The instance's version is never looked at here: the newest installed
                     // release or Nightly, or that one with `--update` (never a native build).
                     None => native_mods::base_for(None, &backend::installed(), update)
-                        .ok_or_else(|| tr("No version is installed yet."))?,
+                        .ok_or_else(|| tr("no version is installed yet."))?,
                 };
                 let built = native_mods::build_server(
                     &base,
@@ -1597,7 +1595,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 )
                 .map_err(|e| match e.starts_with(native_mods::MISMATCH) {
                     true => trf(
-                        "{error} They often still build: pass --allow-version-mismatch to try.",
+                        "{error} they often still build: pass --allow-version-mismatch to try.",
                         &[("error", e.as_str())],
                     ),
                     false => e,
@@ -1606,13 +1604,12 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 let path = built.display().to_string();
                 println!(
                     "{}",
-                    trf("Built the server engine: {path}", &[("path", &path)])
+                    trf("built the server engine: {path}", &[("path", &path)])
                 );
                 println!(
                     "{}",
                     tr(
-                        "Point the server at it: set engine.path to this file in the server's \
-                        server.toml (docs/engine/hosting.md); the launcher writes nothing itself."
+                        "point the server at it: set engine.path to this file in the server's server.toml (docs/engine/hosting.md); the launcher writes nothing itself."
                     )
                 );
                 return Ok(());
@@ -1626,7 +1623,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
                 None => {
                     let plays = target.resolve_version(None).ok();
                     native_mods::base_for(plays.as_deref(), &backend::installed(), update)
-                        .ok_or("No version is installed yet.")?
+                        .ok_or("no version is installed yet.")?
                 }
             };
             let folder = match folder {
@@ -1856,7 +1853,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             } else {
                 // Luke 2026-11-03: no Discord server exists; the Discord
                 // destination is dead and stays out of the printed links.
-                for (name, url) in [("Sponsor", &links.sponsor), ("Website", &links.website)] {
+                for (name, url) in [("sponsor", &links.sponsor), ("website", &links.website)] {
                     println!("{name:<8} {}", if url.is_empty() { "(none)" } else { url });
                 }
             }
@@ -3084,8 +3081,8 @@ fn other_instances(folder: Option<&Path>) -> Result<Vec<other_launchers::Found>,
 fn other_plays(f: &other_launchers::Found) -> String {
     match (&f.minecraft, &f.loader) {
         (None, _) => "Minecraft version not recorded: copy-from --minecraft <version>".into(),
-        (Some(v), Some(l)) => format!("Minecraft {v} with {} {}", l.name, l.version),
-        (Some(v), None) => format!("Minecraft {v}"),
+        (Some(v), Some(l)) => format!("minecraft {v} with {} {}", l.name, l.version),
+        (Some(v), None) => format!("minecraft {v}"),
     }
 }
 

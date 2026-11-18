@@ -8,11 +8,11 @@ use std::path::PathBuf;
 
 /// The report's filter: every row, or one status.
 pub(super) const FILTERS: [(Option<Status>, &str); 5] = [
-    (None, "All"),
-    (Some(Status::Ported), "Ported"),
-    (Some(Status::Partial), "Partial"),
-    (Some(Status::NotYet), "Not yet"),
-    (Some(Status::NotNeeded), "Not needed"),
+    (None, "all"),
+    (Some(Status::Ported), "ported"),
+    (Some(Status::Partial), "partial"),
+    (Some(Status::NotYet), "not yet"),
+    (Some(Status::NotNeeded), "not needed"),
 ];
 
 /// Lines of the pipeline's log the page shows while it works.
@@ -66,7 +66,7 @@ impl Launcher {
             files: !folder,
             directories: folder,
             multiple: false,
-            prompt: Some(tr("Import").into()),
+            prompt: Some(tr("import").into()),
         });
         cx.spawn(async move |this, cx| {
             if let Ok(Ok(Some(mut paths))) = paths.await {
@@ -98,7 +98,7 @@ impl Launcher {
             files: false,
             directories: true,
             multiple: false,
-            prompt: Some(tr("Use these jars").into()),
+            prompt: Some(tr("use these jars").into()),
         });
         cx.spawn(async move |this, cx| {
             if let Ok(Ok(Some(mut paths))) = paths.await {
@@ -167,18 +167,16 @@ impl Launcher {
             .flex_wrap()
             .items_center()
             .gap(px(8.))
-            .child(pick("import-file", "Import a pack file…", false))
-            .child(pick("import-folder", "Import an instance folder…", true))
+            .child(pick("import-file", "import a pack file…", false))
+            .child(pick("import-folder", "import an instance folder…", true))
             .child(text(theme::CAPTION).w_full().text_color(t.muted).child(tr(
-                ".mrpack (Modrinth), .zip (CurseForge), or a Prism, MultiMC or CurseForge instance. \
-                 Horizon ports what it can on this computer, from your own downloads, and plays \
-                 the pack as its own profile. Nothing is uploaded or shared.",
+                ".mrpack (modrinth), .zip (curseforge), or a prism, multimc or curseforge instance. horizon ports what it can on this computer, from your own downloads, and plays the pack as its own profile. nothing is uploaded or shared.",
             )));
         let mut page = div()
             .flex()
             .flex_col()
             .gap(px(16.))
-            .child(section_title("Your modpacks", "archive", &t))
+            .child(section_title("your modpacks", "archive", &t))
             .child(actions);
         if busy || !self.pack_log.is_empty() {
             page = page.child(self.pack_log_plate(&t));
@@ -194,7 +192,7 @@ impl Launcher {
         }
         if self.packs.is_empty() {
             return page.child(text(theme::CAPTION).text_color(t.muted).child(tr(
-                "No modpack imported yet: import one, or find one below.",
+                "no modpack imported yet: import one, or find one below.",
             )));
         }
         if self.packs.len() > 1 {
@@ -203,9 +201,9 @@ impl Launcher {
                 let open = self.pack_open.as_ref() == Some(&p.slug);
                 let slug = p.slug.clone();
                 let right = if open {
-                    caps(tr("Open")).text_color(t.accent).into_any_element()
+                    micro(tr("open")).text_color(t.accent).into_any_element()
                 } else {
-                    button(format!("open-{slug}"), "Open", Kind::Ghost, &t)
+                    button(format!("open-{slug}"), "open", Kind::Ghost, &t)
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.pack_open = Some(slug.clone());
                             this.mods.report_list.reset();
@@ -242,7 +240,7 @@ impl Launcher {
                 .flex()
                 .gap(px(8.))
                 .child(
-                    button(format!("play-pack-{id}"), "Play", Kind::Primary, &t).on_click(
+                    button(format!("play-pack-{id}"), "play", Kind::Primary, &t).on_click(
                         cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.play_pack(play.clone());
                             cx.notify();
@@ -253,9 +251,9 @@ impl Launcher {
                     button(
                         format!("remove-pack-{id}"),
                         if confirming {
-                            "Remove for good"
+                            "remove for good"
                         } else {
-                            "Remove"
+                            "remove"
                         },
                         if confirming {
                             Kind::Secondary
@@ -281,7 +279,7 @@ impl Launcher {
                     )),
                 );
             let detail = trf(
-                "{version} from Horizon's registry, its own profile: {mods}",
+                "{version} from horizon's registry, its own profile: {mods}",
                 &[("version", &p.version), ("mods", &p.mods.join(", "))],
             );
             list = list.child(index_row(
@@ -308,7 +306,7 @@ impl Launcher {
             .gap(px(4.))
             .p(px(16.))
             .child(
-                caps(tr(if self.pack_busy { "Working" } else { "Done" }))
+                micro(tr(if self.pack_busy { "working" } else { "done" }))
                     .text_color(if self.pack_busy { t.accent } else { t.muted }),
             )
             .children(self.pack_log.iter().skip(start).map(|line| {
@@ -343,17 +341,17 @@ impl Launcher {
                             .text_color(color)
                             .child(p.count(status).to_string()),
                     )
-                    .child(caps(tr(label)).text_color(t.muted)),
+                    .child(micro(tr(label)).text_color(t.muted)),
             );
         }
         // Prepared, nothing preparing or running (`play_pack` checks the same).
         let can_play = self.can_start_selected();
         let mut buttons = div().flex().flex_wrap().items_center().gap(px(8.));
         let play_label = if p.mods.is_empty() {
-            tr("Play").to_string()
+            tr("play").to_string()
         } else {
             trf(
-                "Play with {count} mods",
+                "play with {count} mods",
                 &[("count", &p.mods.len().to_string())],
             )
         };
@@ -368,17 +366,17 @@ impl Launcher {
             }));
         }
         let port_label = if p.indexed_resources == 0 {
-            trf("Port {count} mods", &[("count", &p.portable.to_string())])
+            trf("port {count} mods", &[("count", &p.portable.to_string())])
         } else if p.portable == 0 {
-            format!("Get {} resource packs", p.indexed_resources)
+            format!("get {} resource packs", p.indexed_resources)
         } else {
             format!(
-                "Port {} mods + {} resource packs",
+                "port {} mods + {} resource packs",
                 p.portable, p.indexed_resources
             )
         };
         let mut port = button("pack-port", port_label, Kind::Secondary, &t);
-        let mut from = button("pack-from", "Use jars from my instance…", Kind::Ghost, &t);
+        let mut from = button("pack-from", "use jars from my instance…", Kind::Ghost, &t);
         if self.pack_busy || !p.can_port() {
             port = disabled(port);
             from = disabled(from);
@@ -402,9 +400,9 @@ impl Launcher {
         let remove = button(
             "pack-remove",
             if confirming {
-                "Remove for good"
+                "remove for good"
             } else {
-                "Remove"
+                "remove"
             },
             if confirming {
                 Kind::Secondary
@@ -432,26 +430,24 @@ impl Launcher {
         }));
         buttons = buttons.child(play).child(port).child(from).child(remove);
         let mut notes = vec![trf(
-            "Port gets the jars of the {count} mods this computer can port today (content with data \
-             and assets only) from the pack's own links, Modrinth, or your folder, and carries \
-             them over. The ports stay here, in {folder}.",
+            "port gets the jars of the {count} mods this computer can port today (content with data and assets only) from the pack's own links, modrinth, or your folder, and carries them over. the ports stay here, in {folder}.",
             &[
                 ("count", &p.portable.to_string()),
                 ("folder", &short(&p.work)),
             ],
         )];
         notes.push(format!(
-            "{} resource packs available. Enable them in the game's Resource Packs screen.",
+            "{} resource packs available. enable them in the game's resource packs screen.",
             p.resourcepacks
         ));
         if let Some(jars) = p.jars() {
             notes.push(jars);
         }
         for line in &p.left_off {
-            notes.push(trf("Left off: {line}.", &[("line", line)]));
+            notes.push(trf("left off: {line}.", &[("line", line)]));
         }
         if !can_play {
-            notes.push(tr("Playing needs a prepared Horizon version (Play page).").into());
+            notes.push(tr("playing needs a prepared horizon version (play page).").into());
         }
         let mut rows: Vec<&horizon_port_pack::report::Row> = p
             .rows
@@ -472,10 +468,10 @@ impl Launcher {
         let row = |i: usize| {
             let r = rows[i];
             let (color, status_label) = match r.status {
-                Status::Ported => (t.success, tr("Ported")),
-                Status::Partial => (t.accent, tr("Partial")),
-                Status::NotYet => (t.ink_soft, tr("Not yet")),
-                Status::NotNeeded => (t.muted, tr("Not needed")),
+                Status::Ported => (t.success, tr("ported")),
+                Status::Partial => (t.accent, tr("partial")),
+                Status::NotYet => (t.ink_soft, tr("not yet")),
+                Status::NotNeeded => (t.muted, tr("not needed")),
             };
             let name = if r.name.is_empty() || r.name == r.key {
                 r.key.clone()
@@ -488,7 +484,7 @@ impl Launcher {
                 name,
                 Some(detail.into_any_element()),
                 Some(
-                    caps(status_label)
+                    micro(status_label)
                         .flex_none()
                         .text_color(color)
                         .into_any_element(),

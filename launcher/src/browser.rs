@@ -48,11 +48,11 @@ impl Kind {
 
     pub fn label(self) -> &'static str {
         match self {
-            Kind::Mod => "Mods",
-            Kind::ResourcePack => "Resource packs",
-            Kind::Modpack => "Modpacks",
-            Kind::Shader => "Shader packs",
-            Kind::DataPack => "Data packs",
+            Kind::Mod => "mods",
+            Kind::ResourcePack => "resource packs",
+            Kind::Modpack => "modpacks",
+            Kind::Shader => "shader packs",
+            Kind::DataPack => "data packs",
         }
     }
 
@@ -80,9 +80,9 @@ pub enum SourceId {
 impl SourceId {
     pub fn label(self) -> &'static str {
         match self {
-            SourceId::Modrinth => "Modrinth",
-            SourceId::CurseForge => "CurseForge",
-            SourceId::Horizon => "Horizon",
+            SourceId::Modrinth => "modrinth",
+            SourceId::CurseForge => "curseforge",
+            SourceId::Horizon => "horizon",
         }
     }
 }
@@ -107,7 +107,7 @@ impl Support {
         match self {
             Support::Works => "Works",
             Support::Partial(_) => "Partly",
-            Support::No(_) => "Doesn't run",
+            Support::No(_) => "doesn't run",
         }
     }
 
@@ -265,10 +265,10 @@ pub trait Source: Send + Sync {
 }
 
 /// What the launcher says wherever CurseForge would be.
-pub const CURSEFORGE_SOON: &str = "CurseForge support is coming soon.";
+pub const CURSEFORGE_SOON: &str = "curseforge support is coming soon.";
 /// What another source answers for shader packs: Horizon's own are on its registry only.
 pub const SHADERS_ON_HORIZON: &str =
-    "Horizon's shader packs are on Horizon's registry: pick Horizon.";
+    "horizon's shader packs are on horizon's registry: pick horizon.";
 
 /// The sources this launcher uses: Modrinth and Horizon's registry. CurseForge support is coming
 /// soon: its API needs a paid key, so no search or install goes to it; `curseforge` is kept for
@@ -289,7 +289,7 @@ pub fn support(kind: Kind, game_versions: &[String], loaders: &[String]) -> Supp
         return match newest_release(game_versions)
             .filter(|_| !game_versions.iter().any(|v| v == GAME))
         {
-            Some(other) => Support::No(format!("Made for Horizon on {other}.")),
+            Some(other) => Support::No(format!("made for horizon on {other}.")),
             None => Support::Works,
         };
     }
@@ -299,36 +299,35 @@ pub fn support(kind: Kind, game_versions: &[String], loaders: &[String]) -> Supp
                 Support::Works
             } else if let Some(newest) = newest_release(game_versions) {
                 Support::Partial(format!(
-                    "Made for {newest}: it loads with vanilla's compatibility warning, and \
-                     what changed since may look wrong."
+                    "made for {newest}: it loads with vanilla's compatibility warning, and what changed since may look wrong."
                 ))
             } else {
-                Support::Partial("Lists no Minecraft version.".into())
+                Support::Partial("lists no minecraft version.".into())
             }
         }
         Kind::Modpack => {
-            Support::Partial("Horizon runs the mods it can port, from your own downloads.".into())
+            Support::Partial("horizon runs the mods it can port, from your own downloads.".into())
         }
-        Kind::Shader => Support::No("Not one of Horizon's own shader packs.".into()),
+        Kind::Shader => Support::No("not one of horizon's own shader packs.".into()),
         Kind::DataPack => {
             let made_for = match newest_release(game_versions) {
                 _ if game_versions.iter().any(|v| v == GAME) => String::new(),
-                Some(newest) => format!("Made for {newest}: the game may refuse it. "),
-                None => "Lists no Minecraft version. ".into(),
+                Some(newest) => format!("made for {newest}: the game may refuse it. "),
+                None => "lists no minecraft version. ".into(),
             };
             Support::Partial(format!("{made_for}{DATAPACK_SUPPORT}"))
         }
         Kind::Mod => {
             if !loaders.iter().any(|l| java::LOADERS.contains(&l.as_str())) {
-                Support::No("Not a Fabric, NeoForge or Forge mod.".into())
+                Support::No("not a fabric, neoforge or forge mod.".into())
             } else if !game_versions.iter().any(|v| portable_version(v)) {
                 let newest = newest_release(game_versions).unwrap_or("an unknown version");
                 Support::No(format!(
-                    "Made for {newest}: Horizon ports mods made for 1.21 and later."
+                    "made for {newest}: horizon ports mods made for 1.21 and later."
                 ))
             } else {
                 Support::Partial(
-                    "Not checked yet: the launcher reads its jar to say what of it ports.".into(),
+                    "not checked yet: the launcher reads its jar to say what of it ports.".into(),
                 )
             }
         }
@@ -337,9 +336,7 @@ pub fn support(kind: Kind, game_versions: &[String], loaders: &[String]) -> Supp
 
 /// What a data pack does in Horizon today, said before install; the install says it for the
 /// pack's own files (`crate::datapacks::coverage`).
-pub const DATAPACK_SUPPORT: &str = "Horizon runs a data pack's functions, function tags, \
-     predicates and item modifiers; not yet its recipes, loot tables, advancements, other tags \
-     or worldgen.";
+pub const DATAPACK_SUPPORT: &str = "horizon runs a data pack's functions, function tags, predicates and item modifiers; not yet its recipes, loot tables, advancements, other tags or worldgen.";
 
 /// A Minecraft version whose mods port-pack carries over: 1.21 and later (the data folders
 /// took their current names in 1.21).

@@ -29,13 +29,13 @@ impl Launcher {
             }));
         index_row(
             n,
-            tr("No AI"),
+            tr("no ai"),
             Some(
                 div()
                     .child(tr(if on {
-                        "On: every AI feature is hidden and off. The game opens no control socket, and horizon-ctl and the MCP servers refuse."
+                        "on: every ai feature is hidden and off. the game opens no control socket, and horizon-ctl and the mcp servers refuse."
                     } else {
-                        "Hides and turns off every AI feature: agent control of the launcher and the game, horizon-ctl and the MCP servers."
+                        "hides and turns off every ai feature: agent control of the launcher and the game, horizon-ctl and the mcp servers."
                     }))
                     .into_any_element(),
             ),
@@ -72,7 +72,7 @@ impl Launcher {
             let copied = self.agents.copied == Some(id);
             button(
                 id,
-                if copied { "Copied" } else { "Copy" },
+                if copied { "copied" } else { "copy" },
                 Kind::Secondary,
                 &t,
             )
@@ -104,20 +104,20 @@ impl Launcher {
             .child(
                 text(theme::HEADING)
                     .text_color(t.ink)
-                    .child(tr("Connect an AI agent")),
+                    .child(tr("connect an ai agent")),
             )
             .child(div().max_w(px(640.)).text_color(t.muted).child(tr(
-                "Your own agent (Claude Code, Codex, Cursor or any MCP client) can drive the launcher and the game it starts, with the same commands as the terminal. It runs on your computer and talks to Horizon there; it asks before deleting anything.",
+                "your own agent (claude code, codex, cursor or any mcp client) can drive the launcher and the game it starts, with the same commands as the terminal. it runs on your computer and talks to horizon there; it asks before deleting anything.",
             )))
             .child(picker);
         if let Some((program, args)) = client.add.clone() {
             let line = client.add_line().unwrap_or_default();
-            let label = trf("Add to {client}", &[("client", client.name)]);
+            let label = trf("add to {client}", &[("client", client.name)]);
             let busy = self.agents.busy;
             let add = button(
                 "agent-add",
                 if busy {
-                    tr("Running…").to_owned()
+                    tr("running…").to_owned()
                 } else {
                     label
                 },
@@ -160,15 +160,15 @@ impl Launcher {
         section = section
             .child(div().text_color(t.muted).child(trf(
                 if client.add.is_some() {
-                    "Or put this in {file}:"
+                    "or put this in {file}:"
                 } else {
-                    "Put this in {file}:"
+                    "put this in {file}:"
                 },
                 &[("file", tr(client.file))],
             )))
             .child(code(&client.config))
             .child(div().flex().gap(px(8.)).child(copy("agent-copy-config", client.config.clone(), cx)).child(
-                button("agent-test", "Test the connection", Kind::Secondary, &t).on_click(cx.listener(
+                button("agent-test", "test the connection", Kind::Secondary, &t).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         if this.agents.busy {
                             return;
@@ -178,8 +178,8 @@ impl Launcher {
                         let exe = backend::update_target();
                         let task = cx.background_executor().spawn(async move {
                             match agents::self_test(&exe) {
-                                Ok(n) => (true, trf("The MCP server answered with {count} tools. Now ask your agent: \"Say hello from Horizon\".", &[("count", &n.to_string())])),
-                                Err(e) => (false, trf("The MCP server did not answer: {error}", &[("error", &e)])),
+                                Ok(n) => (true, trf("the mcp server answered with {count} tools. now ask your agent: \"say hello from horizon\".", &[("count", &n.to_string())])),
+                                Err(e) => (false, trf("the mcp server did not answer: {error}", &[("error", &e)])),
                             }
                         });
                         cx.spawn(async move |this, cx| {
@@ -209,7 +209,7 @@ impl Launcher {
                     .text_color(t.accent)
                     .cursor_pointer()
                     .hover(|s| s.opacity(0.8))
-                    .child(tr("What an agent can do, and the commands"))
+                    .child(tr("what an agent can do, and the commands"))
                     .on_click(|_, _, cx| cx.open_url(backend::AGENT_DOCS_URL)),
             ),
         )
@@ -225,7 +225,7 @@ fn run_add(program: &str, args: &[String]) -> (bool, String) {
         Ok(out) if out.status.success() => (
             true,
             trf(
-                "Added. Restart {program} if it is open, then ask it: \"Say hello from Horizon\".",
+                "added. restart {program} if it is open, then ask it: \"say hello from horizon\".",
                 &[("program", program)],
             ),
         ),
@@ -250,14 +250,14 @@ fn run_add(program: &str, args: &[String]) -> (bool, String) {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => (
             false,
             trf(
-                "{program} is not installed here (or not on the PATH): copy the config instead.",
+                "{program} is not installed here (or not on the path): copy the config instead.",
                 &[("program", program)],
             ),
         ),
         Err(e) => (
             false,
             trf(
-                "Could not run {program}: {error}",
+                "could not run {program}: {error}",
                 &[("program", program), ("error", &e.to_string())],
             ),
         ),

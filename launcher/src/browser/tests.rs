@@ -44,7 +44,7 @@ fn support_by_kind() {
     );
     assert_eq!(old.label(), "Partly");
     assert!(
-        old.reason().unwrap().starts_with("Made for 1.21.10:"),
+        old.reason().unwrap().starts_with("made for 1.21.10:"),
         "{old:?}"
     );
     assert!(support(Kind::Modpack, &v(&["1.21.1"]), &v(&["neoforge"])).installable());
@@ -92,7 +92,7 @@ fn data_packs_are_their_own_kind() {
     assert_eq!(now.reason(), Some(DATAPACK_SUPPORT));
     let old = support(Kind::DataPack, &v(&["1.21.4"]), &v(&["datapack"]));
     assert!(
-        old.reason().unwrap().starts_with("Made for 1.21.4"),
+        old.reason().unwrap().starts_with("made for 1.21.4"),
         "{old:?}"
     );
     assert!(old.installable());
@@ -189,7 +189,7 @@ fn modrinth_search_asks_for_what_runs() {
 fn java_mods_are_checked_for_1_21_and_later() {
     assert_eq!(
         support(Kind::Mod, &v(&["1.20.1"]), &v(&["forge"])),
-        Support::No("Made for 1.20.1: Horizon ports mods made for 1.21 and later.".into())
+        Support::No("made for 1.20.1: horizon ports mods made for 1.21 and later.".into())
     );
     assert!(!support(Kind::Mod, &v(&[GAME]), &v(&["rift"])).installable());
     assert!(matches!(

@@ -71,13 +71,13 @@ impl Launcher {
             .gap(px(4.))
             .children(tabs.into_iter().map(|(tab, count)| {
                 let name = match tab {
-                    HomeTab::Overview => tr("Overview"),
-                    HomeTab::Mods => tr("Mods"),
-                    HomeTab::Worlds => tr("Worlds"),
-                    HomeTab::Multiplayer => tr("Multiplayer"),
-                    HomeTab::Packs => tr("Packs"),
-                    HomeTab::Screenshots => tr("Screenshots"),
-                    HomeTab::Console => tr("Console"),
+                    HomeTab::Overview => tr("overview"),
+                    HomeTab::Mods => tr("mods"),
+                    HomeTab::Worlds => tr("worlds"),
+                    HomeTab::Multiplayer => tr("multiplayer"),
+                    HomeTab::Packs => tr("packs"),
+                    HomeTab::Screenshots => tr("screenshots"),
+                    HomeTab::Console => tr("console"),
                 };
                 let label = match count {
                     Some(n) if n > 0 => format!("{name} {n}"),
