@@ -5531,21 +5531,32 @@ impl Render for Launcher {
             // The wordmark arrives letter by letter, then gives way to the launcher; a click or
             // a key skips ahead.
             let gone = 1. - ease_out_cubic(reveal / 0.6);
+            // Each letter is its own element for the stagger, so shaping spans none of them:
+            // the display face's own pair kerns (units per em, from its GPOS) and the wordmark
+            // token's tracking go on by hand, or the word reads letter-spaced, not set.
+            // GPOS pair kerns from the rendered face (Bricolage Grotesque Display Bold, upm 1000):
+            // GO -1, OA -35, TT +23, EC -23 match the font exactly; AT=0 is an OPTICAL OVERRIDE
+            // (font GPOS says -84, which crowds the T into the A at wordmark sizes) - not font kerning.
+            const WORDMARK_KERN: [f32; 7] = [-1., -35., 0., 23., 0., -23., 0.]; // GO OA AT TT TE EC CH
+            let word_size = theme::WORDMARK.px * 0.5;
             let word = div()
                 .flex()
                 // One bundled display face keeps every letter in the wordmark consistent.
                 .font_family(theme::DISPLAY_FONT)
-                .text_size(px(theme::WORDMARK.px * 0.5))
-                .line_height(px(theme::WORDMARK.px * 0.5))
+                .text_size(px(word_size))
+                .line_height(px(word_size))
                 .font_weight(FontWeight::BOLD)
                 .text_color(t.ink)
                 .children("GOATTECH".chars().enumerate().map(|(i, c)| {
                     let at = held - i as f32 * theme::STAGGER.as_secs_f32() * 1.5;
                     let p = ease_out_cubic(at / theme::ENTER.as_secs_f32());
+                    let kern = WORDMARK_KERN.get(i.wrapping_sub(1)).copied().unwrap_or(0.);
+                    let shift = word_size * (theme::WORDMARK.tracking + kern / 1000.);
                     div()
                         .relative()
                         .opacity(p)
                         .top(px(theme::RISE * 2. * (1. - p)))
+                        .when(i > 0, |d| d.ml(px(shift)))
                         .child(c.to_string())
                 }));
             root = root.child(
