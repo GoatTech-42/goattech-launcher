@@ -81,6 +81,20 @@
     border-top: 2px solid var(--edge);
   }
   footer a { color: var(--dim); text-decoration: none; display: inline-flex; align-items: center; gap: 8px; padding: 6px 2px; }
+  @media (min-width: 1400px) {
+    main { max-width: 1120px; }
+    body { font-size: 17px; }
+    header .name { font-size: 19px; }
+    h1 { font-size: 64px; }
+    .tagline { font-size: 24px; }
+    .sub { max-width: 640px; }
+    h2 { font-size: 30px; }
+    .hook h3 { font-size: 16px; }
+    .hook p { font-size: 15px; }
+    .feat li { font-size: 15px; }
+    .btn { font-size: 17px; }
+    .smallprint, footer { font-size: 14px; }
+  }
   @media (max-width: 720px) {
     .hookgrid, .feat { grid-template-columns: 1fr; }
     h1 { font-size: 32px; }
