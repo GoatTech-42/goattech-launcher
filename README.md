@@ -25,9 +25,9 @@ one launcher for every way you play minecraft. the fast horizon rust engine and 
 - microsoft sign-in, saved securely on your machine.
 - instance icons and banners. make each one yours.
 - pinned versions. launcher updates never move your game.
-- auto updates from github releases. no ads, ever.
+- no ads, ever.
 - a real 3d model of your skin on the home screen. drag it to turn it; it sways, looks around and waves on its own.
-- light, useful stats on by default. opt out any time.
+- light, useful stats on by default. opt out any time. an anonymous player-count ping runs while you play either way.
 
 ## how it ships
 
