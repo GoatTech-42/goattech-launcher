@@ -826,6 +826,7 @@
   "rust and java live side by side. each instance keeps its own version, runtime, mods, configs and saves.": "rust and java live side by side. each instance keeps its own version, runtime, mods, configs and saves.",
   "seed (optional: leave empty for a random world)": "seed (optional: leave empty for a random world)",
   "sign in to launch": "sign in to launch",
+  "sign in to prepare": "sign in to prepare",
   "true monochrome by default. every colour keeps text as easy to read.": "true monochrome by default. every colour keeps text as easy to read.",
   "type a command: say hello, time set day, gamemode creative alex…": "type a command: say hello, time set day, gamemode creative alex…",
   "you": "you",

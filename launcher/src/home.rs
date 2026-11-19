@@ -6,6 +6,45 @@ use crate::plate::alpha;
 use crate::shell::{action, c, label, Action};
 use theme::night;
 
+/// The one-line state under Play. It names the real blocker: a bare "needs preparing"
+/// left a first run stuck when preparation really needs an account that owns the game
+/// (the resources row below is out of sight). The two states that were a dead end do
+/// what that row does, from the line the player actually sees - text and handler only,
+/// the line keeps its exact style and place.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum HeroStatus {
+    /// Prepared and signed (or the developer offline pass): Play starts the game.
+    Ready,
+    /// Not prepared, owner known: Play itself prepares, then plays.
+    NeedsPreparing,
+    /// Not prepared, known not to own the game: signing in comes first.
+    SignInToPrepare,
+    /// Not prepared, ownership unread: the resources row offers prepare from an install.
+    PrepareFromRow,
+    /// Prepared, the sign-in state not read yet.
+    CheckingSignIn,
+    /// Prepared, known not to own the game and no developer offline pass.
+    SignInToLaunch,
+}
+
+fn hero_status(prepared: bool, signed: bool, owner: Option<bool>) -> HeroStatus {
+    if prepared {
+        if signed {
+            HeroStatus::Ready
+        } else if owner.is_none() {
+            HeroStatus::CheckingSignIn
+        } else {
+            HeroStatus::SignInToLaunch
+        }
+    } else {
+        match owner {
+            Some(false) => HeroStatus::SignInToPrepare,
+            None => HeroStatus::PrepareFromRow,
+            Some(true) => HeroStatus::NeedsPreparing,
+        }
+    }
+}
+
 impl Launcher {
     /// The focal point (concept Home): a card naming what plays next - its name, fact chips
     /// (kind, loader, Minecraft, mods), its state - with Play at its foot. No `tag`: a Java
@@ -86,26 +125,53 @@ impl Launcher {
             )
             .child(self.home_stage(cx))
             .child(self.play_action(ready, &facts.join("  ·  "), cx))
-            .child(
-                shell::text(
-                    night::CAPTION,
-                    if prepared && signed { t.success } else { t.warn },
-                )
-                .font_family(theme::PIXEL)
-                .text_size(px(12.))
-                .child(
-                    tr(if !prepared {
-                        "needs preparing"
-                    } else if signed {
-                        "ready to launch"
-                    } else if self.owner.is_none() {
-                        "checking sign-in…"
-                    } else {
-                        "sign in to launch"
-                    })
-                    .to_string(),
-                ),
-            )
+            .child({
+                let status = hero_status(prepared, signed, self.owner);
+                let line = || {
+                    shell::text(
+                        night::CAPTION,
+                        if prepared && signed { t.success } else { t.warn },
+                    )
+                    .font_family(theme::PIXEL)
+                    .text_size(px(12.))
+                    .child(
+                        tr(match status {
+                            HeroStatus::Ready => "ready to launch",
+                            HeroStatus::NeedsPreparing | HeroStatus::PrepareFromRow => {
+                                "needs preparing"
+                            }
+                            HeroStatus::SignInToPrepare => "sign in to prepare",
+                            HeroStatus::CheckingSignIn => "checking sign-in…",
+                            HeroStatus::SignInToLaunch => "sign in to launch",
+                        })
+                        .to_string(),
+                    )
+                };
+                // While preparation runs its busy Play owns the moment: no second start.
+                match status {
+                    HeroStatus::SignInToPrepare if !self.preparing => div()
+                        .id("hero-status")
+                        .cursor_pointer()
+                        .hover(|s| s.opacity(0.8))
+                        .child(line())
+                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                            this.sign_in_to_play();
+                            cx.notify();
+                        }))
+                        .into_any_element(),
+                    HeroStatus::PrepareFromRow if !self.preparing => div()
+                        .id("hero-status")
+                        .cursor_pointer()
+                        .hover(|s| s.opacity(0.8))
+                        .child(line())
+                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                            this.prepare(backend::MinecraftFrom::Install);
+                            cx.notify();
+                        }))
+                        .into_any_element(),
+                    _ => line().into_any_element(),
+                }
+            })
             .children(self.playing.map(|playing| {
                 shell::text(night::CAPTION, c(n.muted))
                     .relative()
@@ -1155,5 +1221,29 @@ mod tests {
         for s in backend::PrepareStep::ALL {
             assert_eq!(backend::PrepareStep::ALL[s as usize], s);
         }
+    }
+
+    #[test]
+    fn hero_status_names_the_real_blocker() {
+        use HeroStatus::*;
+        // Prepared: ownership decides between playing, waiting and signing in.
+        assert_eq!(hero_status(true, true, Some(true)), Ready);
+        assert_eq!(
+            hero_status(true, true, Some(false)),
+            Ready,
+            "developer offline pass"
+        );
+        assert_eq!(hero_status(true, false, None), CheckingSignIn);
+        assert_eq!(hero_status(true, false, Some(false)), SignInToLaunch);
+        // Not prepared: the blocker is preparation itself, or the account it needs.
+        assert_eq!(hero_status(false, false, Some(true)), NeedsPreparing);
+        assert_eq!(hero_status(false, false, Some(false)), SignInToPrepare);
+        assert_eq!(
+            hero_status(false, true, Some(false)),
+            SignInToPrepare,
+            "the developer offline pass never exempts preparation"
+        );
+        assert_eq!(hero_status(false, false, None), PrepareFromRow);
+        assert_eq!(hero_status(false, true, None), PrepareFromRow);
     }
 }
