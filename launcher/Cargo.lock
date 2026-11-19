@@ -7748,7 +7748,3 @@ dependencies = [
  "syn 3.0.9",
  "winnow 1.0.4",
 ]
-
-[[patch.unused]]
-name = "gpui"
-version = "0.2.2"
