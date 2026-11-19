@@ -6,7 +6,7 @@
 
 # goattech launcher
 
-one launcher for every way you play minecraft. the fast horizon rust engine and ordinary java edition instances side by side. fabric and quilt mods from modrinth. imports from the launchers you already have. your settings follow you across all of it.
+one launcher for every way you play minecraft. the horizon rust engine and ordinary java edition instances side by side. fabric and quilt mods from modrinth. imports from the launchers you already have. your settings follow you across all of it.
 
 **[flip at release] v1.0.0 is out. download: https://launcher.goattech.us**
 
@@ -38,8 +38,8 @@ every version passes an independent review of the actual running app before it p
 - `launcher/` - the launcher itself: its own cargo workspace, its own docs and tests. start with [launcher/README.md](launcher/README.md).
 - `docs/` - using the launcher, your account, mods, privacy and data collection, releases and versioning, and how it is developed.
 - `docs/engine/` - the engine's documentation, inherited from upstream horizon. it describes horizon itself; [its readme](docs/engine/README.md) says so up front.
-- `crates/`, `mods/`, `tools/`, `tests/`, `bench/` - the engine sources and harnesses, upstream's tree.
-- `website/` - the source of https://launcher.goattech.us.
+- `crates/`, `bench/`, `goattech/`, `packaging/`, `infra/` - the engine sources, harnesses and this fork's own tooling.
+- `site/` - the source of https://launcher.goattech.us. `website/` holds its content rules.
 - `ROADMAP.md`, `CONTRIBUTING.md` - the plan and how changes land here.
 
 ## credit
@@ -64,4 +64,4 @@ cargo run --release -p horizon-prepare -- --prepare --server-jar ~/Downloads/ser
 cargo run --release -p horizon-client
 ```
 
-the engine's own setup notes are in [docs/engine/CONTRIBUTING.md](docs/engine/CONTRIBUTING.md#build-it). releases ship on github releases, verified before install.
+the engine's own setup notes are in [docs/engine/CONTRIBUTING.md](docs/engine/CONTRIBUTING.md#build-it). releases ship on github releases. game downloads are checked before install. launcher builds come with sha256 sums.
