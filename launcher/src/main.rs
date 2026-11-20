@@ -2305,7 +2305,18 @@ fn scroll_into_view(b: gpui::Bounds<Pixels>, window: &mut Window) {
 
 /// Makes a control reachable with Tab, pressed with Enter or Space, with a ring when the keyboard
 /// put it in focus.
-fn keyboard(el: Stateful<Div>, t: &Theme) -> Stateful<Div> {
+fn keyboard(mut el: Stateful<Div>, t: &Theme) -> Stateful<Div> {
+    let own = el
+        .interactivity()
+        .element_id
+        .clone()
+        .and_then(|id| CONTROL_HANDLES.with(|c| c.borrow_mut().handle_for(id)));
+    keyboard_with(el, t, own)
+}
+
+/// `keyboard()` for a control that already owns a focus handle (it is tracked, and its arrival
+/// is watched, through that one).
+fn keyboard_with(el: Stateful<Div>, t: &Theme, own: Option<FocusHandle>) -> Stateful<Div> {
     let (ring, gap) = (t.accent, t.page);
     // A ring with a gap of page colour, so it shows around filled buttons too. GPUI draws nothing
     // for a shadow without blur: half a pixel keeps it crisp.
@@ -2319,12 +2330,6 @@ fn keyboard(el: Stateful<Div>, t: &Theme) -> Stateful<Div> {
     // The control's own focus handle (one per element id, from a pool made while the window is
     // drawn): a handle has no bounds, so the control reports its own drawn position when it is
     // the one the keyboard just moved to, and the page scrolls to it if it is out of view.
-    let mut el = el;
-    let own = el
-        .interactivity()
-        .element_id
-        .clone()
-        .and_then(|id| CONTROL_HANDLES.with(|c| c.borrow_mut().handle_for(id)));
     let el = match &own {
         Some(h) => el.track_focus(h),
         None => el,
@@ -2373,31 +2378,103 @@ fn keyboard(el: Stateful<Div>, t: &Theme) -> Stateful<Div> {
     })
 }
 
+/// Element id to pool slot, with reclaim: a slot goes back to the pool once its id was not
+/// drawn for two renders in a row (and does not hold the focus), so ids that come and go (lists,
+/// pickers) never use the pool up.
+#[derive(Default)]
+struct IdSlots {
+    by_id: HashMap<gpui::ElementId, (usize, u64, u64)>,
+    free: Vec<usize>,
+    size: usize,
+    generation: u64,
+    drawn: u64,
+}
+
+impl IdSlots {
+    fn new(size: usize) -> Self {
+        Self { free: (0..size).rev().collect(), size, ..Self::default() }
+    }
+
+    /// Start of a render: age the ids, free the ones unseen for two renders unless `keep`.
+    fn begin(&mut self, keep: impl Fn(usize) -> bool) {
+        self.generation += 1;
+        let g = self.generation;
+        let stale: Vec<_> = self
+            .by_id
+            .iter()
+            .filter(|(_, (slot, seen, _))| seen + 1 < g && !keep(*slot))
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in stale {
+            if let Some((slot, _, _)) = self.by_id.remove(&id) {
+                self.free.push(slot);
+            }
+        }
+        self.drawn = 0;
+    }
+
+    /// The slot for `id` in this render. An id drawn twice in one render gets one slot for its
+    /// first control only (a handle shared by two controls would ring both).
+    fn slot_for(&mut self, id: gpui::ElementId) -> Option<usize> {
+        let g = self.generation;
+        if let Some((slot, seen, at)) = self.by_id.get_mut(&id) {
+            if *seen == g && *at != 0 {
+                return None;
+            }
+            *seen = g;
+            *at = 1;
+            return Some(*slot);
+        }
+        let slot = self.free.pop()?;
+        self.by_id.insert(id, (slot, g, 1));
+        Some(slot)
+    }
+
+    fn len(&self) -> usize {
+        self.size
+    }
+}
+
 /// Focus handles for `keyboard()` controls, one per element id, taken from a pool the window
-/// fills while it draws (a control is built without access to the app).
+/// fills while it draws (a control is built without access to the app). The pool belongs to one
+/// window; a new window starts a new pool.
 #[derive(Default)]
 struct ControlHandles {
     pool: Vec<FocusHandle>,
-    by_id: HashMap<gpui::ElementId, usize>,
+    slots: IdSlots,
+    window: Option<gpui::WindowId>,
 }
 
 impl ControlHandles {
     const POOL: usize = 384;
 
-    fn fill(&mut self, cx: &mut Context<Launcher>) {
+    fn fill(&mut self, window: &Window, cx: &mut Context<Launcher>) {
+        let id = window.window_handle().window_id();
+        if self.window != Some(id) {
+            *self = Self::default();
+            self.window = Some(id);
+            LAST_FOCUS.with(|l| *l.borrow_mut() = None);
+        }
         while self.pool.len() < Self::POOL {
             self.pool.push(cx.focus_handle().tab_index(0).tab_stop(true));
         }
+        if self.slots.len() == 0 {
+            self.slots = IdSlots::new(Self::POOL);
+        }
+        let pool = &self.pool;
+        self.slots.begin(|slot| pool.get(slot).is_some_and(|h| h.is_focused(window)));
+        // The focus left the control the page was revealing: the next arrival reveals again.
+        LAST_FOCUS.with(|l| {
+            let mut l = l.borrow_mut();
+            if l.as_ref().is_some_and(|(h, _)| !h.is_focused(window)) {
+                *l = None;
+            }
+        });
     }
 
     fn handle_for(&mut self, id: gpui::ElementId) -> Option<FocusHandle> {
-        if let Some(i) = self.by_id.get(&id) {
-            return self.pool.get(*i).cloned();
-        }
-        let next = self.by_id.len();
-        let h = self.pool.get(next).cloned()?;
-        self.by_id.insert(id, next);
-        Some(h)
+        let slot = self.slots.slot_for(id)?;
+        self.pool.get(slot).cloned()
     }
 }
 
@@ -5448,7 +5525,7 @@ impl Render for Launcher {
         if let Some(next) = next {
             self.wake_sky(next, cx);
         }
-        CONTROL_HANDLES.with(|c| c.borrow_mut().fill(cx));
+        CONTROL_HANDLES.with(|c| c.borrow_mut().fill(window, cx));
         let page_keys = self.modal_keys.is_none() && !self.asking_consent();
         PAGE_SCROLL.with(|h| {
             *h.borrow_mut() = page_keys.then(|| self.content_scroll.handle.clone())
@@ -6017,6 +6094,37 @@ fn drag_not_click(event: &ClickEvent) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn control_slots_reclaim_past_the_pool_size() {
+        use super::IdSlots;
+        let mut s = IdSlots::new(384);
+        // 2000 cumulative ids, 100 alive per render: every one gets a slot.
+        for round in 0..20u32 {
+            s.begin(|_| false);
+            for i in 0..100u32 {
+                let id = gpui::ElementId::Name(format!("c-{round}-{i}").into());
+                assert!(s.slot_for(id).is_some(), "round {round} id {i} lost its slot");
+            }
+        }
+    }
+
+    #[test]
+    fn control_slots_are_stable_and_never_alias() {
+        use super::IdSlots;
+        let mut s = IdSlots::new(8);
+        s.begin(|_| false);
+        let a = s.slot_for(gpui::ElementId::Name("a".into()));
+        let b = s.slot_for(gpui::ElementId::Name("b".into()));
+        assert!(a.is_some() && b.is_some() && a != b);
+        assert_eq!(s.slot_for(gpui::ElementId::Name("a".into())), None, "same id twice in a render");
+        s.begin(|_| false);
+        assert_eq!(s.slot_for(gpui::ElementId::Name("a".into())), a, "stable across renders");
+        // Unseen for two renders frees the slot unless it holds focus.
+        s.begin(|slot| Some(slot) == b);
+        s.begin(|slot| Some(slot) == b);
+        assert_eq!(s.slot_for(gpui::ElementId::Name("b".into())), b, "focused slot is kept");
+    }
+
     #[test]
     fn stage_drag_turns_only_from_a_stage_press() {
         use super::{StageDrag, Track};
