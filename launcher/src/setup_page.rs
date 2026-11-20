@@ -349,7 +349,7 @@ impl Setup {
                                 .on_click(
                                     cx.listener(|this, _: &ClickEvent, _, cx| this.launch(cx)),
                                 )
-                                .child(label(tr("launch horizon").to_string())),
+                                .child(label(tr("launch goattech launcher").to_string())),
                         ),
                     );
                 }
@@ -375,7 +375,7 @@ impl Setup {
             .flex()
             .flex_col()
             .gap(px(18.))
-            .child(text(night::DISPLAY, c(n.ink)).child("horizon"))
+            .child(text(night::DISPLAY, c(n.ink)).child("goattech launcher"))
             .child(body)
     }
 }

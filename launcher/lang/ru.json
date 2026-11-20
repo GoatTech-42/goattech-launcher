@@ -797,7 +797,7 @@
   "goattech launcher is installed.": "GoatTech Launcher установлен.",
   "goattech launcher was removed.": "GoatTech Launcher удалён.",
   "these could not be removed:": "Не удалось удалить:",
-  "launch horizon": "Запустить Horizon",
+  "launch goattech launcher": "Запустить GoatTech Launcher",
   "something went wrong.": "Что-то пошло не так.",
   "each java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Каждый экземпляр Java получает среду выполнения, которая нужна его версии: скачивается один раз и используется повторно при совпадении версий.",
   "each java instance gets the runtime its version needs, downloaded once and reused where versions match. {downloaded} downloaded · {installed} on this computer.": "Каждый экземпляр Java получает среду выполнения, которая нужна его версии: скачивается один раз и используется повторно при совпадении версий. Скачано: {downloaded} · на этом компьютере: {installed}.",

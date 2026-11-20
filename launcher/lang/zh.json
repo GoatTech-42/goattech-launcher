@@ -797,7 +797,7 @@
   "goattech launcher is installed.": "GoatTech Launcher 已安装。",
   "goattech launcher was removed.": "GoatTech Launcher 已移除。",
   "these could not be removed:": "以下内容无法删除：",
-  "launch horizon": "启动 Horizon",
+  "launch goattech launcher": "启动 GoatTech Launcher",
   "something went wrong.": "出了点问题。",
   "each java instance gets the runtime its version needs, downloaded once and reused where versions match.": "每个 Java 实例获得其版本所需的运行时,下载一次,版本相同时重复使用。",
   "each java instance gets the runtime its version needs, downloaded once and reused where versions match. {downloaded} downloaded · {installed} on this computer.": "每个 Java 实例获得其版本所需的运行时,下载一次,版本相同时重复使用。已下载 {downloaded} 个 · 此电脑上有 {installed} 个。",

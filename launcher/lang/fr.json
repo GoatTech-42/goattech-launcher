@@ -797,7 +797,7 @@
   "goattech launcher is installed.": "GoatTech Launcher est installé.",
   "goattech launcher was removed.": "GoatTech Launcher a été supprimé.",
   "these could not be removed:": "Ceci n’a pas pu être supprimé :",
-  "launch horizon": "Lancer Horizon",
+  "launch goattech launcher": "Lancer GoatTech Launcher",
   "something went wrong.": "Une erreur s’est produite.",
   "each java instance gets the runtime its version needs, downloaded once and reused where versions match.": "Chaque instance Java obtient le runtime dont sa version a besoin, téléchargé une fois et réutilisé lorsque les versions correspondent.",
   "each java instance gets the runtime its version needs, downloaded once and reused where versions match. {downloaded} downloaded · {installed} on this computer.": "Chaque instance Java obtient le runtime dont sa version a besoin, téléchargé une fois et réutilisé lorsque les versions correspondent. {downloaded} téléchargés · {installed} sur cet ordinateur.",
