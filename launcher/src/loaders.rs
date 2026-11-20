@@ -211,7 +211,7 @@ pub fn pick(kind: Kind, listed: &[Listed], wanted: Option<&str>) -> Result<Strin
     };
     found.map(|l| l.version.clone()).ok_or_else(|| {
         format!(
-            "{} has no loader {} for this Minecraft version.",
+            "{} has no loader {} for this Minecraft version. Choose another loader or another version.",
             kind.name(),
             wanted.unwrap_or("latest")
         )

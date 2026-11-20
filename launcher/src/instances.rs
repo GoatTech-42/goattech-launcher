@@ -707,7 +707,7 @@ pub(crate) fn create_client_in(
     }
     let own = game_home.join(OWN);
     if fs::symlink_metadata(&own).is_ok_and(|m| m.file_type().is_symlink() || !m.is_dir()) {
-        return Err("instances/ must be a real directory.".into());
+        return Err("instances/ must be a real directory. Look at the file or link named instances in the game folder and move or rename it if it is not needed, then try again.".into());
     }
     fs::create_dir_all(&own).map_err(|e| e.to_string())?;
     let slug = (1..)
@@ -815,7 +815,10 @@ pub(crate) fn create_in(
     };
     if let Err(e) = made {
         let _ = fs::remove_dir_all(&dir);
-        return Err(format!("Could not make {}: {e}", dir.display()));
+        return Err(format!(
+            "Could not make {}: {e}. If this keeps happening, check free disk space and that the game folder can be written to.",
+            dir.display()
+        ));
     }
     let _lock = StoreLock::take(data)?;
     let mut store = Store::load_strict(data)?;

@@ -1546,7 +1546,12 @@ impl Launcher {
                                     .rev()
                                     .find(|l| !l.trim().is_empty())
                                     .filter(|_| e.starts_with("Exited with"));
-                                tail.map_or(e.clone(), |t| format!("{e}: {t}"))
+                                let said = tail.map_or(e.clone(), |t| format!("{e}: {t}"));
+                                if e.starts_with("Exited with") {
+                                    format!("{said} (try again with the prepare button)")
+                                } else {
+                                    said
+                                }
                             });
                         }
                         Job::Client => {
@@ -1679,8 +1684,14 @@ impl Launcher {
                         }
                         Job::Prepare | Job::Server => {
                             self.preparing = false;
-                            self.prepare_error =
-                                Some(format!("the process's exit could not be observed: {e}"));
+                            let again = if job == Job::Prepare {
+                                "try again with the prepare button."
+                            } else {
+                                "try starting the server again."
+                            };
+                            self.prepare_error = Some(format!(
+                                "the process's exit could not be observed: {e}. {again}"
+                            ));
                         }
                     }
                 }

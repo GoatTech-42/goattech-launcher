@@ -199,9 +199,9 @@ fn oauth_error(v: &Value) -> String {
         Some("expired_token") => "The sign-in code expired. Start again.".into(),
         Some("bad_verification_code") => "The sign-in code was not recognised. Start again.".into(),
         Some("invalid_grant") => SIGN_IN_AGAIN.into(),
-        Some("invalid_client" | "unauthorized_client") => {
-            "Microsoft refused this launcher's app registration (client ID).".into()
-        }
+        Some(code @ ("invalid_client" | "unauthorized_client")) => format!(
+            "microsoft refused this launcher's app registration ({code}). this can be an app or policy setting. trying again won't help until that is fixed."
+        ),
         Some(other) => format!("Microsoft sign-in failed ({other})."),
         None => "Microsoft sign-in failed.".into(),
     }
@@ -381,11 +381,13 @@ fn minecraft_token(ep: &Endpoints, xtoken: &str) -> Result<(String, u64), String
         (200, Some(token)) => Ok((token, lifetime(&mc))),
         // New Azure apps are refused until Mojang approves them (Minecraft API access).
         (403, _) => Err(
-            "The Minecraft services refused this launcher: its app is not approved by Mojang yet."
+            "the minecraft services refused this launcher (http 403). the status alone doesn't say why. repeated attempts may not help. check the app's minecraft access or config."
                 .into(),
         ),
         (429, _) => Err("Too many sign-ins in a short time. Wait a minute and try again.".into()),
-        _ => Err("The Minecraft services refused the sign-in.".into()),
+        (status, _) => Err(format!(
+            "the minecraft services refused the sign-in (http {status}). the status alone doesn't say why."
+        )),
     }
 }
 

@@ -1453,7 +1453,9 @@ impl Launcher {
             if path.is_dir() {
                 Some(Some(path))
             } else {
-                d.error = Some(format!("{java_home_raw} is not a folder that is there."));
+                d.error = Some(format!(
+                    "{java_home_raw} is not an existing folder. choose a java folder that exists."
+                ));
                 return;
             }
         } else if editing.is_some() {
