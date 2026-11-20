@@ -5780,10 +5780,10 @@ impl Render for Launcher {
             // Each letter is its own element for the stagger, so shaping spans none of them:
             // the display face's own pair kerns (units per em, from its GPOS) and the wordmark
             // token's tracking go on by hand, or the word reads letter-spaced, not set.
-            // GPOS pair kerns from the rendered face (Bricolage Grotesque Display Bold, upm 1000):
-            // GO -1, OA -35, TT +23, EC -23 match the font exactly; AT=0 is an OPTICAL OVERRIDE
-            // (font GPOS says -84, which crowds the T into the A at wordmark sizes) - not font kerning.
-            const WORDMARK_KERN: [f32; 7] = [-1., -35., 0., 23., 0., -23., 0.]; // GO OA AT TT TE EC CH
+            // GPOS pair kerns from the rendered face (Bricolage Grotesque Display ExtraBold, upm 1000):
+            // GO 0, OA -35, TT +23, EC -22 match the font exactly; AT=0 is an OPTICAL OVERRIDE
+            // (font GPOS says -82, which crowds the T into the A at wordmark sizes) - not font kerning.
+            const WORDMARK_KERN: [f32; 7] = [0., -35., 0., 23., 0., -22., 0.]; // GO OA AT TT TE EC CH
             let word_size = theme::WORDMARK.px * 0.5;
             let word = div()
                 .flex()
@@ -5791,7 +5791,7 @@ impl Render for Launcher {
                 .font_family(theme::DISPLAY_FONT)
                 .text_size(px(word_size))
                 .line_height(px(word_size))
-                .font_weight(FontWeight::BOLD)
+                .font_weight(FontWeight::EXTRA_BOLD)
                 .text_color(t.ink)
                 .children("GOATTECH".chars().enumerate().map(|(i, c)| {
                     let at = held - i as f32 * theme::STAGGER.as_secs_f32() * 1.5;
@@ -6043,6 +6043,7 @@ fn main() {
                     Cow::Borrowed(horizon_theme::fonts::BRICOLAGE_SEMIBOLD),
                     Cow::Borrowed(horizon_theme::fonts::BRICOLAGE_BOLD),
                     Cow::Borrowed(horizon_theme::fonts::BRICOLAGE_DISPLAY_BOLD),
+                    Cow::Borrowed(horizon_theme::fonts::BRICOLAGE_DISPLAY_EXTRABOLD),
                     Cow::Borrowed(horizon_theme::fonts::PIXEL_MEDIUM),
                     Cow::Borrowed(horizon_theme::fonts::PIXEL_SEMIBOLD),
                     Cow::Borrowed(horizon_theme::fonts::PIXEL_BOLD),

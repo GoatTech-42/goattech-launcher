@@ -35,6 +35,9 @@ pub mod fonts {
     pub const BRICOLAGE_BOLD: &[u8] = include_bytes!("../fonts/BricolageGrotesque-Bold.ttf");
     pub const BRICOLAGE_DISPLAY_BOLD: &[u8] =
         include_bytes!("../fonts/BricolageGrotesqueDisplay-Bold.ttf");
+    /// The splash wordmark's weight: the logo spec sets GOATTECH in ExtraBold (wght 800).
+    pub const BRICOLAGE_DISPLAY_EXTRABOLD: &[u8] =
+        include_bytes!("../fonts/BricolageGrotesqueDisplay-ExtraBold.ttf");
 }
 
 /// The launcher's icons: Lucide (ISC, `icons/lucide/LICENSE-lucide.txt`), 24-unit stroke SVGs

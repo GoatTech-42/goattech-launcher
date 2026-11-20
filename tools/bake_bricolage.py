@@ -3,7 +3,7 @@
 
 GPUI picks a font file by family and weight, so the launcher can't use the variable font itself:
 this cuts the instances it uses (docs/design-system.md, "Night"): the UI family at optical size 14
-in Regular, Medium, SemiBold and Bold, and the display family (Bold at optical size 72) under its
+in Regular, Medium, SemiBold and Bold, and the display family (Bold and ExtraBold at optical size 72) under its
 own family name. Upstream: github.com/ateliertriay/bricolage, via google/fonts (SIL OFL 1.1, no
 reserved font name).
 
@@ -18,6 +18,7 @@ modified version of both fonts under the OFL, which allows it.
     /tmp/ft/bin/python tools/bake_bricolage.py 'BricolageGrotesque[opsz,wdth,wght].ttf' 'Geist[wght].ttf'
 """
 
+import os
 import sys
 import unicodedata
 from pathlib import Path
@@ -29,7 +30,7 @@ from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.ttLib import TTFont
 from fontTools.varLib.instancer import instantiateVariableFont
 
-OUT = Path(__file__).resolve().parent.parent / "crates/horizon-theme/fonts"
+OUT = Path(os.environ.get("BAKE_OUT") or Path(__file__).resolve().parent.parent / "crates/horizon-theme/fonts")
 UI = "Bricolage Grotesque"
 DISPLAY = "Bricolage Grotesque Display"
 CUTS = [
@@ -38,6 +39,8 @@ CUTS = [
     (UI, "SemiBold", 14, 600),
     (UI, "Bold", 14, 700),
     (DISPLAY, "Bold", 72, 700),
+    # The splash wordmark: the logo spec sets GOATTECH in ExtraBold (wght 800).
+    (DISPLAY, "ExtraBold", 72, 800),
 ]
 GEIST_COPYRIGHT = "Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font)"
 # The Cyrillic block and its supplement.
