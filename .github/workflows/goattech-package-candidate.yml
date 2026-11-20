@@ -86,6 +86,19 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: python tools/check_imports.py launcher/target/release/horizon-launcher.exe
+      - name: Windows setup smoke (install identity)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          setup="$RUNNER_TEMP/setup-smoke"
+          cp launcher/target/release/horizon-launcher.exe "$RUNNER_TEMP/horizon-launcher-setup.exe"
+          "$RUNNER_TEMP/horizon-launcher-setup.exe" setup --quiet --dir "$setup"
+          installed="$setup/GoatTech Launcher/horizon-launcher.exe"
+          [[ -f "$installed" ]] || { echo "::error::the setup copied no launcher"; exit 1; }
+          "$installed" uninstall --quiet
+          [[ ! -f "$installed" ]] || { echo "::error::uninstall left the launcher"; exit 1; }
+          rm -rf "$setup"
       - name: Make explicit portable package
         shell: bash
         run: |
