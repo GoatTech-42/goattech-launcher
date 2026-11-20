@@ -6200,7 +6200,6 @@ mod tests {
         let [b0, b1] = &mut b;
         let mut slots: [&mut dyn Disarm; 10] = [o0, o1, o2, o3, o4, o5, o6, o7, b0, b1];
         assert!(disarm_all(&mut slots));
-        drop(slots);
         assert!(
             o.iter().all(Option::is_none) && b == [false; 2],
             "all armed at once are all cleared"
@@ -6215,7 +6214,7 @@ mod tests {
         let [o0, o1] = &mut o;
         let mut slots: [&mut dyn Disarm; 3] = [o0, o1, &mut b];
         assert!(!disarm_all(&mut slots));
-        assert!(disarm_all(&mut []) == false);
+        assert!(!disarm_all(&mut []));
     }
 
     #[test]
