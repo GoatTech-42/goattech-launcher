@@ -7,14 +7,16 @@ Client-specific settings and verified named-client installs are post-v1 work.
 
 The manual `goattech-package-candidate.yml` builds Windows x64 and Linux x64
 portable archives. It has read-only repository permissions, no release job,
-no tag, no schedule, no self-hosted runner, no cache and no upload step. Do not
-dispatch it before its source and intended output audience are reviewed. With
-no upload, outputs expire with the runner. Artifact retention is a separate,
-reviewed workflow change, not an excuse to publish a candidate as a release.
+no tag, no schedule, no self-hosted runner and no cache. Its one upload is off by
+default (`keep_artifact`). Turned on, it keeps the candidate folder as a workflow
+artifact for 7 days; this repository is public, so any signed-in GitHub user could
+download it, which makes it a distribution of the build. Turn it on only once that
+audience is admitted. Nothing is tagged, published or linked from the site, and
+publishing is a separate, approved step.
 
 ## Identity and compatibility
 
-The independent GoatTech candidate version is `0.1.0-rc.1`, injected with
+The independent GoatTech candidate version is `1.0.0-rc.1`, injected with
 `HORIZON_LAUNCHER_VERSION`. The Cargo version and inherited release line are not
 changed because they describe upstream tooling. No upstream release train is
 enabled, and this does not establish an update feed.
@@ -27,12 +29,21 @@ that is a known packaging identity limit, not a new approved GoatTech logo.
 Changing the embedded icon needs a separate reviewed build-resource change and
 inspection of the resulting executable.
 
-No setup executable is produced. The inherited Windows installer still uses
-Horizon install folders, registry keys and publisher identity. Renaming it to
-`goattech-launcher-setup.exe` would also miss its filename-based setup detection.
-A portable package avoids those installer effects; it must not be presented as
-an installer. Fork installer branding and install/uninstall qualification remain
-unfinished if an installer is included in a later release.
+On Windows the packager also writes `horizon-launcher-setup.exe`: the same
+executable as in the zip, under the name `launcher/src/installer.rs` (`is_setup_exe`)
+recognises (a stem starting `horizon-launcher-setup`). By that source at the packaged
+commit, the setup uses APP_NAME "GoatTech Launcher", publisher "GoatTech", the keys
+`...\Uninstall\GoatTechLauncher` and `Software\GoatTech\Launcher`, and reads the old
+Horizon names only to take over an earlier install. That is a reading of the source:
+no Windows install/uninstall run has qualified it, so installer identity is unverified in
+behavior. The embedded exe icon is still the inherited one. The portable zip is the
+primary package and must not be presented as an installer.
+
+The setup exe ships alone, so it has no notices of its own. The packager writes
+`horizon-launcher-setup.NOTICES.txt` beside it (listed in `SHA256SUMS`). It names the
+zip as the source of the license, third-party notices, dependency notices and the
+MPL-2.0 covered source. Delivery plan: the setup exe is only ever distributed with the
+zip (or those same files) beside it. Distribution stays held until reviewed.
 
 ## Contents and evidence
 
@@ -40,8 +51,11 @@ unfinished if an installer is included in a later release.
 It never searches a profile or includes a game directory. Archives contain only
 the binary, portable instructions, root license, goat glyph, existing third-party
 notices, selected asset/vendor license texts and manifest. The
-manifest records exact source commit, platform, version and per-input SHA-256;
-`SHA256SUMS` covers the archive. These checksums are not code signing.
+manifest records exact source commit, platform, version and per-input SHA-256.
+On Windows the candidate folder also holds `horizon-launcher-setup.exe`, the same
+binary under the name the per-user installer recognises, as a separate asset.
+`SHA256SUMS` covers the archive and, on Windows, the setup exe. These checksums
+are not code signing.
 
 The package tests use synthetic binary headers to check archive behavior, modes,
 manifest hashes, traversal/version rejection, symlink rejection and no-overwrite.

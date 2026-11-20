@@ -40,7 +40,8 @@ def package(binary, output, platform, version, source_commit, dependency_metadat
     # Windows also gets the per-user setup: the same exe under the name launcher/src/installer.rs
     # (`is_setup_exe`) recognises. It is a separate asset, not part of the zip.
     setup = output / 'horizon-launcher-setup.exe' if platform == 'windows-x64' else None
-    outputs = [archive, sums] + ([setup] if setup else [])
+    setup_notes = output / 'horizon-launcher-setup.NOTICES.txt' if setup else None
+    outputs = [archive, sums] + ([setup, setup_notes] if setup else [])
     if any(o.exists() or o.is_symlink() for o in outputs):
         raise FileExistsError('Candidate outputs already exist; use a fresh directory')
     name = 'horizon-launcher.exe' if platform == 'windows-x64' else 'horizon-launcher'
@@ -102,10 +103,23 @@ def package(binary, output, platform, version, source_commit, dependency_metadat
         with setup.open('xb') as raw:
             raw.write(data)
         listed.append(setup)
+        # The setup exe is the same binary as in the zip, shipped alone. Its notices and the
+        # MPL-2.0 covered source live in the zip, so this file travels with it and names them.
+        with setup_notes.open('x') as raw:
+            raw.write(SETUP_NOTICES.format(zip=archive.name))
+        listed.append(setup_notes)
     with sums.open('x') as f:
         for path in listed:
             f.write(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n')
     return archive
+
+
+SETUP_NOTICES = """horizon-launcher-setup.exe is the same executable as the one inside {zip}.
+Its license, third-party notices, dependency notices and the exact covered source
+(MPL-2.0, option-ext) are in that archive: LICENSE, THIRD_PARTY_NOTICES.md, notices/,
+dependency-notices/ and covered-source/. Do not distribute the setup exe without
+{zip} (or those same files) next to it. Candidate only: distribution is held until reviewed.
+"""
 
 
 def main():

@@ -4,6 +4,11 @@ name: GoatTech portable package candidate
 # after the source, intended artifact audience and remaining gates are reviewed.
 on:
   workflow_dispatch:
+    inputs:
+      keep_artifact:
+        description: 'Keep the candidate as a 7-day workflow artifact (a public repository lets any signed-in GitHub user download it; only after the audience is admitted)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -15,7 +20,7 @@ concurrency:
 env:
   HORIZON_TELEMETRY_URL: 'off'
   HORIZON_LAUNCHER_NO_SELF_UPDATE: '1'
-  HORIZON_LAUNCHER_VERSION: '0.1.0-rc.1'
+  HORIZON_LAUNCHER_VERSION: '1.0.0-rc.1'
 
 jobs:
   package:
@@ -69,7 +74,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(launcher/target/release/${{ matrix.binary }} --version)" = 'horizon-launcher 0.1.0-rc.1'
+          test "$(launcher/target/release/${{ matrix.binary }} --version)" = "horizon-launcher $HORIZON_LAUNCHER_VERSION"
           python - <<'PY'
           import hashlib
           from pathlib import Path
@@ -105,7 +110,17 @@ jobs:
           set -euo pipefail
           mkdir candidate
           cargo metadata --manifest-path launcher/Cargo.toml --locked --offline --filter-platform ${{ matrix.target }} --format-version 1 > dependency-metadata.json
-          python tools/package_goattech.py --binary launcher/target/release/${{ matrix.binary }} --output candidate --platform ${{ matrix.platform }} --version 0.1.0-rc.1 --source-commit "$GITHUB_SHA" --dependency-metadata dependency-metadata.json --dependency-root "$GITHUB_WORKSPACE" --dependency-root "$HOME/.cargo/registry/src"
+          python tools/package_goattech.py --binary launcher/target/release/${{ matrix.binary }} --output candidate --platform ${{ matrix.platform }} --version "$HORIZON_LAUNCHER_VERSION" --source-commit "$GITHUB_SHA" --dependency-metadata dependency-metadata.json --dependency-root "$GITHUB_WORKSPACE" --dependency-root "$HOME/.cargo/registry/src"
           cat candidate/SHA256SUMS
-      # No artifact upload yet: the candidate workflow must be reviewed and its
-      # output audience admitted before adding retention or dispatching it.
+      # Off by default. This repository is public, so anyone signed in to GitHub can download a
+      # workflow artifact: turning it on distributes a build and needs the audience admitted first.
+      # A candidate, not a release; publishing is a separate, approved step.
+      - name: Keep the candidate for review
+        if: ${{ inputs.keep_artifact }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: goattech-launcher-candidate-${{ matrix.platform }}
+          path: |
+            candidate/*
+          retention-days: 7
+          if-no-files-found: error

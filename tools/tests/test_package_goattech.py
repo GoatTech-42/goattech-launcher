@@ -44,10 +44,14 @@ class Packages(unittest.TestCase):
             self.assertNotIn(b'PRIVATE', b''.join(z.read(n) for n in z.namelist()))
         sums = (self.out / 'SHA256SUMS').read_text()
         setup = self.out / 'horizon-launcher-setup.exe'
+        notes = self.out / 'horizon-launcher-setup.NOTICES.txt'
         self.assertEqual(setup.read_bytes(), self.binary.read_bytes())
         self.assertEqual(sums,
                          hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n'
-                         + hashlib.sha256(setup.read_bytes()).hexdigest() + '  ' + setup.name + '\n')
+                         + hashlib.sha256(setup.read_bytes()).hexdigest() + '  ' + setup.name + '\n'
+                         + hashlib.sha256(notes.read_bytes()).hexdigest() + '  ' + notes.name + '\n')
+        self.assertIn('covered-source/', notes.read_text())
+        self.assertIn(archive.name, notes.read_text())
 
     def test_dependency_texts_are_packed_and_hash_bound(self):
         crate = self.root / 'crate'
@@ -116,6 +120,15 @@ class Packages(unittest.TestCase):
         self.binary.write_bytes(b'\x7fELFpublic-binary')
         self.package(platform='linux-x64')
         self.assertFalse((self.out / 'horizon-launcher-setup.exe').exists())
+
+    def test_an_existing_notices_file_or_symlink_blocks_the_run_before_any_output(self):
+        notes = self.out / 'horizon-launcher-setup.NOTICES.txt'
+        for make in (lambda: notes.write_bytes(b'keep'), lambda: notes.symlink_to(self.out / 'missing')):
+            make()
+            with self.assertRaises(FileExistsError):
+                self.package()
+            self.assertEqual([p.name for p in self.out.iterdir()], [notes.name])
+            notes.unlink()
 
     def test_an_existing_setup_asset_blocks_the_run_before_any_output(self):
         (self.out / 'horizon-launcher-setup.exe').write_bytes(b'keep')
