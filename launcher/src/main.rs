@@ -518,7 +518,7 @@ impl StageDrag {
     /// whether the press never left the click slack (a click, not a turn).
     fn release_click(&mut self) -> Option<bool> {
         let ended = self.last.take().is_some();
-        ended.then(|| self.moved <= CLICK_SLACK)
+        ended.then_some(self.moved <= CLICK_SLACK)
     }
 }
 
