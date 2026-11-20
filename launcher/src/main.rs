@@ -1739,7 +1739,7 @@ impl Launcher {
         for home in homes {
             match backend::switch_to_dx12(&home) {
                 Ok(changed) => switched |= changed,
-                Err(e) => eprintln!("Horizon launcher: could not switch to DirectX 12: {e}"),
+                Err(e) => eprintln!("GoatTech Launcher: could not switch to DirectX 12: {e}"),
             }
         }
         switched

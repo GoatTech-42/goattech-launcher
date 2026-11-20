@@ -257,7 +257,7 @@ impl Setup {
             Stage::Welcome if self.mode == Mode::Install => {
                 body = body
                     .child(text(night::UI, c(n.ink_soft)).child(
-                        tr("installs horizon launcher for this account. no administrator needed.")
+                        tr("installs goattech launcher for this account. no administrator needed.")
                             .to_string(),
                     ))
                     .child(self.folder_row(cx))
@@ -282,7 +282,7 @@ impl Setup {
             Stage::Welcome => {
                 body = body
                     .child(text(night::UI, c(n.ink_soft)).child(
-                        tr("removes horizon launcher from this computer. your worlds and the game's folder stay.")
+                        tr("removes goattech launcher from this computer. your worlds and the game's folder stay.")
                             .to_string(),
                     ))
                     .child(self.toggle(
@@ -323,8 +323,8 @@ impl Setup {
             }
             Stage::Done { left } => {
                 let said = match self.mode {
-                    Mode::Install => tr("horizon launcher is installed.").to_string(),
-                    Mode::Uninstall => tr("horizon launcher was removed.").to_string(),
+                    Mode::Install => tr("goattech launcher is installed.").to_string(),
+                    Mode::Uninstall => tr("goattech launcher was removed.").to_string(),
                 };
                 body = body.child(text(night::TITLE, c(n.ink)).child(said));
                 if !left.is_empty() {

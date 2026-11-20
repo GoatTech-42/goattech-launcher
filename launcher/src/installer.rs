@@ -22,8 +22,8 @@ use winreg::RegKey;
 
 pub const APP_NAME: &str = "Horizon Launcher";
 const BINARY: &str = "horizon-launcher.exe";
-const PUBLISHER: &str = "Horizon";
-const ABOUT_URL: &str = "https://playhorizon.dev";
+const PUBLISHER: &str = "GoatTech";
+const ABOUT_URL: &str = "https://launcher.goattech.us";
 const UNINSTALL_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\HorizonLauncher";
 const OWN_KEY: &str = r"Software\Horizon\Launcher";
 const ASIDE_PREFIX: &str = "horizon-launcher-uninstall-";
@@ -370,7 +370,7 @@ fn remove_all(path: &Path, left: &mut Vec<String>) {
 /// Takes the install away. Returns what could not be removed (a file in use, say).
 pub fn uninstall(remove_data: bool, progress: impl Fn(Step, f32)) -> Result<Vec<String>, String> {
     let dir = registered()
-        .ok_or("Horizon Launcher is not installed for this account.")?
+        .ok_or("GoatTech Launcher is not installed for this account.")?
         .dir;
     clean_aside();
     let exe = dir.join(BINARY);

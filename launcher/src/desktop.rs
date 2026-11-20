@@ -130,7 +130,7 @@ pub fn launcher_entry(exe: &Path) -> String {
          Icon=goattech-launcher\n\
          Terminal=false\n\
          Categories=Game;\n\
-         StartupWMClass=horizon-launcher\n",
+         StartupWMClass=goattech-launcher\n",
         quote(exe),
         exe.display(),
         minecraft = horizon_core::VANILLA_VERSION,
