@@ -77,8 +77,8 @@ use horizon_launcher::{cli, perf};
 use scrollbar::Scrollbar;
 use std::borrow::Cow;
 use std::cell::Cell;
-use std::rc::Rc;
 use std::collections::{HashMap, VecDeque};
+use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
@@ -3528,7 +3528,9 @@ impl Launcher {
                                 .items_center()
                                 .gap(px(8.))
                                 .when(latest, |d| {
-                                    d.child(micro(tr("auto-update")).flex_none().text_color(t.muted))
+                                    d.child(
+                                        micro(tr("auto-update")).flex_none().text_color(t.muted),
+                                    )
                                 })
                                 .when(selected, |d| {
                                     d.child(div().size(px(6.)).rounded_full().bg(t.accent))
@@ -3596,12 +3598,10 @@ impl Launcher {
                         .child(
                             centered(tr("no version installed yet."), &t).child(
                                 button("go-versions", "choose a version", Kind::Secondary, &t)
-                                    .on_click(cx.listener(
-                                        |this, _: &ClickEvent, _, cx| {
-                                            this.go(Page::Versions);
-                                            cx.notify();
-                                        },
-                                    )),
+                                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                                        this.go(Page::Versions);
+                                        cx.notify();
+                                    })),
                             ),
                         ),
                 )
@@ -4084,10 +4084,10 @@ impl Launcher {
         );
         let horizon = match (&self.updates.horizon, &self.update_error) {
             (Some(r), _) => trf("{version} available", &[("version", update_name(r))]),
-            (None, Some(_)) => {
-                tr("couldn't check for updates. check the connection and try again in a few minutes.")
-                    .to_string()
-            }
+            (None, Some(_)) => tr(
+                "couldn't check for updates. check the connection and try again in a few minutes.",
+            )
+            .to_string(),
             (None, None) if self.checked.is_some() => tr("up to date").to_string(),
             _ => tr("checking…").to_string(),
         };
@@ -4105,19 +4105,22 @@ impl Launcher {
                             Kind::Ghost,
                             &t,
                         )
-                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                            this.update_error_detail = !this.update_error_detail;
-                            cx.notify();
-                        })),
+                        .on_click(cx.listener(
+                            |this, _: &ClickEvent, _, cx| {
+                                this.update_error_detail = !this.update_error_detail;
+                                cx.notify();
+                            },
+                        )),
                     )
                     .child(
-                        button("retry-update-check", "try again", Kind::Secondary, &t)
-                            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                        button("retry-update-check", "try again", Kind::Secondary, &t).on_click(
+                            cx.listener(|this, _: &ClickEvent, _, cx| {
                                 this.update_error = None;
                                 this.update_error_detail = false;
                                 this.check_updates();
                                 cx.notify();
-                            })),
+                            }),
+                        ),
                     )
                     .into_any_element(),
             )
@@ -5183,7 +5186,7 @@ impl Launcher {
                                 .child(raw),
                         )
                     }),
-                )
+                );
             }
             Load::Ready(r) if r.is_empty() => {
                 return page.child(centered(tr("no releases yet."), &t));
@@ -5340,15 +5343,11 @@ impl Launcher {
 
     fn notes_page(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
-        let page = div()
-            .flex()
-            .flex_col()
-            .gap(px(32.))
-            .child(page_header(
-                "patch notes",
-                "what changed in each release, newest first.",
-                &t,
-            ));
+        let page = div().flex().flex_col().gap(px(32.)).child(page_header(
+            "patch notes",
+            "what changed in each release, newest first.",
+            &t,
+        ));
         let releases = match &self.releases {
             Load::Loading => return page.child(centered(tr("loading patch notes…"), &t)),
             Load::Failed(e) => {
@@ -5392,7 +5391,7 @@ impl Launcher {
                                 .child(raw),
                         )
                     }),
-                )
+                );
             }
             Load::Ready(r) => r,
         };
@@ -5566,9 +5565,8 @@ impl Render for Launcher {
         }
         CONTROL_HANDLES.with(|c| c.borrow_mut().fill(window, cx));
         let page_keys = self.modal_keys.is_none() && !self.asking_consent();
-        PAGE_SCROLL.with(|h| {
-            *h.borrow_mut() = page_keys.then(|| self.content_scroll.handle.clone())
-        });
+        PAGE_SCROLL
+            .with(|h| *h.borrow_mut() = page_keys.then(|| self.content_scroll.handle.clone()));
         let sidebar = self.sidebar(window, cx);
         let mut root = div()
             .id("root")
@@ -5835,7 +5833,9 @@ impl Render for Launcher {
                     .items_center()
                     .justify_center()
                     .bg(t.page.opacity(gone))
-                    .when(opening_blocks_pointer(reveal), |d| d.cursor_pointer().occlude())
+                    .when(opening_blocks_pointer(reveal), |d| {
+                        d.cursor_pointer().occlude()
+                    })
                     .child(
                         div()
                             .relative()
@@ -6203,7 +6203,10 @@ mod tests {
         let mut slots: [&mut dyn Disarm; 10] = [o0, o1, o2, o3, o4, o5, o6, o7, b0, b1];
         assert!(disarm_all(&mut slots));
         drop(slots);
-        assert!(o.iter().all(Option::is_none) && b == [false; 2], "all armed at once are all cleared");
+        assert!(
+            o.iter().all(Option::is_none) && b == [false; 2],
+            "all armed at once are all cleared"
+        );
     }
 
     #[test]
