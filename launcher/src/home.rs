@@ -637,6 +637,12 @@ impl Launcher {
                 .map(|p| player_model::render_posed_hi(&p, yaw, pitch, &pose, false, dev_w, dev_h))
         });
         let baked = pixels.map(|p| art::bake(&p, dev_w, dev_h, 1., 1.));
+        if let Some(i) = &baked {
+            // Every repaint bakes a new image; the one it replaces leaves the atlas next render.
+            if let Some(old) = self.stage_image.replace(i.clone()) {
+                self.stage_replaced.push(old);
+            }
+        }
         let (who, _) = self.who_plays();
         let mut stage = div()
             .relative()

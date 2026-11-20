@@ -449,6 +449,10 @@ struct Launcher {
     stage_drag: StageDrag,
     /// The stage clock reading when a click asked for a wave; None at rest.
     stage_click_wave: Option<f32>,
+    /// The stage image on screen, and the ones it replaced: the sprite atlas keeps an image
+    /// until it is dropped there, so each replaced frame is freed on the next render.
+    stage_image: Option<std::sync::Arc<gpui::RenderImage>>,
+    stage_replaced: Vec<std::sync::Arc<gpui::RenderImage>>,
 }
 
 /// The home stage's drag-to-turn state.
@@ -665,6 +669,8 @@ impl Launcher {
             stage_t: 0.,
             stage_drag: StageDrag::default(),
             stage_click_wave: None,
+            stage_image: None,
+            stage_replaced: Vec::new(),
             background_error: None,
             java_runtimes: None,
             java_runtimes_busy: false,
@@ -5529,6 +5535,9 @@ impl Render for Launcher {
             Page::Settings => self.settings_page(cx),
         };
         self.sky.free_replaced(window);
+        for image in self.stage_replaced.drain(..) {
+            let _ = window.drop_image(image);
+        }
         // The new page fades in and rises a few pixels.
         let content = div()
             .relative()
