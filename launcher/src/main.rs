@@ -5776,6 +5776,9 @@ fn main() {
     backend::exe_path();
     #[cfg(windows)]
     backend::remove_replaced_binaries();
+    // An install made under the earlier goattech names moves to the new ones (Windows only).
+    #[cfg(windows)]
+    horizon_launcher::installer::adopt_on_start();
     backend::cleanup_launcher_updates();
     // What the launcher downloads goes through the player's proxy, if they set one: the parts
     // that build their own agents (`horizon-port-pack`) are told before anything starts.

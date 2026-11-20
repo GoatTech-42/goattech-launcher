@@ -23,6 +23,7 @@ pub mod github_mods;
 pub mod heads;
 pub mod i18n;
 pub mod import;
+pub mod install_identity;
 #[cfg(windows)]
 pub mod installer;
 pub mod instances;

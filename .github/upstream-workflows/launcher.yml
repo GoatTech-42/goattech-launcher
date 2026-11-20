@@ -249,7 +249,7 @@ jobs:
             setup="$RUNNER_TEMP/setup-smoke"
             cp "$launcher" "$RUNNER_TEMP/horizon-launcher-setup.exe"
             "$RUNNER_TEMP/horizon-launcher-setup.exe" setup --quiet --dir "$setup"
-            installed="$setup/Horizon Launcher/horizon-launcher.exe"
+            installed="$setup/GoatTech Launcher/horizon-launcher.exe"
             [[ -f "$installed" ]] || { echo "::error::the setup copied no launcher"; exit 1; }
             "$installed" uninstall --quiet
             [[ ! -f "$installed" ]] || { echo "::error::uninstall left the launcher"; exit 1; }
