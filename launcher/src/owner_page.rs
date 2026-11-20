@@ -30,7 +30,7 @@ impl Launcher {
     }
 
     /// Closes it; it comes back with the next refused Play.
-    fn close_owner_screen(&mut self) {
+    pub(crate) fn close_owner_screen(&mut self) {
         self.cancel_sign_in();
         self.owner_screen_open = false;
         if !self.settings.owner_notice_seen {
@@ -43,6 +43,8 @@ impl Launcher {
         let t = self.theme;
         let n = t.night;
         let configured = account::client_id().is_some();
+        let main_key = self.key_handle("owner-main", cx);
+        let later_key = self.key_handle("owner-later", cx);
         // The screenshot preview shows a code without asking Microsoft for one.
         let state = match &self.sign_in_state {
             _ if sign_in_preview() => Shown::Code("https://www.microsoft.com/link", "K7Q-4MXR"),
@@ -151,11 +153,14 @@ impl Launcher {
             ),
             Shown::Idle => body,
         };
+        // The sheet holds the keyboard like every dialog (`ModalKeys`): Tab walks only its
+        // own buttons, so nothing behind it can be reached or activated.
         let main = match state {
             Shown::Code(uri, _) => {
                 let uri = uri.to_string();
                 Some(
                     shell::action("owner-open", shell::Action::Main, &t)
+                        .track_focus(&main_key)
                         .child(shell::label(tr("open link").to_string()))
                         .on_click(move |_, _, cx| cx.open_url(&uri)),
                 )
@@ -163,7 +168,7 @@ impl Launcher {
             Shown::Starting(_) => None,
             Shown::Error(_) if !configured => None,
             _ => Some(
-                microsoft::sign_in_button("owner-sign-in", &t).on_click(cx.listener(
+                microsoft::sign_in_button("owner-sign-in", &t).track_focus(&main_key).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.sign_in_to_play();
                         cx.notify();
@@ -176,6 +181,7 @@ impl Launcher {
                 .relative()
                 .child(tr("waiting for microsoft… the window goes on by itself.").to_string())
         });
+        let has_main = main.is_some();
         let answers = div()
             .relative()
             .flex()
@@ -185,12 +191,19 @@ impl Launcher {
             .children(main)
             .child(
                 shell::action("owner-later", shell::Action::Quiet, &t)
+                    .track_focus(&later_key)
                     .child(shell::label(tr("not now").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.close_owner_screen();
                         cx.notify();
                     })),
             );
+        let mut order = Vec::new();
+        if has_main {
+            order.push(main_key);
+        }
+        order.push(later_key);
+        self.modal_keys = Some(crate::ModalKeys { order });
         // Opaque: it sits over the page's content, not over the bare sky.
         let card = plate::cut(
             theme::night::PIXEL_CORNER,

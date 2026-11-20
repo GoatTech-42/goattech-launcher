@@ -5353,6 +5353,8 @@ impl Render for Launcher {
                         }
                     }
                     "escape" | "left" | "right" if this.asking_consent() => {}
+                    // The account sheet closes like "not now"; nothing behind it hears the key.
+                    "escape" if this.asking_owner() => this.close_owner_screen(),
                     // An open dialog holds the keyboard the way the question does: Tab
                     // walks only its registered controls, wrapping at both ends.
                     "tab" if this.modal_keys.is_some() => {
