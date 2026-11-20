@@ -45,6 +45,7 @@ impl Launcher {
         let configured = account::client_id().is_some();
         let main_key = self.key_handle("owner-main", cx);
         let later_key = self.key_handle("owner-later", cx);
+        let copy_key = self.key_handle("owner-copy", cx);
         // The screenshot preview shows a code without asking Microsoft for one.
         let state = match &self.sign_in_state {
             _ if sign_in_preview() => Shown::Code("https://www.microsoft.com/link", "K7Q-4MXR"),
@@ -134,6 +135,7 @@ impl Launcher {
                         )
                         .child(
                             shell::action("owner-copy", shell::Action::Raised, &t)
+                                .track_focus(&copy_key)
                                 .child(shell::label(tr("copy code").to_string()))
                                 .on_click(move |_, _, cx| {
                                     copy_to_clipboard(
@@ -199,6 +201,10 @@ impl Launcher {
                     })),
             );
         let mut order = Vec::new();
+        // The code's own "copy code" comes first, where it sits on the sheet.
+        if matches!(state, Shown::Code(..)) {
+            order.push(copy_key);
+        }
         if has_main {
             order.push(main_key);
         }
