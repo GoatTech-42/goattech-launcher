@@ -108,9 +108,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir candidate
+          mkdir candidate binary-input
+          # cargo hard-links target/release/<bin> to its deps/ copy; the packager refuses
+          # multi-link inputs, so package a fresh single-link copy.
+          cp launcher/target/release/${{ matrix.binary }} binary-input/${{ matrix.binary }}
           cargo metadata --manifest-path launcher/Cargo.toml --locked --offline --filter-platform ${{ matrix.target }} --format-version 1 > dependency-metadata.json
-          python tools/package_goattech.py --binary launcher/target/release/${{ matrix.binary }} --output candidate --platform ${{ matrix.platform }} --version "$HORIZON_LAUNCHER_VERSION" --source-commit "$GITHUB_SHA" --dependency-metadata dependency-metadata.json --dependency-root "$GITHUB_WORKSPACE" --dependency-root "$HOME/.cargo/registry/src"
+          python tools/package_goattech.py --binary binary-input/${{ matrix.binary }} --output candidate --platform ${{ matrix.platform }} --version "$HORIZON_LAUNCHER_VERSION" --source-commit "$GITHUB_SHA" --dependency-metadata dependency-metadata.json --dependency-root "$GITHUB_WORKSPACE" --dependency-root "$HOME/.cargo/registry/src"
           cat candidate/SHA256SUMS
       # Off by default. This repository is public, so anyone signed in to GitHub can download a
       # workflow artifact: turning it on distributes a build and needs the audience admitted first.

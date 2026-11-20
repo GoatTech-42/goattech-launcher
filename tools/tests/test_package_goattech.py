@@ -123,6 +123,11 @@ class Packages(unittest.TestCase):
         self.package(platform='linux-x64')
         self.assertFalse((self.out / 'horizon-launcher-setup.exe').exists())
 
+    def test_dependency_metadata_is_read_as_utf8_whatever_the_platform_default(self):
+        meta = self.root / 'metadata.json'
+        meta.write_bytes('{"name": "caf\u00e9 \u2713"}'.encode('utf-8'))
+        self.assertEqual(self.spec.load_metadata(meta), {'name': 'caf\u00e9 \u2713'})
+
     def test_an_existing_notices_file_or_symlink_blocks_the_run_before_any_output(self):
         notes = self.out / 'horizon-launcher-setup.NOTICES.txt'
         for make in (lambda: notes.write_bytes(b'keep'), lambda: notes.symlink_to(self.out / 'missing')):

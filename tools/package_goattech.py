@@ -122,6 +122,11 @@ dependency-notices/ and covered-source/. Do not distribute the setup exe without
 """
 
 
+def load_metadata(path):
+    # cargo metadata is UTF-8; the platform default (cp1252 on Windows) must not decide.
+    return json.loads(Path(path).read_text(encoding='utf-8'))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for flag in ('binary', 'output', 'platform', 'version', 'source-commit'):
@@ -129,7 +134,7 @@ def main():
     parser.add_argument('--dependency-metadata', required=True)
     parser.add_argument('--dependency-root', action='append', required=True)
     args = parser.parse_args()
-    metadata = json.loads(Path(args.dependency_metadata).read_text())
+    metadata = load_metadata(args.dependency_metadata)
     print(package(args.binary, args.output, args.platform, args.version, args.source_commit,
                   metadata, args.dependency_root))
 
