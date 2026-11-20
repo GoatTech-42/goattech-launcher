@@ -76,6 +76,8 @@ use horizon_launcher::telemetry;
 use horizon_launcher::{cli, perf};
 use scrollbar::Scrollbar;
 use std::borrow::Cow;
+use std::cell::Cell;
+use std::rc::Rc;
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -2257,6 +2259,50 @@ fn mark(size: f32, t: &Theme) -> Div {
 /// too, without one).
 static KEYBOARD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
+thread_local! {
+    /// The page's scroll handle while the page itself holds the keyboard (not while a dialog
+    /// or the consent question does).
+    static PAGE_SCROLL: std::cell::RefCell<Option<gpui::ScrollHandle>> =
+        const { std::cell::RefCell::new(None) };
+    /// The control the keyboard last took into focus: a control is brought into view once, when
+    /// the focus arrives, so scrolling with the wheel afterwards stays where the player put it.
+    static LAST_FOCUS: std::cell::RefCell<Option<(FocusHandle, u8)>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Scrolls the page just far enough that a control the keyboard focused is fully in view.
+fn scroll_into_view(b: gpui::Bounds<Pixels>, window: &mut Window) {
+    let Some(handle) = PAGE_SCROLL.with(|h| h.borrow().clone()) else {
+        return;
+    };
+    let view = handle.bounds();
+    if view.size.height <= px(0.) {
+        return;
+    }
+    // Only what sits in the page: the sidebar and other controls outside it move nothing.
+    let mid = b.center().x;
+    if mid < view.left() || mid > view.right() {
+        return;
+    }
+    let margin = px(16.);
+    let mut dy = px(0.);
+    if b.bottom() > view.bottom() {
+        dy = view.bottom() - b.bottom() - margin;
+    }
+    if b.origin.y + dy < view.origin.y {
+        dy = view.origin.y - b.origin.y + margin;
+    }
+    if dy != px(0.) {
+        let mut o = handle.offset();
+        let y = (o.y + dy).min(px(0.)).max(-handle.max_offset().y);
+        if y != o.y {
+            o.y = y;
+            handle.set_offset(o);
+            window.refresh();
+        }
+    }
+}
+
 /// Makes a control reachable with Tab, pressed with Enter or Space, with a ring when the keyboard
 /// put it in focus.
 fn keyboard(el: Stateful<Div>, t: &Theme) -> Stateful<Div> {
@@ -2270,13 +2316,94 @@ fn keyboard(el: Stateful<Div>, t: &Theme) -> Stateful<Div> {
         spread_radius: px(spread),
         inset: false,
     };
-    el.tab_index(0).focus(move |s| {
+    // The control's own focus handle (one per element id, from a pool made while the window is
+    // drawn): a handle has no bounds, so the control reports its own drawn position when it is
+    // the one the keyboard just moved to, and the page scrolls to it if it is out of view.
+    let mut el = el;
+    let own = el
+        .interactivity()
+        .element_id
+        .clone()
+        .and_then(|id| CONTROL_HANDLES.with(|c| c.borrow_mut().handle_for(id)));
+    let el = match &own {
+        Some(h) => el.track_focus(h),
+        None => el,
+    };
+    el.child(
+        gpui::canvas(
+            move |bounds, window, _| {
+                let Some(h) = own.as_ref() else {
+                    return;
+                };
+                if !h.is_focused(window) || !KEYBOARD.load(Ordering::Relaxed) {
+                    return;
+                }
+                // A few frames from the arrival of the focus, so the control's position has
+                // settled; after that the page is the player's again (the wheel stays).
+                let tries = LAST_FOCUS.with(|l| {
+                    let mut l = l.borrow_mut();
+                    match &mut *l {
+                        Some((last, n)) if last == h => {
+                            *n = n.saturating_sub(1);
+                            *n
+                        }
+                        slot => {
+                            *slot = Some((h.clone(), 4));
+                            4
+                        }
+                    }
+                });
+                if tries > 0 {
+                    scroll_into_view(bounds, window);
+                    window.request_animation_frame();
+                }
+            },
+            |_, _, _, _| {},
+        )
+        .absolute()
+        .size_full(),
+    )
+    .tab_index(0)
+    .focus(move |s| {
         if KEYBOARD.load(Ordering::Relaxed) {
             s.shadow(vec![shadow(ring, 4.), shadow(gap, 1.5)])
         } else {
             s
         }
     })
+}
+
+/// Focus handles for `keyboard()` controls, one per element id, taken from a pool the window
+/// fills while it draws (a control is built without access to the app).
+#[derive(Default)]
+struct ControlHandles {
+    pool: Vec<FocusHandle>,
+    by_id: HashMap<gpui::ElementId, usize>,
+}
+
+impl ControlHandles {
+    const POOL: usize = 384;
+
+    fn fill(&mut self, cx: &mut Context<Launcher>) {
+        while self.pool.len() < Self::POOL {
+            self.pool.push(cx.focus_handle().tab_index(0).tab_stop(true));
+        }
+    }
+
+    fn handle_for(&mut self, id: gpui::ElementId) -> Option<FocusHandle> {
+        if let Some(i) = self.by_id.get(&id) {
+            return self.pool.get(*i).cloned();
+        }
+        let next = self.by_id.len();
+        let h = self.pool.get(next).cloned()?;
+        self.by_id.insert(id, next);
+        Some(h)
+    }
+}
+
+thread_local! {
+    static CONTROL_HANDLES: std::cell::RefCell<ControlHandles> =
+        std::cell::RefCell::new(ControlHandles::default());
 }
 
 /// The consent question's focusable controls, in the order Tab walks them. The framework's tab
@@ -5321,6 +5448,11 @@ impl Render for Launcher {
         if let Some(next) = next {
             self.wake_sky(next, cx);
         }
+        CONTROL_HANDLES.with(|c| c.borrow_mut().fill(cx));
+        let page_keys = self.modal_keys.is_none() && !self.asking_consent();
+        PAGE_SCROLL.with(|h| {
+            *h.borrow_mut() = page_keys.then(|| self.content_scroll.handle.clone())
+        });
         let sidebar = self.sidebar(window, cx);
         let mut root = div()
             .id("root")

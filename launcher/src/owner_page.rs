@@ -170,7 +170,7 @@ impl Launcher {
             Shown::Starting(_) => None,
             Shown::Error(_) if !configured => None,
             _ => Some(
-                keyboard(microsoft::sign_in_button("owner-sign-in", &t).track_focus(&main_key), &t).on_click(cx.listener(
+                keyboard(microsoft::sign_in_button("owner-sign-in", &t), &t).track_focus(&main_key).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.sign_in_to_play();
                         cx.notify();
