@@ -698,9 +698,11 @@ mod tests {
     // The same with no old keys: the entry is repaired from the own key, version kept.
     #[test]
     fn a_broken_entry_without_old_keys_is_repaired_from_the_own_key() {
-        let mut io = Fake::default();
-        io.new = Some(reg_v(OLD_DIR, "2.0.0"));
-        io.new_valid = false;
+        let mut io = Fake {
+            new: Some(reg_v(OLD_DIR, "2.0.0")),
+            new_valid: false,
+            ..Default::default()
+        };
         let d = io.decide();
         assert_eq!(d, Decision::Repair(reg_v(OLD_DIR, "2.0.0")));
         assert_eq!(run(&d, &mut io), Outcome::Done);
@@ -845,8 +847,10 @@ mod tests {
                 "after {after}"
             );
         }
-        let mut io = Fake::default();
-        io.fail_at = Some(0);
+        let mut io = Fake {
+            fail_at: Some(0),
+            ..Default::default()
+        };
         let d = Decision::Repair(reg(OLD_DIR));
         assert!(matches!(run(&d, &mut io), Outcome::Failed(_)));
         assert_eq!(io.calls, ["write_new"]);
