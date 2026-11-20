@@ -195,6 +195,7 @@ impl Launcher {
         let mut section=div().flex().flex_col().gap(px(10.)).mt(px(26.))
             .child(shell::text(theme::night::CAPTION,shell::c(n.ink)).child(tr("client jar").to_string()))
             .child(shell::text(theme::night::CAPTION,shell::c(n.muted)).child(tr("choose a local fabric client mod from its own website. inspect it here, then install it in a new java instance. existing instances stay unchanged.").to_string()))
+            .child(shell::text(theme::night::CAPTION,shell::c(n.muted)).child(tr("except when you choose one of your fabric instances with the into button: that instance then gets the jar.").to_string()))
             .child(shell::text(theme::night::CAPTION,shell::c(n.muted)).child(tr("some clients and fabric api bundles need dependency resolution not supported here yet. client-specific config sharing is not available; options.txt sharing is separate.").to_string()));
         let label = if busy {
             "working..."
@@ -226,7 +227,7 @@ impl Launcher {
                     Some(name) => format!("into: {name}"),
                     None => "into: a new instance".to_string(),
                 },
-                Kind::Ghost,
+                Kind::Secondary,
                 &t,
             );
             if !busy && !ids.is_empty() {
