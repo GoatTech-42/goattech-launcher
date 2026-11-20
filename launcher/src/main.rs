@@ -296,6 +296,8 @@ struct Launcher {
     consent_keys: ConsentKeys,
     /// Edge marker so an answered question hands the keyboard back to the window once.
     consent_open: bool,
+    /// The account sheet was up on the last render: when it goes, focus returns to the window.
+    owner_was_open: bool,
     /// The open dialog's keyboard set (`ModalKeys`): filled by the dialog as it renders,
     /// cleared each render before the dialogs build. None when no dialog is up.
     modal_keys: Option<ModalKeys>,
@@ -691,6 +693,7 @@ impl Launcher {
             root_focus: cx.focus_handle(),
             consent_keys: ConsentKeys::new(cx),
             consent_open: false,
+            owner_was_open: false,
             modal_keys: None,
             accounts: Accounts::load(),
             auth_status: HashMap::new(),
@@ -5520,6 +5523,11 @@ impl Render for Launcher {
         if owner_open {
             root = root.child(self.owner_screen(cx));
         }
+        if !owner_open && self.owner_was_open {
+            // Closed: hand the keyboard back to the window itself, once, as the data question does.
+            window.focus(&self.root_focus, cx);
+        }
+        self.owner_was_open = owner_open;
         // A dialog gets the same courtesy, but only once the keyboard is in use:
         // a mouse click outside it never has the pointer's focus stolen back. The account
         // sheet holds the keyboard from the moment it shows, like the data question: a
