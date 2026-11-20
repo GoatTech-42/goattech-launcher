@@ -2381,6 +2381,10 @@ fn keyboard_with(el: Stateful<Div>, t: &Theme, own: Option<FocusHandle>) -> Stat
 /// Element id to pool slot, with reclaim: a slot goes back to the pool once its id was not
 /// drawn for two renders in a row (and does not hold the focus), so ids that come and go (lists,
 /// pickers) never use the pool up.
+///
+/// Capacity: `size` slots must cover the ids drawn in the current render, plus those drawn in the
+/// previous render (they are freed only at the start of the render after), plus the focused one.
+/// Past that, a new id gets no slot and its control simply has no reveal (Tab still reaches it).
 #[derive(Default)]
 struct IdSlots {
     by_id: HashMap<gpui::ElementId, (usize, u64, u64)>,
@@ -2437,7 +2441,8 @@ impl IdSlots {
 
 /// Focus handles for `keyboard()` controls, one per element id, taken from a pool the window
 /// fills while it draws (a control is built without access to the app). The pool belongs to one
-/// window; a new window starts a new pool.
+/// window; a new window starts a new pool. The pool and the arrival state are thread-local and
+/// hold one window's handles at a time: they assume the launcher draws a single current window.
 #[derive(Default)]
 struct ControlHandles {
     pool: Vec<FocusHandle>,
