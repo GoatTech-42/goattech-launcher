@@ -695,7 +695,10 @@ mod tests {
                 since += 0.02;
             }
         }
-        assert!(Pose::click_wave(0., 1.6).is_none(), "the wave rests after its hold");
+        assert!(
+            Pose::click_wave(0., 1.6).is_none(),
+            "the wave rests after its hold"
+        );
         let peak = (0..160)
             .map(|i| Pose::click_wave(0., i as f32 * 0.01).unwrap().arm_r)
             .fold(0f32, f32::max);
@@ -776,7 +779,10 @@ mod tests {
                 let p = px(x, y);
                 assert_eq!(p[3], 255, "hip band ({x},{y}) must be covered");
                 assert_eq!(p[0], 0, "hip band ({x},{y}) shows trouser red: {p:?}");
-                assert!(p[1] > 150, "hip band ({x},{y}) must be the jacket's green: {p:?}");
+                assert!(
+                    p[1] > 150,
+                    "hip band ({x},{y}) must be the jacket's green: {p:?}"
+                );
             }
         }
         for y in 76..=116 {
@@ -785,7 +791,10 @@ mod tests {
                 if p[3] == 0 {
                     continue; // background beside the silhouette
                 }
-                assert_eq!(p[0], 0, "armpit strip ({x},{y}) shows jacket red-mix: {p:?}");
+                assert_eq!(
+                    p[0], 0,
+                    "armpit strip ({x},{y}) shows jacket red-mix: {p:?}"
+                );
                 assert_eq!(p[1], 0, "armpit strip ({x},{y}) shows jacket green: {p:?}");
             }
         }
@@ -805,7 +814,10 @@ mod tests {
                 let p = bp(x, y);
                 assert_eq!(p[3], 255, "back hip band ({x},{y}) must be covered");
                 assert_eq!(p[0], 0, "back hip band ({x},{y}) shows trouser red: {p:?}");
-                assert!(p[1] > 150, "back hip band ({x},{y}) must be the jacket's green: {p:?}");
+                assert!(
+                    p[1] > 150,
+                    "back hip band ({x},{y}) must be the jacket's green: {p:?}"
+                );
             }
         }
     }

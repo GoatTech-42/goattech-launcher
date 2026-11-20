@@ -208,7 +208,8 @@ impl Launcher {
             .gap(px(8.))
             .child(copy)
             .child({
-                let b = button("native-log-file", "open full log", Kind::Ghost, &t).track_focus(&file_key);
+                let b = button("native-log-file", "open full log", Kind::Ghost, &t)
+                    .track_focus(&file_key);
                 if gone {
                     disabled(b)
                 } else {
@@ -216,7 +217,8 @@ impl Launcher {
                 }
             })
             .child({
-                let b = button("native-log-reveal", "show in folder", Kind::Ghost, &t).track_focus(&reveal_key);
+                let b = button("native-log-reveal", "show in folder", Kind::Ghost, &t)
+                    .track_focus(&reveal_key);
                 if gone {
                     disabled(b)
                 } else {
@@ -224,12 +226,12 @@ impl Launcher {
                 }
             })
             .child(
-                button("native-log-refresh", "refresh", Kind::Ghost, &t).track_focus(&refresh_key).on_click(cx.listener(
-                    |this, _: &ClickEvent, _, cx| {
+                button("native-log-refresh", "refresh", Kind::Ghost, &t)
+                    .track_focus(&refresh_key)
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.native_log.stale = true;
                         cx.notify();
-                    },
-                )),
+                    })),
             );
         if let Some(note) = &self.native_log.note {
             actions = actions.child(
@@ -266,12 +268,12 @@ impl Launcher {
                     ),
             )
             .child(
-                button("native-log-close", "close", Kind::Secondary, &t).track_focus(&close_key).on_click(cx.listener(
-                    |this, _: &ClickEvent, _, cx| {
+                button("native-log-close", "close", Kind::Secondary, &t)
+                    .track_focus(&close_key)
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.native_log_escape();
                         cx.notify();
-                    },
-                )),
+                    })),
             );
         let body = match loaded {
             None => centered(tr("loading build log…"), &t),

@@ -231,8 +231,11 @@ impl Launcher {
             );
             if !busy && !ids.is_empty() {
                 pick = pick.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                    let ids: Vec<String> =
-                        this.client_targets().into_iter().map(|(id, _)| id).collect();
+                    let ids: Vec<String> = this
+                        .client_targets()
+                        .into_iter()
+                        .map(|(id, _)| id)
+                        .collect();
                     let now = this.instances.client.target.clone();
                     this.instances.client.target = next_target(&ids, now.as_deref());
                     cx.notify();

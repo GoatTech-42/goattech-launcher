@@ -915,7 +915,11 @@ impl Launcher {
 
     /// The dialog being built takes the keyboard (`ModalKeys`): its rendered text fields
     /// in order, then these extra controls. Called at the end of a dialog's build.
-    pub(super) fn modal_keys(&mut self, extra: &[(&'static str, FocusHandle)], cx: &mut Context<Self>) {
+    pub(super) fn modal_keys(
+        &mut self,
+        extra: &[(&'static str, FocusHandle)],
+        cx: &mut Context<Self>,
+    ) {
         let mut order: Vec<FocusHandle> = self
             .servers
             .rendered_fields
@@ -2943,15 +2947,17 @@ impl Launcher {
             .flex()
             .items_center()
             .gap(px(10.))
-            .child(checkbox("create-eula", eula).track_focus(&eula_key).on_click(cx.listener(
-                |this, _: &ClickEvent, _, cx| {
-                    if let Some(c) = &mut this.servers.create {
-                        c.eula = !c.eula;
-                        c.eula_missing = false;
-                    }
-                    cx.notify();
-                },
-            )))
+            .child(
+                checkbox("create-eula", eula)
+                    .track_focus(&eula_key)
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                        if let Some(c) = &mut this.servers.create {
+                            c.eula = !c.eula;
+                            c.eula_missing = false;
+                        }
+                        cx.notify();
+                    })),
+            )
             .child(
                 text(theme::UI)
                     .text_color(if eula_missing { t.danger } else { t.ink })
@@ -3124,7 +3130,11 @@ impl Launcher {
         );
         // The dialog's keyboard set: its rendered fields, then EULA, Cancel, Create.
         self.modal_keys(
-            &[("create-eula", eula_key), ("create-cancel", cancel_key), ("create-go", create_key)],
+            &[
+                ("create-eula", eula_key),
+                ("create-cancel", cancel_key),
+                ("create-go", create_key),
+            ],
             cx,
         );
         out

@@ -211,7 +211,9 @@ fn window_errors_from_the_real_producers_carry_no_cli_flags() {
         let shown = window_words(e);
         assert!(!shown.contains("--"), "{shown}");
     }
-    assert!(window_words(check_mod_dependencies(&jar, None).unwrap_err()).contains("\"into\" button"));
+    assert!(
+        window_words(check_mod_dependencies(&jar, None).unwrap_err()).contains("\"into\" button")
+    );
 }
 
 /// The loader list Fabric's meta serves, without the network.

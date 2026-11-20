@@ -202,69 +202,72 @@ impl Launcher {
         let shot = self.screenshots.list.get(i)?.clone();
         let count = self.screenshots.list.len();
         let taken: chrono::DateTime<chrono::Local> = shot.taken.into();
-        let step = |id: &'static str, key: &FocusHandle, label: &'static str, older: bool, can: bool| {
-            let b = button(id, label, Kind::Ghost, &t).track_focus(key);
-            if can {
-                b.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                    this.screenshot_step(older);
-                    cx.notify();
-                }))
-            } else {
-                disabled(b)
-            }
-        };
+        let step =
+            |id: &'static str, key: &FocusHandle, label: &'static str, older: bool, can: bool| {
+                let b = button(id, label, Kind::Ghost, &t).track_focus(key);
+                if can {
+                    b.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        this.screenshot_step(older);
+                        cx.notify();
+                    }))
+                } else {
+                    disabled(b)
+                }
+            };
         let mut actions = div().flex().items_center().gap(px(6.));
         if self.screenshots.confirm_delete {
             let gone = shot.clone();
-            actions =
-                actions
-                    .child(
-                        text(theme::CAPTION)
-                            .text_color(t.danger)
-                            .child(tr("move it to the trash?")),
-                    )
-                    .child(button("screenshot-keep", "keep", Kind::Ghost, &t).track_focus(&keys["screenshot-keep"]).on_click(
-                        cx.listener(|this, _: &ClickEvent, _, cx| {
+            actions = actions
+                .child(
+                    text(theme::CAPTION)
+                        .text_color(t.danger)
+                        .child(tr("move it to the trash?")),
+                )
+                .child(
+                    button("screenshot-keep", "keep", Kind::Ghost, &t)
+                        .track_focus(&keys["screenshot-keep"])
+                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.screenshots.confirm_delete = false;
                             cx.notify();
-                        }),
-                    ))
-                    .child(
-                        button("screenshot-trash", "move to trash", Kind::Secondary, &t).track_focus(&keys["screenshot-trash"]).on_click(
-                            cx.listener(move |this, _: &ClickEvent, _, cx| {
-                                this.delete_screenshot(&gone);
-                                cx.notify();
-                            }),
-                        ),
-                    );
+                        })),
+                )
+                .child(
+                    button("screenshot-trash", "move to trash", Kind::Secondary, &t)
+                        .track_focus(&keys["screenshot-trash"])
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            this.delete_screenshot(&gone);
+                            cx.notify();
+                        })),
+                );
         } else {
             let (copy, open, show) = (shot.clone(), shot.path.clone(), shot.path.clone());
-            actions =
-                actions
-                    .child(button("screenshot-copy", "copy", Kind::Ghost, &t).track_focus(&keys["screenshot-copy"]).on_click(
-                        cx.listener(move |this, _: &ClickEvent, _, cx| {
+            actions = actions
+                .child(
+                    button("screenshot-copy", "copy", Kind::Ghost, &t)
+                        .track_focus(&keys["screenshot-copy"])
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.copy_screenshot(&copy, cx);
                             cx.notify();
-                        }),
-                    ))
-                    .child(
-                        button("screenshot-open", "open", Kind::Ghost, &t)
-                            .track_focus(&keys["screenshot-open"])
-                            .on_click(move |_, _, cx| cx.open_with_system(&open)),
-                    )
-                    .child(
-                        button("screenshot-show", "show in folder", Kind::Ghost, &t)
-                            .track_focus(&keys["screenshot-show"])
-                            .on_click(move |_, _, cx| cx.reveal_path(&show)),
-                    )
-                    .child(
-                        button("screenshot-delete", "delete", Kind::Ghost, &t).track_focus(&keys["screenshot-delete"]).on_click(
-                            cx.listener(|this, _: &ClickEvent, _, cx| {
-                                this.screenshots.confirm_delete = true;
-                                cx.notify();
-                            }),
-                        ),
-                    );
+                        })),
+                )
+                .child(
+                    button("screenshot-open", "open", Kind::Ghost, &t)
+                        .track_focus(&keys["screenshot-open"])
+                        .on_click(move |_, _, cx| cx.open_with_system(&open)),
+                )
+                .child(
+                    button("screenshot-show", "show in folder", Kind::Ghost, &t)
+                        .track_focus(&keys["screenshot-show"])
+                        .on_click(move |_, _, cx| cx.reveal_path(&show)),
+                )
+                .child(
+                    button("screenshot-delete", "delete", Kind::Ghost, &t)
+                        .track_focus(&keys["screenshot-delete"])
+                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                            this.screenshots.confirm_delete = true;
+                            cx.notify();
+                        })),
+                );
         }
         let note = match &self.screenshots.note {
             Some(Ok(m)) => Some(text(theme::CAPTION).text_color(t.muted).child(m.clone())),
@@ -300,15 +303,27 @@ impl Launcher {
                             )),
                     ),
             )
-            .child(step("screenshot-newer", &keys["screenshot-newer"], "← newer", false, i > 0))
-            .child(step("screenshot-older", &keys["screenshot-older"], "older →", true, i + 1 < count))
+            .child(step(
+                "screenshot-newer",
+                &keys["screenshot-newer"],
+                "← newer",
+                false,
+                i > 0,
+            ))
+            .child(step(
+                "screenshot-older",
+                &keys["screenshot-older"],
+                "older →",
+                true,
+                i + 1 < count,
+            ))
             .child(
-                button("screenshot-close", "close", Kind::Secondary, &t).track_focus(&keys["screenshot-close"]).on_click(cx.listener(
-                    |this, _: &ClickEvent, _, cx| {
+                button("screenshot-close", "close", Kind::Secondary, &t)
+                    .track_focus(&keys["screenshot-close"])
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.screenshot_escape();
                         cx.notify();
-                    },
-                )),
+                    })),
             );
         let bottom = div()
             .flex()
