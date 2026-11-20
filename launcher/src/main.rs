@@ -5835,7 +5835,7 @@ impl Render for Launcher {
                     .items_center()
                     .justify_center()
                     .bg(t.page.opacity(gone))
-                    .when(reveal == 0., |d| d.cursor_pointer())
+                    .when(opening_blocks_pointer(reveal), |d| d.cursor_pointer().occlude())
                     .child(
                         div()
                             .relative()
@@ -6133,6 +6133,12 @@ fn drag_not_click(event: &ClickEvent) -> bool {
     }
 }
 
+/// Whether the opening overlay takes the pointer: while the wordmark is held (nothing beneath it
+/// shows) a press only skips the opening, instead of also pressing the hidden control under it.
+fn opening_blocks_pointer(reveal: f32) -> bool {
+    reveal == 0.
+}
+
 /// An inline confirm that Escape can back out of: an `Option` key or a plain flag.
 trait Disarm {
     /// Clears it. Whether it was armed.
@@ -6162,6 +6168,16 @@ fn disarm_all(slots: &mut [&mut dyn Disarm]) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn opening_overlay_blocks_the_pointer_only_while_the_wordmark_is_opaque() {
+        // Held: the wordmark covers everything, so a press must not reach the hidden controls.
+        assert!(super::opening_blocks_pointer(0.));
+        // Revealing: the launcher shows through and its controls take presses.
+        assert!(!super::opening_blocks_pointer(0.01));
+        assert!(!super::opening_blocks_pointer(0.5));
+        assert!(!super::opening_blocks_pointer(1.));
+    }
+
     #[test]
     fn disarm_all_reports_any_armed_slot_and_clears_all() {
         use super::{disarm_all, Disarm};
