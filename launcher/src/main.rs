@@ -2396,7 +2396,11 @@ struct IdSlots {
 
 impl IdSlots {
     fn new(size: usize) -> Self {
-        Self { free: (0..size).rev().collect(), size, ..Self::default() }
+        Self {
+            free: (0..size).rev().collect(),
+            size,
+            ..Self::default()
+        }
     }
 
     /// Start of a render: age the ids, free the ones unseen for two renders unless `keep`.
@@ -2461,13 +2465,15 @@ impl ControlHandles {
             LAST_FOCUS.with(|l| *l.borrow_mut() = None);
         }
         while self.pool.len() < Self::POOL {
-            self.pool.push(cx.focus_handle().tab_index(0).tab_stop(true));
+            self.pool
+                .push(cx.focus_handle().tab_index(0).tab_stop(true));
         }
         if self.slots.len() == 0 {
             self.slots = IdSlots::new(Self::POOL);
         }
         let pool = &self.pool;
-        self.slots.begin(|slot| pool.get(slot).is_some_and(|h| h.is_focused(window)));
+        self.slots
+            .begin(|slot| pool.get(slot).is_some_and(|h| h.is_focused(window)));
         // The focus left the control the page was revealing: the next arrival reveals again.
         LAST_FOCUS.with(|l| {
             let mut l = l.borrow_mut();
@@ -6108,7 +6114,10 @@ mod tests {
             s.begin(|_| false);
             for i in 0..100u32 {
                 let id = gpui::ElementId::Name(format!("c-{round}-{i}").into());
-                assert!(s.slot_for(id).is_some(), "round {round} id {i} lost its slot");
+                assert!(
+                    s.slot_for(id).is_some(),
+                    "round {round} id {i} lost its slot"
+                );
             }
         }
     }
@@ -6121,13 +6130,25 @@ mod tests {
         let a = s.slot_for(gpui::ElementId::Name("a".into()));
         let b = s.slot_for(gpui::ElementId::Name("b".into()));
         assert!(a.is_some() && b.is_some() && a != b);
-        assert_eq!(s.slot_for(gpui::ElementId::Name("a".into())), None, "same id twice in a render");
+        assert_eq!(
+            s.slot_for(gpui::ElementId::Name("a".into())),
+            None,
+            "same id twice in a render"
+        );
         s.begin(|_| false);
-        assert_eq!(s.slot_for(gpui::ElementId::Name("a".into())), a, "stable across renders");
+        assert_eq!(
+            s.slot_for(gpui::ElementId::Name("a".into())),
+            a,
+            "stable across renders"
+        );
         // Unseen for two renders frees the slot unless it holds focus.
         s.begin(|slot| Some(slot) == b);
         s.begin(|slot| Some(slot) == b);
-        assert_eq!(s.slot_for(gpui::ElementId::Name("b".into())), b, "focused slot is kept");
+        assert_eq!(
+            s.slot_for(gpui::ElementId::Name("b".into())),
+            b,
+            "focused slot is kept"
+        );
     }
 
     #[test]
@@ -6145,7 +6166,7 @@ mod tests {
 
     #[test]
     fn stage_drag_release_click_tells_a_click_from_a_turn() {
-        use super::{CLICK_SLACK, StageDrag, Track};
+        use super::{StageDrag, Track, CLICK_SLACK};
         // No press: nothing to release.
         let mut d = StageDrag::default();
         assert_eq!(d.release_click(), None);
