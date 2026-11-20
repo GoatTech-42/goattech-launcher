@@ -412,3 +412,103 @@ fn an_archive_within_the_limit_unpacks_all_of_it() {
     assert_eq!(fs::read(home.join("options.txt")).unwrap(), b"12345");
     assert_eq!(fs::read(home.join("config/a.txt")).unwrap(), b"67890");
 }
+
+/// Every file under `dir` with its bytes, to compare a folder before and after.
+fn snapshot(dir: &Path) -> Vec<(String, Vec<u8>)> {
+    fn walk(root: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>)>) {
+        let mut entries: Vec<_> = fs::read_dir(dir)
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .collect();
+        entries.sort();
+        for p in entries {
+            if p.is_dir() {
+                walk(root, &p, out);
+            } else {
+                let rel = p.strip_prefix(root).unwrap().to_string_lossy().into_owned();
+                out.push((rel, fs::read(&p).unwrap()));
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(dir, dir, &mut out);
+    out
+}
+
+/// What the player's other launcher left: the instance's own data next to the launcher's
+/// credentials and sessions, which an import must not carry over.
+fn other_launcher_files() -> Vec<(&'static str, &'static [u8])> {
+    vec![
+        ("options.txt", b"lang:fr_ch\n"),
+        ("saves/World/level.dat", b"level"),
+        ("resourcepacks/Glass.zip", b"glass"),
+        ("accounts.json", b"{\"token\":\"secret\"}"),
+        ("launcher_profiles.json", b"{\"authenticationDatabase\":{}}"),
+        ("msa_token.json", b"msa"),
+        ("auth/session.txt", b"session"),
+        ("config/../accounts.bak", b"escape"),
+        ("instance.cfg", b"[General]\nname=Prism"),
+    ]
+}
+
+#[test]
+fn an_import_leaves_the_original_archive_untouched() {
+    let dir = scratch("originals");
+    let made = dir.join("instances");
+    let zip = dir.join("Other.zip");
+    zip_file(&zip, &other_launcher_files());
+    let (bytes, modified) = (
+        fs::read(&zip).unwrap(),
+        fs::metadata(&zip).unwrap().modified().unwrap(),
+    );
+    let i = import_into(&zip, NONE, &maker(&made)).unwrap();
+    assert_eq!(
+        fs::read(&zip).unwrap(),
+        bytes,
+        "the archive's bytes changed"
+    );
+    assert_eq!(fs::metadata(&zip).unwrap().modified().unwrap(), modified);
+    // What was kept is the instance's own data; no credential or session file came along.
+    assert!(i.home.join("options.txt").is_file());
+    assert!(i.home.join("saves/World/level.dat").is_file());
+    for left_out in [
+        "accounts.json",
+        "launcher_profiles.json",
+        "msa_token.json",
+        "auth/session.txt",
+        "accounts.bak",
+        "instance.cfg",
+    ] {
+        assert!(!i.home.join(left_out).exists(), "{left_out} was imported");
+    }
+    // A refused archive is just as untouched, and leaves no half-made instance.
+    let far = dir.join("far.mrpack");
+    let index = r#"{"formatVersion":1,"name":"Far","dependencies":{"minecraft":"26.3"},
+        "files":[{"path":"resourcepacks/x.zip","hashes":{"sha1":"00","sha512":"00"},
+        "downloads":["https://example.com/x.zip"],"fileSize":1}]}"#;
+    zip_file(&far, &[("modrinth.index.json", index.as_bytes())]);
+    let far_bytes = fs::read(&far).unwrap();
+    assert!(import_into(&far, NONE, &maker(&made)).is_err());
+    assert_eq!(fs::read(&far).unwrap(), far_bytes);
+    assert!(!made.join("far").exists());
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn an_export_and_its_import_leave_the_original_instance_folder_untouched() {
+    let dir = scratch("export-originals");
+    let home = dir.join("from");
+    for (name, bytes) in other_launcher_files() {
+        if !name.contains("..") {
+            put(&home.join(name), bytes);
+        }
+    }
+    let before = snapshot(&home);
+    let out = dir.join("Shared.zip");
+    export(&home, "Shared", Format::Zip, &["World".into()], &[], &out).unwrap();
+    let i = import_into(&out, NONE, &maker(&dir.join("instances"))).unwrap();
+    assert_eq!(snapshot(&home), before, "the original folder changed");
+    assert!(!i.home.join("accounts.json").exists());
+    assert!(!i.home.join("launcher_profiles.json").exists());
+    fs::remove_dir_all(&dir).unwrap();
+}
