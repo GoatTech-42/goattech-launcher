@@ -105,10 +105,10 @@ def package(binary, output, platform, version, source_commit, dependency_metadat
         listed.append(setup)
         # The setup exe is the same binary as in the zip, shipped alone. Its notices and the
         # MPL-2.0 covered source live in the zip, so this file travels with it and names them.
-        with setup_notes.open('x') as raw:
+        with setup_notes.open('x', newline='\n') as raw:
             raw.write(SETUP_NOTICES.format(zip=archive.name))
         listed.append(setup_notes)
-    with sums.open('x') as f:
+    with sums.open('x', newline='\n') as f:
         for path in listed:
             f.write(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n')
     return archive

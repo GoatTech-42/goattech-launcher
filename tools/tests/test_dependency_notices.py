@@ -24,7 +24,7 @@ class Notices(unittest.TestCase):
         return self.module.collect(self.metadata, [self.root])
 
     def test_preserves_text_expression_and_missing_status_without_private_paths(self):
-        (self.pkg / 'LICENSE-MIT').write_text('Original copyright and license\n')
+        (self.pkg / 'LICENSE-MIT').write_bytes(b'Original copyright and license\n')
         files = self.collect()
         self.assertEqual(files['dependency-notices/example-1.2.3/LICENSE-MIT'], b'Original copyright and license\n')
         index = json.loads(files['dependency-notices/index.json'])
@@ -92,10 +92,10 @@ class Notices(unittest.TestCase):
             with self.assertRaises(ValueError):self.module.collect(self.metadata, [self.root], root)
 
     def test_case_insensitive_direct_texts_without_recursive_scan(self):
-        (self.pkg / 'license-mit').write_text('Original MIT text\n')
-        (self.pkg / 'license-apache-2.0').write_text('Original Apache text\n')
+        (self.pkg / 'license-mit').write_bytes(b'Original MIT text\n')
+        (self.pkg / 'license-apache-2.0').write_bytes(b'Original Apache text\n')
         (self.pkg / 'nested').mkdir()
-        (self.pkg / 'nested' / 'LICENSE').write_text('Not a direct input\n')
+        (self.pkg / 'nested' / 'LICENSE').write_bytes(b'Not a direct input\n')
         files = self.collect()
         row = json.loads(files['dependency-notices/index.json'])['packages'][0]
         self.assertEqual(len(row['texts']), 2)

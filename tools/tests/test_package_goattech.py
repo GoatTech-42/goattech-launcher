@@ -50,6 +50,8 @@ class Packages(unittest.TestCase):
                          hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n'
                          + hashlib.sha256(setup.read_bytes()).hexdigest() + '  ' + setup.name + '\n'
                          + hashlib.sha256(notes.read_bytes()).hexdigest() + '  ' + notes.name + '\n')
+        self.assertNotIn(b'\r', (self.out / 'SHA256SUMS').read_bytes())
+        self.assertNotIn(b'\r', notes.read_bytes())
         self.assertIn('covered-source/', notes.read_text())
         self.assertIn(archive.name, notes.read_text())
 
