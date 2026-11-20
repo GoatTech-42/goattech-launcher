@@ -33,7 +33,7 @@ pub(super) struct Github {
     /// The mods installed from GitHub in `home`, and what the last update check found for each.
     home: Option<PathBuf>,
     newer: std::collections::HashMap<String, Resolved>,
-    confirm_remove: Option<String>,
+    pub(super) confirm_remove: Option<String>,
     tx: Sender<Event>,
     rx: Receiver<Event>,
 }

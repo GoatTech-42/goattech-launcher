@@ -16,7 +16,7 @@ pub(super) struct Multiplayer {
     list: Vec<(Server, Option<Arc<Image>>)>,
     fresh: bool,
     adding: bool,
-    confirm_remove: Option<usize>,
+    pub(super) confirm_remove: Option<usize>,
     error: Option<String>,
 }
 

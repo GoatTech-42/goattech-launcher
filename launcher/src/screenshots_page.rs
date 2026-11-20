@@ -19,7 +19,7 @@ pub(super) struct Screenshots {
     all: bool,
     /// The picture open in the viewer, by its place in `list`.
     viewing: Option<usize>,
-    confirm_delete: bool,
+    pub(super) confirm_delete: bool,
     /// What the last action did, or why it failed.
     note: Option<Result<String, String>>,
 }

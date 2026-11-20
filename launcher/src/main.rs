@@ -3377,6 +3377,23 @@ impl Launcher {
         closed_by_press(self.menu_closed_at.take(), event)
     }
 
+    /// Escape backs out of an armed inline confirm ("move it to the trash?" and its kin)
+    /// on whichever page holds one. Whether any was armed.
+    fn confirm_escape(&mut self) -> bool {
+        let mut any = false;
+        any |= disarm(&mut self.confirm_remove);
+        any |= disarm(&mut self.worlds.confirm_delete);
+        any |= disarm(&mut self.game_packs.confirm_remove);
+        any |= disarm(&mut self.world_packs.confirm_remove);
+        any |= disarm(&mut self.multiplayer.confirm_remove);
+        any |= disarm(&mut self.github.confirm_remove);
+        any |= disarm(&mut self.mods.confirm_remove);
+        any |= disarm(&mut self.instances.confirm_delete);
+        any |= std::mem::take(&mut self.screenshots.confirm_delete);
+        any |= std::mem::take(&mut self.collection.confirm_delete);
+        any
+    }
+
     /// Escape closes home's floating chrome with no other keyboard exit: the account menu,
     /// the launch picker, then the ping notice, in that order.
     fn home_chrome_escape(&mut self) -> bool {
@@ -5609,6 +5626,7 @@ impl Render for Launcher {
                     "escape" if this.servers_escape() => {}
                     "escape" if this.instance_escape() => {}
                     "escape" if this.screenshot_escape() => {}
+                    "escape" if this.confirm_escape() => {}
                     "escape" if this.home_chrome_escape() => {}
                     "left" if this.screenshot_step(false) => {}
                     "right" if this.screenshot_step(true) => {}
@@ -6115,8 +6133,22 @@ fn drag_not_click(event: &ClickEvent) -> bool {
     }
 }
 
+/// Clears an armed confirm. Whether one was armed.
+fn disarm<T>(slot: &mut Option<T>) -> bool {
+    slot.take().is_some()
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn escape_disarms_only_an_armed_confirm() {
+        let mut armed = Some("world".to_string());
+        assert!(super::disarm(&mut armed));
+        assert!(armed.is_none());
+        // Nothing armed: Escape falls through to the next handler.
+        assert!(!super::disarm(&mut armed));
+    }
+
     #[test]
     fn control_slots_reclaim_past_the_pool_size() {
         use super::IdSlots;

@@ -104,7 +104,7 @@ pub(super) struct Instances {
     /// the same instance, is a new generation and drops the late answer.
     pub(super) dialog_seq: u64,
     /// The instance whose Delete is waiting for its confirmation, and why the last one failed.
-    confirm_delete: Option<String>,
+    pub(super) confirm_delete: Option<String>,
     delete_error: Option<String>,
     /// Textures, pictures and marks as images, by name and size in device pixels.
     pub(super) icons: HashMap<(String, u32, bool), Option<Arc<RenderImage>>>,

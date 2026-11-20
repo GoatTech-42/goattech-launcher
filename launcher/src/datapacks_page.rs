@@ -12,7 +12,7 @@ pub(super) struct WorldPacks {
     /// The world whose packs are open, and its packs as last read.
     open: Option<PathBuf>,
     list: Vec<DataPack>,
-    confirm_remove: Option<String>,
+    pub(super) confirm_remove: Option<String>,
     note: Option<Result<String, String>>,
 }
 

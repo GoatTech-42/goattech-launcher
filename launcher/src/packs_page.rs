@@ -14,7 +14,7 @@ pub(super) struct Packs {
     shader: Vec<Pack>,
     fresh: bool,
     /// The pack waiting for its removal to be confirmed: its kind and file.
-    confirm_remove: Option<(PackKind, String)>,
+    pub(super) confirm_remove: Option<(PackKind, String)>,
     /// What the last action did, or why it failed.
     note: Option<Result<String, String>>,
 }

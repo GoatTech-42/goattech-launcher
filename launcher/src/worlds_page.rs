@@ -15,7 +15,7 @@ pub(super) struct Worlds {
     reading: bool,
     /// The world being backed up, copied or deleted now.
     busy: Option<String>,
-    confirm_delete: Option<String>,
+    pub(super) confirm_delete: Option<String>,
     /// What the last action did (a backup's zip), or why it failed.
     done: Option<Result<(String, Option<PathBuf>), String>>,
 }
