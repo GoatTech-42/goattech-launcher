@@ -734,7 +734,7 @@ fn check_mod_dependencies(jar: &ClientJar, home: Option<&Path>) -> Result<(), St
             .iter()
             .any(|m| m.mod_id == *id && range_allows(range, &m.version) == Some(true))
         {
-            return Err(format!("Client needs {id} {range}. Install its verified dependency into a Fabric instance first, then use --instance. Nothing was installed."));
+            return Err(format!("Client needs {id} {range}. Install its verified dependency into a Fabric instance first, {CLI_INSTANCE_HINT} Nothing was installed."));
         }
     }
     Ok(())
@@ -770,6 +770,21 @@ fn check_minecraft(
     }
 }
 
+/// The command-line tails of two install errors. The window rewrites exactly these
+/// ([`window_words`]); the producers format them in, so the two cannot drift apart.
+pub const CLI_INSTANCE_HINT: &str = "then use --instance.";
+pub const CLI_MINECRAFT_HINT: &str = ": pick one with --minecraft.";
+
+/// An install error as the window shows it: the flags mean nothing there.
+pub fn window_words(error: String) -> String {
+    error
+        .replace(
+            CLI_INSTANCE_HINT,
+            "then choose it with the \"into\" button here.",
+        )
+        .replace(CLI_MINECRAFT_HINT, ".")
+}
+
 /// The newest release the JAR allows, or a clear ask for --minecraft when that cannot be told.
 pub fn pick_minecraft(jar: &ClientJar, versions: &Versions) -> Result<String, String> {
     let Some(wants) = &jar.minecraft_wants else {
@@ -781,7 +796,7 @@ pub fn pick_minecraft(jar: &ClientJar, versions: &Versions) -> Result<String, St
         }
     }
     Err(format!(
-        "{} ({}) says Minecraft {wants}, and no release this sees matches: pick one with --minecraft.",
+        "{} ({}) says Minecraft {wants}, and no release this sees matches{CLI_MINECRAFT_HINT}",
         jar.name, jar.mod_id
     ))
 }

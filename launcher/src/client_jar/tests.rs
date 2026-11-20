@@ -192,6 +192,28 @@ fn the_newest_allowed_release_is_picked() {
         .contains("--minecraft"));
 }
 
+#[test]
+fn window_errors_from_the_real_producers_carry_no_cli_flags() {
+    let versions = versions_fixture();
+    let mut jar = inspect(&jar(
+        &std::env::temp_dir(),
+        &format!("dawn-win-{}.jar", std::process::id()),
+        &[("fabric.mod.json", DAWN_LIKE)],
+    ))
+    .unwrap();
+    jar.minecraft_wants = Some("~1.19".to_string());
+    let pick = pick_minecraft(&jar, &versions).unwrap_err();
+    assert!(pick.contains("--minecraft"));
+    jar.mod_wants = vec![("needed".to_string(), "1".to_string())];
+    let dep = check_mod_dependencies(&jar, None).unwrap_err();
+    assert!(dep.contains("--instance"));
+    for e in [pick, dep] {
+        let shown = window_words(e);
+        assert!(!shown.contains("--"), "{shown}");
+    }
+    assert!(window_words(check_mod_dependencies(&jar, None).unwrap_err()).contains("\"into\" button"));
+}
+
 /// The loader list Fabric's meta serves, without the network.
 fn fake_fetch(url: &str) -> Result<Vec<u8>, String> {
     if url == "https://meta.fabricmc.net/v2/versions/loader/1.21.4"

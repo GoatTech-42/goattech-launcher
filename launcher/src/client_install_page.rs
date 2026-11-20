@@ -8,8 +8,31 @@ pub(super) struct ClientInstall {
     pub(super) busy: bool,
     pub(super) chosen: Option<(PathBuf, ClientJar, String)>,
     pub(super) report: Option<String>,
+    /// The existing instance (its id) the JAR goes into; none: a new instance.
+    pub(super) target: Option<String>,
     picker_error: Option<String>,
     show_picker_error: bool,
+}
+
+/// The next install target when the player clicks the target button: new instance, then each
+/// instance that can take a Fabric client JAR, then new again. An id no longer in the list
+/// (the instance was removed) falls back to new.
+fn next_target(ids: &[String], current: Option<&str>) -> Option<String> {
+    match current {
+        None => ids.first().cloned(),
+        Some(id) => ids
+            .iter()
+            .position(|i| i == id)
+            .and_then(|at| ids.get(at + 1))
+            .cloned(),
+    }
+}
+
+/// The target the install will really use: the chosen id only while it is still an eligible
+/// instance, else none (a new instance). Render and install both go through this.
+fn valid_target(eligible: &[(String, String)], chosen: Option<&str>) -> Option<(String, String)> {
+    let id = chosen?;
+    eligible.iter().find(|(i, _)| i == id).cloned()
 }
 
 impl ClientInstall {
@@ -101,6 +124,11 @@ impl Launcher {
         };
         self.instances.client.busy = true;
         self.instances.client.report = None;
+        let target = valid_target(
+            &self.client_targets(),
+            self.instances.client.target.as_deref(),
+        )
+        .map(|(id, _)| id);
         let task = cx.background_executor().spawn(async move {
             let versions = horizon_launcher::minecraft_versions::load()?;
             client_jar::install_reviewed(
@@ -109,7 +137,7 @@ impl Launcher {
                 Some(&versions),
                 &client_jar::Goal {
                     jar: &path,
-                    instance: None,
+                    instance: target.as_deref(),
                     name: None,
                     minecraft: None,
                     loader_version: None,
@@ -127,21 +155,37 @@ impl Launcher {
                         this.reload_instances();
                         this.instances.client.chosen = None;
                         this.instances.client.report = Some(format!(
-                            "installed {} {} in new instance {}: minecraft {}, {}. {}",
+                            "installed {} {} in {} instance {}: minecraft {}, {}. {}",
                             done.jar.name,
                             done.jar.version,
+                            if done.created { "new" } else { "your" },
                             done.instance,
                             done.minecraft,
                             done.loader,
                             done.notes.join(" ")
                         ));
                     }
-                    Err(e) => this.instances.client.report = Some(e),
+                    Err(e) => this.instances.client.report = Some(client_jar::window_words(e)),
                 }
                 cx.notify();
             });
         })
         .detach();
+    }
+
+    /// Instances a Fabric client JAR can go into: Java edition, Fabric Loader set.
+    fn client_targets(&self) -> Vec<(String, String)> {
+        self.instances
+            .list
+            .iter()
+            .filter(|i| {
+                i.java
+                    .as_ref()
+                    .and_then(|j| j.loader.as_ref())
+                    .is_some_and(|l| l.kind == horizon_launcher::loaders::Kind::Fabric)
+            })
+            .map(|i| (i.id.clone(), i.name.clone()))
+            .collect()
     }
 
     pub(super) fn client_install_section(&mut self, cx: &mut Context<Self>) -> Div {
@@ -173,10 +217,34 @@ impl Launcher {
                     path.file_name().unwrap_or_default().to_string_lossy()
                 ),
             ));
+            let ids = self.client_targets();
+            let chosen = valid_target(&ids, self.instances.client.target.as_deref());
+            let target_name = chosen.map(|(_, name)| name);
+            let mut pick = button(
+                "client-jar-target",
+                &match &target_name {
+                    Some(name) => format!("into: {name}"),
+                    None => "into: a new instance".to_string(),
+                },
+                Kind::Ghost,
+                &t,
+            );
+            if !busy && !ids.is_empty() {
+                pick = pick.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                    let ids: Vec<String> =
+                        this.client_targets().into_iter().map(|(id, _)| id).collect();
+                    let now = this.instances.client.target.clone();
+                    this.instances.client.target = next_target(&ids, now.as_deref());
+                    cx.notify();
+                }));
+            }
+            section = section.child(div().flex().child(pick));
             let mut install = button(
                 "install-client-jar",
                 if busy {
                     "installing..."
+                } else if target_name.is_some() {
+                    "install in this instance"
                 } else {
                     "install in new instance"
                 },
@@ -231,6 +299,28 @@ impl Launcher {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_removed_or_ineligible_target_is_not_handed_to_the_installer() {
+        let eligible = vec![("a".to_string(), "Alpha".to_string())];
+        assert_eq!(
+            valid_target(&eligible, Some("a")),
+            Some(("a".to_string(), "Alpha".to_string()))
+        );
+        assert_eq!(valid_target(&eligible, Some("gone")), None);
+        assert_eq!(valid_target(&[], Some("a")), None);
+        assert_eq!(valid_target(&eligible, None), None);
+    }
+
+    #[test]
+    fn target_button_walks_new_then_each_instance_then_new() {
+        let ids = vec!["a".to_string(), "b".to_string()];
+        assert_eq!(next_target(&ids, None).as_deref(), Some("a"));
+        assert_eq!(next_target(&ids, Some("a")).as_deref(), Some("b"));
+        assert_eq!(next_target(&ids, Some("b")), None);
+        assert_eq!(next_target(&ids, Some("gone")), None);
+        assert_eq!(next_target(&[], None), None);
+    }
 
     #[test]
     fn picker_failure_retains_hidden_detail_and_retry_cancel_resets_it() {
