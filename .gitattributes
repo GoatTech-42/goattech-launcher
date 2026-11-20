@@ -9,3 +9,9 @@ crates/horizon-client/src/mod_api/generated.rs linguist-generated=true text eol=
 crates/horizon-client/src/mod_api/generated_host.rs linguist-generated=true text eol=lf
 crates/horizon-client/src/game/mod_api_host_generated.rs linguist-generated=true text eol=lf
 crates/horizon-client-render/src/gfx/native_render/generated.rs linguist-generated=true text eol=lf
+
+# Pinned notice texts whose SHA-256 the packager checks (tools/dependency_notices.py) and the
+# covered source it copies: stored and checked out byte for byte, never CRLF-converted by
+# Git for Windows' core.autocrlf.
+packaging/goattech/upstream-notices/** -text
+packaging/goattech/covered-source/** -text

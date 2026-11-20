@@ -1,6 +1,7 @@
 """Portable packages must contain only explicit public inputs, never a profile."""
 import sys
 import io
+import subprocess
 from unittest import mock
 import hashlib
 import importlib.util
@@ -127,6 +128,12 @@ class Packages(unittest.TestCase):
         meta = self.root / 'metadata.json'
         meta.write_bytes('{"name": "caf\u00e9 \u2713"}'.encode('utf-8'))
         self.assertEqual(self.spec.load_metadata(meta), {'name': 'caf\u00e9 \u2713'})
+
+    def test_pinned_notice_inputs_are_never_eol_converted_on_checkout(self):
+        root = Path(__file__).parents[2]
+        for rel in ('packaging/goattech/upstream-notices/index.json', 'packaging/goattech/covered-source/README.txt'):
+            out = subprocess.run(['git', 'check-attr', 'text', '--', rel], cwd=root, capture_output=True, text=True, check=True).stdout
+            self.assertTrue(out.strip().endswith('text: unset'), out)
 
     def test_an_existing_notices_file_or_symlink_blocks_the_run_before_any_output(self):
         notes = self.out / 'horizon-launcher-setup.NOTICES.txt'
