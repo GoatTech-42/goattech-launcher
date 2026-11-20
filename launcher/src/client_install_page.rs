@@ -49,7 +49,7 @@ impl ClientInstall {
             Some(Ok(path)) => Some(path),
             Some(Err(e)) => {
                 self.busy = false;
-                self.report = Some(tr("the file picker is unavailable. on linux, check that your desktop's file chooser portal and session bus are running, then try again.").to_string());
+                self.report = Some(tr("the file picker isn't available. on linux, make sure your desktop's file chooser is running, then try again.").to_string());
                 self.picker_error = Some(e);
                 None
             }
@@ -195,7 +195,7 @@ impl Launcher {
         let mut section=div().flex().flex_col().gap(px(10.)).mt(px(26.))
             .child(shell::text(theme::night::CAPTION,shell::c(n.ink)).child(tr("client jar").to_string()))
             .child(shell::text(theme::night::CAPTION,shell::c(n.muted)).child(tr("choose a local fabric client mod from its own website. inspect it here, then install it in a new instance, or in one of your fabric instances with the into button.").to_string()))
-            .child(shell::text(theme::night::CAPTION,shell::c(n.muted)).child(tr("some clients and fabric api bundles need dependency resolution not supported here yet. client-specific config sharing is not available; options.txt sharing is separate.").to_string()));
+            .child(shell::text(theme::night::CAPTION,shell::c(n.muted)).child(tr("some clients and fabric api bundles need extra files this launcher can't fetch yet. sharing a client's own settings isn't available. options.txt sharing is separate.").to_string()));
         let label = if busy {
             "working..."
         } else {

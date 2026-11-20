@@ -185,7 +185,7 @@ impl Launcher {
                     .py(px(4.))
                     .max_w(px(560.))
                     .child(
-                        tr("own runtime, mods and saves - nothing mixes with your other instances.")
+                        tr("its own runtime, mods and saves. nothing mixes with your other instances.")
                             .to_string(),
                     ),
             )
@@ -910,7 +910,7 @@ impl Launcher {
                 )
                 .child(
                     shell::text(night::CAPTION, c(n.muted)).relative().child(
-                        tr("a stand-in plays for now - sign in with your microsoft account to play as yourself.")
+                        tr("a stand-in plays for now. sign in with your microsoft account to play as yourself.")
                             .to_string(),
                     ),
                 )

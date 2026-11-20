@@ -1325,7 +1325,7 @@ impl Step {
             ),
             Self::Mixins => tr("applying the mixins").into(),
             Self::CachedMixins => tr("reusing patched game source").into(),
-            Self::Crates => tr("checking the mods' crates against horizon's cargo.lock").into(),
+            Self::Crates => tr("checking the libraries the mods use against horizon's own").into(),
             Self::Plan(plan, profile) => format!("{} ({})", plan.label(), profile.name()),
             Self::Compile {
                 done,

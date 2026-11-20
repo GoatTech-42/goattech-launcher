@@ -4342,7 +4342,7 @@ impl Launcher {
                         n + 10,
                         "GoatTech Launcher",
                         Some(plain(
-                            "a fork of horizon (mit) - upstream attribution kept. Made by GoatTech · goattech.us.",
+                            "a fork of horizon (mit). upstream attribution kept. made by GoatTech at goattech.us.",
                         )),
                         None,
                         &t,
@@ -4391,7 +4391,7 @@ impl Launcher {
             .child(div().text_color(t.danger).child(tr("these mods will run with full access to your computer").to_string()))
             .child(tr("they can read, change or delete your files, and use your accounts and network, like any program you run. build them only if you trust their authors: the mods page names them.").to_string())
             .child(trf("mods: {mods}", &[("mods", &list)]))
-            .child(tr("the build compiles the game: 20 to 30 minutes and a few gb of disk the first time (it downloads rust), a few minutes after that.").to_string())
+            .child(tr("the first build takes 20 to 30 minutes and a few gigabytes of disk. it downloads rust. later builds take a few minutes.").to_string())
             .children(self.native_update.as_ref().map(|newer| {
                 div().text_color(t.warn).child(trf(
                     "this moves the instance to horizon {version}. it compiles the game from scratch, so it takes longer than a normal rebuild: up to 30 minutes.",
@@ -4513,7 +4513,7 @@ impl Launcher {
             tr("game arguments"),
             Some(
                 div()
-                    .child(tr("extra arguments for the game, passed through as-is (quotes group a word with spaces). applies the next time the game starts."))
+                    .child(tr("extra options for the game, passed on unchanged. put quotes around anything with spaces. they apply the next time the game starts."))
                     .into_any_element(),
             ),
             Some(field.into_any_element()),
