@@ -3380,18 +3380,18 @@ impl Launcher {
     /// Escape backs out of an armed inline confirm ("move it to the trash?" and its kin)
     /// on whichever page holds one. Whether any was armed.
     fn confirm_escape(&mut self) -> bool {
-        let mut any = false;
-        any |= disarm(&mut self.confirm_remove);
-        any |= disarm(&mut self.worlds.confirm_delete);
-        any |= disarm(&mut self.game_packs.confirm_remove);
-        any |= disarm(&mut self.world_packs.confirm_remove);
-        any |= disarm(&mut self.multiplayer.confirm_remove);
-        any |= disarm(&mut self.github.confirm_remove);
-        any |= disarm(&mut self.mods.confirm_remove);
-        any |= disarm(&mut self.instances.confirm_delete);
-        any |= std::mem::take(&mut self.screenshots.confirm_delete);
-        any |= std::mem::take(&mut self.collection.confirm_delete);
-        any
+        disarm_all(&mut [
+            &mut self.confirm_remove,
+            &mut self.worlds.confirm_delete,
+            &mut self.game_packs.confirm_remove,
+            &mut self.world_packs.confirm_remove,
+            &mut self.multiplayer.confirm_remove,
+            &mut self.github.confirm_remove,
+            &mut self.mods.confirm_remove,
+            &mut self.instances.confirm_delete,
+            &mut self.screenshots.confirm_delete,
+            &mut self.collection.confirm_delete,
+        ])
     }
 
     /// Escape closes home's floating chrome with no other keyboard exit: the account menu,
@@ -6133,20 +6133,81 @@ fn drag_not_click(event: &ClickEvent) -> bool {
     }
 }
 
-/// Clears an armed confirm. Whether one was armed.
-fn disarm<T>(slot: &mut Option<T>) -> bool {
-    slot.take().is_some()
+/// An inline confirm that Escape can back out of: an `Option` key or a plain flag.
+trait Disarm {
+    /// Clears it. Whether it was armed.
+    fn disarm(&mut self) -> bool;
+}
+
+impl<T> Disarm for Option<T> {
+    fn disarm(&mut self) -> bool {
+        self.take().is_some()
+    }
+}
+
+impl Disarm for bool {
+    fn disarm(&mut self) -> bool {
+        std::mem::take(self)
+    }
+}
+
+/// Clears every slot, none skipped. Whether any was armed.
+fn disarm_all(slots: &mut [&mut dyn Disarm]) -> bool {
+    let mut any = false;
+    for s in slots.iter_mut() {
+        any |= s.disarm();
+    }
+    any
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
+    fn disarm_all_reports_any_armed_slot_and_clears_all() {
+        use super::{disarm_all, Disarm};
+        // Each of the ten confirm shapes, armed one at a time, then all together.
+        for armed in 0..10 {
+            let mut o: [Option<String>; 8] = Default::default();
+            let mut b = [false; 2];
+            if armed < 8 {
+                o[armed] = Some("x".into());
+            } else {
+                b[armed - 8] = true;
+            }
+            let [o0, o1, o2, o3, o4, o5, o6, o7] = &mut o;
+            let [b0, b1] = &mut b;
+            let mut slots: [&mut dyn Disarm; 10] = [o0, o1, o2, o3, o4, o5, o6, o7, b0, b1];
+            assert!(disarm_all(&mut slots), "slot {armed} armed");
+            assert!(!disarm_all(&mut slots), "slot {armed} cleared");
+        }
+        let mut o: [Option<u8>; 8] = [Some(1); 8];
+        let mut b = [true; 2];
+        let [o0, o1, o2, o3, o4, o5, o6, o7] = &mut o;
+        let [b0, b1] = &mut b;
+        let mut slots: [&mut dyn Disarm; 10] = [o0, o1, o2, o3, o4, o5, o6, o7, b0, b1];
+        assert!(disarm_all(&mut slots));
+        drop(slots);
+        assert!(o.iter().all(Option::is_none) && b == [false; 2], "all armed at once are all cleared");
+    }
+
+    #[test]
+    fn disarm_all_with_nothing_armed_falls_through() {
+        use super::{disarm_all, Disarm};
+        let mut o: [Option<u8>; 2] = [None, None];
+        let mut b = false;
+        let [o0, o1] = &mut o;
+        let mut slots: [&mut dyn Disarm; 3] = [o0, o1, &mut b];
+        assert!(!disarm_all(&mut slots));
+        assert!(disarm_all(&mut []) == false);
+    }
+
+    #[test]
     fn escape_disarms_only_an_armed_confirm() {
         let mut armed = Some("world".to_string());
-        assert!(super::disarm(&mut armed));
+        assert!(super::Disarm::disarm(&mut armed));
         assert!(armed.is_none());
         // Nothing armed: Escape falls through to the next handler.
-        assert!(!super::disarm(&mut armed));
+        assert!(!super::Disarm::disarm(&mut armed));
     }
 
     #[test]
