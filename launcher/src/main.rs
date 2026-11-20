@@ -5514,10 +5514,18 @@ impl Render for Launcher {
             self.consent_open = false;
             window.focus(&self.root_focus, cx);
         }
+        // The account sheet registers its controls last (it is the topmost overlay), so the
+        // clamp below sees whichever dialog is really on top.
+        let owner_open = self.asking_owner();
+        if owner_open {
+            root = root.child(self.owner_screen(cx));
+        }
         // A dialog gets the same courtesy, but only once the keyboard is in use:
-        // a mouse click outside it never has the pointer's focus stolen back.
+        // a mouse click outside it never has the pointer's focus stolen back. The account
+        // sheet holds the keyboard from the moment it shows, like the data question: a
+        // first Enter never reaches the page behind it.
         if let Some(m) = &self.modal_keys {
-            if KEYBOARD.load(Ordering::Relaxed) {
+            if owner_open || KEYBOARD.load(Ordering::Relaxed) {
                 let inside = window.focused(cx).is_some_and(|f| m.contains(&f));
                 if !inside {
                     if let Some(first) = m.order.first() {
@@ -5525,9 +5533,6 @@ impl Render for Launcher {
                     }
                 }
             }
-        }
-        if self.asking_owner() {
-            root = root.child(self.owner_screen(cx));
         }
         if let Some(opening) = &self.opening {
             // The wordmark arrives letter by letter, then gives way to the launcher; a click or
