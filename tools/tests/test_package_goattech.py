@@ -43,7 +43,11 @@ class Packages(unittest.TestCase):
                 self.assertEqual(hashlib.sha256(z.read(name)).hexdigest(), digest)
             self.assertNotIn(b'PRIVATE', b''.join(z.read(n) for n in z.namelist()))
         sums = (self.out / 'SHA256SUMS').read_text()
-        self.assertEqual(sums, hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n')
+        setup = self.out / 'horizon-launcher-setup.exe'
+        self.assertEqual(setup.read_bytes(), self.binary.read_bytes())
+        self.assertEqual(sums,
+                         hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n'
+                         + hashlib.sha256(setup.read_bytes()).hexdigest() + '  ' + setup.name + '\n')
 
     def test_dependency_texts_are_packed_and_hash_bound(self):
         crate = self.root / 'crate'
@@ -96,6 +100,29 @@ class Packages(unittest.TestCase):
         with self.assertRaises(FileExistsError):
             self.package()
         self.assertEqual(archive.read_bytes(), before)
+
+    def test_one_point_oh_versions_are_allowed_and_others_are_not(self):
+        for version in ('1.0.0', '1.0.0-rc.1', '1.2.10'):
+            out = self.root / ('out-' + version)
+            out.mkdir()
+            self.spec.package(self.binary, out, 'windows-x64', version, 'a' * 40)
+            self.assertTrue((out / f'goattech-launcher-{version}-windows-x64.zip').is_file())
+        for version in ('2.0.0', '1.0', '1.0.0-rc.0', '1.0.0-beta', '01.0.0', '1.0.0.1'):
+            with self.assertRaises(ValueError, msg=version):
+                self.spec.package(self.binary, self.out, 'windows-x64', version, 'a' * 40)
+        self.assertEqual(list(self.out.iterdir()), [])
+
+    def test_linux_has_no_setup_asset(self):
+        self.binary.write_bytes(b'\x7fELFpublic-binary')
+        self.package(platform='linux-x64')
+        self.assertFalse((self.out / 'horizon-launcher-setup.exe').exists())
+
+    def test_an_existing_setup_asset_blocks_the_run_before_any_output(self):
+        (self.out / 'horizon-launcher-setup.exe').write_bytes(b'keep')
+        with self.assertRaises(FileExistsError):
+            self.package()
+        self.assertEqual(sorted(p.name for p in self.out.iterdir()), ['horizon-launcher-setup.exe'])
+        self.assertEqual((self.out / 'horizon-launcher-setup.exe').read_bytes(), b'keep')
 
     def test_bad_identity_and_unsupported_platform_refused(self):
         for platform, version, commit in [('macos', '0.1.0', 'a'*40), ('windows-x64','../x','a'*40), ('windows-x64','0.1.0','main')]:

@@ -21,8 +21,8 @@ ROOT = Path(__file__).resolve().parents[1]
 def package(binary, output, platform, version, source_commit, dependency_metadata=None, dependency_roots=()):
     if platform not in ('windows-x64', 'linux-x64'):
         raise ValueError('Only Windows x64 and Linux x64 candidates are supported')
-    if not re.fullmatch(r'0\.1\.[0-9]+(?:-rc\.[1-9][0-9]*)?', version):
-        raise ValueError('Expected the independent GoatTech 0.1.x version line')
+    if not re.fullmatch(r'(?:0\.1\.[0-9]+|1\.[0-9]+\.[0-9]+)(?:-rc\.[1-9][0-9]*)?', version):
+        raise ValueError('Expected the independent GoatTech 0.1.x or 1.x.y version line')
     if not re.fullmatch(r'[0-9a-f]{40}', source_commit):
         raise ValueError('Expected a full source commit SHA')
     binary, output = Path(binary), Path(output)
@@ -37,7 +37,11 @@ def package(binary, output, platform, version, source_commit, dependency_metadat
     suffix = '.zip' if platform == 'windows-x64' else '.tar.gz'
     archive = output / f'goattech-launcher-{version}-{platform}{suffix}'
     sums = output / 'SHA256SUMS'
-    if archive.exists() or archive.is_symlink() or sums.exists() or sums.is_symlink():
+    # Windows also gets the per-user setup: the same exe under the name launcher/src/installer.rs
+    # (`is_setup_exe`) recognises. It is a separate asset, not part of the zip.
+    setup = output / 'horizon-launcher-setup.exe' if platform == 'windows-x64' else None
+    outputs = [archive, sums] + ([setup] if setup else [])
+    if any(o.exists() or o.is_symlink() for o in outputs):
         raise FileExistsError('Candidate outputs already exist; use a fresh directory')
     name = 'horizon-launcher.exe' if platform == 'windows-x64' else 'horizon-launcher'
     files = {
@@ -93,9 +97,14 @@ def package(binary, output, platform, version, source_commit, dependency_metadat
                     entry.mode = 0o755 if n == name else 0o644
                     entry.size = len(b)
                     t.addfile(entry, io.BytesIO(b))
-    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    listed = [archive]
+    if setup:
+        with setup.open('xb') as raw:
+            raw.write(data)
+        listed.append(setup)
     with sums.open('x') as f:
-        f.write(f'{digest}  {archive.name}\n')
+        for path in listed:
+            f.write(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n')
     return archive
 
 
