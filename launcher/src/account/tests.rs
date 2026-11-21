@@ -2834,3 +2834,82 @@ fn saving_over_an_unreadable_accounts_file_keeps_the_first_damaged_copy() {
     let _ = std::fs::remove_dir_all(&dir);
     let _ = std::fs::remove_dir_all(&other);
 }
+
+#[test]
+fn a_damaged_file_that_is_not_utf8_is_kept_byte_for_byte() {
+    let dir = empty_start_dir("damaged-bytes");
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("accounts.json");
+    let bytes: &[u8] = b"{\"accounts\": [\xFF\xFE\x00 broken";
+    std::fs::write(&file, bytes).unwrap();
+    Accounts::default().save_to(&file).unwrap();
+    assert_eq!(
+        std::fs::read(dir.join("accounts.json.damaged")).unwrap(),
+        bytes
+    );
+    assert_eq!(Accounts::load_from(&file), Accounts::default());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_backup_that_cannot_be_confirmed_stops_the_save_and_leaves_the_original() {
+    let original: &[u8] = b"{\"accounts\": [broken \xFF";
+    // A folder at the backup's name.
+    let dir = empty_start_dir("damaged-dir");
+    std::fs::create_dir_all(dir.join("accounts.json.damaged")).unwrap();
+    let file = dir.join("accounts.json");
+    std::fs::write(&file, original).unwrap();
+    assert!(Accounts::default().save_to(&file).is_err());
+    assert_eq!(std::fs::read(&file).unwrap(), original);
+    let _ = std::fs::remove_dir_all(&dir);
+
+    // A symlink at the backup's name, even to a regular file.
+    #[cfg(unix)]
+    {
+        let dir = empty_start_dir("damaged-link");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("elsewhere"), "x").unwrap();
+        std::os::unix::fs::symlink(dir.join("elsewhere"), dir.join("accounts.json.damaged"))
+            .unwrap();
+        let file = dir.join("accounts.json");
+        std::fs::write(&file, original).unwrap();
+        assert!(Accounts::default().save_to(&file).is_err());
+        assert_eq!(std::fs::read(&file).unwrap(), original);
+        assert_eq!(std::fs::read_to_string(dir.join("elsewhere")).unwrap(), "x");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // A write that fails after the backup was created: an error, no partial copy left.
+    let dir = empty_start_dir("damaged-write");
+    std::fs::create_dir_all(&dir).unwrap();
+    let kept = dir.join("accounts.json.damaged");
+    let err = keep_damaged(&kept, original, |f, _| {
+        use std::io::Write;
+        f.write_all(b"par")?;
+        Err(std::io::Error::other("disk full"))
+    })
+    .unwrap_err();
+    assert!(err.to_string().contains("disk full"));
+    assert!(!kept.exists(), "a partial copy was left");
+    // And it is the same helper that save_to relies on: a good write makes a regular file.
+    keep_damaged(&kept, original, |f, b| {
+        use std::io::Write;
+        f.write_all(b)
+    })
+    .unwrap();
+    assert_eq!(std::fs::read(&kept).unwrap(), original);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_file_that_cannot_be_read_for_another_reason_than_missing_is_not_written_over() {
+    // A folder where accounts.json should be: reading it fails with something other than
+    // NotFound, so nothing is written (and the folder is untouched).
+    let dir = empty_start_dir("unreadable-kind");
+    let file = dir.join("accounts.json");
+    std::fs::create_dir_all(file.join("inside")).unwrap();
+    assert!(Accounts::default().save_to(&file).is_err());
+    assert!(file.join("inside").is_dir());
+    assert!(!dir.join("accounts.json.damaged").exists());
+    let _ = std::fs::remove_dir_all(&dir);
+}

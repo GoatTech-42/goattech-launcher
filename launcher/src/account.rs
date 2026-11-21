@@ -1831,15 +1831,30 @@ impl Accounts {
         }
         let text = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
         // An accounts.json that cannot be read loaded as no accounts; saving over it would
-        // destroy what a player could still repair by hand. The first damaged copy is kept
-        // beside it (a later one never replaces it), then the file is written as usual.
-        if let Ok(old) = std::fs::read_to_string(path) {
-            if serde_json::from_str::<Accounts>(&old).is_err() {
-                let kept = path.with_file_name("accounts.json.damaged");
-                if !kept.exists() {
-                    let _ = std::fs::write(&kept, old);
+        // destroy what a player could still repair by hand. Before the file is replaced, its
+        // exact bytes are kept beside it (see `keep_damaged`); when that cannot be confirmed,
+        // or the file cannot be read for any reason other than not existing, nothing is
+        // written.
+        match std::fs::read(path) {
+            Ok(old) => {
+                if serde_json::from_slice::<Accounts>(&old).is_err() {
+                    let kept = path.with_file_name("accounts.json.damaged");
+                    keep_damaged(&kept, &old, |f, bytes| {
+                        use std::io::Write;
+                        f.write_all(bytes)?;
+                        f.sync_all()
+                    })
+                    .map_err(|e| {
+                        format!(
+                            "{} is unreadable and its copy {} could not be kept ({e}); nothing was written",
+                            path.display(),
+                            kept.display()
+                        )
+                    })?;
                 }
             }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(format!("{}: {e}; nothing was written", path.display())),
         }
         std::fs::write(path, text + "\n").map_err(|e| e.to_string())
     }
@@ -2016,6 +2031,35 @@ impl Accounts {
             self.selected = None;
         }
         Ok(())
+    }
+}
+
+/// Keep the exact bytes of an unreadable accounts file at `kept`, before it is replaced. Ok
+/// only when `kept` is afterwards a regular file (never a symlink or folder) that holds a copy:
+/// an earlier one that is there and readable stays (the first damaged copy is never replaced),
+/// else a new one is made with create-new, written by `write` and flushed. A copy that failed
+/// halfway is removed again.
+fn keep_damaged(
+    kept: &Path,
+    bytes: &[u8],
+    write: impl FnOnce(&mut std::fs::File, &[u8]) -> std::io::Result<()>,
+) -> std::io::Result<()> {
+    match std::fs::symlink_metadata(kept) {
+        Ok(meta) if meta.file_type().is_file() => std::fs::read(kept).map(|_| ()),
+        Ok(_) => Err(std::io::Error::other("it is not a regular file")),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(kept)?;
+            let done = write(&mut file, bytes);
+            drop(file);
+            if done.is_err() {
+                let _ = std::fs::remove_file(kept);
+            }
+            done
+        }
+        Err(e) => Err(e),
     }
 }
 
