@@ -3888,6 +3888,22 @@ impl Settings {
             }) {
                 fields.remove("basic_summaries_cohort");
             }
+            // Any other key of the wrong shape (a hand edit, a newer launcher's different type)
+            // is that one setting lost, not all of them: each key is tried alone against the
+            // defaults, and the ones that don't fit are dropped.
+            if serde_json::from_value::<Settings>(serde_json::Value::Object(fields.clone()))
+                .is_err()
+            {
+                let keys: Vec<String> = fields.keys().cloned().collect();
+                for key in keys {
+                    let mut alone = serde_json::Map::new();
+                    alone.insert(key.clone(), fields[&key].clone());
+                    if serde_json::from_value::<Settings>(serde_json::Value::Object(alone)).is_err()
+                    {
+                        fields.remove(&key);
+                    }
+                }
+            }
         }
         serde_json::from_value(value).unwrap_or_default()
     }
@@ -6040,5 +6056,39 @@ pub fn {f}("
             text,
             "Title\n\nSome words and a link (https://x.y).\n\n- one\n- two\n"
         );
+    }
+
+    /// One key of the wrong shape costs that setting, never the others.
+    #[test]
+    fn a_setting_of_the_wrong_shape_is_lost_alone() {
+        let s = Settings::parse(
+            r#"{"keep_versions": "five", "skip_opening": "yes", "minecraft_dir": 7,
+                "game_args": "--x", "proxy": "http://p:1", "reduce_motion": true,
+                "install_new_versions": false}"#,
+        );
+        // The three of the wrong type are as if unset.
+        assert_eq!(s.keep_versions, None);
+        assert!(!s.skip_opening);
+        assert!(s.minecraft_dir.is_none());
+        // Every other key is kept.
+        assert_eq!(s.game_args, "--x");
+        assert_eq!(s.proxy.as_deref(), Some("http://p:1"));
+        assert!(s.reduce_motion());
+        assert!(!s.auto_install());
+        // A negative or fractional count is the wrong shape too.
+        for bad in ["-1", "2.5", "null", "[]", "\"3\""] {
+            let s = Settings::parse(&format!(
+                r#"{{"keep_versions": {bad}, "game_args": "--y"}}"#
+            ));
+            assert_eq!(s.game_args, "--y", "keep_versions {bad}");
+            assert_eq!(s.keep_newest(), KEEP_NEWEST, "keep_versions {bad}");
+        }
+        // Whole-file damage still means defaults, and well-formed files are untouched.
+        for text in ["", "nope", "[]", "null", "7", "{"] {
+            let s = Settings::parse(text);
+            assert!(s.game_args.is_empty() && s.proxy.is_none(), "{text:?}");
+        }
+        let ok = Settings::parse(r#"{"keep_versions": 4, "skip_opening": true}"#);
+        assert_eq!((ok.keep_versions, ok.skip_opening), (Some(4), true));
     }
 }
