@@ -178,8 +178,8 @@ fn a_pack_toggle_never_rewrites_an_options_file_it_cannot_read() {
     let home = home("toggle-unreadable");
     let glass = find(&home, Kind::Resource, "Glass.zip").unwrap();
     let options = home.join(OPTIONS);
-    // A resourcePacks line that is not a list of names, a file that is not UTF-8, and a folder
-    // where the file should be: each is an error and the bytes stay as they were.
+    // A resourcePacks line that is not a list of names, and a file that is not UTF-8: each is an
+    // error and the bytes stay as they were.
     let cases: [&[u8]; 4] = [
         b"fov:90\nresourcePacks:[\"vanilla\",\"file/other.zip\",]\nlang:en_us\n",
         b"fov:90\nresourcePacks:\"vanilla\"\n",
