@@ -395,3 +395,41 @@ fn entries_of(bytes: &[u8]) -> Vec<Tag> {
         other => panic!("no servers list: {other:?}"),
     }
 }
+
+#[test]
+fn a_save_that_fails_says_so_and_leaves_the_players_list_as_it_was() {
+    let home = scratch("save-fails");
+    let original = vanilla_file(home.as_path());
+    let mut list = List::load(home.as_path());
+    list.add("Hub", "hub.example").unwrap();
+    let file = home.join("servers.dat");
+
+    // Something in the way of the new file, then of the backup: each step's failure is an
+    // error that says the list was not saved, and the list on disk is the bytes it was.
+    for blocker in ["servers.dat_new", "servers.dat_old"] {
+        let path = home.join(blocker);
+        fs::create_dir(&path).unwrap();
+        let e = list.save(home.as_path()).unwrap_err();
+        assert!(
+            e.starts_with("Could not save the server list"),
+            "{blocker}: {e}"
+        );
+        assert_eq!(fs::read(&file).unwrap(), original, "{blocker}");
+        assert_eq!(entries(home.as_path()).len(), 2, "{blocker}");
+        // Out of the way, the same list saves, and nothing is left beside it.
+        fs::remove_dir(&path).unwrap();
+        list.save(home.as_path()).unwrap();
+        assert_eq!(entries(home.as_path()).len(), 3, "{blocker}");
+        assert!(!home.join("servers.dat_new").exists(), "{blocker}");
+        // Back to the first list for the next blocker.
+        fs::write(&file, &original).unwrap();
+        let _ = fs::remove_file(home.join("servers.dat_old"));
+    }
+
+    // A home that is a file cannot be made into a folder: an error, not a panic.
+    let blocked = home.join("not-a-folder");
+    fs::write(&blocked, b"x").unwrap();
+    let e = list.save(&blocked).unwrap_err();
+    assert!(e.starts_with("Could not save the server list"), "{e}");
+    assert_eq!(fs::read(&blocked).unwrap(), b"x");
+}
