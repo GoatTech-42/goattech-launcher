@@ -22,6 +22,7 @@ pub const DEFAULT: &str = "horizon";
 const FILE: &str = "instances.json";
 /// Where new instances live, in the game's home.
 const OWN: &str = "instances";
+const NOT_A_REAL_DIR: &str = "instances/ must be a real directory. Look at the file or link named instances in the game folder and move or rename it if it is not needed, then try again.";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
@@ -718,7 +719,7 @@ pub(crate) fn create_client_in(
     }
     let own = game_home.join(OWN);
     if fs::symlink_metadata(&own).is_ok_and(|m| m.file_type().is_symlink() || !m.is_dir()) {
-        return Err("instances/ must be a real directory. Look at the file or link named instances in the game folder and move or rename it if it is not needed, then try again.".into());
+        return Err(NOT_A_REAL_DIR.into());
     }
     fs::create_dir_all(&own).map_err(|e| e.to_string())?;
     let slug = (1..)
@@ -797,6 +798,11 @@ pub(crate) fn create_in(
             "{} plays its pack's mods: import the pack again for a second copy.",
             from.name
         ));
+    }
+    if fs::symlink_metadata(game_home.join(OWN))
+        .is_ok_and(|m| m.file_type().is_symlink() || !m.is_dir())
+    {
+        return Err(NOT_A_REAL_DIR.into());
     }
     let base = modpacks::slug(name);
     let taken = |s: &str| s == DEFAULT || game_home.join(OWN).join(s).exists();

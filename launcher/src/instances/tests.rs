@@ -759,7 +759,7 @@ fn an_instances_entry_that_is_not_a_folder_stops_the_making_of_an_instance() {
     player_home(&home);
     put(&home.join(OWN), "a file, not a folder");
     let e = create_in(&home, &data, "Fresh", None, None).unwrap_err();
-    assert!(e.starts_with("Could not make"), "{e}");
+    assert!(e.contains("must be a real directory"), "{e}");
     let called = std::cell::Cell::new(false);
     let prepare = |_: &Path| {
         called.set(true);
