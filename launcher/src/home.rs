@@ -1384,4 +1384,43 @@ mod tests {
         }
         assert_eq!(loads.get(), 7);
     }
+
+    /// Not a pass/fail check: prints what one home-stage frame costs to rasterize and bake at
+    /// real display sizes, for reading from a `--release` run with `--ignored --nocapture`.
+    /// The stage is `W` by `H` texels of 8 device pixels at the window scale (home_stage).
+    #[test]
+    #[ignore = "measurement only: cargo test --release stage_frame_cost -- --ignored --nocapture"]
+    fn stage_frame_cost_at_real_display_sizes() {
+        let skin = player_model::fixture().expect("fixture skin");
+        for scale in [1.0f32, 1.5, 2.0] {
+            let dev_w = (player_model::W as f32 * 8. * scale).round().max(1.) as usize;
+            let dev_h = (player_model::H as f32 * 8. * scale).round().max(1.) as usize;
+            let mut raster = Vec::new();
+            let mut bake = Vec::new();
+            for frame in 0..120 {
+                let t = frame as f32 * 0.033;
+                let pose = player_model::Pose::stage(t);
+                let t0 = std::time::Instant::now();
+                let px = player_model::render_posed_hi(&skin, 0.4, 0.1, &pose, false, dev_w, dev_h);
+                let t1 = std::time::Instant::now();
+                let img = crate::art::bake(&px, dev_w, dev_h, 1., 1.);
+                let t2 = std::time::Instant::now();
+                std::hint::black_box(img);
+                if frame >= 20 {
+                    raster.push((t1 - t0).as_secs_f64() * 1000.);
+                    bake.push((t2 - t1).as_secs_f64() * 1000.);
+                }
+            }
+            let stat = |v: &mut Vec<f64>| {
+                v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                (v[0], v[v.len() / 2], v[v.len() * 95 / 100])
+            };
+            let (r, b) = (stat(&mut raster), stat(&mut bake));
+            println!(
+                "STAGECOST scale {scale} {dev_w}x{dev_h}: rasterize ms min {:.2} median {:.2} p95 {:.2}; bake ms min {:.2} median {:.2} p95 {:.2} (100 frames, {})",
+                r.0, r.1, r.2, b.0, b.1, b.2,
+                if cfg!(debug_assertions) { "DEBUG build" } else { "release build" }
+            );
+        }
+    }
 }
