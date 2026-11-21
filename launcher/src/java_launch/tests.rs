@@ -411,3 +411,86 @@ fn server_addresses_split_into_host_and_port() {
         ("mc.example.org:x", 25565)
     );
 }
+
+#[test]
+fn a_missing_or_damaged_version_file_is_an_error_naming_the_file() {
+    let dir = scratch("read-errors");
+    fs::create_dir_all(&dir).unwrap();
+    let missing = dir.join("none.json");
+    let damaged = dir.join("damaged.json");
+    fs::write(&damaged, b"{\"id\": \"1.21.4\", \"libraries\": [").unwrap();
+    let text = dir.join("bytes.json");
+    fs::write(&text, [0xff, 0xfe, 0x00]).unwrap();
+    for file in [&missing, &damaged, &text] {
+        let e = read(file).unwrap_err();
+        assert!(e.starts_with(&file.display().to_string()), "{e}");
+    }
+    // A file that reads is returned as it is.
+    let good = dir.join("good.json");
+    fs::write(&good, modern().to_string()).unwrap();
+    assert_eq!(read(&good).unwrap(), modern());
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_profile_whose_parent_is_missing_or_unsafe_is_refused_before_anything_is_merged() {
+    let dir = scratch("parent-errors");
+    let mc = dir.join("mc");
+    fs::create_dir_all(mc.join("versions")).unwrap();
+    let child = |parent: &str| json!({"id": "loader", "inheritsFrom": parent, "libraries": []});
+    // The parent's file is not there: the error names the file looked for.
+    let e = resolve(child("1.21.4"), &mc).unwrap_err();
+    let wanted = under(&mc, "versions/1.21.4/1.21.4.json");
+    assert!(e.starts_with(&wanted.display().to_string()), "{e}");
+    // A parent id that would leave the versions folder is never read.
+    for parent in ["../outside", "a/../../outside", "/etc/passwd", "a\\b"] {
+        let e = resolve(child(parent), &mc).unwrap_err();
+        assert!(e.starts_with("Unsafe path"), "{parent}: {e}");
+    }
+    // A parent file that is damaged is an error too, not an empty parent.
+    let broken = under(&mc, "versions/broken/broken.json");
+    fs::create_dir_all(broken.parent().unwrap()).unwrap();
+    fs::write(&broken, b"not json").unwrap();
+    let e = resolve(child("broken"), &mc).unwrap_err();
+    assert!(e.starts_with(&broken.display().to_string()), "{e}");
+    // A version with no parent is returned untouched.
+    assert_eq!(resolve(modern(), &mc).unwrap(), modern());
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_classpath_refuses_unsafe_paths_and_always_ends_in_the_client_jar() {
+    let mc = Path::new("mc");
+    // No id: nothing to name the client jar by.
+    assert!(classpath(&json!({"libraries": []}), mc, "linux").is_err());
+    // No libraries at all: the client jar alone. A library with no artifact (natives only) adds
+    // nothing.
+    let bare = json!({"id": "1.8.9", "libraries": [{"name": "a:natives:1"}]});
+    let only = classpath(&bare, mc, "linux").unwrap();
+    assert_eq!(only, [under(mc, "versions/1.8.9/1.8.9.jar")]);
+    // A loader's profile plays on `jar`, and the jar is last.
+    let loader = json!({
+        "id": "loader", "jar": "1.21.4",
+        "libraries": [{"downloads": {"artifact": {"path": "a/b/1/b-1.jar"}}}]
+    });
+    let paths = classpath(&loader, mc, "linux").unwrap();
+    assert_eq!(
+        paths,
+        [
+            under(mc, "libraries/a/b/1/b-1.jar"),
+            under(mc, "versions/1.21.4/1.21.4.jar")
+        ]
+    );
+    // A library path or a jar name that leaves its folder is an error, not a path.
+    for bad in ["../../evil.jar", "/abs/evil.jar", "a\\evil.jar"] {
+        let library = json!({
+            "id": "1.21.4",
+            "libraries": [{"downloads": {"artifact": {"path": bad}}}]
+        });
+        let e = classpath(&library, mc, "linux").unwrap_err();
+        assert!(e.starts_with("Unsafe path"), "{bad}: {e}");
+        let jar = json!({"id": "1.21.4", "jar": bad, "libraries": []});
+        let e = classpath(&jar, mc, "linux").unwrap_err();
+        assert!(e.starts_with("Unsafe path"), "jar {bad}: {e}");
+    }
+}
