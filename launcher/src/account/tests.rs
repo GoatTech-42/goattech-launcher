@@ -2671,3 +2671,135 @@ fn probe_timeout_preserves_unreadable_existing_accounts_and_ephemeral_signin() {
         session::State::Retry
     );
 }
+
+// ----- Startup with no accounts and no profiles --------------------------------------------------
+
+/// A scratch directory for one test.
+fn empty_start_dir(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!(
+        "horizon-launcher-empty-{name}-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    dir
+}
+
+#[test]
+fn with_no_accounts_nobody_is_selected_and_the_games_own_name_plays() {
+    let store = MemoryStore::default();
+    let accounts = Accounts::default();
+    assert!(accounts.accounts.is_empty() && accounts.offline.is_empty());
+    assert!(accounts.selected().is_none());
+    assert_eq!(accounts.player(), Player::GameName);
+    assert!(accounts.name_arg().is_none());
+    assert!(accounts.look_env().is_empty());
+    assert!(!accounts.has_owner(&store));
+    // Nothing to find, by name or by UUID, however it is spelled.
+    for who in ["", "Notch", UUID, "00000000-0000-0000-0000-000000000000"] {
+        assert!(accounts.find(who).is_none(), "found {who:?}");
+    }
+    assert_eq!(accounts.look("nobody"), crate::skins::Look::default());
+}
+
+#[test]
+fn with_no_accounts_every_change_of_player_either_works_or_says_why_and_changes_nothing() {
+    let store = MemoryStore::default();
+    let mut accounts = Accounts::default();
+    // An account that was never signed in cannot play.
+    let err = accounts
+        .play_as(&store, Player::Microsoft(UUID.into()))
+        .unwrap_err();
+    assert_eq!(err, "That account isn't signed in.");
+    assert_eq!(accounts, Accounts::default());
+    // An offline name needs an owner, even a well-formed one.
+    let err = accounts
+        .play_as(&store, Player::Offline("Builder_1".into()))
+        .unwrap_err();
+    assert_eq!(err, OFFLINE_NEEDS_OWNER);
+    assert_eq!(accounts, Accounts::default());
+    // The game's own name always works and leaves the book as it was.
+    accounts.play_as(&store, Player::GameName).unwrap();
+    assert_eq!(accounts, Accounts::default());
+    // Forgetting a name that was never kept, or signing out an account that was never in, is
+    // refused or a no-op; neither invents a selection.
+    let dir = empty_start_dir("forget");
+    let err = accounts.remove_offline("Builder_1", &dir).unwrap_err();
+    assert_eq!(err, "No offline name Builder_1.");
+    accounts.remove(&store, UUID).unwrap();
+    assert_eq!(accounts, Accounts::default());
+    assert!(!dir.exists(), "a refused forget touched the skins folder");
+}
+
+#[test]
+fn a_missing_empty_or_unreadable_accounts_file_starts_as_no_accounts() {
+    let dir = empty_start_dir("load");
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("accounts.json");
+    // No file at all.
+    assert_eq!(Accounts::load_from(&file), Accounts::default());
+    // A file with nothing in it, with garbage, with the wrong kind of JSON, with a cut-off
+    // write: each starts empty and none panics.
+    for text in [
+        "",
+        "   \n",
+        "not json",
+        "[]",
+        "null",
+        "{\"accounts\": [",
+        "{}",
+    ] {
+        std::fs::write(&file, text).unwrap();
+        assert_eq!(
+            Accounts::load_from(&file),
+            Accounts::default(),
+            "{text:?} did not start empty"
+        );
+    }
+    // The shortest valid file, and the same with every optional field present but empty.
+    for text in [
+        "{\"accounts\": [], \"selected\": null}",
+        "{\"accounts\": [], \"selected\": null, \"offline\": [], \"looks\": {}}",
+    ] {
+        std::fs::write(&file, text).unwrap();
+        assert_eq!(Accounts::load_from(&file), Accounts::default(), "{text:?}");
+    }
+    // A selection that points at nobody (an account signed out by hand-editing, or lost with a
+    // restored backup) selects nothing and plays the game's own name.
+    std::fs::write(&file, "{\"accounts\": [], \"selected\": \"deadbeef\"}").unwrap();
+    let stale = Accounts::load_from(&file);
+    assert!(stale.selected().is_none());
+    assert_eq!(stale.player(), Player::GameName);
+    assert!(stale.name_arg().is_none());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn saving_no_accounts_creates_the_folder_and_reads_back_as_no_accounts() {
+    let dir = empty_start_dir("save");
+    let file = dir.join("deeper").join("accounts.json");
+    Accounts::default().save_to(&file).unwrap();
+    assert_eq!(Accounts::load_from(&file), Accounts::default());
+    // The file ends with a newline and holds no secret-looking field.
+    let text = std::fs::read_to_string(&file).unwrap();
+    assert!(text.ends_with('\n'));
+    assert!(!text.contains("token"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_owner_gate_with_no_accounts_blocks_the_game_unless_the_developer_option_is_on() {
+    let store = MemoryStore::default();
+    let (_, ep) = mock(|_| {});
+    // Nothing asked of the services (there is no account to ask about).
+    let mut accounts = Accounts::default();
+    let blocked = launch_for_game(&ep, Some("test-client"), &store, &mut accounts, false);
+    assert_eq!(blocked.unwrap_err(), NoOwner { keyring: None });
+    let pass = launch_for_game(&ep, Some("test-client"), &store, &mut accounts, true).unwrap();
+    assert!(pass.session.is_none() && pass.owner.is_none());
+    assert!(pass.offline.is_none() && pass.unsaved.is_none());
+    assert_eq!(accounts, Accounts::default());
+    // With no session the game gets none: no file, no reason to show.
+    let dir = empty_start_dir("session");
+    assert_eq!(session_file(&dir, pass), (None, None));
+    assert!(!dir.exists(), "a session folder was made for no session");
+}

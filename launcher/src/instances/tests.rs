@@ -547,3 +547,42 @@ fn play_asks_for_a_first_pick_instead_of_starting_the_rust_game_silently() {
     assert!(!needs_first_pick(&all, Some(&rust.id), false));
     let _ = java;
 }
+
+// ----- First start: nothing on disk ---------------------------------------------------------------
+
+#[test]
+fn a_first_start_lists_only_horizon_and_asks_for_the_first_pick() {
+    let root = scratch("first-start");
+    // Neither the game home nor the data folder exists yet.
+    let home = root.join("no-game-home");
+    let data = root.join("no-data");
+    let all = list_in(&home, &data);
+    assert_eq!(all.len(), 1);
+    assert_eq!(all[0].id, DEFAULT);
+    assert_eq!(all[0].kind, Kind::Default);
+    assert_eq!(all[0].home, home);
+    assert!(all[0].java.is_none());
+    // Listing is a read: it made no folder.
+    assert!(!home.exists() && !data.exists());
+    // A fresh player is asked once; a saved id that is not there changes nothing.
+    assert!(needs_first_pick(&all, None, false));
+    assert!(needs_first_pick(&all, Some("gone"), false));
+    // Horizon already prepared, or the saved id being Horizon itself, is no reason to ask.
+    assert!(!needs_first_pick(&all, None, true));
+    assert!(!needs_first_pick(&all, Some(DEFAULT), false));
+    // Either way, Horizon is what plays.
+    assert_eq!(picked(&all, None).unwrap().id, DEFAULT);
+    assert_eq!(picked(&all, Some("gone")).unwrap().id, DEFAULT);
+    assert_eq!(selected_in(&all, Some("gone")).id, DEFAULT);
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn an_empty_list_picks_nothing_and_asks_for_a_pick() {
+    // `list_in` never returns this (Horizon is always first), but the pickers take any slice.
+    assert!(picked(&[], None).is_none());
+    assert!(picked(&[], Some("x")).is_none());
+    assert!(needs_first_pick(&[], None, false));
+    assert!(needs_first_pick(&[], Some("x"), false));
+    assert!(!needs_first_pick(&[], None, true));
+}
