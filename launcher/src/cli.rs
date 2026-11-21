@@ -4320,6 +4320,32 @@ mod tests {
         let _ = std::fs::remove_dir_all(&home);
     }
 
+    /// A Java that is not there: the game never starts, the error names the program, and the
+    /// sync hold taken for the run is given back, so the next run is not told one is going.
+    #[test]
+    fn attached_run_with_no_such_program_errors_and_gives_the_sync_hold_back() {
+        let home = std::env::temp_dir().join(format!(
+            "horizon-launcher-cli-nojava-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&home);
+        std::fs::create_dir_all(&home).unwrap();
+        let mark = crate::config_sync::claim_running(&home)
+            .unwrap()
+            .expect("no mark held yet");
+        let missing = home.join("no-such-java");
+        let err = attached_run(Command::new(&missing), Some(mark)).unwrap_err();
+        assert!(err.starts_with("Could not start"), "{err}");
+        assert!(err.contains("no-such-java"), "{err}");
+        let again = crate::config_sync::claim_running(&home).unwrap();
+        assert!(again.is_some(), "the hold was not given back");
+        drop(again);
+        // With no hold taken, the same error comes back without one.
+        let err = attached_run(Command::new(&missing), None).unwrap_err();
+        assert!(err.starts_with("Could not start"), "{err}");
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
     /// Confirmed cleanup on a controlled long-lived child: Ok means actually reaped.
     #[cfg(unix)]
     #[test]
