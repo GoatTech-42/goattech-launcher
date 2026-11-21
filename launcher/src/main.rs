@@ -6543,13 +6543,19 @@ mod tests {
             let target = (y0 / tau).round() * tau;
             assert_eq!((y, p), (target, 0.), "from {y0},{p0}");
         }
-        // The path does not depend on the frame gap: 33 ms and 80 ms steps agree after 1 s.
-        let (a, _) = run(1.0, 0.5, 0.033, 0.99);
-        let (b, _) = run(1.0, 0.5, 0.08, 0.96);
-        let want = 1.0 * (-STAGE_EASE_RATE * 0.99f32).exp();
-        assert!(
-            (a - want).abs() < 0.01 && (b - 1.0 * (-STAGE_EASE_RATE * 0.96f32).exp()).abs() < 0.01
-        );
+        // The path does not depend on the frame gap. Run whole steps, so the elapsed
+        // time is exactly steps * dt, and compare with the closed form exp(-rate * t).
+        let steps = |dt: f32, n: u32| {
+            let mut y = 1.0f32;
+            for _ in 0..n {
+                (y, _) = ease_back(y, 0., dt);
+            }
+            y
+        };
+        for (dt, n) in [(0.033f32, 30u32), (0.08, 12)] {
+            let want = (-STAGE_EASE_RATE * dt * n as f32).exp();
+            assert!((steps(dt, n) - want).abs() < 1e-4, "dt {dt} x {n}");
+        }
     }
 
     #[test]
