@@ -731,6 +731,27 @@ fn a_copy_that_fails_leaves_no_folder_and_no_choices_and_can_be_retried() {
     let _ = fs::remove_dir_all(&root);
 }
 
+/// Unix: the folder of instances is a link; the plain route must refuse it as the client route
+/// does, not write the new instance through the link.
+#[cfg(unix)]
+#[test]
+fn a_linked_instances_folder_is_refused_by_the_plain_route_and_stays_empty() {
+    let root = scratch("linked-plain");
+    let (home, data, elsewhere) = (root.join("home"), root.join("data"), root.join("elsewhere"));
+    player_home(&home);
+    fs::create_dir_all(&elsewhere).unwrap();
+    std::os::unix::fs::symlink(&elsewhere, home.join(OWN)).unwrap();
+    let e = create_in(&home, &data, "Fresh", None, None).unwrap_err();
+    assert!(e.contains("must be a real directory"), "{e}");
+    assert_eq!(
+        fs::read_dir(&elsewhere).unwrap().count(),
+        0,
+        "nothing written through the link"
+    );
+    assert!(!data.join(FILE).exists(), "no store written");
+    let _ = fs::remove_dir_all(&root);
+}
+
 #[test]
 fn an_instances_entry_that_is_not_a_folder_stops_the_making_of_an_instance() {
     let root = scratch("not-a-folder");
