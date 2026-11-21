@@ -231,3 +231,33 @@ fn polish_entries_are_valid_and_keep_placeholders() {
         assert_eq!(holes(en), holes(said), "Polish: {en:?}");
     }
 }
+
+/// The data-collection and upload texts a player decides on are shown in Turkish, Japanese and
+/// German, not English. (Machine-translated; a native speaker has not reviewed them.)
+#[test]
+fn the_data_collection_texts_are_translated_in_turkish_japanese_and_german() {
+    let keys = [
+        "after each session: frame-time percentiles and a 14-bucket histogram, tick times, peak memory and startup times, with your machine (os, cpu and its cores and clocks, memory size, gpu, its memory and driver, drive type, screen size and refresh rate, laptop or desktop, on battery or not) and the settings that change performance.",
+        "bug reports",
+        "crash reports",
+        "data collection",
+        "help make GoatTech faster and steadier?",
+        "hide details and example reports",
+        "only the reports you write and send yourself, with the game's log if you add it after reading it.",
+        "performance statistics",
+        "save choices",
+        "the results of benchmarks you run, for the community results on playhorizon.dev.",
+        "the short version: on a new install, basic performance summaries start on; the four report kinds start off. \"keep optional data off\" turns all five off in one click - the anonymous player-count ping runs while you play either way. settings can change any choice later.",
+        "the short version: on a new install, basic performance summaries start on; the four report kinds start off. \"keep optional data off\" turns all five off in one click - the player-count ping is off in this configuration. settings can change any choice later.",
+        "upload this log to mclo.gs, a paste service for minecraft logs? anyone with the link can read it, until it is deleted or unread for 90 days. your home folder, user name and account names are taken out first.",
+        "view details and example reports",
+        "when the game crashes: the error, where in horizon's code it happened, your graphics adapter and settings. no log, no world or server, no user name in paths.",
+        "your data",
+        "{count} waiting to be sent",
+    ];
+    for language in [Language::Turkish, Language::Japanese, Language::German] {
+        for en in keys {
+            assert_ne!(tr_in(language, en), en, "{}: {en:?}", language.code());
+        }
+    }
+}
