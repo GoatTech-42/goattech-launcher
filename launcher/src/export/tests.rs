@@ -212,3 +212,43 @@ fn an_mrpack_lists_what_modrinth_serves_and_carries_the_rest() {
     assert!(linkable(&home, &served).is_empty());
     fs::remove_dir_all(&home).unwrap();
 }
+
+#[test]
+fn an_export_that_cannot_be_written_says_so_and_leaves_no_half_file_and_the_old_one() {
+    let home = home("write-fails");
+    let out = home.join("out/Hardcore.zip");
+    // A first export is there already: a failed one must not touch it.
+    let first = export(&home, "Hardcore", Format::Zip, &[], &[], &out).unwrap();
+    assert_eq!(first.path, out);
+    let before = fs::read(&out).unwrap();
+
+    // The output cannot be started: a folder is where the part file goes.
+    fs::create_dir(out.with_extension("part")).unwrap();
+    let e = export(&home, "Hardcore", Format::Zip, &[], &[], &out).unwrap_err();
+    assert!(e.starts_with("Could not export Hardcore:"), "{e}");
+    assert_eq!(fs::read(&out).unwrap(), before);
+    fs::remove_dir(out.with_extension("part")).unwrap();
+
+    // The output is where a folder is: the finished file cannot take its place, and the part
+    // file is not left behind.
+    let blocked = home.join("out/Folder.zip");
+    fs::create_dir_all(blocked.join("inside")).unwrap();
+    let e = export(&home, "Hardcore", Format::Zip, &[], &[], &blocked).unwrap_err();
+    assert!(e.starts_with("Could not export Hardcore:"), "{e}");
+    assert!(blocked.is_dir() && !blocked.with_extension("part").exists());
+    assert_eq!(fs::read(&out).unwrap(), before);
+    assert_eq!(fs::read_dir(home.join("out")).unwrap().count(), 2);
+}
+
+/// A file that is listed but cannot be read stops the export, with its name.
+#[cfg(unix)]
+#[test]
+fn an_unreadable_file_stops_the_export_naming_it_and_leaves_nothing() {
+    let home = home("unreadable");
+    let out = home.join("out/Hardcore.zip");
+    std::os::unix::fs::symlink(home.join("nowhere"), home.join("resourcepacks/Dead.zip")).unwrap();
+    let e = export(&home, "Hardcore", Format::Zip, &[], &[], &out).unwrap_err();
+    assert!(e.starts_with("Could not export Hardcore:"), "{e}");
+    assert!(e.contains("Dead.zip"), "{e}");
+    assert!(!out.exists() && !out.with_extension("part").exists());
+}
