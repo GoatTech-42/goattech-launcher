@@ -261,3 +261,24 @@ fn the_data_collection_texts_are_translated_in_turkish_japanese_and_german() {
         }
     }
 }
+
+/// The game-launch option wording and the "left off" note (mods an import omitted) read as the
+/// launcher's own language in Turkish and Japanese, not English. (Machine-translated; a native
+/// speaker has not reviewed them.)
+#[test]
+fn launch_option_texts_and_the_left_off_note_are_translated_in_turkish_and_japanese() {
+    let keys = [
+        "runs {command} first",
+        "runs {command} after",
+        "through {wrapper}",
+        "run the game through",
+        "a shell command, run in the instance's folder once the game has exited.",
+        "a shell command, run in the instance's folder. the game starts only if it succeeds.",
+        "left off: {line}.",
+    ];
+    for language in [Language::Turkish, Language::Japanese] {
+        for en in keys {
+            assert_ne!(tr_in(language, en), en, "{}: {en:?}", language.code());
+        }
+    }
+}
