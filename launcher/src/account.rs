@@ -1861,7 +1861,7 @@ impl Accounts {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
             Err(e) => return Err(format!("{}: {e}; nothing was written", path.display())),
         }
-        std::fs::write(path, text + "\n").map_err(|e| e.to_string())
+        write_whole(path, (text + "\n").as_bytes()).map_err(|e| e.to_string())
     }
     pub fn selected(&self) -> Option<&Account> {
         let uuid = self.selected.as_ref()?;
@@ -2037,6 +2037,36 @@ impl Accounts {
         }
         Ok(())
     }
+}
+
+/// Write `bytes` to `path` so that a crash or a full disk leaves the old file or the new one,
+/// never half of one: written and flushed to a file of its own beside it, then renamed over it.
+/// The file of its own is removed again when the write or the rename fails.
+fn write_whole(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy())
+        .unwrap_or_default();
+    let partial = path.with_file_name(format!("{name}.tmp-{}-{nanos}", std::process::id()));
+    let done = (|| {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&partial)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        drop(file);
+        std::fs::rename(&partial, path)
+    })();
+    if done.is_err() {
+        let _ = std::fs::remove_file(&partial);
+    }
+    done
 }
 
 fn remove_stage(stage: &Path) -> std::io::Result<()> {

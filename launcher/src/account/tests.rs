@@ -2947,3 +2947,35 @@ fn a_file_that_cannot_be_read_for_another_reason_than_missing_is_not_written_ove
     assert!(!dir.join("accounts.json.damaged").exists());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn accounts_json_is_replaced_whole_and_leaves_no_partial_file() {
+    let dir = empty_start_dir("whole");
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("accounts.json");
+    let names = |dir: &Path| -> Vec<String> {
+        let mut v: Vec<String> = std::fs::read_dir(dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        v.sort();
+        v
+    };
+    let mut accounts = Accounts::default();
+    accounts.offline.push("Builder_1".into());
+    accounts.save_to(&file).unwrap();
+    accounts.offline.push("Builder_2".into());
+    accounts.save_to(&file).unwrap();
+    assert_eq!(Accounts::load_from(&file), accounts);
+    assert_eq!(names(&dir), ["accounts.json"], "a partial file was left");
+    // A rename that cannot happen (a folder is where the file goes) is an error, the folder
+    // stays, and the partial file is removed again.
+    let blocked = empty_start_dir("whole-blocked");
+    std::fs::create_dir_all(blocked.join("accounts.json").join("inside")).unwrap();
+    assert!(write_whole(&blocked.join("accounts.json"), b"x").is_err());
+    assert_eq!(names(&blocked), ["accounts.json"]);
+    assert!(blocked.join("accounts.json").join("inside").is_dir());
+    let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::remove_dir_all(&blocked);
+}
