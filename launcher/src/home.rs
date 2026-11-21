@@ -665,7 +665,9 @@ impl Launcher {
                 .h(px(player_model::H as f32 * 8.))
                 .cursor(gpui::CursorStyle::PointingHand)
                 .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
-                    match stage_key(ev.keystroke.key.as_str()) {
+                    let m = &ev.keystroke.modifiers;
+                    let chord = m.control || m.alt || m.platform || m.function;
+                    match stage_key(ev.keystroke.key.as_str(), ev.is_held, chord) {
                         Some(StageKey::Wave) => this.stage_click_wave = Some(this.stage_t),
                         Some(StageKey::Turn(by)) => this.stage_yaw += by,
                         None => return,

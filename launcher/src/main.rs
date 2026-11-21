@@ -500,9 +500,15 @@ enum StageKey {
 /// One arrow press turns the model about 11 degrees.
 const STAGE_KEY_TURN: f32 = 0.2;
 
-fn stage_key(key: &str) -> Option<StageKey> {
+/// Maps a key press on the focused model. A shortcut chord (Ctrl, Alt, Command or Fn held) is
+/// not ours and falls through. A held Enter or Space does not wave again (one wave per press);
+/// a held arrow keeps turning, which is the point of holding it. Shift changes nothing.
+fn stage_key(key: &str, held: bool, chord: bool) -> Option<StageKey> {
+    if chord {
+        return None;
+    }
     match key {
-        "enter" | "space" => Some(StageKey::Wave),
+        "enter" | "space" if !held => Some(StageKey::Wave),
         "left" => Some(StageKey::Turn(-STAGE_KEY_TURN)),
         "right" => Some(StageKey::Turn(STAGE_KEY_TURN)),
         _ => None,
@@ -6409,12 +6415,24 @@ mod tests {
     #[test]
     fn stage_keys_wave_and_turn_and_ignore_the_rest() {
         use crate::{stage_key, StageKey, STAGE_KEY_TURN};
-        assert_eq!(stage_key("enter"), Some(StageKey::Wave));
-        assert_eq!(stage_key("space"), Some(StageKey::Wave));
-        assert_eq!(stage_key("left"), Some(StageKey::Turn(-STAGE_KEY_TURN)));
-        assert_eq!(stage_key("right"), Some(StageKey::Turn(STAGE_KEY_TURN)));
+        let k = |key| stage_key(key, false, false);
+        assert_eq!(k("enter"), Some(StageKey::Wave));
+        assert_eq!(k("space"), Some(StageKey::Wave));
+        assert_eq!(k("left"), Some(StageKey::Turn(-STAGE_KEY_TURN)));
+        assert_eq!(k("right"), Some(StageKey::Turn(STAGE_KEY_TURN)));
         for other in ["tab", "escape", "up", "down", "a", ""] {
-            assert_eq!(stage_key(other), None, "{other}");
+            assert_eq!(k(other), None, "{other}");
+        }
+        // Auto-repeat: a held arrow keeps turning, a held Enter or Space waves once.
+        assert_eq!(
+            stage_key("right", true, false),
+            Some(StageKey::Turn(STAGE_KEY_TURN))
+        );
+        assert_eq!(stage_key("enter", true, false), None);
+        assert_eq!(stage_key("space", true, false), None);
+        // A chord (Ctrl, Alt, Command or Fn) is a shortcut, not ours.
+        for key in ["enter", "space", "left", "right"] {
+            assert_eq!(stage_key(key, false, true), None, "{key}");
         }
     }
 
