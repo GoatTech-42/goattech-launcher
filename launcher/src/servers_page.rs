@@ -230,6 +230,10 @@ pub(super) struct Servers {
     invalid: Option<(Field, &'static str)>,
     copied: Option<Instant>,
     faces: HashMap<String, Option<Vec<[u8; 4]>>>,
+    /// Baked face images by (face pixels, size, scale). The sprite atlas keeps an image until
+    /// every handle to it is dropped, so baking one per render grew it without bound; one
+    /// image per distinct face and size is kept and reused.
+    baked: HashMap<(u64, u32, u32), std::sync::Arc<gpui::RenderImage>>,
     tx: Sender<Event>,
     rx: Receiver<Event>,
 }
@@ -277,6 +281,7 @@ impl Servers {
             invalid: None,
             copied: None,
             faces: HashMap::new(),
+            baked: HashMap::new(),
             tx,
             rx,
         }
@@ -1137,9 +1142,14 @@ impl Launcher {
             .bg(self.theme.plate);
         if let Some(pixels) = face {
             d = d.child(
-                gpui::img(art::bake(&pixels, 8, 8, size / 8., self.scale))
-                    .w(px(size))
-                    .h(px(size)),
+                gpui::img(head_image(
+                    &mut self.servers.baked,
+                    &pixels,
+                    size,
+                    self.scale,
+                ))
+                .w(px(size))
+                .h(px(size)),
             );
         }
         d
@@ -3170,8 +3180,68 @@ fn setting_name(key: &str) -> &str {
     }
 }
 
+/// The most baked face images kept; past this the cache starts over (a scale change leaves the
+/// old entries unused, and a page with this many distinct faces is far beyond a normal list).
+const HEAD_CACHE_MAX: usize = 128;
+
+/// The baked image for a face at a size and window scale: the same `Arc` every time for the same
+/// inputs, so the sprite atlas holds one copy instead of one per render.
+fn head_image(
+    cache: &mut HashMap<(u64, u32, u32), std::sync::Arc<gpui::RenderImage>>,
+    pixels: &[[u8; 4]],
+    size: f32,
+    scale: f32,
+) -> std::sync::Arc<gpui::RenderImage> {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    pixels.hash(&mut h);
+    let key = (h.finish(), size.to_bits(), scale.to_bits());
+    if let Some(i) = cache.get(&key) {
+        return i.clone();
+    }
+    if cache.len() >= HEAD_CACHE_MAX {
+        cache.clear();
+    }
+    let i = art::bake(pixels, 8, 8, size / 8., scale);
+    cache.insert(key, i.clone());
+    i
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_face_is_baked_once_per_size_and_scale_not_once_per_render() {
+        let face = vec![[10u8, 20, 30, 255]; 64];
+        let mut cache = HashMap::new();
+        let first = super::head_image(&mut cache, &face, 32., 1.);
+        for _ in 0..1000 {
+            let again = super::head_image(&mut cache, &face, 32., 1.);
+            assert!(std::sync::Arc::ptr_eq(&first, &again));
+        }
+        assert_eq!(cache.len(), 1);
+        // A different size, scale or face is its own image.
+        let other_scale = super::head_image(&mut cache, &face, 32., 2.);
+        assert!(!std::sync::Arc::ptr_eq(&first, &other_scale));
+        let other_size = super::head_image(&mut cache, &face, 24., 1.);
+        assert!(!std::sync::Arc::ptr_eq(&first, &other_size));
+        let mut other_face = face.clone();
+        other_face[0] = [1, 2, 3, 255];
+        let f2 = super::head_image(&mut cache, &other_face, 32., 1.);
+        assert!(!std::sync::Arc::ptr_eq(&first, &f2));
+        assert_eq!(cache.len(), 4);
+        // The baked pixels are the same as an uncached bake.
+        let direct = crate::art::bake(&face, 8, 8, 4., 1.);
+        let (d, f) = (direct.size(0), first.size(0));
+        assert_eq!((d.width.0, d.height.0), (f.width.0, f.height.0));
+        // The cache is bounded however many distinct faces come through.
+        for n in 0..(super::HEAD_CACHE_MAX as u32 * 3) {
+            let mut f = face.clone();
+            f[1] = [(n % 251) as u8, (n / 251) as u8, 7, 255];
+            super::head_image(&mut cache, &f, 32., 1.);
+            assert!(cache.len() <= super::HEAD_CACHE_MAX);
+        }
+    }
+
     use super::*;
 
     #[test]
