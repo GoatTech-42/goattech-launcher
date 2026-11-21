@@ -2913,7 +2913,7 @@ fn a_backup_that_cannot_be_confirmed_stops_the_save_and_leaves_the_original() {
             use std::io::Write;
             f.write_all(b)
         },
-        std::fs::remove_file,
+        remove_stage,
     )
     .unwrap();
     assert_eq!(std::fs::read(&kept).unwrap(), original);

@@ -1847,7 +1847,7 @@ impl Accounts {
                             f.write_all(bytes)?;
                             f.sync_all()
                         },
-                        std::fs::remove_file,
+                        remove_stage,
                     )
                     .map_err(|e| {
                         format!(
@@ -2037,6 +2037,10 @@ impl Accounts {
         }
         Ok(())
     }
+}
+
+fn remove_stage(stage: &Path) -> std::io::Result<()> {
+    std::fs::remove_file(stage)
 }
 
 /// Keep the exact bytes of an unreadable accounts file at `kept`, before it is replaced. Ok
