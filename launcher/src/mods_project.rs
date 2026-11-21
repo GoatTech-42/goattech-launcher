@@ -148,8 +148,8 @@ struct ImageRetries {
 impl ImageRetries {
     /// A fetch of `key` failed at `now`. A key with no entry is a first failure: it is
     /// remembered, if there is room once the oldest idle failure is forgotten. When every
-    /// entry has a try out (cannot happen with a few workers) it is not remembered and gets no
-    /// retries.
+    /// entry has a try out (out counts a try that is queued as well as one being fetched, so
+    /// this can happen) it is not remembered and gets no retries.
     fn failed(&mut self, key: (String, u32), now: std::time::Instant) {
         if let Some((count, at, out)) = self.failures.get_mut(&key) {
             *count += 1;
