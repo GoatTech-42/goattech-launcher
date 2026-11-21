@@ -282,3 +282,27 @@ fn launch_option_texts_and_the_left_off_note_are_translated_in_turkish_and_japan
         }
     }
 }
+
+/// The AI and agent texts, including the switch that turns every AI feature off, are shown in
+/// Turkish, Japanese and German, not English. (Machine-translated; no native speaker has reviewed
+/// them.)
+#[test]
+fn the_ai_and_agent_texts_are_translated_in_turkish_japanese_and_german() {
+    let keys = [
+        "any mcp client",
+        "connect an ai agent",
+        "hides and turns off every ai feature: agent control of the launcher and the game, horizon-ctl and the mcp servers.",
+        "no ai",
+        "on: every ai feature is hidden and off. the game opens no control socket, and horizon-ctl and the mcp servers refuse.",
+        "the mcp server answered with {count} tools. now ask your agent: \"say hello from horizon\".",
+        "the mcp server did not answer: {error}",
+        "what an agent can do, and the commands",
+        "your own agent (claude code, codex, cursor or any mcp client) can drive the launcher and the game it starts, with the same commands as the terminal. it runs on your computer and talks to horizon there; it asks before deleting anything.",
+        "{client} adds it with this command (it runs only when you click):",
+    ];
+    for language in [Language::Turkish, Language::Japanese, Language::German] {
+        for en in keys {
+            assert_ne!(tr_in(language, en), en, "{}: {en:?}", language.code());
+        }
+    }
+}
