@@ -6027,9 +6027,11 @@ impl Render for Launcher {
             // the display face's own pair kerns (units per em, from its GPOS) and the wordmark
             // token's tracking go on by hand, or the word reads letter-spaced, not set.
             // GPOS pair kerns from the rendered face (Bricolage Grotesque Display ExtraBold, upm 1000):
-            // GO 0, OA -35, TT +23, EC -22 match the font exactly; AT=0 is an OPTICAL OVERRIDE
-            // (font GPOS says -82, which crowds the T into the A at wordmark sizes) - not font kerning.
-            const WORDMARK_KERN: [f32; 7] = [0., -35., 0., 23., 0., -22., 0.]; // GO OA AT TT TE EC CH
+            // GO 0, OA -35, EC -22 match the font exactly. Two OPTICAL OVERRIDES, not font kerning:
+            // AT=0 (font GPOS says -82, which crowds the T into the A at wordmark sizes) and
+            // TT=+110 (the font's +23 with the wordmark's tracking left the two crossbars fused
+            // into one bar at the opening's size; +110 leaves a clear gap like the other pairs).
+            const WORDMARK_KERN: [f32; 7] = [0., -35., 0., 110., 0., -22., 0.]; // GO OA AT TT TE EC CH
             let word_size = theme::WORDMARK.px * 0.5;
             let word = div()
                 .flex()
