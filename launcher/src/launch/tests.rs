@@ -192,6 +192,30 @@ fn windows_words_are_quoted_as_the_c_runtime_reads_them() {
 }
 
 #[test]
+fn a_windows_word_cmd_would_act_on_is_quoted_so_it_stays_one_word() {
+    let q = |w: &str| windows_quote(OsStr::new(w));
+    // Each of these, bare, ends or redirects the command in cmd.exe.
+    for c in ["&", "|", "<", ">", "^", "(", ")"] {
+        let word = format!("-Dname=a{c}b");
+        assert_eq!(q(&word), format!("\"{word}\""), "{c}");
+    }
+    assert_eq!(q(r"C:\Users\A&B\java.exe"), r#""C:\Users\A&B\java.exe""#);
+    // A word without any of them is as it was.
+    assert_eq!(q(r"C:\jre\bin\java.exe"), r"C:\jre\bin\java.exe");
+    assert_eq!(q("-Xmx4096M"), "-Xmx4096M");
+    // In a pre-launch line, the game's words follow `&&` as single words.
+    let launch = Launch {
+        pre_launch: "echo hi".into(),
+        ..Launch::default()
+    };
+    let words = vec![OsString::from(r"C:\A&B\java.exe"), OsString::from("-Dx=1")];
+    let Plan::Cmd { line } = plan(&launch, words, true, &Found::default()) else {
+        panic!("not a cmd plan")
+    };
+    assert_eq!(line, r#"echo hi && "C:\A&B\java.exe" -Dx=1"#);
+}
+
+#[test]
 fn nothing_to_add_leaves_the_command_as_it_is() {
     let mut cmd = Command::new("/opt/game");
     cmd.arg("--x").env("A", "1");

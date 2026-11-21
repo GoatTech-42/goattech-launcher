@@ -427,7 +427,9 @@ fn script(pre_launch: &str) -> String {
 /// A word quoted for a Windows command line, as programs built with the C runtime read it back.
 fn windows_quote(word: &OsStr) -> String {
     let word = word.to_string_lossy();
-    if !word.is_empty() && !word.contains([' ', '\t', '"']) {
+    // Quoted too when cmd.exe would act on a character outside quotes (`&` would start a second
+    // command); inside quotes it does not. `%NAME%` is still expanded by cmd, quoted or not.
+    if !word.is_empty() && !word.contains([' ', '\t', '"', '&', '|', '<', '>', '^', '(', ')']) {
         return word.into_owned();
     }
     let mut out = String::from("\"");
