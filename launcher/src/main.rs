@@ -2951,36 +2951,56 @@ fn sync_system_clipboard(text: String) {
     });
 }
 
+/// The switch's size, logical pixels: the track (border included), the square knob, and the knob's
+/// travel (track inside the 2px border, less the knob and a 2px margin each side).
+const SWITCH_W: f32 = 56.;
+const SWITCH_H: f32 = 30.;
+const SWITCH_KNOB: f32 = 22.;
+const SWITCH_TRAVEL: f32 = SWITCH_W - 4. - SWITCH_KNOB - 4.;
+
 /// An on/off switch: a square knob sliding in a sunk track that turns violet when on.
 fn switch(id: impl Into<SharedString>, on: bool, t: &Theme) -> Stateful<Div> {
     let t = *t;
     let id: SharedString = id.into();
     let face = if on { t.on_face } else { t.muted };
-    let knob = div().absolute().top(px(2.)).size(px(16.)).bg(face).child(
-        div()
-            .absolute()
-            .bottom_0()
-            .left_0()
-            .right_0()
-            .h(px(2.))
-            .bg(if on { t.face_lip } else { t.lip }),
-    );
+    let knob = div()
+        .absolute()
+        .top(px(2.))
+        .size(px(SWITCH_KNOB))
+        .bg(face)
+        .child(
+            div()
+                .absolute()
+                .bottom_0()
+                .left_0()
+                .right_0()
+                .h(px(2.))
+                .bg(if on { t.face_lip } else { t.lip }),
+        );
     // The knob slides where the switch flips, and holds still under Reduce motion.
     let knob = match reduce_motion() {
-        true => knob.left(px(if on { 22. } else { 2. })).into_any_element(),
+        true => knob
+            .left(px(if on { 2. + SWITCH_TRAVEL } else { 2. }))
+            .into_any_element(),
         false => knob
             .with_animation(
                 ElementId::named_usize(id.clone(), on as usize),
                 Animation::new(theme::MOVE).with_easing(ease_out_quint()),
-                move |d, p| d.left(px(if on { 2. + 20. * p } else { 22. - 20. * p })),
+                move |d, p| {
+                    d.left(px(if on {
+                        2. + SWITCH_TRAVEL * p
+                    } else {
+                        2. + SWITCH_TRAVEL * (1. - p)
+                    }))
+                },
             )
             .into_any_element(),
     };
     keyboard(div().id(id.clone()), &t)
         .relative()
         .flex_none()
-        .w(px(44.))
-        .h(px(24.))
+        .w(px(SWITCH_W))
+        .h(px(SWITCH_H))
         .border_2()
         .border_color(t.outline)
         .cursor_pointer()
