@@ -256,6 +256,10 @@ fn arguments_reach_a_child_whole_through_the_pre_launch_cmd_line() {
         r"C:\trail\",
         r"C:\My Folder\",
         r#"a\"b"#,
+        r#"a"b&c"#,
+        r#""x"&y"#,
+        r#"a&"b c""#,
+        r#"p|"q"^r"#,
     ];
     let mut cmd = Command::new(&exe);
     cmd.args(["--exact", "--", "launch::tests::argv_echo_child"])
