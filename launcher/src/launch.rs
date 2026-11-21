@@ -82,7 +82,7 @@ pub fn memory_at(fraction: f32, total_mb: u32) -> Option<u32> {
 pub struct NotMemory;
 
 /// A memory limit as a player types it: a number of MB, or of GB with `gb`, and nothing or `off`
-/// for no limit. Nothing keeps a player from going low. Err when it is none of those.
+/// for no limit. Nothing keeps a player from going low, but zero. Err when it is none of those.
 pub fn parse_memory(typed: &str) -> Result<Option<u32>, NotMemory> {
     let typed = typed.trim().to_ascii_lowercase();
     if typed.is_empty() || typed == "off" {
@@ -95,7 +95,13 @@ pub fn parse_memory(typed: &str) -> Result<Option<u32>, NotMemory> {
         (mb.unwrap_or(&typed), 1)
     };
     let number: u32 = number.trim().parse().map_err(|_| NotMemory)?;
-    number.checked_mul(scale).map(Some).ok_or(NotMemory)
+    // Zero is no limit a game can start under (`-Xmx0M`), and the slider never gives it:
+    // [`memory_at`] stops at 1. No limit is said with nothing or `off`.
+    number
+        .checked_mul(scale)
+        .filter(|mb| *mb > 0)
+        .map(Some)
+        .ok_or(NotMemory)
 }
 
 /// Where `mb` sits on a slider over `total_mb`; [`memory_at`]'s inverse.

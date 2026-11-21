@@ -43,6 +43,12 @@ fn a_typed_memory_limit_is_read_in_mb_or_gb_with_no_lowest_value() {
     assert_eq!(parse_memory("1"), Ok(Some(1)));
     assert_eq!(parse_memory(""), Ok(None));
     assert_eq!(parse_memory("off"), Ok(None));
+    // Zero in any unit is refused: it is not a limit a game starts under, and the slider's own
+    // lowest value is 1.
+    assert_eq!(memory_at(0., 16384), Some(1));
+    for zero in ["0", "0mb", "0 M", "0gb", "0 g", " 00 "] {
+        assert_eq!(parse_memory(zero), Err(NotMemory), "{zero}");
+    }
     for bad in ["lots", "-5", "1.5gb", "4 tb", "99999999999", "9999999gb"] {
         assert_eq!(parse_memory(bad), Err(NotMemory), "{bad}");
     }
