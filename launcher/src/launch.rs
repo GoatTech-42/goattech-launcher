@@ -336,12 +336,12 @@ pub fn parse_env(text: &str) -> Result<BTreeMap<String, String>, String> {
 /// The variables as [`parse_env`] reads them back.
 pub fn env_line(env: &BTreeMap<String, String>) -> String {
     env.iter()
-        .map(
-            |(k, v)| match v.is_empty() || v.contains([' ', '"', '\'', '\\']) {
+        .map(|(k, v)| {
+            match v.is_empty() || v.contains(|c: char| c.is_whitespace() || "\"'\\".contains(c)) {
                 true => format!("{k}=\"{}\"", v.replace('\\', "\\\\").replace('"', "\\\"")),
                 false => format!("{k}={v}"),
-            },
-        )
+            }
+        })
         .collect::<Vec<_>>()
         .join(" ")
 }

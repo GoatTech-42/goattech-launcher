@@ -23,6 +23,41 @@ fn variables_are_read_and_written_back() {
 }
 
 #[test]
+fn a_variable_written_back_is_read_the_same_whatever_it_holds() {
+    // Any whitespace in a value (a tab or a line break from a paste, a no-break space) is
+    // written quoted, or reading it back would split the value and fail on its second half.
+    for value in [
+        "a\tb",
+        "a\nb",
+        "a\r\nb",
+        "a\u{a0}b",
+        "\t",
+        " lead",
+        "trail ",
+        "",
+        "it's",
+        "say \"hi\"",
+        "back\\slash",
+        "ends\\",
+        "\\\"",
+        "plain",
+        "a=b",
+        "100%",
+        "$HOME",
+        "#x",
+    ] {
+        let env = BTreeMap::from([("K".to_string(), value.to_string())]);
+        let line = env_line(&env);
+        assert_eq!(parse_env(&line).as_ref(), Ok(&env), "{value:?} as {line:?}");
+    }
+    let env = BTreeMap::from([
+        ("A".to_string(), "x\ty".to_string()),
+        ("B".to_string(), "2".to_string()),
+    ]);
+    assert_eq!(parse_env(&env_line(&env)).unwrap(), env);
+}
+
+#[test]
 fn the_memory_slider_has_no_lowest_value_and_ends_in_no_limit() {
     assert_eq!(memory_at(1., 16384), None);
     assert_eq!(memory_at(0., 16384), Some(1));
