@@ -1830,6 +1830,17 @@ impl Accounts {
             std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
         }
         let text = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
+        // An accounts.json that cannot be read loaded as no accounts; saving over it would
+        // destroy what a player could still repair by hand. The first damaged copy is kept
+        // beside it (a later one never replaces it), then the file is written as usual.
+        if let Ok(old) = std::fs::read_to_string(path) {
+            if serde_json::from_str::<Accounts>(&old).is_err() {
+                let kept = path.with_file_name("accounts.json.damaged");
+                if !kept.exists() {
+                    let _ = std::fs::write(&kept, old);
+                }
+            }
+        }
         std::fs::write(path, text + "\n").map_err(|e| e.to_string())
     }
     pub fn selected(&self) -> Option<&Account> {

@@ -2803,3 +2803,34 @@ fn the_owner_gate_with_no_accounts_blocks_the_game_unless_the_developer_option_i
     assert_eq!(session_file(&dir, pass), (None, None));
     assert!(!dir.exists(), "a session folder was made for no session");
 }
+
+#[test]
+fn saving_over_an_unreadable_accounts_file_keeps_the_first_damaged_copy() {
+    let dir = empty_start_dir("damaged-keep");
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("accounts.json");
+    let kept = dir.join("accounts.json.damaged");
+    std::fs::write(&file, "{\"accounts\": [{\"uuid\": \"abc\"").unwrap();
+    Accounts::default().save_to(&file).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(&kept).unwrap(),
+        "{\"accounts\": [{\"uuid\": \"abc\""
+    );
+    assert_eq!(Accounts::load_from(&file), Accounts::default());
+    // A second damage does not replace the first copy.
+    std::fs::write(&file, "garbage").unwrap();
+    Accounts::default().save_to(&file).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(&kept).unwrap(),
+        "{\"accounts\": [{\"uuid\": \"abc\""
+    );
+    // A readable file is never copied.
+    let other = empty_start_dir("damaged-none");
+    std::fs::create_dir_all(&other).unwrap();
+    let ok = other.join("accounts.json");
+    Accounts::default().save_to(&ok).unwrap();
+    Accounts::default().save_to(&ok).unwrap();
+    assert!(!other.join("accounts.json.damaged").exists());
+    let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::remove_dir_all(&other);
+}
