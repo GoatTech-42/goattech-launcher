@@ -397,17 +397,51 @@ pub fn render_posed_hi(
     out_w: usize,
     out_h: usize,
 ) -> Vec<[u8; 4]> {
-    render_grid(
-        skin,
-        yaw,
-        pitch,
-        pose,
-        slim,
-        out_w.max(1),
-        out_h.max(1),
-        true,
-    )
+    let (w, h) = (out_w.max(1), out_h.max(1));
+    let mut buf = render_grid(skin, yaw, pitch, pose, slim, w, h, true);
+    rim_light(&mut buf, w, h);
+    buf
 }
+
+/// A soft light edge around the silhouette. A dark hat or trousers on the dark stage
+/// otherwise melt into the background and the head reads as a flat cap; the rim gives
+/// every part a readable edge. Width follows the display scale (about a fifth of a texel,
+/// at least one pixel). Only the colour of edge pixels changes: coverage (alpha) and the
+/// silhouette are exactly as rasterized.
+fn rim_light(buf: &mut [[u8; 4]], w: usize, h: usize) {
+    let r = ((w as f32 / W as f32) / 5.).round().max(1.) as usize;
+    let clear = |buf: &[[u8; 4]], x: isize, y: isize| {
+        x < 0
+            || y < 0
+            || x >= w as isize
+            || y >= h as isize
+            || buf[y as usize * w + x as usize][3] == 0
+    };
+    let mut edge = Vec::new();
+    for y in 0..h {
+        for x in 0..w {
+            if buf[y * w + x][3] == 0 {
+                continue;
+            }
+            let (xi, yi, ri) = (x as isize, y as isize, r as isize);
+            if clear(buf, xi - ri, yi)
+                || clear(buf, xi + ri, yi)
+                || clear(buf, xi, yi - ri)
+                || clear(buf, xi, yi + ri)
+            {
+                edge.push(y * w + x);
+            }
+        }
+    }
+    for i in edge {
+        for c in &mut buf[i][..3] {
+            *c = (*c as f32 + (RIM_LIGHT - *c as f32) * RIM_MIX).round() as u8;
+        }
+    }
+}
+
+const RIM_LIGHT: f32 = 235.;
+const RIM_MIX: f32 = 0.22;
 
 // The one rasterizer, behind the fixed-size stage call and the tests' texel-size calls.
 #[allow(clippy::too_many_arguments)]
@@ -706,10 +740,25 @@ mod tests {
     fn hi_res_shading_makes_a_flat_skin_read_as_3d() {
         let skin = image::RgbaImage::from_pixel(64, 64, image::Rgba([90, 140, 200, 255]));
         let buf = render_posed_hi(&skin, -0.5, 0.21, &Pose::default(), false, W * 8, H * 8);
+        // The silhouette's rim light is checked on its own below; this is the face shading,
+        // so look only at pixels well inside the model.
+        let inside = |i: usize| {
+            let (x, y) = ((i % (W * 8)) as isize, (i / (W * 8)) as isize);
+            let r = 3isize;
+            let at = |x: isize, y: isize| {
+                x >= 0
+                    && y >= 0
+                    && x < (W * 8) as isize
+                    && y < (H * 8) as isize
+                    && buf[y as usize * W * 8 + x as usize][3] > 0
+            };
+            (1..=r).all(|d| at(x - d, y) && at(x + d, y) && at(x, y - d) && at(x, y + d))
+        };
         let tones: std::collections::HashSet<_> = buf
             .iter()
-            .filter(|p| p[3] > 0)
-            .map(|p| (p[0], p[1], p[2]))
+            .enumerate()
+            .filter(|(i, p)| p[3] > 0 && inside(*i))
+            .map(|(_, p)| (p[0], p[1], p[2]))
             .collect();
         assert!(
             tones.len() >= 2,
@@ -719,6 +768,33 @@ mod tests {
         assert!(tones.iter().all(|&(r, g, b)| {
             (70..=100).contains(&r) && (110..=150).contains(&g) && (160..=200).contains(&b)
         }));
+    }
+
+    #[test]
+    fn a_dark_part_gets_a_light_edge_and_keeps_its_coverage() {
+        let dark = image::RgbaImage::from_pixel(64, 64, image::Rgba([20, 20, 24, 255]));
+        let pose = Pose::default();
+        let hi = render_posed_hi(&dark, -0.3, 0.2, &pose, false, W * 8, H * 8);
+        let bare = render_grid(&dark, -0.3, 0.2, &pose, false, W * 8, H * 8, true);
+        // Same silhouette: the rim changes colour only.
+        assert!(hi.iter().zip(&bare).all(|(a, b)| a[3] == b[3]));
+        let lit = hi
+            .iter()
+            .zip(&bare)
+            .filter(|(a, b)| a[3] > 0 && a != b)
+            .count();
+        let total = hi.iter().filter(|p| p[3] > 0).count();
+        assert!(lit > 200, "an edge band should be lit, got {lit}");
+        assert!(
+            lit * 5 < total,
+            "the rim is a thin band, not a repaint: {lit} of {total}"
+        );
+        // And a lit pixel is lighter than the dark skin it sits on.
+        assert!(hi
+            .iter()
+            .zip(&bare)
+            .filter(|(a, b)| a[3] > 0 && a != b)
+            .all(|(a, b)| a[0] > b[0]));
     }
 
     #[test]

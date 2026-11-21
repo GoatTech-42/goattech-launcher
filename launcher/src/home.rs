@@ -6,6 +6,10 @@ use crate::plate::alpha;
 use crate::shell::{action, c, label, Action};
 use theme::night;
 
+/// Device pixels per model texel (at scale 1) on the Home stage: the figure is drawn this
+/// big, crisp at display resolution.
+const STAGE_TEXEL: f32 = 9.;
+
 /// The one-line state under Play. It names the real blocker: a bare "needs preparing"
 /// left a first run stuck when preparation really needs an account that owns the game
 /// (the resources row below is out of sight). The two states that were a dead end do
@@ -623,10 +627,14 @@ impl Launcher {
             pose
         };
         let (yaw, pitch) = (self.stage_yaw, self.stage_pitch);
-        // Rasterize at real display resolution (texel 8 in device pixels): geometry edges
+        // Rasterize at real display resolution (texel STAGE_TEXEL in device pixels): geometry edges
         // are sharp at any window scale while the skin texture stays nearest-blocky.
-        let dev_w = (player_model::W as f32 * 8. * scale).round().max(1.) as usize;
-        let dev_h = (player_model::H as f32 * 8. * scale).round().max(1.) as usize;
+        let dev_w = (player_model::W as f32 * STAGE_TEXEL * scale)
+            .round()
+            .max(1.) as usize;
+        let dev_h = (player_model::H as f32 * STAGE_TEXEL * scale)
+            .round()
+            .max(1.) as usize;
         let skin = texture.and_then(|(path, slim)| {
             let stamp = crate::servers_page::file_stamp(&path);
             let png = self.stage_skin.get(&path, stamp, || {
@@ -683,8 +691,8 @@ impl Launcher {
             // The model is a keyboard stop: Enter or Space waves, Left and Right turn it.
             let model = div()
                 .id("stage-model")
-                .w(px(player_model::W as f32 * 8.))
-                .h(px(player_model::H as f32 * 8.))
+                .w(px(player_model::W as f32 * STAGE_TEXEL))
+                .h(px(player_model::H as f32 * STAGE_TEXEL))
                 .cursor(gpui::CursorStyle::PointingHand)
                 .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
                     let m = &ev.keystroke.modifiers;
@@ -807,7 +815,7 @@ impl Launcher {
                 }),
         );
         match press {
-            PlayPress::Nothing => play = play.opacity(0.6).cursor_default().tab_stop(false),
+            PlayPress::Nothing => play = play.opacity(0.78).cursor_default().tab_stop(false),
             PlayPress::Play => {
                 play = play.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.picker_open = false;
