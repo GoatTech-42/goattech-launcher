@@ -647,7 +647,7 @@ impl Launcher {
         // The same skin, pose, angle and size draw the same picture, so a render between two
         // stage ticks (a hover elsewhere repaints the window) reuses the last baked image
         // instead of rasterizing again; a new image is made only when the key differs.
-        let key = StageKey::new(skin.as_ref(), yaw, pitch, &pose, (dev_w, dev_h));
+        let key = StagePicture::new(skin.as_ref(), yaw, pitch, &pose, (dev_w, dev_h));
         let (baked, fresh) = self.stage_frame.get(key, || {
             let pixels = match &skin {
                 Some((png, slim)) => Some(player_model::render_posed_hi(
@@ -1249,7 +1249,7 @@ fn time_left(spent: Duration, from: usize, done: usize, total: usize) -> Option<
 /// Everything that decides the stage picture: the decoded skin (None for the fixture), its
 /// model, the turn angles, the pose limbs and the size, each compared exactly (floats by bits,
 /// the skin by identity of the one decoded image the cache holds).
-pub(crate) struct StageKey {
+pub(crate) struct StagePicture {
     skin: Option<std::sync::Arc<image::RgbaImage>>,
     slim: bool,
     angles: [u32; 2],
@@ -1257,7 +1257,7 @@ pub(crate) struct StageKey {
     size: (usize, usize),
 }
 
-impl StageKey {
+impl StagePicture {
     fn new(
         skin: Option<&(std::sync::Arc<image::RgbaImage>, bool)>,
         yaw: f32,
@@ -1295,7 +1295,7 @@ impl StageKey {
 
 /// The last stage picture and the key it was made for.
 pub(crate) struct StageFrame<T> {
-    last: Option<(StageKey, Option<T>)>,
+    last: Option<(StagePicture, Option<T>)>,
 }
 
 impl<T> Default for StageFrame<T> {
@@ -1309,7 +1309,7 @@ impl<T: Clone> StageFrame<T> {
     /// false), else `make()`d and kept (true).
     pub(crate) fn get(
         &mut self,
-        key: StageKey,
+        key: StagePicture,
         make: impl FnOnce() -> Option<T>,
     ) -> (Option<T>, bool) {
         if let Some((last, picture)) = &self.last {
@@ -1479,7 +1479,7 @@ mod tests {
         let size = (320, 352);
         let made = std::cell::Cell::new(0u32);
         let mut frame = StageFrame::<u32>::default();
-        let draw = |frame: &mut StageFrame<u32>, key: StageKey| {
+        let draw = |frame: &mut StageFrame<u32>, key: StagePicture| {
             frame.get(key, || {
                 made.set(made.get() + 1);
                 Some(made.get())
@@ -1490,7 +1490,7 @@ mod tests {
                    yaw: f32,
                    pose: &player_model::Pose,
                    size| {
-            StageKey::new(
+            StagePicture::new(
                 png.map(|p| (p.clone(), slim)).as_ref(),
                 yaw,
                 0.1,
@@ -1509,7 +1509,7 @@ mod tests {
         // Each input that draws the picture, changed alone, makes a new one.
         let mut later = pose;
         later.arm_r += f32::EPSILON;
-        let changes: Vec<StageKey> = vec![
+        let changes: Vec<StagePicture> = vec![
             key(Some(&other), false, 0.4, &pose, size),
             key(Some(&png), true, 0.4, &pose, size),
             key(Some(&png), false, 0.5, &pose, size),
