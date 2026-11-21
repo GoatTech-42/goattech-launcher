@@ -3185,10 +3185,13 @@ fn setting_name(key: &str) -> &str {
 /// least recently drawn image is dropped one at a time (never the whole cache).
 const HEAD_CACHE_MAX: usize = 512;
 
+/// A baked face's identity: its exact pixels, size bits and scale bits.
+type HeadKey = (Vec<[u8; 4]>, u32, u32);
+
 /// Baked face images by exact face pixels, size and scale, each with when it was last drawn.
 #[derive(Default)]
 struct HeadCache {
-    map: HashMap<(Vec<[u8; 4]>, u32, u32), (std::sync::Arc<gpui::RenderImage>, u64)>,
+    map: HashMap<HeadKey, (std::sync::Arc<gpui::RenderImage>, u64)>,
     tick: u64,
 }
 
