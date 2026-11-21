@@ -571,6 +571,17 @@ pub fn selected() -> Instance {
 /// none prepared). Then Play must ask for a first pick - a Minecraft launcher never starts a
 /// different game silently - while a returning Horizon player keeps it as their fallback.
 pub fn needs_first_pick(all: &[Instance], saved: Option<&str>, horizon_prepared: bool) -> bool {
+    needs_first_pick_with(all, saved, || horizon_prepared)
+}
+
+/// `needs_first_pick` that asks whether Horizon was ever prepared only when the other answers
+/// leave it undecided: that check reads the versions folder from disk, and the home page asks
+/// on every repaint, nearly always with a saved pick that already settles the answer.
+pub fn needs_first_pick_with(
+    all: &[Instance],
+    saved: Option<&str>,
+    horizon_prepared: impl FnOnce() -> bool,
+) -> bool {
     if saved.is_some_and(|id| all.iter().any(|i| i.id == id)) {
         return false;
     }
@@ -581,7 +592,7 @@ pub fn needs_first_pick(all: &[Instance], saved: Option<&str>, horizon_prepared:
         i.id == DEFAULT
             && (i.played > Duration::ZERO || i.last_played.is_some() || i.version.is_some())
     });
-    !(used || horizon_prepared)
+    !(used || horizon_prepared())
 }
 
 /// The picked instance: the saved id when it still exists, then the first Java instance,

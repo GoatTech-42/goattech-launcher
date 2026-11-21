@@ -760,10 +760,10 @@ impl Launcher {
         // Nothing was ever picked and the Rust game was never used here: the hero's Play
         // would choose a game for the player. Ask for the first pick instead. An explicit
         // card Play, Join or quick-play stays untouched: those are the pick.
-        if instances::needs_first_pick(
+        if instances::needs_first_pick_with(
             &self.instances.list,
             self.settings.instance.as_deref(),
-            backend::any_prepared(),
+            backend::any_prepared,
         ) {
             return div().flex().child(
                 action("play", Action::Main, &t)

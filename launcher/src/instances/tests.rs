@@ -640,3 +640,46 @@ fn a_missing_store_is_an_empty_one_for_reads_and_writes_alike() {
     }
     let _ = fs::remove_dir_all(&root);
 }
+
+#[test]
+fn the_first_pick_check_reads_the_versions_folder_only_when_nothing_else_decides_it() {
+    let root = scratch("first-pick-lazy");
+    let (home, data) = (root.join("horizon"), root.join("launcher"));
+    player_home(&home);
+    let all = list_in(&home, &data);
+    let probes = std::cell::Cell::new(0);
+    let probe = |answer: bool| {
+        let probes = &probes;
+        move || {
+            probes.set(probes.get() + 1);
+            answer
+        }
+    };
+
+    // A saved pick that exists settles it: the folder is never read, however often it is asked.
+    for _ in 0..100 {
+        assert!(!needs_first_pick_with(&all, Some(DEFAULT), probe(false)));
+    }
+    assert_eq!(probes.get(), 0);
+
+    // Undecided (nothing picked, nothing used): the folder is read once per ask and decides.
+    assert!(needs_first_pick_with(&all, None, probe(false)));
+    assert!(!needs_first_pick_with(&all, None, probe(true)));
+    assert_eq!(probes.get(), 2);
+
+    // A Java instance settles it without the folder too.
+    create_in(&home, &data, "Fabric", None, Some("1.21.1")).unwrap();
+    let with_java = list_in(&home, &data);
+    assert!(!needs_first_pick_with(&with_java, None, probe(false)));
+    assert_eq!(probes.get(), 2);
+
+    // The plain form is the same answer as the lazy one.
+    for saved in [None, Some(DEFAULT), Some("gone")] {
+        for prepared in [false, true] {
+            assert_eq!(
+                needs_first_pick(&all, saved, prepared),
+                needs_first_pick_with(&all, saved, || prepared)
+            );
+        }
+    }
+}
