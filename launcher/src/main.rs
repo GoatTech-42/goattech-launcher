@@ -446,6 +446,11 @@ struct Launcher {
     stage_yaw: f32,
     stage_pitch: f32,
     stage_t: f32,
+    /// Where the stage clock starts: it reads the wall clock, so a slow or dropped frame skips
+    /// ahead instead of slowing the sway and the wave.
+    stage_epoch: std::time::Instant,
+    /// Whether the Play-only repaint timer is running.
+    stage_timer: bool,
     stage_drag: StageDrag,
     /// The stage clock reading when a click asked for a wave; None at rest.
     stage_click_wave: Option<f32>,
@@ -453,6 +458,14 @@ struct Launcher {
     /// until it is dropped there, so each replaced frame is freed on the next render.
     stage_image: Option<std::sync::Arc<gpui::RenderImage>>,
     stage_replaced: Vec<std::sync::Arc<gpui::RenderImage>>,
+}
+
+/// Milliseconds between stage repaints while Play is showing.
+const STAGE_FRAME_MS: u64 = 33;
+
+/// Whether the stage's repaint timer runs on this page: Play only.
+fn stage_repaints(page: Page) -> bool {
+    page == Page::Play
 }
 
 /// The home stage's drag-to-turn state.
@@ -667,6 +680,8 @@ impl Launcher {
             stage_yaw: 0.,
             stage_pitch: 0.,
             stage_t: 0.,
+            stage_epoch: std::time::Instant::now(),
+            stage_timer: false,
             stage_drag: StageDrag::default(),
             stage_click_wave: None,
             stage_image: None,
@@ -1009,13 +1024,44 @@ impl Launcher {
         });
     }
 
+    /// One stage frame: the clock reads now and the page repaints.
+    fn tick_stage(&mut self, cx: &mut Context<Self>) {
+        self.stage_t = self.stage_epoch.elapsed().as_secs_f32();
+        cx.notify();
+    }
+
+    /// While Play is the page, a timer repaints the stage every STAGE_FRAME_MS. It starts from
+    /// render when Play shows and ends itself on the first tick after Play is left, so no
+    /// other page is woken by it.
+    fn ensure_stage_timer(&mut self, cx: &mut Context<Self>) {
+        if !stage_repaints(self.page) || self.stage_timer {
+            return;
+        }
+        self.stage_timer = true;
+        self.stage_t = self.stage_epoch.elapsed().as_secs_f32();
+        cx.spawn(async move |this, cx| loop {
+            cx.background_executor()
+                .timer(Duration::from_millis(STAGE_FRAME_MS))
+                .await;
+            let go_on = this.update(cx, |this, cx| {
+                if stage_repaints(this.page) {
+                    this.tick_stage(cx);
+                    true
+                } else {
+                    this.stage_timer = false;
+                    false
+                }
+            });
+            if !matches!(go_on, Ok(true)) {
+                break;
+            }
+        })
+        .detach();
+    }
+
     fn drain(&mut self, cx: &mut Context<Self>) {
         let mut changed = false;
         self.perf.tick();
-        if self.page == Page::Play {
-            self.stage_t += 0.08;
-            changed = true;
-        }
         match self.bench.as_mut().map(|b| b.tick(&self.perf)) {
             Some(perf::Step::Go(page)) => {
                 self.go(Page::ALL[page % Page::ALL.len()].0);
@@ -5535,6 +5581,7 @@ impl Render for Launcher {
             Page::Settings => self.settings_page(cx),
         };
         self.sky.free_replaced(window);
+        self.ensure_stage_timer(cx);
         for image in self.stage_replaced.drain(..) {
             let _ = window.drop_image(image);
         }
@@ -6336,6 +6383,56 @@ mod tests {
         assert!(!d.release());
         assert!(matches!(d.track((690., 350.), true), Track::Idle));
         assert!(matches!(d.track((695., 350.), true), Track::Idle));
+    }
+
+    /// The contract for a repaint gap `dt`: the arm blends between idle and wave with a
+    /// smoothstep over `blend` seconds, whose steepest slope is 1.5/blend, so one frame moves
+    /// it at most 1.5 * delta / blend * dt, plus what the idle sway itself moves. The stage's
+    /// fastest blend is the click wave's 0.35 s blend-in. The bound comes from the poses'
+    /// own arm range, not from watching steps. (A fixed 0.4 rad bound I first guessed failed
+    /// in CI at 0.52 rad: it ignored that the blend is only 0.35 s.)
+    #[test]
+    fn stage_frames_keep_the_wave_arm_within_its_blend_slope() {
+        use crate::player_model::Pose;
+        let blend = 0.35f32;
+        let mut delta = 0f32;
+        let mut t = 0f32;
+        while t < 14. {
+            delta = delta.max((Pose::wave(t).arm_r - Pose::idle(t).arm_r).abs());
+            t += 0.01;
+        }
+        let worst = |f: &dyn Fn(f32) -> f32, dt: f32| {
+            let (mut w, mut t) = (0f32, 3f32);
+            while t < 11. {
+                w = w.max((f(t + dt) - f(t)).abs());
+                t += dt;
+            }
+            w
+        };
+        let idle = |t: f32| Pose::idle(t).arm_r;
+        let stage = |t: f32| Pose::stage(t).arm_r;
+        let click = |t: f32| Pose::click_wave(t, t - 3.).map_or(Pose::stage(t).arm_r, |p| p.arm_r);
+        for dt in [crate::STAGE_FRAME_MS as f32 / 1000., 0.08] {
+            let bound = 1.5 * delta / blend * dt + worst(&idle, dt) + 1e-3;
+            for (name, f) in [("stage", &stage as &dyn Fn(f32) -> f32), ("click", &click)] {
+                let w = worst(f, dt);
+                assert!(
+                    w <= bound,
+                    "{name} at {dt}s: {w} rad over the bound {bound}"
+                );
+            }
+        }
+        // A shorter gap moves the arm less per frame: that is what the timer buys.
+        let fast = crate::STAGE_FRAME_MS as f32 / 1000.;
+        assert!(worst(&click, fast) * 1.5 < worst(&click, 0.08));
+    }
+
+    #[test]
+    fn the_stage_timer_runs_on_play_only() {
+        use crate::Page;
+        for (page, _, _) in Page::ALL {
+            assert_eq!(crate::stage_repaints(page), page == Page::Play);
+        }
     }
 
     #[test]
