@@ -1128,8 +1128,10 @@ impl Launcher {
             .and_then(|p| {
                 let stamp = file_stamp(&p);
                 decoded_face(&mut self.servers.decoded, &p, stamp, || {
-                    horizon_launcher::browser::images::read_capped(&p, 1 << 20)
-                        .and_then(|bytes| heads::face(&bytes))
+                    match horizon_launcher::browser::images::read_capped(&p, 1 << 20) {
+                        None => Loaded::Retry,
+                        Some(bytes) => Loaded::Done(heads::face(&bytes)),
+                    }
                 })
             });
         let face = actual.or_else(|| {
@@ -3206,6 +3208,14 @@ fn file_stamp(path: &Path) -> Option<FileStamp> {
 /// A decoded face (None when the file held no usable skin).
 type Face = Option<Vec<[u8; 4]>>;
 
+/// What reading a skin file gave. Only a file that was read decides a face (`Done`, which may be
+/// None for bytes that are not a usable skin); a read that failed or was cut off may succeed on
+/// the next render, so it is `Retry` and is never remembered.
+enum Loaded {
+    Done(Face),
+    Retry,
+}
+
 /// One cached skin: the stamp it was decoded at, its face, and when it was last asked for.
 type DecodedEntry = (FileStamp, Face, u64);
 
@@ -3223,12 +3233,13 @@ struct DecodedFaces {
 /// The face in the skin file at `path`: read and decoded once, then served from memory until the
 /// file's stamp changes (a refreshed skin has a new time or length). `head` runs for every
 /// account chip every render, including the home stage's 33 ms frames, and used to read and
-/// decode the PNG each time. A file that cannot be stat'ed has no face and is not cached.
+/// decode the PNG each time. A file that cannot be stat'ed, or whose read fails (`Retry`), has no
+/// face for now and is not cached, so the next render tries again.
 fn decoded_face(
     cache: &mut DecodedFaces,
     path: &Path,
     stamp: Option<FileStamp>,
-    load: impl FnOnce() -> Face,
+    load: impl FnOnce() -> Loaded,
 ) -> Face {
     let Some(stamp) = stamp else {
         cache.map.remove(path);
@@ -3252,7 +3263,13 @@ fn decoded_face(
             cache.map.remove(&k);
         }
     }
-    let face = load();
+    let face = match load() {
+        Loaded::Done(face) => face,
+        Loaded::Retry => {
+            cache.map.remove(path);
+            return None;
+        }
+    };
     cache
         .map
         .insert(path.to_path_buf(), (stamp, face.clone(), tick));
@@ -3318,7 +3335,7 @@ mod tests {
             let loads = &loads;
             move || {
                 loads.set(loads.get() + 1);
-                Some(f)
+                super::Loaded::Done(Some(f))
             }
         };
         let stamp = Some((100u128, 4096u64));
@@ -3347,12 +3364,45 @@ mod tests {
             assert_eq!(
                 super::decoded_face(&mut cache, path, stamp, || {
                     loads.set(loads.get() + 1);
-                    None
+                    super::Loaded::Done(None)
                 }),
                 None
             );
         }
         assert_eq!(loads.get(), 4);
+    }
+
+    #[test]
+    fn a_failed_read_is_retried_and_only_a_decoded_file_is_remembered() {
+        use std::path::Path;
+        let mut cache = super::DecodedFaces::default();
+        let path = Path::new("/skins/b.png");
+        let stamp = Some((7u128, 64u64));
+        let face = vec![[4u8, 5, 6, 255]; 64];
+        let loads = std::cell::Cell::new(0);
+        // The read fails three renders running: no face, nothing remembered, tried each time.
+        for n in 1..=3 {
+            let got = super::decoded_face(&mut cache, path, stamp, || {
+                loads.set(loads.get() + 1);
+                super::Loaded::Retry
+            });
+            assert_eq!(got, None);
+            assert_eq!(loads.get(), n, "a failed read is tried again");
+            assert!(cache.map.is_empty());
+        }
+        // The next read works: the face shows, and is then served without another load.
+        for _ in 0..5 {
+            let got = super::decoded_face(&mut cache, path, stamp, || {
+                loads.set(loads.get() + 1);
+                super::Loaded::Done(Some(face.clone()))
+            });
+            assert_eq!(got.as_deref(), Some(&face[..]));
+        }
+        assert_eq!(loads.get(), 4);
+        // A later failed read at a new stamp drops the old face rather than keeping it.
+        let got = super::decoded_face(&mut cache, path, Some((8, 64)), || super::Loaded::Retry);
+        assert_eq!(got, None);
+        assert!(cache.map.is_empty());
     }
 
     #[test]
@@ -3363,11 +3413,17 @@ mod tests {
         let p = |n: usize| PathBuf::from(format!("/skins/{n}.png"));
         let stamp = Some((1u128, 1u64));
         for n in 0..super::DECODED_MAX {
-            super::decoded_face(&mut cache, &p(n), stamp, || Some(face.clone()));
+            super::decoded_face(&mut cache, &p(n), stamp, || {
+                super::Loaded::Done(Some(face.clone()))
+            });
         }
         // Touch 0, add one: 1 is the oldest and goes, 0 stays.
-        super::decoded_face(&mut cache, &p(0), stamp, || panic!("0 is cached"));
-        super::decoded_face(&mut cache, &p(1000), stamp, || Some(face.clone()));
+        super::decoded_face(&mut cache, &p(0), stamp, || -> super::Loaded {
+            panic!("0 is cached")
+        });
+        super::decoded_face(&mut cache, &p(1000), stamp, || {
+            super::Loaded::Done(Some(face.clone()))
+        });
         assert_eq!(cache.map.len(), super::DECODED_MAX);
         assert!(cache.map.contains_key(&p(0)) && !cache.map.contains_key(&p(1)));
     }
