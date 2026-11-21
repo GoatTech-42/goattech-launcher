@@ -233,7 +233,7 @@ pub(super) struct Servers {
     /// Baked face images by (face pixels, size, scale). The sprite atlas keeps an image until
     /// every handle to it is dropped, so baking one per render grew it without bound; one
     /// image per distinct face and size is kept and reused.
-    baked: HashMap<(u64, u32, u32), std::sync::Arc<gpui::RenderImage>>,
+    baked: HeadCache,
     tx: Sender<Event>,
     rx: Receiver<Event>,
 }
@@ -281,7 +281,7 @@ impl Servers {
             invalid: None,
             copied: None,
             faces: HashMap::new(),
-            baked: HashMap::new(),
+            baked: HeadCache::default(),
             tx,
             rx,
         }
@@ -3180,31 +3180,47 @@ fn setting_name(key: &str) -> &str {
     }
 }
 
-/// The most baked face images kept; past this the cache starts over (a scale change leaves the
-/// old entries unused, and a page with this many distinct faces is far beyond a normal list).
-const HEAD_CACHE_MAX: usize = 128;
+/// The most baked face images kept. Every face drawn this frame is looked up each frame, so
+/// this is the working set: a list shows far fewer faces than this, and past it the
+/// least recently drawn image is dropped one at a time (never the whole cache).
+const HEAD_CACHE_MAX: usize = 512;
 
-/// The baked image for a face at a size and window scale: the same `Arc` every time for the same
-/// inputs, so the sprite atlas holds one copy instead of one per render.
+/// Baked face images by exact face pixels, size and scale, each with when it was last drawn.
+#[derive(Default)]
+struct HeadCache {
+    map: HashMap<(Vec<[u8; 4]>, u32, u32), (std::sync::Arc<gpui::RenderImage>, u64)>,
+    tick: u64,
+}
+
+/// The baked image for a face at a size and window scale: the same `Arc` every time for the
+/// same inputs, so the sprite atlas holds one copy instead of one per render. The key is the
+/// full pixels, so two faces never share an image by a hash collision.
 fn head_image(
-    cache: &mut HashMap<(u64, u32, u32), std::sync::Arc<gpui::RenderImage>>,
+    cache: &mut HeadCache,
     pixels: &[[u8; 4]],
     size: f32,
     scale: f32,
 ) -> std::sync::Arc<gpui::RenderImage> {
-    use std::hash::{Hash, Hasher};
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    pixels.hash(&mut h);
-    let key = (h.finish(), size.to_bits(), scale.to_bits());
-    if let Some(i) = cache.get(&key) {
-        return i.clone();
+    cache.tick += 1;
+    let tick = cache.tick;
+    let key = (pixels.to_vec(), size.to_bits(), scale.to_bits());
+    if let Some((image, used)) = cache.map.get_mut(&key) {
+        *used = tick;
+        return image.clone();
     }
-    if cache.len() >= HEAD_CACHE_MAX {
-        cache.clear();
+    if cache.map.len() >= HEAD_CACHE_MAX {
+        let oldest = cache
+            .map
+            .iter()
+            .min_by_key(|(_, (_, used))| *used)
+            .map(|(k, _)| k.clone());
+        if let Some(k) = oldest {
+            cache.map.remove(&k);
+        }
     }
-    let i = art::bake(pixels, 8, 8, size / 8., scale);
-    cache.insert(key, i.clone());
-    i
+    let image = art::bake(pixels, 8, 8, size / 8., scale);
+    cache.map.insert(key, (image.clone(), tick));
+    image
 }
 
 #[cfg(test)]
@@ -3212,13 +3228,13 @@ mod tests {
     #[test]
     fn a_face_is_baked_once_per_size_and_scale_not_once_per_render() {
         let face = vec![[10u8, 20, 30, 255]; 64];
-        let mut cache = HashMap::new();
+        let mut cache = super::HeadCache::default();
         let first = super::head_image(&mut cache, &face, 32., 1.);
         for _ in 0..1000 {
             let again = super::head_image(&mut cache, &face, 32., 1.);
             assert!(std::sync::Arc::ptr_eq(&first, &again));
         }
-        assert_eq!(cache.len(), 1);
+        assert_eq!(cache.map.len(), 1);
         // A different size, scale or face is its own image.
         let other_scale = super::head_image(&mut cache, &face, 32., 2.);
         assert!(!std::sync::Arc::ptr_eq(&first, &other_scale));
@@ -3228,17 +3244,73 @@ mod tests {
         other_face[0] = [1, 2, 3, 255];
         let f2 = super::head_image(&mut cache, &other_face, 32., 1.);
         assert!(!std::sync::Arc::ptr_eq(&first, &f2));
-        assert_eq!(cache.len(), 4);
-        // The baked pixels are the same as an uncached bake.
+        assert_eq!(cache.map.len(), 4);
+        // The cached image has the size an uncached bake gives (the cache returns the bake
+        // itself, so pixel content is art::bake's own, tested there).
         let direct = crate::art::bake(&face, 8, 8, 4., 1.);
         let (d, f) = (direct.size(0), first.size(0));
         assert_eq!((d.width.0, d.height.0), (f.width.0, f.height.0));
-        // The cache is bounded however many distinct faces come through.
-        for n in 0..(super::HEAD_CACHE_MAX as u32 * 3) {
-            let mut f = face.clone();
-            f[1] = [(n % 251) as u8, (n / 251) as u8, 7, 255];
-            super::head_image(&mut cache, &f, 32., 1.);
-            assert!(cache.len() <= super::HEAD_CACHE_MAX);
+    }
+
+    fn face_n(n: u32) -> Vec<[u8; 4]> {
+        let mut f = vec![[10u8, 20, 30, 255]; 64];
+        f[1] = [n as u8, (n >> 8) as u8, (n >> 16) as u8, 255];
+        f
+    }
+
+    #[test]
+    fn many_faces_drawn_every_frame_are_not_rebaked() {
+        // 200 distinct faces, more than the old 128 limit, drawn for 3 frames: every frame after
+        // the first gets the very same images back (no rebake, so no atlas growth).
+        let mut cache = super::HeadCache::default();
+        let frame = |cache: &mut super::HeadCache| -> Vec<_> {
+            (0..200)
+                .map(|n| super::head_image(cache, &face_n(n), 32., 1.))
+                .collect()
+        };
+        let first = frame(&mut cache);
+        for _ in 0..2 {
+            let again = frame(&mut cache);
+            assert!(first
+                .iter()
+                .zip(&again)
+                .all(|(a, b)| std::sync::Arc::ptr_eq(a, b)));
+        }
+        assert_eq!(cache.map.len(), 200);
+    }
+
+    #[test]
+    fn faces_that_differ_in_one_texel_never_share_an_image() {
+        let mut cache = super::HeadCache::default();
+        let a = face_n(0);
+        let mut b = a.clone();
+        b[63] = [9, 9, 9, 255];
+        let ia = super::head_image(&mut cache, &a, 32., 1.);
+        let ib = super::head_image(&mut cache, &b, 32., 1.);
+        assert!(!std::sync::Arc::ptr_eq(&ia, &ib));
+    }
+
+    #[test]
+    fn past_the_limit_the_least_recently_drawn_face_goes_first() {
+        let mut cache = super::HeadCache::default();
+        let kept = super::head_image(&mut cache, &face_n(0), 32., 1.);
+        for n in 1..super::HEAD_CACHE_MAX as u32 {
+            super::head_image(&mut cache, &face_n(n), 32., 1.);
+        }
+        assert_eq!(cache.map.len(), super::HEAD_CACHE_MAX);
+        // Draw face 0 again (now the most recent), then add one more: face 1 is evicted, 0 stays.
+        super::head_image(&mut cache, &face_n(0), 32., 1.);
+        super::head_image(&mut cache, &face_n(100_000), 32., 1.);
+        assert_eq!(cache.map.len(), super::HEAD_CACHE_MAX);
+        let again = super::head_image(&mut cache, &face_n(0), 32., 1.);
+        assert!(std::sync::Arc::ptr_eq(&kept, &again));
+        assert!(!cache
+            .map
+            .contains_key(&(face_n(1), 32f32.to_bits(), 1f32.to_bits())));
+        // Never grows past the limit however many faces come through.
+        for n in 0..(super::HEAD_CACHE_MAX as u32 * 2) {
+            super::head_image(&mut cache, &face_n(n + 200_000), 32., 1.);
+            assert!(cache.map.len() <= super::HEAD_CACHE_MAX);
         }
     }
 
