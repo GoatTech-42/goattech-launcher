@@ -209,6 +209,12 @@ fn parts(slim: bool) -> [Part; 6] {
     parts
 }
 
+/// Smoothstep of `x` clamped to 0..1.
+fn smooth01(x: f32) -> f32 {
+    let t = x.clamp(0., 1.);
+    t * t * (3. - 2. * t)
+}
+
 /// A limb pose: swing angles (radians around X at the shoulder/hip) and the head's yaw.
 /// Positive swing moves the limb forward (toward the viewer).
 #[derive(Clone, Copy, Default)]
@@ -254,7 +260,44 @@ impl Pose {
         // raise always goes forward over the head; only arm_r differs in wave().
         let mut p = idle;
         p.arm_r = idle.arm_r + (Pose::wave(t).arm_r - idle.arm_r) * w;
+        // Two small, rare extras on their own long cycles (23 s and 31 s, so they drift against
+        // the 7 s wave and each other). Each touches one limb the wave does not: the left leg
+        // taps, the left arm lifts a little.
+        p.leg_l = idle.leg_l + Pose::foot_tap(t);
+        p.arm_l = idle.arm_l + Pose::arm_lift(t);
         p
+    }
+
+    /// The foot tap runs for TAP_LEN seconds from TAP_START of every TAP_CYCLE seconds.
+    const TAP_CYCLE: f32 = 23.;
+    const TAP_START: f32 = 11.;
+    const TAP_LEN: f32 = 1.2;
+    /// Peak swing of the tap, radians (about 8 degrees).
+    pub const TAP_AMP: f32 = 0.14;
+    /// The arm lift runs for LIFT_LEN seconds from LIFT_START of every LIFT_CYCLE seconds.
+    const LIFT_CYCLE: f32 = 31.;
+    const LIFT_START: f32 = 19.;
+    const LIFT_LEN: f32 = 1.6;
+    /// Peak lift of the left arm over its sway, radians (about 40 degrees).
+    pub const LIFT_AMP: f32 = 0.7;
+
+    /// The left foot taps three times, fading in and out so the leg never snaps.
+    pub fn foot_tap(t: f32) -> f32 {
+        let x = t.rem_euclid(Self::TAP_CYCLE) - Self::TAP_START;
+        if !(0. ..Self::TAP_LEN).contains(&x) {
+            return 0.;
+        }
+        let env = smooth01(x / 0.25) * (1. - smooth01((x - (Self::TAP_LEN - 0.25)) / 0.25));
+        Self::TAP_AMP * env * (x * std::f32::consts::TAU * 2.5).sin()
+    }
+
+    /// The left arm lifts a little and settles back.
+    pub fn arm_lift(t: f32) -> f32 {
+        let x = t.rem_euclid(Self::LIFT_CYCLE) - Self::LIFT_START;
+        if !(0. ..Self::LIFT_LEN).contains(&x) {
+            return 0.;
+        }
+        Self::LIFT_AMP * smooth01(x / 0.5) * (1. - smooth01((x - (Self::LIFT_LEN - 0.5)) / 0.5))
     }
 
     /// A wave the player asked for with a click: blends in fast, holds, blends out over
@@ -726,6 +769,67 @@ mod tests {
             .map(|i| Pose::stage(i as f32 * 0.01).arm_r)
             .fold(0f32, f32::max);
         assert!(peak > 2.5, "the wave still raises the arm, peak {peak}");
+    }
+
+    #[test]
+    fn the_extra_stage_poses_are_small_rare_and_smooth() {
+        let dt = 0.033f32;
+        let n = (240. / dt) as usize;
+        let (mut tap_on, mut lift_on) = (0usize, 0usize);
+        let (mut max_leg, mut max_arm) = (0f32, 0f32);
+        let (mut leg_step, mut arm_step) = (0f32, 0f32);
+        let mut prev = Pose::stage(0.);
+        for i in 1..n {
+            let t = i as f32 * dt;
+            let p = Pose::stage(t);
+            let idle = Pose::idle(t);
+            // Outside their windows the extras are exactly the base pose.
+            if Pose::foot_tap(t) == 0. {
+                assert_eq!(p.leg_l, idle.leg_l, "leg at {t}");
+            } else {
+                tap_on += 1;
+            }
+            if Pose::arm_lift(t) == 0. {
+                assert_eq!(p.arm_l, idle.arm_l, "arm at {t}");
+            } else {
+                lift_on += 1;
+            }
+            // The extras never touch the wave arm, the right leg or the head.
+            assert_eq!(p.leg_r, idle.leg_r);
+            assert_eq!(p.head_yaw, idle.head_yaw);
+            max_leg = max_leg.max(p.leg_l.abs());
+            max_arm = max_arm.max((p.arm_l - idle.arm_l).abs());
+            leg_step = leg_step.max((p.leg_l - prev.leg_l).abs());
+            arm_step = arm_step.max((p.arm_l - prev.arm_l).abs());
+            prev = p;
+        }
+        // Amplitude is the declared one and no more.
+        assert!(
+            max_leg <= Pose::TAP_AMP + 1e-6 && max_leg > 0.5 * Pose::TAP_AMP,
+            "leg {max_leg}"
+        );
+        assert!(
+            max_arm <= Pose::LIFT_AMP + 1e-6 && max_arm > 0.9 * Pose::LIFT_AMP,
+            "arm {max_arm}"
+        );
+        // Rare: each is active well under a tenth of the time (1.2/23 and 1.6/31 are about 5%).
+        let frac = |c: usize| c as f32 / n as f32;
+        assert!(
+            frac(tap_on) < 0.08 && frac(tap_on) > 0.03,
+            "tap {}",
+            frac(tap_on)
+        );
+        assert!(
+            frac(lift_on) < 0.08 && frac(lift_on) > 0.03,
+            "lift {}",
+            frac(lift_on)
+        );
+        // Smooth: the steepest sine (amp * 2pi * 2.5 Hz) and steepest smoothstep (1.5 * amp /
+        // fade) bound the per-frame change; the base sway adds at most 0.09 * 1.7 * dt.
+        let tap_slope = Pose::TAP_AMP * std::f32::consts::TAU * 2.5 + 1.5 * Pose::TAP_AMP / 0.25;
+        let lift_slope = 1.5 * Pose::LIFT_AMP / 0.5 + 0.09 * 1.7;
+        assert!(leg_step <= tap_slope * dt + 1e-4, "leg step {leg_step}");
+        assert!(arm_step <= lift_slope * dt + 1e-4, "arm step {arm_step}");
     }
 
     /// The jacket hangs over the trouser tops and the sleeve over the jacket's edge:
