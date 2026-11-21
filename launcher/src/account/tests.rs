@@ -2979,3 +2979,36 @@ fn accounts_json_is_replaced_whole_and_leaves_no_partial_file() {
     let _ = std::fs::remove_dir_all(&dir);
     let _ = std::fs::remove_dir_all(&blocked);
 }
+
+#[test]
+fn a_write_that_fails_halfway_leaves_the_old_accounts_file_as_it_was() {
+    let dir = empty_start_dir("whole-fails");
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("accounts.json");
+    let mut accounts = Accounts::default();
+    accounts.offline.push("Builder_1".into());
+    accounts.save_to(&file).unwrap();
+    let before = std::fs::read(&file).unwrap();
+    // Half of the new bytes are written, then the disk fills.
+    let err = write_whole_with(&file, b"{\"accounts\": [], \"half", |f, bytes| {
+        use std::io::Write;
+        f.write_all(&bytes[..10])?;
+        Err(std::io::Error::other("disk full"))
+    })
+    .unwrap_err();
+    assert!(err.to_string().contains("disk full"));
+    assert_eq!(
+        std::fs::read(&file).unwrap(),
+        before,
+        "the old file changed"
+    );
+    assert_eq!(Accounts::load_from(&file), accounts);
+    let left: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().collect();
+    assert_eq!(left.len(), 1, "a partial file was left");
+    // The same failing write through a file that does not exist yet creates nothing.
+    let fresh = dir.join("fresh.json");
+    assert!(write_whole_with(&fresh, b"abc", |_, _| Err(std::io::Error::other("no"))).is_err());
+    assert!(!fresh.exists());
+    assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+    let _ = std::fs::remove_dir_all(&dir);
+}

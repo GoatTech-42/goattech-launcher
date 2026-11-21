@@ -2043,7 +2043,20 @@ impl Accounts {
 /// never half of one: written and flushed to a file of its own beside it, then renamed over it.
 /// The file of its own is removed again when the write or the rename fails.
 fn write_whole(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    use std::io::Write;
+    write_whole_with(path, bytes, |file, bytes| {
+        use std::io::Write;
+        file.write_all(bytes)?;
+        file.sync_all()
+    })
+}
+
+/// [`write_whole`] with the writing of the file of its own as a seam, so a write that fails
+/// halfway can be tested.
+fn write_whole_with(
+    path: &Path,
+    bytes: &[u8],
+    write: impl FnOnce(&mut std::fs::File, &[u8]) -> std::io::Result<()>,
+) -> std::io::Result<()> {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
@@ -2058,8 +2071,7 @@ fn write_whole(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
             .write(true)
             .create_new(true)
             .open(&partial)?;
-        file.write_all(bytes)?;
-        file.sync_all()?;
+        write(&mut file, bytes)?;
         drop(file);
         std::fs::rename(&partial, path)
     })();
