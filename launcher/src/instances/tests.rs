@@ -375,6 +375,36 @@ fn deleted_instances_go_to_the_trash_and_are_forgotten() {
 }
 
 #[test]
+fn a_trash_that_fails_keeps_the_instance_folder_and_choices_and_can_be_retried() {
+    let root = scratch("delete-fails");
+    let (home, data, trash) = (root.join("home"), root.join("data"), root.join("trash"));
+    player_home(&home);
+    let survival = create_in(&home, &data, "Survival", None, None).unwrap();
+    put(&survival.home.join("saves/Base/level.dat"), "base");
+    edit_in(&home, &data, "Survival", |m| m.group = Some("Mine".into())).unwrap();
+    let before = fs::read(data.join(FILE)).unwrap();
+    let tree_before = files(&survival.home);
+    let refuse = |_: &Path| Err("the Trash is full".to_string());
+    let e = delete_in(&home, &data, "Survival", &refuse).unwrap_err();
+    assert!(e.contains("could not go to the Trash"), "{e}");
+    assert!(e.contains("the Trash is full"), "{e}");
+    assert_eq!(
+        fs::read(data.join(FILE)).unwrap(),
+        before,
+        "store untouched"
+    );
+    assert_eq!(files(&survival.home), tree_before, "folder untouched");
+    let listed = find_in(&list_in(&home, &data), "Survival").unwrap();
+    assert_eq!(listed.group.as_deref(), Some("Mine"));
+    // Once the Trash works the same call finishes the job.
+    let to_trash = |p: &Path| crate::desktop_seams::to_folder(p, &trash);
+    delete_in(&home, &data, "Survival", &to_trash).unwrap();
+    assert!(find_in(&list_in(&home, &data), "Survival").is_err());
+    assert!(!Store::load(&data).instances.contains_key("survival"));
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn the_mod_browser_installs_for_the_instance_loader() {
     let vanilla = JavaGame {
         minecraft: "1.21.1".into(),
