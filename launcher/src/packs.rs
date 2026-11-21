@@ -187,9 +187,20 @@ fn option_list(options: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// A settings file as text. A file that is not there yet is empty; one that is there but cannot
+/// be read (not UTF-8, a permission error) is an error, because the change that follows rewrites
+/// the whole file and would replace what it could not read with one line.
+fn read_settings_file(path: &Path) -> Result<String, String> {
+    match fs::read_to_string(path) {
+        Ok(text) => Ok(text),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
+        Err(e) => Err(format!("{}: {e}; nothing was changed", path.display())),
+    }
+}
+
 /// Sets `key:value` in the file, or adds the line; every other line stays.
 fn set_line(path: &Path, key: &str, value: &str) -> Result<(), String> {
-    let text = fs::read_to_string(path).unwrap_or_default();
+    let text = read_settings_file(path)?;
     let mut found = false;
     let mut out: Vec<String> = text
         .lines()
@@ -220,9 +231,19 @@ pub fn set_enabled(home: &Path, pack: &Pack, on: bool) -> Result<(), String> {
     match pack.kind {
         Kind::Resource => {
             let options = home.join(OPTIONS);
-            let text = fs::read_to_string(&options).unwrap_or_default();
+            let text = read_settings_file(&options)?;
             let id = format!("file/{}", pack.file);
-            let mut list = option_list(&text);
+            // A resourcePacks line the launcher cannot read is not an empty list: writing one
+            // would drop the player's other packs.
+            let mut list = match line_value(&text, "resourcePacks") {
+                None => Vec::new(),
+                Some(v) => serde_json::from_str::<Vec<String>>(&v).map_err(|_| {
+                    format!(
+                        "{}: the resourcePacks line cannot be read; nothing was changed",
+                        options.display()
+                    )
+                })?,
+            };
             list.retain(|i| *i != id);
             if list.is_empty() {
                 list.push("vanilla".into());

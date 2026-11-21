@@ -172,3 +172,38 @@ fn a_dropped_file_goes_to_its_folder_under_a_free_name() {
     fs::remove_dir_all(&home).unwrap();
     fs::remove_dir_all(&drops).unwrap();
 }
+
+#[test]
+fn a_pack_toggle_never_rewrites_an_options_file_it_cannot_read() {
+    let home = home("toggle-unreadable");
+    let glass = find(&home, Kind::Resource, "Glass.zip").unwrap();
+    let options = home.join(OPTIONS);
+    // A resourcePacks line that is not a list of names, a file that is not UTF-8, and a folder
+    // where the file should be: each is an error and the bytes stay as they were.
+    let cases: [&[u8]; 4] = [
+        b"fov:90\nresourcePacks:[\"vanilla\",\"file/other.zip\",]\nlang:en_us\n",
+        b"fov:90\nresourcePacks:\"vanilla\"\n",
+        b"fov:90\nresourcePacks:[1,2]\n",
+        b"fov:90\n\xFF\xFE\nresourcePacks:[\"vanilla\"]\n",
+    ];
+    for bytes in cases {
+        fs::write(&options, bytes).unwrap();
+        assert!(set_enabled(&home, &glass, true).is_err(), "{bytes:?}");
+        assert!(set_enabled(&home, &glass, false).is_err(), "{bytes:?}");
+        assert_eq!(fs::read(&options).unwrap(), bytes);
+    }
+    // The same file is safe for a shader pack's own file, and a missing options file is empty.
+    fs::remove_file(&options).unwrap();
+    set_enabled(&home, &glass, true).unwrap();
+    assert_eq!(
+        fs::read_to_string(&options).unwrap(),
+        "resourcePacks:[\"vanilla\",\"file/Glass.zip\"]\n"
+    );
+    // Non-UTF-8 in the shader settings file is refused the same way.
+    let graphics = home.join(GRAPHICS);
+    fs::write(&graphics, b"a:1\n\xFF\n").unwrap();
+    let shader = find(&home, Kind::Shader, "Warm Light").unwrap();
+    assert!(set_enabled(&home, &shader, true).is_err());
+    assert_eq!(fs::read(&graphics).unwrap(), b"a:1\n\xFF\n");
+    fs::remove_dir_all(&home).unwrap();
+}
