@@ -5,6 +5,11 @@ use super::*;
 use gpui::RenderImage;
 use horizon_launcher::config_sync;
 use horizon_launcher::instances::{self, Icon, Instance, Kind as InstanceKind};
+
+/// The Instances page's card: width and banner strip height, logical pixels. Wide enough that
+/// a card reads as the page's main content on a large screen, not a small tile.
+const CARD_W: f32 = 360.;
+const CARD_BANNER_H: f32 = 84.;
 use horizon_launcher::{other_launchers, sources};
 use servers_page::Field;
 use std::collections::HashMap;
@@ -542,13 +547,14 @@ impl Launcher {
                         .items_baseline()
                         .justify_between()
                         .child(
-                            shell::text(theme::night::CAPTION, shell::c(n.muted))
+                            shell::text(theme::night::UI, shell::c(n.ink))
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .child(tr(title).to_string()),
                         )
                         .children(note.map(|s| {
                             shell::text(theme::night::CAPTION, shell::c(n.muted))
                                 .font_family(theme::MONO)
-                                .text_size(px(11.))
+                                .text_size(px(13.))
                                 .child(tr(s).to_string())
                         })),
                 )
@@ -600,7 +606,7 @@ impl Launcher {
         let t = self.theme;
         let n = t.night;
         let icon = self.instance_icon(i, 40.);
-        let banner = self.instance_banner(i, 296.);
+        let banner = self.instance_banner(i, CARD_W);
         let mut chips: Vec<Div> = Vec::new();
         match &i.java {
             Some(j) => {
@@ -638,7 +644,7 @@ impl Launcher {
             .id(SharedString::from(format!("instance-card-{id}")))
             .flex()
             .flex_col()
-            .w(px(296.))
+            .w(px(CARD_W))
             .overflow_hidden()
             .cursor_pointer()
             // The banner's place: the instance's own banner.png when it has a readable one
@@ -646,14 +652,14 @@ impl Launcher {
             .child(
                 div()
                     .relative()
-                    .h(px(64.))
+                    .h(px(CARD_BANNER_H))
                     .overflow_hidden()
                     .bg(plate::alpha(n.card_hi, n.card_hi_alpha))
                     .when_some(banner, |strip, image| {
                         strip.child(
                             gpui::img(image)
-                                .w(px(296.))
-                                .h(px(64.))
+                                .w(px(CARD_W))
+                                .h(px(CARD_BANNER_H))
                                 .object_fit(gpui::ObjectFit::Cover),
                         )
                     })
@@ -705,7 +711,7 @@ impl Launcher {
                     .child(
                         shell::text(theme::night::CAPTION, shell::c(n.muted))
                             .font_family(theme::MONO)
-                            .text_size(px(11.))
+                            .text_size(px(13.))
                             .child(played_line(i)),
                     )
                     .child(
