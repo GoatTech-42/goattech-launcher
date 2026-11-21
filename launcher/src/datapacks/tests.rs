@@ -136,3 +136,32 @@ fn coverage_says_what_runs() {
     );
     fs::remove_dir_all(&root).unwrap();
 }
+
+#[test]
+fn forgetting_a_pack_replaces_datapacks_json_whole_and_keeps_the_rest_of_it() {
+    let root = scratch("forget-whole");
+    let world = root.join("saves/My World");
+    fs::create_dir_all(&world).unwrap();
+    fs::write(
+        world.join(SETTINGS),
+        r#"{"enabled":["file/A.zip","file/B.zip"],"disabled":["file/C.zip","file/B.zip"],"other":7}"#,
+    )
+    .unwrap();
+    forget(&world, "B.zip").unwrap();
+    let after: serde_json::Value =
+        serde_json::from_slice(&fs::read(world.join(SETTINGS)).unwrap()).unwrap();
+    assert_eq!(after["enabled"], serde_json::json!(["file/A.zip"]));
+    assert_eq!(after["disabled"], serde_json::json!(["file/C.zip"]));
+    assert_eq!(after["other"], 7);
+    // Only the settings file is left in the world folder: no half-written sibling.
+    let names: Vec<String> = fs::read_dir(&world)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(names, [SETTINGS.to_string()]);
+    // A pack the file does not list changes nothing, byte for byte.
+    let before = fs::read(world.join(SETTINGS)).unwrap();
+    forget(&world, "Nope.zip").unwrap();
+    assert_eq!(fs::read(world.join(SETTINGS)).unwrap(), before);
+    let _ = fs::remove_dir_all(&root);
+}

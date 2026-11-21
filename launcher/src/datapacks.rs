@@ -132,7 +132,10 @@ fn forget(world: &Path, file: &str) -> Result<(), String> {
         return Ok(());
     }
     let text = serde_json::to_string_pretty(&s).unwrap();
-    fs::write(world.join(SETTINGS), text).map_err(|e| format!("{SETTINGS}: {e}"))
+    // Replaced whole, so a write that stops halfway never leaves a datapacks.json that lists
+    // only some of what the player turned off.
+    crate::account::write_whole(&world.join(SETTINGS), text.as_bytes())
+        .map_err(|e| format!("{SETTINGS}: {e}"))
 }
 
 /// The data pack a command names: its file name, with or without `.zip`.
