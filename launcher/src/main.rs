@@ -449,8 +449,10 @@ struct Launcher {
     /// Where the stage clock starts: it reads the wall clock, so a slow or dropped frame skips
     /// ahead instead of slowing the sway and the wave.
     stage_epoch: std::time::Instant,
-    /// The last time the player turned the model (a drag press or move); the model eases back
-    /// to face the camera once this is STAGE_EASE_DELAY old and no drag is held.
+    /// The last time the player was turning the model: a drag move, a key turn, or any frame
+    /// while a drag is held (so a press, a hold and a release all count). The model eases back
+    /// to face the camera once this is STAGE_EASE_DELAY old and no drag is held, so the wait
+    /// runs from when the player lets go, however long they held.
     stage_touched: std::time::Instant,
     /// When the previous stage frame ran, for the ease's step.
     stage_tick_at: std::time::Instant,
@@ -488,6 +490,42 @@ fn ease_back(yaw: f32, pitch: f32, dt: f32) -> (f32, f32) {
         }
     };
     (step(yaw, (yaw / turn).round() * turn), step(pitch, 0.))
+}
+
+/// The longest frame gap one ease step may take. A stalled or dropped frame advances the ease
+/// by this much, not by the whole gap, so the model glides on after a stall instead of
+/// jumping. Gaps up to this are frame-gap independent (the ease is exponential); longer ones
+/// are not, by design.
+const STAGE_EASE_MAX_DT: f32 = 0.1;
+
+/// The stage frame's ease decision, with the clock injected. `idle` is the seconds since the
+/// player last turned the model and `gap` the raw seconds since the previous frame. Holding a
+/// drag, Reduce motion, or less than STAGE_EASE_DELAY of idling leaves the turn as it is.
+fn stage_ease(
+    yaw: f32,
+    pitch: f32,
+    held: bool,
+    reduce_motion: bool,
+    idle: f32,
+    gap: f32,
+) -> (f32, f32) {
+    if held || reduce_motion || idle < STAGE_EASE_DELAY {
+        return (yaw, pitch);
+    }
+    ease_back(yaw, pitch, gap.clamp(0., STAGE_EASE_MAX_DT))
+}
+
+/// While a drag is held the player is still turning: the idle clock restarts at `now`.
+fn stage_touch(
+    held: bool,
+    touched: std::time::Instant,
+    now: std::time::Instant,
+) -> std::time::Instant {
+    if held {
+        now
+    } else {
+        touched
+    }
 }
 
 /// Whether the stage's repaint timer runs on this page: Play only.
@@ -1083,15 +1121,20 @@ impl Launcher {
     /// One stage frame: the clock reads now and the page repaints.
     fn tick_stage(&mut self, cx: &mut Context<Self>) {
         self.stage_t = self.stage_epoch.elapsed().as_secs_f32();
-        let dt = self.stage_tick_at.elapsed().as_secs_f32().min(0.1);
-        self.stage_tick_at = std::time::Instant::now();
+        let now = std::time::Instant::now();
+        let gap = now.duration_since(self.stage_tick_at).as_secs_f32();
+        self.stage_tick_at = now;
+        let held = self.stage_drag.last.is_some();
+        self.stage_touched = stage_touch(held, self.stage_touched, now);
         // A turned model eases back to face the camera once the player lets go for a while.
-        if self.stage_drag.last.is_none()
-            && !reduce_motion()
-            && self.stage_touched.elapsed().as_secs_f32() >= STAGE_EASE_DELAY
-        {
-            (self.stage_yaw, self.stage_pitch) = ease_back(self.stage_yaw, self.stage_pitch, dt);
-        }
+        (self.stage_yaw, self.stage_pitch) = stage_ease(
+            self.stage_yaw,
+            self.stage_pitch,
+            held,
+            reduce_motion(),
+            now.duration_since(self.stage_touched).as_secs_f32(),
+            gap,
+        );
         cx.notify();
     }
 
@@ -1104,6 +1147,8 @@ impl Launcher {
         }
         self.stage_timer = true;
         self.stage_t = self.stage_epoch.elapsed().as_secs_f32();
+        // The first frame after returning to Play has no previous frame to measure from.
+        self.stage_tick_at = std::time::Instant::now();
         cx.spawn(async move |this, cx| loop {
             cx.background_executor()
                 .timer(Duration::from_millis(STAGE_FRAME_MS))
@@ -6556,6 +6601,36 @@ mod tests {
             let want = (-STAGE_EASE_RATE * dt * n as f32).exp();
             assert!((steps(dt, n) - want).abs() < 1e-4, "dt {dt} x {n}");
         }
+    }
+
+    #[test]
+    fn the_ease_waits_for_idle_and_yields_to_drag_and_reduce_motion() {
+        use crate::{stage_ease, stage_touch, STAGE_EASE_DELAY, STAGE_EASE_MAX_DT};
+        let (y, p) = (1.0f32, 0.4f32);
+        // Just under the delay nothing moves; at it, the first step moves both.
+        assert_eq!(stage_ease(y, p, false, false, 2.499, 0.033), (y, p));
+        let (ey, ep) = stage_ease(y, p, false, false, STAGE_EASE_DELAY, 0.033);
+        assert!(ey < y && ep < p);
+        // A held drag and Reduce motion each stop it, however long the idle.
+        assert_eq!(stage_ease(y, p, true, false, 60., 0.033), (y, p));
+        assert_eq!(stage_ease(y, p, false, true, 60., 0.033), (y, p));
+        // Holding restarts the idle clock every frame, so a long hold does not ease on release.
+        let t0 = std::time::Instant::now();
+        let later = t0 + std::time::Duration::from_secs(30);
+        assert_eq!(stage_touch(true, t0, later), later);
+        assert_eq!(stage_touch(false, t0, later), t0);
+        // A key or drag turn is a touch at "now": zero idle, so no ease on that frame.
+        assert_eq!(stage_ease(y, p, false, false, 0., 0.033), (y, p));
+        // A long frame (a stall, or the first frame back on Play) steps as the capped gap.
+        let capped = stage_ease(y, p, false, false, 10., STAGE_EASE_MAX_DT);
+        assert_eq!(stage_ease(y, p, false, false, 10., 5.0), capped);
+        assert_eq!(stage_ease(y, p, false, false, 10., -1.0), (y, p));
+        // Gaps within the cap are frame-gap independent: 3 x 33 ms against one 99 ms step.
+        let (a, _) = (0..3).fold((y, p), |(y, p), _| {
+            stage_ease(y, p, false, false, 10., 0.033)
+        });
+        let (b, _) = stage_ease(y, p, false, false, 10., 0.099);
+        assert!((a - b).abs() < 1e-4);
     }
 
     #[test]
