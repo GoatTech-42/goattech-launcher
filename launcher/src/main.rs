@@ -4940,7 +4940,16 @@ impl Launcher {
             Some(SignInState::Starting | SignInState::Code(_) | SignInState::Working(_))
         );
         let detail = match &self.sign_in_state {
-            _ if !configured => div().child(tr(account::NOT_CONFIGURED)),
+            _ if !configured => {
+                let (plain, details) = account::sign_in_gap(false, crate::i18n::current())
+                    .unwrap_or_default();
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(4.))
+                    .child(plain)
+                    .children(details)
+            }
             Some(SignInState::Starting) => div().child(tr("asking microsoft…")),
             Some(SignInState::Working(phase)) => div().child(tr(phase.label())),
             Some(SignInState::Code(code)) => div()

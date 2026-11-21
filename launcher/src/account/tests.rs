@@ -3012,3 +3012,47 @@ fn a_write_that_fails_halfway_leaves_the_old_accounts_file_as_it_was() {
     assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn the_text_a_player_sees_without_sign_in_names_no_setting_but_the_details_line_does() {
+    use crate::i18n::{tr_in, Language};
+    assert!(
+        !NOT_CONFIGURED_PLAIN.contains("HORIZON_"),
+        "{NOT_CONFIGURED_PLAIN}"
+    );
+    assert!(NOT_CONFIGURED_PLAIN.contains("can't start the game"));
+    assert!(
+        !NOT_CONFIGURED_PLAIN.contains("website") && !NOT_CONFIGURED_PLAIN.contains("download"),
+        "no route is named until one is documented"
+    );
+    assert!(NOT_CONFIGURED_DETAILS.contains("HORIZON_MSA_CLIENT_ID"));
+    // The command line and MCP keep the setting name in their one line.
+    assert!(NOT_CONFIGURED.contains("HORIZON_MSA_CLIENT_ID"));
+    // Configured: no gap line on any surface, in any language.
+    for language in Language::ALL {
+        assert_eq!(sign_in_gap(true, language), None);
+    }
+    // English: the plain sentence with the details line.
+    let (plain, details) = sign_in_gap(false, Language::English).unwrap();
+    assert_eq!(
+        (plain.as_str(), details.as_deref()),
+        (NOT_CONFIGURED_PLAIN, Some(NOT_CONFIGURED_DETAILS))
+    );
+    // A language without the new sentence keeps its translated older one, without details.
+    for language in Language::ALL
+        .into_iter()
+        .filter(|l| *l != Language::English)
+    {
+        let (line, details) = sign_in_gap(false, language).unwrap();
+        if tr_in(language, NOT_CONFIGURED_PLAIN) == NOT_CONFIGURED_PLAIN {
+            assert_eq!(line, tr_in(language, NOT_CONFIGURED), "{language:?}");
+            assert_ne!(
+                line, NOT_CONFIGURED,
+                "{language:?} must be translated, not English"
+            );
+            assert_eq!(details, None, "{language:?}");
+        } else {
+            assert!(details.is_some(), "{language:?}");
+        }
+    }
+}

@@ -24,6 +24,35 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 pub const SERVICE: &str = "dev.playhorizon.launcher";
 const SCOPE: &str = "XboxLive.signin offline_access";
 pub const NOT_CONFIGURED: &str = "this build of the launcher has no microsoft sign-in (HORIZON_MSA_CLIENT_ID), so it can't start the game.";
+
+/// What a player is told when this build has no sign-in: what it means, with no setting name in
+/// it. The setting stays in the details line (and in `NOT_CONFIGURED`, which the command line and
+/// MCP print for people who build the launcher). No route to a build that has sign-in is named
+/// here: none is documented yet.
+pub const NOT_CONFIGURED_PLAIN: &str =
+    "this build has no microsoft sign-in, so it can't start the game.";
+pub const NOT_CONFIGURED_DETAILS: &str = "details: HORIZON_MSA_CLIENT_ID is not set in this build.";
+
+/// The line (and details line) a sign-in surface shows, or none when sign-in is configured.
+/// A language that has no translation of the plain sentence yet keeps the older, translated
+/// sentence (which names the setting, so it has no separate details line) rather than English.
+pub fn sign_in_gap(
+    configured: bool,
+    language: crate::i18n::Language,
+) -> Option<(String, Option<String>)> {
+    use crate::i18n::{tr_in, Language};
+    if configured {
+        return None;
+    }
+    let plain = tr_in(language, NOT_CONFIGURED_PLAIN);
+    if language != Language::English && plain == NOT_CONFIGURED_PLAIN {
+        return Some((tr_in(language, NOT_CONFIGURED).to_string(), None));
+    }
+    Some((
+        plain.to_string(),
+        Some(tr_in(language, NOT_CONFIGURED_DETAILS).to_string()),
+    ))
+}
 /// What every Play says while no account in the launcher owns the game.
 pub const NEEDS_OWNER: &str =
     "sign in with a microsoft account that owns minecraft: java edition to play";

@@ -43,13 +43,14 @@ impl Launcher {
         let t = self.theme;
         let n = t.night;
         let configured = account::client_id().is_some();
+        let gap = account::sign_in_gap(configured, crate::i18n::current());
         let main_key = self.key_handle("owner-main", cx);
         let later_key = self.key_handle("owner-later", cx);
         let copy_key = self.key_handle("owner-copy", cx);
         // The screenshot preview shows a code without asking Microsoft for one.
         let state = match &self.sign_in_state {
             _ if sign_in_preview() => Shown::Code("https://www.microsoft.com/link", "K7Q-4MXR"),
-            _ if !configured => Shown::Error(tr(account::NOT_CONFIGURED)),
+            _ if gap.is_some() => Shown::Error(gap.as_ref().map_or("", |g| g.0.as_str())),
             Some(SignInState::Starting) => Shown::Starting("asking microsoft…"),
             Some(SignInState::Working(phase)) => Shown::Starting(phase.label()),
             Some(SignInState::Code(code)) => Shown::Code(&code.verification_uri, &code.user_code),
@@ -151,7 +152,10 @@ impl Launcher {
             )),
             Shown::Error(e) => body.child(
                 raised()
-                    .child(shell::text(theme::night::UI, shell::c(n.danger)).child(e.to_string())),
+                    .child(shell::text(theme::night::UI, shell::c(n.danger)).child(e.to_string()))
+                    .children(gap.as_ref().and_then(|g| g.1.clone()).map(|details| {
+                        shell::text(theme::night::UI, shell::c(n.ink_soft)).child(details)
+                    })),
             ),
             Shown::Idle => body,
         };
