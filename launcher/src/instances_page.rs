@@ -544,8 +544,8 @@ impl Launcher {
                 .child(
                     div()
                         .flex()
-                        .items_baseline()
-                        .justify_between()
+                        .flex_col()
+                        .gap(px(4.))
                         .child(
                             shell::text(theme::night::UI, shell::c(n.ink))
                                 .font_weight(FontWeight::SEMIBOLD)
@@ -605,7 +605,7 @@ impl Launcher {
     fn instance_card(&mut self, i: &Instance, cx: &mut Context<Self>) -> AnyElement {
         let t = self.theme;
         let n = t.night;
-        let icon = self.instance_icon(i, 40.);
+        let icon = self.instance_icon(i, 36.);
         let banner = self.instance_banner(i, CARD_W);
         let mut chips: Vec<Div> = Vec::new();
         match &i.java {
@@ -647,36 +647,24 @@ impl Launcher {
             .w(px(CARD_W))
             .overflow_hidden()
             .cursor_pointer()
-            // The banner's place: the instance's own banner.png when it has a readable one
-            // (cover-cropped to the strip); the raised strip carries the icon either way.
-            .child(
-                div()
-                    .relative()
-                    .h(px(CARD_BANNER_H))
-                    .overflow_hidden()
-                    .bg(plate::alpha(n.card_hi, n.card_hi_alpha))
-                    .when_some(banner, |strip, image| {
-                        strip.child(
-                            gpui::img(image)
-                                .w(px(CARD_W))
-                                .h(px(CARD_BANNER_H))
-                                .object_fit(gpui::ObjectFit::Cover),
-                        )
-                    })
-                    .child(
-                        div()
-                            .absolute()
-                            .left(px(12.))
-                            .bottom(px(-16.))
-                            .child(div().relative().child(icon)),
+            // A banner strip appears only when the instance has its own readable banner.png
+            // (cover-cropped); without one the card is flat, no empty strip.
+            .when_some(banner, |card, image| {
+                card.child(
+                    div().h(px(CARD_BANNER_H)).overflow_hidden().child(
+                        gpui::img(image)
+                            .w(px(CARD_W))
+                            .h(px(CARD_BANNER_H))
+                            .object_fit(gpui::ObjectFit::Cover),
                     ),
-            )
+                )
+            })
             .child(
                 div()
                     .flex()
                     .flex_col()
                     .gap(px(10.))
-                    .pt(px(24.))
+                    .pt(px(16.))
                     .px(px(16.))
                     .pb(px(16.))
                     .child(
@@ -685,10 +673,18 @@ impl Launcher {
                             .items_center()
                             .justify_between()
                             .child(
-                                shell::text(theme::night::UI, shell::c(n.ink))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .truncate()
-                                    .child(i.name.clone()),
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(10.))
+                                    .min_w_0()
+                                    .child(div().relative().child(icon))
+                                    .child(
+                                        shell::text(theme::night::UI, shell::c(n.ink))
+                                            .font_weight(FontWeight::SEMIBOLD)
+                                            .truncate()
+                                            .child(i.name.clone()),
+                                    ),
                             )
                             .child(
                                 shell::action(
