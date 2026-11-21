@@ -616,6 +616,12 @@ impl Launcher {
             },
             None => player_model::Pose::stage(self.stage_t),
         };
+        // Reduce motion keeps the base sway but drops the occasional foot tap and arm lift.
+        let pose = if crate::reduce_motion() {
+            pose.without_extras(self.stage_t)
+        } else {
+            pose
+        };
         let (yaw, pitch) = (self.stage_yaw, self.stage_pitch);
         // Rasterize at real display resolution (texel 8 in device pixels): geometry edges
         // are sharp at any window scale while the skin texture stays nearest-blocky.

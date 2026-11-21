@@ -268,6 +268,15 @@ impl Pose {
         p
     }
 
+    /// This pose with the stage's two extras taken out (Reduce motion): the left leg and arm
+    /// go back to the base sway at `t`. The extras are purely additive on those two limbs, so
+    /// this holds for the stage pose and the click wave alike.
+    pub fn without_extras(mut self, t: f32) -> Pose {
+        self.leg_l -= Pose::foot_tap(t);
+        self.arm_l -= Pose::arm_lift(t);
+        self
+    }
+
     /// The foot tap runs for TAP_LEN seconds from TAP_START of every TAP_CYCLE seconds.
     const TAP_CYCLE: f32 = 23.;
     const TAP_START: f32 = 11.;
@@ -830,6 +839,26 @@ mod tests {
         let lift_slope = 1.5 * Pose::LIFT_AMP / 0.5 + 0.09 * 1.7;
         assert!(leg_step <= tap_slope * dt + 1e-4, "leg step {leg_step}");
         assert!(arm_step <= lift_slope * dt + 1e-4, "arm step {arm_step}");
+    }
+
+    #[test]
+    fn without_extras_gives_back_the_base_sway_for_the_stage_and_the_click_wave() {
+        // Inside the tap window (11.3 s) and the lift window (19.8 s), and outside both.
+        for t in [3.0f32, 11.3, 11.7, 19.8, 20.2, 40.4] {
+            let idle = Pose::idle(t);
+            let p = Pose::stage(t).without_extras(t);
+            assert!((p.leg_l - idle.leg_l).abs() < 1e-6, "stage leg at {t}");
+            assert!((p.arm_l - idle.arm_l).abs() < 1e-6, "stage arm at {t}");
+            let c = Pose::click_wave(t, 0.5).unwrap().without_extras(t);
+            assert!((c.leg_l - idle.leg_l).abs() < 1e-6, "click leg at {t}");
+            assert!((c.arm_l - idle.arm_l).abs() < 1e-6, "click arm at {t}");
+            // The wave arm and the head are untouched by the gate.
+            assert_eq!(c.arm_r, Pose::click_wave(t, 0.5).unwrap().arm_r);
+            assert_eq!(p.head_yaw, Pose::stage(t).head_yaw);
+        }
+        // And the extras are really there to remove.
+        assert!(Pose::stage(11.3).leg_l != Pose::idle(11.3).leg_l);
+        assert!(Pose::stage(19.8).arm_l != Pose::idle(19.8).arm_l);
     }
 
     /// The jacket hangs over the trouser tops and the sleeve over the jacket's edge:
