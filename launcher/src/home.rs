@@ -669,7 +669,10 @@ impl Launcher {
                     let chord = m.control || m.alt || m.platform || m.function;
                     match stage_key(ev.keystroke.key.as_str(), ev.is_held, chord) {
                         Some(StageKey::Wave) => this.stage_click_wave = Some(this.stage_t),
-                        Some(StageKey::Turn(by)) => this.stage_yaw += by,
+                        Some(StageKey::Turn(by)) => {
+                            this.stage_touched = std::time::Instant::now();
+                            this.stage_yaw += by;
+                        }
                         None => return,
                     }
                     cx.stop_propagation();
