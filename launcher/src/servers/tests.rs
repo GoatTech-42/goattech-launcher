@@ -277,3 +277,69 @@ fn deleting_refuses_an_unrecognized_folder_and_keeps_files_on_trash_failure() {
     assert!(root.join("server.toml").exists());
     fs::remove_dir_all(root).unwrap();
 }
+
+// ----- The list file ------------------------------------------------------------------------------
+
+fn entry(root: &Path, name: &str) -> Entry {
+    let dir = root.join(name);
+    fs::create_dir_all(&dir).unwrap();
+    Entry {
+        name: name.into(),
+        dir,
+    }
+}
+
+#[test]
+fn the_list_survives_one_entry_that_does_not_fit() {
+    let root = scratch("list-lenient");
+    let a = entry(&root, "a");
+    let b = entry(&root, "b");
+    let file = root.join("servers.json");
+    let text = serde_json::json!([
+        {"name": a.name, "dir": a.dir},
+        {"name": 7},
+        "nonsense",
+        {"name": b.name, "dir": b.dir},
+        {"name": "gone", "dir": root.join("not-here")},
+    ]);
+    fs::write(&file, text.to_string()).unwrap();
+    assert_eq!(list_in(&file), vec![a, b]);
+    // A file that is not a list at all is an empty list for reading.
+    for bad in ["", "garbage", "{}", "null"] {
+        fs::write(&file, bad).unwrap();
+        assert!(list_in(&file).is_empty(), "{bad:?}");
+    }
+    assert!(list_in(&root.join("missing.json")).is_empty());
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn a_change_never_replaces_a_list_it_could_not_read_whole() {
+    let root = scratch("list-change");
+    let a = entry(&root, "a");
+    let b = entry(&root, "b");
+    let file = root.join("servers.json");
+    // A missing list starts empty; add and forget round-trip.
+    add_in(&file, a.clone()).unwrap();
+    add_in(&file, b.clone()).unwrap();
+    add_in(&file, a.clone()).unwrap();
+    assert_eq!(list_in(&file), vec![b.clone(), a.clone()]);
+    forget_in(&file, &b.dir).unwrap();
+    assert_eq!(list_in(&file), vec![a.clone()]);
+    // Damaged lists, and a list with an entry that does not fit, are left byte for byte.
+    let fits = serde_json::json!({"name": a.name, "dir": a.dir});
+    let one_bad = format!("[{fits}, {{\"name\": 7}}]");
+    for damaged in ["", "garbage", "[", "{}", "null", one_bad.as_str()] {
+        fs::write(&file, damaged).unwrap();
+        assert!(add_in(&file, b.clone()).is_err(), "{damaged:?}");
+        assert!(forget_in(&file, &a.dir).is_err(), "{damaged:?}");
+        assert_eq!(fs::read_to_string(&file).unwrap(), damaged);
+        assert!(!root.join("servers.json.tmp").exists());
+    }
+    // A folder where the list should be is an error too, not an empty list.
+    let other = root.join("other");
+    fs::create_dir_all(other.join("servers.json").join("inside")).unwrap();
+    assert!(add_in(&other.join("servers.json"), a).is_err());
+    assert!(other.join("servers.json").join("inside").is_dir());
+    let _ = fs::remove_dir_all(&root);
+}

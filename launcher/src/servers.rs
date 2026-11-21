@@ -39,18 +39,43 @@ fn list_file() -> PathBuf {
     backend::data_dir().join("servers.json")
 }
 
-/// The servers, in the order they were added; folders that are gone are left out.
+/// The servers, in the order they were added; folders that are gone are left out. One entry
+/// that does not fit is skipped, never the whole list.
 pub fn list() -> Vec<Entry> {
-    let entries: Vec<Entry> = fs::read_to_string(list_file())
-        .ok()
-        .and_then(|t| serde_json::from_str(&t).ok())
-        .unwrap_or_default();
-    entries.into_iter().filter(|e| e.dir.is_dir()).collect()
+    list_in(&list_file())
 }
 
-fn save_list(entries: &[Entry]) -> Result<(), String> {
-    let path = list_file();
-    fs::create_dir_all(backend::data_dir()).map_err(|e| e.to_string())?;
+fn list_in(path: &Path) -> Vec<Entry> {
+    let entries = fs::read_to_string(path)
+        .ok()
+        .and_then(|t| serde_json::from_str::<Vec<Value>>(&t).ok())
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|v| serde_json::from_value::<Entry>(v).ok());
+    entries.filter(|e| e.dir.is_dir()).collect()
+}
+
+/// The list a change starts from. A list that exists but cannot be read whole (damaged, an
+/// entry that does not fit, or an I/O error) is an error: saving a change over it would drop
+/// servers the player could still get back.
+fn list_for_change(path: &Path) -> Result<Vec<Entry>, String> {
+    match fs::read_to_string(path) {
+        Ok(text) => match serde_json::from_str::<Vec<Entry>>(&text) {
+            Ok(all) => Ok(all.into_iter().filter(|e| e.dir.is_dir()).collect()),
+            Err(e) => Err(format!(
+                "{} is unreadable ({e}); nothing was written",
+                path.display()
+            )),
+        },
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(e) => Err(format!("{}: {e}; nothing was written", path.display())),
+    }
+}
+
+fn save_list_to(path: &Path, entries: &[Entry]) -> Result<(), String> {
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
     let text = serde_json::to_string_pretty(entries).map_err(|e| e.to_string())?;
     // A torn write would drop every server from the sidebar: write beside
     // the list, flush it, and rename it into place. Without the flush a
@@ -61,22 +86,30 @@ fn save_list(entries: &[Entry]) -> Result<(), String> {
         .and_then(|()| file.sync_all())
         .map_err(|e| e.to_string())?;
     drop(file);
-    fs::rename(&partial, &path).map_err(|e| e.to_string())
+    fs::rename(&partial, path).map_err(|e| e.to_string())
 }
 
 /// Adds a server folder to the list (once).
 pub fn add(entry: Entry) -> Result<(), String> {
-    let mut all = list();
+    add_in(&list_file(), entry)
+}
+
+fn add_in(path: &Path, entry: Entry) -> Result<(), String> {
+    let mut all = list_for_change(path)?;
     all.retain(|e| e.dir != entry.dir);
     all.push(entry);
-    save_list(&all)
+    save_list_to(path, &all)
 }
 
 /// Takes a server off the list; its folder stays.
 pub fn forget(dir: &Path) -> Result<(), String> {
-    let mut all = list();
+    forget_in(&list_file(), dir)
+}
+
+fn forget_in(path: &Path, dir: &Path) -> Result<(), String> {
+    let mut all = list_for_change(path)?;
     all.retain(|e| e.dir != dir);
-    save_list(&all)
+    save_list_to(path, &all)
 }
 
 /// Removes a registered, stopped server, retaining its files in the system trash.
