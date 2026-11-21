@@ -104,6 +104,8 @@ pub(super) struct Browse {
     tags_asked: HashSet<(SourceId, PackKind)>,
     /// Images on disk, by URL and size; `None` while they load or when they failed.
     images: HashMap<(String, u32), Option<PathBuf>>,
+    /// Failed image fetches waiting to be tried again.
+    image_retries: ImageRetries,
     image_queue: Option<std::sync::mpsc::Sender<(String, u32)>>,
 }
 
@@ -118,6 +120,71 @@ pub(super) enum Loaded {
     ),
     Image((String, u32), Option<PathBuf>),
     Tags((SourceId, PackKind), Result<Tags, String>),
+}
+
+/// How long to wait before the first, second and third new try of a failed image fetch.
+const IMAGE_RETRY_WAITS: [std::time::Duration; 3] = [
+    std::time::Duration::from_secs(30),
+    std::time::Duration::from_secs(120),
+    std::time::Duration::from_secs(600),
+];
+
+/// The most failed fetches remembered; past it the one that failed longest ago is forgotten.
+const IMAGE_RETRY_TRACKED: usize = 256;
+
+/// One failed image: how many fetches failed, when the last did, and whether a new try is out.
+type ImageFailure = (usize, std::time::Instant, bool);
+
+/// Failed image fetches and when each may be tried again. A failure used to be remembered for
+/// the whole session, so a network blip left a chip on its placeholder until a restart.
+#[derive(Default)]
+struct ImageRetries {
+    failures: HashMap<(String, u32), ImageFailure>,
+}
+
+impl ImageRetries {
+    /// A fetch of `key` failed at `now`.
+    fn failed(&mut self, key: (String, u32), now: std::time::Instant) {
+        if let Some((count, at, out)) = self.failures.get_mut(&key) {
+            *count += 1;
+            *at = now;
+            *out = false;
+            return;
+        }
+        if self.failures.len() >= IMAGE_RETRY_TRACKED {
+            let oldest = self
+                .failures
+                .iter()
+                .min_by_key(|(_, (_, at, _))| *at)
+                .map(|(k, _)| k.clone());
+            if let Some(k) = oldest {
+                self.failures.remove(&k);
+            }
+        }
+        self.failures.insert(key, (1, now, false));
+    }
+
+    /// `key` loaded: nothing to retry.
+    fn succeeded(&mut self, key: &(String, u32)) {
+        self.failures.remove(key);
+    }
+
+    /// Whether a new try of `key` should start now. True once per failure, when its wait has
+    /// passed and fewer than three new tries have failed; it then counts as out until the
+    /// result arrives.
+    fn due(&mut self, key: &(String, u32), now: std::time::Instant) -> bool {
+        let Some((count, at, out)) = self.failures.get_mut(key) else {
+            return false;
+        };
+        let Some(wait) = IMAGE_RETRY_WAITS.get(*count - 1) else {
+            return false;
+        };
+        if *out || now.saturating_duration_since(*at) < *wait {
+            return false;
+        }
+        *out = true;
+        true
+    }
 }
 
 /// Images fetched at once.
@@ -153,6 +220,12 @@ impl Launcher {
             Loaded::Image(key, path) => {
                 // A refresh that failed (offline) keeps the cached image.
                 if path.is_some() || !matches!(b.images.get(&key), Some(Some(_))) {
+                    if path.is_some() {
+                        b.image_retries.succeeded(&key);
+                    } else {
+                        b.image_retries
+                            .failed(key.clone(), std::time::Instant::now());
+                    }
                     b.images.insert(key, path);
                 }
             }
@@ -205,8 +278,19 @@ impl Launcher {
     /// than `images::FRESH` is shown and asked for again, with its validators.
     pub(super) fn mods_image(&mut self, url: &str, size: u32) -> Option<PathBuf> {
         let key = (url.to_owned(), size);
-        if let Some(state) = self.mods.browse.images.get(&key) {
-            return state.clone();
+        if let Some(state) = self.mods.browse.images.get(&key).cloned() {
+            // A fetch that failed is asked for again after its wait, a few times at most, and
+            // never while one is already out: a repaint cannot start a request on its own.
+            if state.is_none()
+                && self
+                    .mods
+                    .browse
+                    .image_retries
+                    .due(&key, std::time::Instant::now())
+            {
+                let _ = self.mods_image_queue().send(key);
+            }
+            return state;
         }
         // The launcher's data folder, shared by every instance.
         let home = backend::data_dir();
@@ -828,5 +912,77 @@ impl Opened {
                 row.verdict = Some(*verdict);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod image_retry_tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    fn key(n: u32) -> (String, u32) {
+        (format!("https://example.invalid/{n}.png"), 64)
+    }
+
+    #[test]
+    fn a_failed_image_is_tried_again_after_30_s_2_min_and_10_min_then_given_up() {
+        let t0 = Instant::now();
+        let mut r = ImageRetries::default();
+        let k = key(1);
+        // Never failed (loading, or refused): never due.
+        assert!(!r.due(&k, t0 + Duration::from_secs(10_000)));
+        r.failed(k.clone(), t0);
+        // Waits are measured from the last failure; before them it is not due.
+        assert!(!r.due(&k, t0));
+        assert!(!r.due(&k, t0 + Duration::from_secs(29)));
+        // Due exactly at 30 s, once: a repaint a moment later does not start a second request.
+        assert!(r.due(&k, t0 + Duration::from_secs(30)));
+        for s in 31..200 {
+            assert!(!r.due(&k, t0 + Duration::from_secs(s)), "out at {s} s");
+        }
+        // Retry 1 fails at 40 s: the next wait is 2 min from then.
+        let t1 = t0 + Duration::from_secs(40);
+        r.failed(k.clone(), t1);
+        assert!(!r.due(&k, t1 + Duration::from_secs(119)));
+        assert!(r.due(&k, t1 + Duration::from_secs(120)));
+        // Retry 2 fails: 10 min.
+        let t2 = t1 + Duration::from_secs(150);
+        r.failed(k.clone(), t2);
+        assert!(!r.due(&k, t2 + Duration::from_secs(599)));
+        assert!(r.due(&k, t2 + Duration::from_secs(600)));
+        // Retry 3 fails: three new tries were made, so never again.
+        let t3 = t2 + Duration::from_secs(700);
+        r.failed(k.clone(), t3);
+        assert!(!r.due(&k, t3 + Duration::from_secs(1_000_000)));
+    }
+
+    #[test]
+    fn a_loaded_image_stops_its_retries_and_other_images_are_independent() {
+        let t0 = Instant::now();
+        let mut r = ImageRetries::default();
+        r.failed(key(1), t0);
+        r.failed(key(2), t0);
+        r.succeeded(&key(1));
+        let later = t0 + Duration::from_secs(60);
+        assert!(!r.due(&key(1), later));
+        assert!(r.due(&key(2), later));
+    }
+
+    #[test]
+    fn the_retry_book_is_bounded_and_forgets_the_oldest_failure() {
+        let t0 = Instant::now();
+        let mut r = ImageRetries::default();
+        for n in 0..(IMAGE_RETRY_TRACKED as u32 + 50) {
+            r.failed(key(n), t0 + Duration::from_millis(n as u64));
+            assert!(r.failures.len() <= IMAGE_RETRY_TRACKED);
+        }
+        assert_eq!(r.failures.len(), IMAGE_RETRY_TRACKED);
+        // The first 50 are gone, the newest are kept.
+        assert!(!r.failures.contains_key(&key(0)));
+        assert!(!r.failures.contains_key(&key(49)));
+        assert!(r.failures.contains_key(&key(50)));
+        assert!(r
+            .failures
+            .contains_key(&key(IMAGE_RETRY_TRACKED as u32 + 49)));
     }
 }
