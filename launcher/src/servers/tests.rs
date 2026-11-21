@@ -343,3 +343,68 @@ fn a_change_never_replaces_a_list_it_could_not_read_whole() {
     assert!(other.join("servers.json").join("inside").is_dir());
     let _ = fs::remove_dir_all(&root);
 }
+
+#[test]
+fn deleting_a_server_never_trashes_it_when_the_list_cannot_be_read_whole() {
+    let root = scratch("delete-list");
+    let a = entry(&root, "a");
+    fs::write(a.dir.join("server.toml"), "").unwrap();
+    let file = root.join("servers.json");
+    let fits = serde_json::json!({"name": a.name, "dir": a.dir});
+    // The server is listed and valid, but another entry is not: the strict read refuses.
+    let mixed = format!("[{fits}, {{\"name\": 7}}]");
+    fs::write(&file, &mixed).unwrap();
+    let trashed = std::cell::Cell::new(0);
+    let result = delete_in(
+        &file,
+        &a.dir,
+        |_| false,
+        |_| {
+            trashed.set(trashed.get() + 1);
+            Ok(())
+        },
+    );
+    assert!(result.unwrap_err().contains("nothing was written"));
+    assert_eq!(trashed.get(), 0, "the folder was trashed");
+    assert!(a.dir.join("server.toml").is_file());
+    assert_eq!(fs::read_to_string(&file).unwrap(), mixed);
+    // Damaged and unreadable lists are the same.
+    for damaged in ["", "garbage", "[", "null"] {
+        fs::write(&file, damaged).unwrap();
+        let result = delete_in(
+            &file,
+            &a.dir,
+            |_| false,
+            |_| {
+                trashed.set(trashed.get() + 1);
+                Ok(())
+            },
+        );
+        assert!(result.is_err(), "{damaged:?}");
+        assert_eq!(trashed.get(), 0, "{damaged:?}");
+        assert_eq!(fs::read_to_string(&file).unwrap(), damaged);
+    }
+    // A whole list with the server in it: trashed once, then forgotten.
+    fs::write(&file, format!("[{fits}]")).unwrap();
+    delete_in(
+        &file,
+        &a.dir,
+        |_| false,
+        |_| {
+            trashed.set(trashed.get() + 1);
+            Ok(())
+        },
+    )
+    .unwrap();
+    assert_eq!(trashed.get(), 1);
+    assert!(list_in(&file).is_empty());
+    // A server that is not listed, or runs as a service, is refused before any move.
+    let b = entry(&root, "b");
+    fs::write(b.dir.join("server.toml"), "").unwrap();
+    let never = |_: &Path| -> Result<(), String> { panic!("must not move") };
+    assert!(delete_in(&file, &b.dir, |_| false, never).is_err());
+    add_in(&file, b.clone()).unwrap();
+    assert!(delete_in(&file, &b.dir, |_| true, never).is_err());
+    assert_eq!(list_in(&file), vec![b]);
+    let _ = fs::remove_dir_all(&root);
+}

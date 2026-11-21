@@ -114,14 +114,31 @@ fn forget_in(path: &Path, dir: &Path) -> Result<(), String> {
 
 /// Removes a registered, stopped server, retaining its files in the system trash.
 pub fn delete(dir: &Path) -> Result<(), String> {
-    if !list().iter().any(|entry| entry.dir == dir) {
+    delete_in(
+        &list_file(),
+        dir,
+        service_installed,
+        crate::desktop_seams::to_trash,
+    )
+}
+
+/// `delete` on a given list file, with the service check and the trash as seams. The list is
+/// read whole before anything moves: a list that cannot be read that way is an error with the
+/// folder still in place, not a folder in the trash and a list that still names it.
+fn delete_in(
+    list: &Path,
+    dir: &Path,
+    installed: impl Fn(&Path) -> bool,
+    trash: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<(), String> {
+    if !list_for_change(list)?.iter().any(|entry| entry.dir == dir) {
         return Err("This server is no longer in the launcher’s list.".into());
     }
-    if service_installed(dir) {
+    if installed(dir) {
         return Err("Turn off running in the background before deleting this server.".into());
     }
-    trash_stopped_server(dir, crate::desktop_seams::to_trash)?;
-    forget(dir).map_err(|e| {
+    trash_stopped_server(dir, trash)?;
+    forget_in(list, dir).map_err(|e| {
         format!("The server was moved to the trash, but its list could not be saved: {e}")
     })
 }
