@@ -1526,4 +1526,74 @@ mod tests {
             assert_eq!(made.get(), before + 1, "change {n}");
         }
     }
+
+    /// The key compares floats by their bits and every input alone, so each pose limb, the
+    /// pitch, the height and a float that differs only in its bits each make a new picture,
+    /// while the very same bits (a NaN included) are a hit and never a picture per frame.
+    #[test]
+    fn the_stage_picture_key_sees_every_limb_the_pitch_the_height_and_float_bits() {
+        use std::sync::Arc;
+        let png = Arc::new(image::RgbaImage::new(64, 64));
+        let base_pose = player_model::Pose::stage(1.0);
+        let key = |yaw: f32, pitch: f32, pose: &player_model::Pose, size: (usize, usize)| {
+            StagePicture::new(Some(&(png.clone(), false)), yaw, pitch, pose, size)
+        };
+        let base = || key(0.4, 0.1, &base_pose, (320, 352));
+        let mut differs: Vec<(&str, StagePicture)> = vec![
+            (
+                "pitch",
+                key(0.4, 0.1 + f32::EPSILON, &base_pose, (320, 352)),
+            ),
+            ("height", key(0.4, 0.1, &base_pose, (320, 353))),
+            ("width", key(0.4, 0.1, &base_pose, (319, 352))),
+        ];
+        for (n, name) in ["arm_r", "arm_l", "leg_r", "leg_l", "head_yaw"]
+            .into_iter()
+            .enumerate()
+        {
+            let mut moved = base_pose;
+            let limb = match n {
+                0 => &mut moved.arm_r,
+                1 => &mut moved.arm_l,
+                2 => &mut moved.leg_r,
+                3 => &mut moved.leg_l,
+                _ => &mut moved.head_yaw,
+            };
+            *limb += 0.001;
+            differs.push((name, key(0.4, 0.1, &moved, (320, 352))));
+        }
+        for (name, k) in &differs {
+            assert!(!base().same(k), "{name} alone must make a new picture");
+            assert!(!k.same(&base()), "{name}: the comparison is symmetric");
+        }
+        // Equal values with different bits are different keys: 0.0 and -0.0.
+        let zero = player_model::Pose {
+            arm_r: 0.0,
+            ..base_pose
+        };
+        let negative_zero = player_model::Pose {
+            arm_r: -0.0,
+            ..base_pose
+        };
+        assert!(!key(0.4, 0.1, &zero, (1, 1)).same(&key(0.4, 0.1, &negative_zero, (1, 1))));
+        // The same NaN bits are the same key, so a NaN never remakes the picture each frame.
+        let nan = player_model::Pose {
+            arm_r: f32::NAN,
+            ..base_pose
+        };
+        assert!(key(f32::NAN, f32::NAN, &nan, (1, 1)).same(&key(f32::NAN, f32::NAN, &nan, (1, 1))));
+        // A NaN with other bits is another key.
+        let other_nan = f32::from_bits(f32::NAN.to_bits() ^ 1);
+        assert!(other_nan.is_nan());
+        assert!(!key(f32::NAN, 0.1, &base_pose, (1, 1)).same(&key(
+            other_nan,
+            0.1,
+            &base_pose,
+            (1, 1)
+        )));
+        // Each key matches itself.
+        for (name, k) in &differs {
+            assert!(k.same(k), "{name} matches itself");
+        }
+    }
 }
