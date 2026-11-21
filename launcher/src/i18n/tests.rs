@@ -370,3 +370,32 @@ fn the_import_update_and_load_error_texts_are_translated_in_german() {
         assert_ne!(tr_in(Language::German, en), en, "{en:?}");
     }
 }
+
+/// The Java runtime, update-check, load-error and instance texts are shown in Turkish and
+/// Japanese, not English. (Machine-translated; no native speaker has reviewed them.)
+#[test]
+fn the_java_update_and_load_error_texts_are_translated_in_turkish_and_japanese() {
+    let keys = [
+        "install to",
+        "each java instance gets the runtime its version needs, downloaded once and reused where versions match.",
+        "each java instance gets the runtime its version needs, downloaded once and reused where versions match. {downloaded} downloaded · {installed} on this computer.",
+        "each java instance gets the runtime its version needs. none downloaded yet - mojang's is downloaded when an instance needs it.",
+        "java runtimes",
+        "{n} mods",
+        "couldn't check for updates. check the connection and try again in a few minutes.",
+        "mojang's version list could not be fetched. check the connection and try again in a few minutes.",
+        "the mod registry can't be reached. check the connection and try again in a few minutes.",
+        "choose client jar",
+        "client jar",
+        "install in new instance",
+        "hide technical details",
+        "technical details",
+        "couldn't load releases. check the connection and try again in a few minutes.",
+        "couldn't load patch notes. check the connection and try again in a few minutes.",
+    ];
+    for language in [Language::Turkish, Language::Japanese] {
+        for en in keys {
+            assert_ne!(tr_in(language, en), en, "{}: {en:?}", language.code());
+        }
+    }
+}
