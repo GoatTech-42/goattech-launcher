@@ -229,12 +229,11 @@ pub(super) struct Servers {
     /// A field whose value was refused, and why: shown under it until it's edited.
     invalid: Option<(Field, &'static str)>,
     copied: Option<Instant>,
-    faces: HashMap<String, Option<Vec<[u8; 4]>>>,
     /// Baked face images by (face pixels, size, scale). The sprite atlas keeps an image until
     /// every handle to it is dropped, so baking one per render grew it without bound; one
     /// image per distinct face and size is kept and reused.
     baked: HeadCache,
-    /// Account faces decoded from their skin files, kept until the file changes.
+    /// Faces decoded from skin files (account skins and default skins), kept until the file changes.
     decoded: DecodedFaces,
     tx: Sender<Event>,
     rx: Receiver<Event>,
@@ -282,7 +281,6 @@ impl Servers {
             selected: None,
             invalid: None,
             copied: None,
-            faces: HashMap::new(),
             baked: HeadCache::default(),
             decoded: DecodedFaces::default(),
             tx,
@@ -1136,11 +1134,7 @@ impl Launcher {
             });
         let face = actual.or_else(|| {
             let resources = servers::game_files(&servers::runtime_root(), "26.3");
-            self.servers
-                .faces
-                .entry(uuid.to_string())
-                .or_insert_with(|| heads::default_face(&resources, uuid))
-                .clone()
+            default_face_cached(&mut self.servers.decoded, &resources, uuid)
         });
         // One nearest-baked image at the window scale: per-texel divs at fractional sizes
         // rounded into dark vertical seams between columns (Luke's corner-head report).
@@ -3276,6 +3270,25 @@ fn decoded_face(
     face
 }
 
+/// The face of the default skin for `uuid` from the prepared game files in `resources`, through
+/// the same stamp-checked cache as account skins. Game files that are not prepared yet (or a
+/// read that fails) give no face for now and are tried again on the next render, so the chip
+/// fills in once they appear; a default skin that was read is kept until its file changes. An
+/// invalid UUID has no default skin and costs no file access.
+fn default_face_cached(cache: &mut DecodedFaces, resources: &Path, uuid: &str) -> Face {
+    let path = heads::default_skin_path(resources, uuid)?;
+    let stamp = file_stamp(&path);
+    decoded_face(
+        cache,
+        &path,
+        stamp,
+        || match horizon_launcher::browser::images::read_capped(&path, 1 << 20) {
+            None => Loaded::Retry,
+            Some(bytes) => Loaded::Done(heads::face(&bytes)),
+        },
+    )
+}
+
 /// The most baked face images kept. Every face drawn this frame is looked up each frame, so
 /// this is the working set: a list shows far fewer faces than this, and past it the
 /// least recently drawn image is dropped one at a time (never the whole cache).
@@ -3402,6 +3415,54 @@ mod tests {
         // A later failed read at a new stamp drops the old face rather than keeping it.
         let got = super::decoded_face(&mut cache, path, Some((8, 64)), || super::Loaded::Retry);
         assert_eq!(got, None);
+        assert!(cache.map.is_empty());
+    }
+
+    #[test]
+    fn a_default_face_appears_once_the_game_files_do_and_is_never_remembered_as_missing() {
+        let uuid = "069a79f4-44e9-4726-a5be-fca90e38aaf5";
+        let resources = std::env::temp_dir().join(format!(
+            "goattech-defface-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let mut cache = super::DecodedFaces::default();
+        // Game files not prepared: no face, nothing remembered, so a later render can fill in.
+        for _ in 0..3 {
+            assert_eq!(
+                super::default_face_cached(&mut cache, &resources, uuid),
+                None
+            );
+            assert!(cache.map.is_empty(), "a missing file is not remembered");
+        }
+        // The game files appear: the very next render has the face (the head layer's pixels).
+        let path = super::heads::default_skin_path(&resources, uuid).unwrap();
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let mut skin = image::RgbaImage::new(64, 64);
+        for y in 0..8 {
+            for x in 0..8 {
+                skin.put_pixel(8 + x, 8 + y, image::Rgba([10, 20, 30, 255]));
+            }
+        }
+        skin.save(&path).unwrap();
+        let face = super::default_face_cached(&mut cache, &resources, uuid);
+        assert_eq!(face, Some(vec![[10u8, 20, 30, 255]; 64]));
+        assert_eq!(cache.map.len(), 1);
+        // An invalid UUID has no default skin and adds nothing.
+        assert_eq!(
+            super::default_face_cached(&mut cache, &resources, "not a uuid"),
+            None
+        );
+        assert_eq!(cache.map.len(), 1);
+        // The files going away drops the face again rather than serving a stale one.
+        std::fs::remove_dir_all(&resources).unwrap();
+        assert_eq!(
+            super::default_face_cached(&mut cache, &resources, uuid),
+            None
+        );
         assert!(cache.map.is_empty());
     }
 

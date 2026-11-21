@@ -1,7 +1,7 @@
 //! Players' heads for the Servers page: the face of the skin the game shows for them. Without the skin
 //! service a player has vanilla's default skin for their UUID (`DefaultPlayerSkin.get`), read from the
 //! player's own prepared game files.
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// `DefaultPlayerSkin.get(UUID)`: the default skin by `UUID.hashCode` (as the game's tab list picks it).
 pub fn default_skin(uuid: u128) -> &'static str {
@@ -64,13 +64,20 @@ pub fn face(skin_png: &[u8]) -> Option<Vec<[u8; 4]>> {
     Some(out)
 }
 
+/// The file holding the default skin of the player `uuid` in the prepared game files at
+/// `resources`; None when the UUID is not valid.
+pub fn default_skin_path(resources: &Path, uuid: &str) -> Option<PathBuf> {
+    let skin = default_skin(parse_uuid(uuid)?);
+    Some(
+        resources
+            .join("assets/minecraft/textures/entity/player")
+            .join(format!("{skin}.png")),
+    )
+}
+
 /// The face of a player with a default skin, from the prepared game files in `resources`.
 pub fn default_face(resources: &Path, uuid: &str) -> Option<Vec<[u8; 4]>> {
-    let skin = default_skin(parse_uuid(uuid)?);
-    let path = resources
-        .join("assets/minecraft/textures/entity/player")
-        .join(format!("{skin}.png"));
-    face(&std::fs::read(path).ok()?)
+    face(&std::fs::read(default_skin_path(resources, uuid)?).ok()?)
 }
 
 fn profile_pixels(png: &[u8]) -> Option<Vec<[u8; 4]>> {
