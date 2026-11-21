@@ -440,6 +440,10 @@ fn rim_light(buf: &mut [[u8; 4]], w: usize, h: usize) {
     }
 }
 
+/// Edge shading: up to this fraction darker at a face edge, fading out over this many texels.
+const EDGE_SHADE: f32 = 0.16;
+const EDGE_REACH: f32 = 0.9;
+
 const RIM_LIGHT: f32 = 235.;
 const RIM_MIX: f32 = 0.22;
 
@@ -515,6 +519,9 @@ fn render_grid(
         } else {
             1.
         };
+        // Face edge lengths in model texels, for the soft edge shading below.
+        let len3 = |v: [f32; 3]| (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
+        let (lu, lv) = (len3(f.u), len3(f.v));
         let (oxs, oys) = (cx + ox * mag, feet + oy * mag);
         // Bounding box of the parallelogram's four corners.
         let corners = [
@@ -576,6 +583,15 @@ fn render_grid(
                     continue;
                 }
                 depth[idx] = sd;
+                // Soft shading toward each face's edges (colour only): two flush parts,
+                // like the legs, get a visible seam and every part reads as a solid block
+                // instead of one flat panel. Interior pixels keep the plain face tone.
+                let tone = if shade {
+                    let edge = (a * lu).min((1. - a) * lu).min(b * lv).min((1. - b) * lv);
+                    tone * (1. - EDGE_SHADE * (1. - edge / EDGE_REACH).clamp(0., 1.))
+                } else {
+                    tone
+                };
                 let t = |v: u8| (v as f32 * tone).round().min(255.) as u8;
                 buf[idx] = [t(c[0]), t(c[1]), t(c[2]), c[3]];
             }
@@ -766,7 +782,7 @@ mod tests {
         );
         // And the tones stay close to the skin color: shading is a hint, not a repaint.
         assert!(tones.iter().all(|&(r, g, b)| {
-            (70..=100).contains(&r) && (110..=150).contains(&g) && (160..=200).contains(&b)
+            (55..=100).contains(&r) && (95..=150).contains(&g) && (140..=200).contains(&b)
         }));
     }
 
@@ -795,6 +811,29 @@ mod tests {
             .zip(&bare)
             .filter(|(a, b)| a[3] > 0 && a != b)
             .all(|(a, b)| a[0] > b[0]));
+    }
+
+    #[test]
+    fn flush_legs_get_a_seam_and_the_centre_of_a_leg_keeps_its_tone() {
+        // One flat colour everywhere: any difference between pixels is shading.
+        let skin = image::RgbaImage::from_pixel(64, 64, image::Rgba([120, 120, 120, 255]));
+        let (w, h) = (W * 8, H * 8);
+        let buf = render_posed_hi(&skin, 0., 0., &Pose::default(), false, w, h);
+        let mag = 8usize;
+        let feet = h - 2 * mag;
+        let y = feet - 6 * mag;
+        let px = |x: usize| buf[y * w + x][0];
+        let cx = w / 2;
+        let seam = px(cx - 1).min(px(cx));
+        let centre = px(cx - 2 * mag); // the middle of the right leg
+        assert!(
+            seam < centre,
+            "the seam between the legs ({seam}) should be darker than a leg's middle ({centre})"
+        );
+        assert!(centre - seam >= 8, "a seam you can see: {centre} vs {seam}");
+        // Colour only: the silhouette is the same one the plain render draws.
+        let plain = render_grid(&skin, 0., 0., &Pose::default(), false, w, h, false);
+        assert!(buf.iter().zip(&plain).all(|(a, b)| a[3] == b[3]));
     }
 
     #[test]
