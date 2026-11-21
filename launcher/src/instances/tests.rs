@@ -673,6 +673,90 @@ fn every_change_refuses_a_damaged_store_and_leaves_nothing_behind() {
     let _ = fs::remove_dir_all(&root);
 }
 
+/// Unix: a dangling link in the source cannot be copied, which is how a copy fails here.
+#[cfg(unix)]
+#[test]
+fn a_copy_that_fails_leaves_no_folder_and_no_choices_and_can_be_retried() {
+    let root = scratch("copy-fails");
+    let (home, data) = (root.join("home"), root.join("data"));
+    player_home(&home);
+    let survival = create_in(&home, &data, "Survival", None, None).unwrap();
+    put(&survival.home.join("saves/Base/level.dat"), "base");
+    std::os::unix::fs::symlink(root.join("nowhere"), survival.home.join("dead-link")).unwrap();
+    let store_before = fs::read(data.join(FILE)).unwrap();
+    let e = create_in(&home, &data, "Copy", Some(&survival), None).unwrap_err();
+    assert!(e.starts_with("Could not make"), "{e}");
+    assert!(!home.join(OWN).join("copy").exists());
+    assert_eq!(fs::read(data.join(FILE)).unwrap(), store_before);
+    let ids: Vec<_> = list_in(&home, &data).into_iter().map(|i| i.id).collect();
+    assert!(!ids.contains(&"copy".to_string()), "{ids:?}");
+    // The same name is free again, and once the link is gone the copy is whole.
+    fs::remove_file(survival.home.join("dead-link")).unwrap();
+    let copy = create_in(&home, &data, "Copy", Some(&survival), None).unwrap();
+    assert_eq!(copy.id, "copy");
+    assert_eq!(
+        fs::read(copy.home.join("saves/Base/level.dat")).unwrap(),
+        b"base"
+    );
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn an_instances_entry_that_is_not_a_folder_stops_the_making_of_an_instance() {
+    let root = scratch("not-a-folder");
+    let (home, data) = (root.join("home"), root.join("data"));
+    player_home(&home);
+    put(&home.join(OWN), "a file, not a folder");
+    let e = create_in(&home, &data, "Fresh", None, None).unwrap_err();
+    assert!(e.starts_with("Could not make"), "{e}");
+    let called = std::cell::Cell::new(false);
+    let prepare = |_: &Path| {
+        called.set(true);
+        Ok(())
+    };
+    let e = create_client_in(&home, &data, "Client", JavaGame::default(), prepare).unwrap_err();
+    assert!(e.contains("must be a real directory"), "{e}");
+    assert!(!called.get(), "nothing is prepared first");
+    assert_eq!(
+        fs::read_to_string(home.join(OWN)).unwrap(),
+        "a file, not a folder"
+    );
+    assert!(!data.join(FILE).exists(), "no store written");
+    let stages: Vec<_> = fs::read_dir(&home)
+        .unwrap()
+        .flatten()
+        .filter(|e| {
+            e.file_name()
+                .to_string_lossy()
+                .starts_with(".client-stage-")
+        })
+        .collect();
+    assert!(stages.is_empty(), "no staging folder left");
+    let _ = fs::remove_dir_all(&root);
+}
+
+/// Unix: the folder of instances is a link, which the client route refuses to make into.
+#[cfg(unix)]
+#[test]
+fn a_linked_instances_folder_is_refused_by_the_client_route_and_stays_empty() {
+    let root = scratch("linked-instances");
+    let (home, data, elsewhere) = (root.join("home"), root.join("data"), root.join("elsewhere"));
+    player_home(&home);
+    fs::create_dir_all(&elsewhere).unwrap();
+    std::os::unix::fs::symlink(&elsewhere, home.join(OWN)).unwrap();
+    let called = std::cell::Cell::new(false);
+    let prepare = |_: &Path| {
+        called.set(true);
+        Ok(())
+    };
+    let e = create_client_in(&home, &data, "Client", JavaGame::default(), prepare).unwrap_err();
+    assert!(e.contains("must be a real directory"), "{e}");
+    assert!(!called.get());
+    assert_eq!(fs::read_dir(&elsewhere).unwrap().count(), 0);
+    assert!(!data.join(FILE).exists());
+    let _ = fs::remove_dir_all(&root);
+}
+
 #[test]
 fn a_damaged_store_with_an_instance_gone_from_disk_is_left_alone() {
     // A store that cannot be read lists as empty, so nothing counts as forgotten and the prune
