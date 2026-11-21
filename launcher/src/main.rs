@@ -488,6 +488,27 @@ struct StageDrag {
 /// A press that moves less than this (in pixels) counts as a click.
 const CLICK_SLACK: f32 = 3.;
 
+/// What a key does on the home stage's model when it holds the keyboard.
+#[derive(Debug, PartialEq)]
+enum StageKey {
+    /// Enter or Space: wave, like a click.
+    Wave,
+    /// Left or Right: turn the model this many radians (the drag turns the same axis).
+    Turn(f32),
+}
+
+/// One arrow press turns the model about 11 degrees.
+const STAGE_KEY_TURN: f32 = 0.2;
+
+fn stage_key(key: &str) -> Option<StageKey> {
+    match key {
+        "enter" | "space" => Some(StageKey::Wave),
+        "left" => Some(StageKey::Turn(-STAGE_KEY_TURN)),
+        "right" => Some(StageKey::Turn(STAGE_KEY_TURN)),
+        _ => None,
+    }
+}
+
 /// What one pointer move means for a drag.
 enum Track {
     /// Dragging: the pointer moved this far since the previous point.
@@ -6383,6 +6404,18 @@ mod tests {
         assert!(!d.release());
         assert!(matches!(d.track((690., 350.), true), Track::Idle));
         assert!(matches!(d.track((695., 350.), true), Track::Idle));
+    }
+
+    #[test]
+    fn stage_keys_wave_and_turn_and_ignore_the_rest() {
+        use crate::{stage_key, StageKey, STAGE_KEY_TURN};
+        assert_eq!(stage_key("enter"), Some(StageKey::Wave));
+        assert_eq!(stage_key("space"), Some(StageKey::Wave));
+        assert_eq!(stage_key("left"), Some(StageKey::Turn(-STAGE_KEY_TURN)));
+        assert_eq!(stage_key("right"), Some(StageKey::Turn(STAGE_KEY_TURN)));
+        for other in ["tab", "escape", "up", "down", "a", ""] {
+            assert_eq!(stage_key(other), None, "{other}");
+        }
     }
 
     /// The contract for a repaint gap `dt`: the arm blends between idle and wave with a

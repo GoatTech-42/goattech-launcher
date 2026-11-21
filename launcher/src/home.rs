@@ -658,11 +658,23 @@ impl Launcher {
                     .child(who.to_lowercase()),
             );
         if let Some(i) = baked {
+            // The model is a keyboard stop: Enter or Space waves, Left and Right turn it.
+            let model = div()
+                .id("stage-model")
+                .w(px(player_model::W as f32 * 8.))
+                .h(px(player_model::H as f32 * 8.))
+                .cursor(gpui::CursorStyle::PointingHand)
+                .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
+                    match stage_key(ev.keystroke.key.as_str()) {
+                        Some(StageKey::Wave) => this.stage_click_wave = Some(this.stage_t),
+                        Some(StageKey::Turn(by)) => this.stage_yaw += by,
+                        None => return,
+                    }
+                    cx.stop_propagation();
+                    cx.notify();
+                }));
             stage = stage.child(
-                div()
-                    .w(px(player_model::W as f32 * 8.))
-                    .h(px(player_model::H as f32 * 8.))
-                    .cursor(gpui::CursorStyle::PointingHand)
+                keyboard(model, &self.theme)
                     .on_mouse_down(
                         gpui::MouseButton::Left,
                         cx.listener(|this, event: &gpui::MouseDownEvent, _, cx| {
