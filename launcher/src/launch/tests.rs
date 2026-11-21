@@ -215,6 +215,75 @@ fn a_windows_word_cmd_would_act_on_is_quoted_so_it_stays_one_word() {
     assert_eq!(line, r#"echo hi && "C:\A&B\java.exe" -Dx=1"#);
 }
 
+/// The child of [`arguments_reach_a_child_whole_through_the_pre_launch_cmd_line`]: when that
+/// test starts this test binary again with `HORIZON_ARGV_ECHO` set, it writes the words it was
+/// given after `--` (leaving the first, this test's name, for the test harness) as JSON. In an
+/// ordinary run the variable is not set and it does nothing.
+#[test]
+fn argv_echo_child() {
+    let Some(out) = std::env::var_os("HORIZON_ARGV_ECHO") else {
+        return;
+    };
+    let words: Vec<String> = std::env::args().skip_while(|a| a != "--").skip(2).collect();
+    std::fs::write(out, serde_json::to_string(&words).unwrap()).unwrap();
+}
+
+/// A real `cmd /D /S /C` run, as the launcher does it with a pre-launch command: every word
+/// reaches the child as it was given and no word is run by cmd as a command. A word that cmd
+/// had acted on would start `ver` writing `sentinel.txt` or redirect into a file of its name.
+#[cfg(windows)]
+#[test]
+fn arguments_reach_a_child_whole_through_the_pre_launch_cmd_line() {
+    let dir = std::env::temp_dir().join(format!("horizon-launch-cmd-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    // The program is in a folder with an & and its name has no space: the case the quoting is for.
+    let exe = dir.join("A&B").join("echochild.exe");
+    std::fs::create_dir_all(exe.parent().unwrap()).unwrap();
+    std::fs::copy(std::env::current_exe().unwrap(), &exe).unwrap();
+    let out = dir.join("argv.json");
+    let words = [
+        "plain",
+        "",
+        "a&b",
+        "a|b",
+        "a<b",
+        "a>b",
+        "a^b",
+        "(a)",
+        "-Dx=a&ver>sentinel.txt",
+        r#"say "hi""#,
+        r#"mixed 'q' "d" end"#,
+        r"C:\trail\",
+        r"C:\My Folder\",
+        r#"a\"b"#,
+    ];
+    let mut cmd = Command::new(&exe);
+    cmd.args(["--exact", "--", "launch::tests::argv_echo_child"])
+        .args(words)
+        .env("HORIZON_ARGV_ECHO", &out)
+        .current_dir(&dir);
+    let launch = Launch {
+        pre_launch: "echo pre".into(),
+        ..Launch::default()
+    };
+    let ran = wrap(cmd, &launch).output().unwrap();
+    let said = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&ran.stdout),
+        String::from_utf8_lossy(&ran.stderr)
+    );
+    assert!(ran.status.success(), "{said}");
+    let got: Vec<String> = serde_json::from_slice(&std::fs::read(&out).expect(&said)).unwrap();
+    assert_eq!(got, words, "{said}");
+    let mut left: Vec<String> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    left.sort();
+    assert_eq!(left, ["A&B", "argv.json"], "{said}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn nothing_to_add_leaves_the_command_as_it_is() {
     let mut cmd = Command::new("/opt/game");
