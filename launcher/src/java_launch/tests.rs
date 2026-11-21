@@ -616,3 +616,35 @@ fn the_asset_layout_of_an_old_version_fails_loudly_and_a_modern_one_copies_nothi
     assert!(!to.join("a.ogg").exists());
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn a_native_the_rules_disallow_is_not_opened_and_one_they_allow_is() {
+    let dir = scratch("natives-rules");
+    let (mc, natives) = (dir.join("mc"), dir.join("natives"));
+    // No jar exists, so a library that is used is an error and one that is not is skipped: the
+    // result alone tells whether the rules were read.
+    let with_rules = |rules: Value| {
+        let mut version = natives_version("a/b-natives.jar");
+        version["libraries"][0]["rules"] = rules;
+        version
+    };
+    let disallowed = [
+        json!([{"action": "allow"}, {"action": "disallow", "os": {"name": "osx"}}]),
+        json!([{"action": "allow", "os": {"name": "windows"}}]),
+        json!([]),
+    ];
+    for rules in disallowed {
+        unpack_natives(&with_rules(rules.clone()), &mc, "osx", &natives)
+            .unwrap_or_else(|e| panic!("{rules}: {e}"));
+    }
+    let allowed = [
+        json!([{"action": "allow", "os": {"name": "osx"}}]),
+        json!([{"action": "disallow", "os": {"name": "osx"}}, {"action": "allow"}]),
+    ];
+    for rules in allowed {
+        let e = unpack_natives(&with_rules(rules.clone()), &mc, "osx", &natives).unwrap_err();
+        assert!(e.contains("b-natives.jar"), "{rules}: {e}");
+    }
+    // Nothing but the empty folder was made for the skipped libraries.
+    assert_eq!(fs::read_dir(&natives).unwrap().count(), 0);
+}
