@@ -449,6 +449,11 @@ struct Launcher {
     /// Where the stage clock starts: it reads the wall clock, so a slow or dropped frame skips
     /// ahead instead of slowing the sway and the wave.
     stage_epoch: std::time::Instant,
+    /// The last time the player turned the model (a drag press or move); the model eases back
+    /// to face the camera once this is STAGE_EASE_DELAY old and no drag is held.
+    stage_touched: std::time::Instant,
+    /// When the previous stage frame ran, for the ease's step.
+    stage_tick_at: std::time::Instant,
     /// Whether the Play-only repaint timer is running.
     stage_timer: bool,
     stage_drag: StageDrag,
@@ -462,6 +467,28 @@ struct Launcher {
 
 /// Milliseconds between stage repaints while Play is showing.
 const STAGE_FRAME_MS: u64 = 33;
+
+/// Seconds after the last turn before the model eases back to face the camera.
+const STAGE_EASE_DELAY: f32 = 2.5;
+/// How fast it eases back, per second (the gap closes by 1 - e^-rate each second).
+const STAGE_EASE_RATE: f32 = 1.8;
+
+/// One ease step of `dt` seconds toward facing the camera: the nearest whole turn for yaw (the
+/// short way round, never unwinding extra turns) and level for pitch. Exponential, so the
+/// path does not depend on the frame gap.
+fn ease_back(yaw: f32, pitch: f32, dt: f32) -> (f32, f32) {
+    let turn = std::f32::consts::TAU;
+    let k = 1. - (-STAGE_EASE_RATE * dt).exp();
+    let step = |v: f32, target: f32| {
+        let n = v + (target - v) * k;
+        if (target - n).abs() < 0.002 {
+            target
+        } else {
+            n
+        }
+    };
+    (step(yaw, (yaw / turn).round() * turn), step(pitch, 0.))
+}
 
 /// Whether the stage's repaint timer runs on this page: Play only.
 fn stage_repaints(page: Page) -> bool {
@@ -708,6 +735,8 @@ impl Launcher {
             stage_pitch: 0.,
             stage_t: 0.,
             stage_epoch: std::time::Instant::now(),
+            stage_touched: std::time::Instant::now(),
+            stage_tick_at: std::time::Instant::now(),
             stage_timer: false,
             stage_drag: StageDrag::default(),
             stage_click_wave: None,
@@ -1054,6 +1083,15 @@ impl Launcher {
     /// One stage frame: the clock reads now and the page repaints.
     fn tick_stage(&mut self, cx: &mut Context<Self>) {
         self.stage_t = self.stage_epoch.elapsed().as_secs_f32();
+        let dt = self.stage_tick_at.elapsed().as_secs_f32().min(0.1);
+        self.stage_tick_at = std::time::Instant::now();
+        // A turned model eases back to face the camera once the player lets go for a while.
+        if self.stage_drag.last.is_none()
+            && !reduce_motion()
+            && self.stage_touched.elapsed().as_secs_f32() >= STAGE_EASE_DELAY
+        {
+            (self.stage_yaw, self.stage_pitch) = ease_back(self.stage_yaw, self.stage_pitch, dt);
+        }
         cx.notify();
     }
 
@@ -5783,6 +5821,7 @@ impl Render for Launcher {
                     .track(at, event.pressed_button == Some(gpui::MouseButton::Left))
                 {
                     Track::Turn(dx, dy) => {
+                        this.stage_touched = std::time::Instant::now();
                         this.stage_yaw += dx * 0.012;
                         this.stage_pitch = (this.stage_pitch + dy * 0.008).clamp(-0.15, 0.9);
                         cx.notify();
@@ -6476,6 +6515,41 @@ mod tests {
         // A shorter gap moves the arm less per frame: that is what the timer buys.
         let fast = crate::STAGE_FRAME_MS as f32 / 1000.;
         assert!(worst(&click, fast) * 1.5 < worst(&click, 0.08));
+    }
+
+    #[test]
+    fn a_turned_model_eases_back_to_face_the_camera_the_short_way() {
+        use crate::{ease_back, STAGE_EASE_RATE};
+        let tau = std::f32::consts::TAU;
+        let run = |mut y: f32, mut p: f32, dt: f32, secs: f32| {
+            let mut t = 0.;
+            while t < secs {
+                (y, p) = ease_back(y, p, dt);
+                t += dt;
+            }
+            (y, p)
+        };
+        // Just short of a full turn eases forward to one whole turn, not back through 0.
+        let (y, _) = ease_back(5.9, 0., 0.033);
+        assert!(y > 5.9 && y < tau);
+        // A small turn eases back to 0; a negative one forward to 0.
+        let (y, _) = ease_back(0.5, 0., 0.033);
+        assert!(y < 0.5 && y > 0.);
+        let (y, _) = ease_back(-0.5, 0., 0.033);
+        assert!(y > -0.5 && y < 0.);
+        // It arrives exactly, pitch included (looking down or up).
+        for (y0, p0) in [(0.5, 0.6), (-2.0, -0.15), (5.9, 0.9), (3.0, 0.)] {
+            let (y, p) = run(y0, p0, 0.033, 8.);
+            let target = (y0 / tau).round() * tau;
+            assert_eq!((y, p), (target, 0.), "from {y0},{p0}");
+        }
+        // The path does not depend on the frame gap: 33 ms and 80 ms steps agree after 1 s.
+        let (a, _) = run(1.0, 0.5, 0.033, 0.99);
+        let (b, _) = run(1.0, 0.5, 0.08, 0.96);
+        let want = 1.0 * (-STAGE_EASE_RATE * 0.99f32).exp();
+        assert!(
+            (a - want).abs() < 0.01 && (b - 1.0 * (-STAGE_EASE_RATE * 0.96f32).exp()).abs() < 0.01
+        );
     }
 
     #[test]
