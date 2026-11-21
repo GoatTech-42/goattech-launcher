@@ -494,3 +494,121 @@ fn the_classpath_refuses_unsafe_paths_and_always_ends_in_the_client_jar() {
         assert!(e.starts_with("Unsafe path"), "jar {bad}: {e}");
     }
 }
+
+/// A version with one library whose osx natives are `path` under libraries/.
+fn natives_version(path: &str) -> Value {
+    json!({
+        "id": "1.8.9",
+        "libraries": [{
+            "name": "a:b:1", "natives": {"osx": "natives-osx"},
+            "extract": {"exclude": ["META-INF/"]},
+            "downloads": {"classifiers": {"natives-osx": {"path": path}}}
+        }]
+    })
+}
+
+#[test]
+fn natives_that_cannot_be_unpacked_are_an_error_and_nothing_leaves_the_folder() {
+    let dir = scratch("natives-errors");
+    let (mc, natives) = (dir.join("mc"), dir.join("natives"));
+    let jar = under(&mc, "libraries/a/b-natives.jar");
+    fs::create_dir_all(jar.parent().unwrap()).unwrap();
+    let version = natives_version("a/b-natives.jar");
+    // The jar is not there: the error names it.
+    let e = unpack_natives(&version, &mc, "osx", &natives).unwrap_err();
+    assert!(e.starts_with(&jar.display().to_string()), "{e}");
+    // The jar is not a zip: the error names it too.
+    fs::write(&jar, b"not a zip").unwrap();
+    let e = unpack_natives(&version, &mc, "osx", &natives).unwrap_err();
+    assert!(e.starts_with(&jar.display().to_string()), "{e}");
+    // A classifier path that leaves libraries/ is refused before any file is opened.
+    let e = unpack_natives(&natives_version("../../x.jar"), &mc, "osx", &natives).unwrap_err();
+    assert!(e.starts_with("Unsafe path"), "{e}");
+    // A library the rules or the os do not use needs no jar at all.
+    unpack_natives(&version, &mc, "linux", &natives).unwrap();
+    // An entry named to climb out of the folder is skipped; the others are unpacked.
+    let mut zip = zip::ZipWriter::new(fs::File::create(&jar).unwrap());
+    let opts = zip::write::SimpleFileOptions::default();
+    for (name, body) in [
+        ("../evil.dll", b"evil".as_slice()),
+        ("sub/../../evil2.dll", b"evil"),
+        ("good.dylib", b"good"),
+        ("META-INF/MANIFEST.MF", b"m"),
+    ] {
+        zip.start_file(name, opts).unwrap();
+        zip.write_all(body).unwrap();
+    }
+    zip.finish().unwrap();
+    unpack_natives(&version, &mc, "osx", &natives).unwrap();
+    assert_eq!(fs::read(natives.join("good.dylib")).unwrap(), b"good");
+    assert!(!dir.join("evil.dll").exists() && !dir.join("evil2.dll").exists());
+    assert!(!natives.join("META-INF").exists());
+    let mut names: Vec<String> = fs::read_dir(&natives)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    assert_eq!(names, ["good.dylib"]);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_asset_layout_of_an_old_version_fails_loudly_and_a_modern_one_copies_nothing() {
+    let dir = scratch("assets-errors");
+    let (mc, game) = (dir.join("mc"), dir.join("game"));
+    let indexes = under(&mc, "assets/indexes");
+    fs::create_dir_all(&indexes).unwrap();
+    let version = |id: &str| json!({"id": "x", "assetIndex": {"id": id}});
+    let hash = "0123456789abcdef0123456789abcdef01234567";
+    // No index file: the asset store itself, nothing created.
+    assert_eq!(
+        game_assets(&version("none"), &mc, &game).unwrap(),
+        mc.join("assets")
+    );
+    assert!(!mc.join("assets/virtual").exists() && !game.exists());
+    // A damaged index is an error naming it, not a silent fall back to the store.
+    let damaged = indexes.join("damaged.json");
+    fs::write(&damaged, b"{\"virtual\": tr").unwrap();
+    let e = game_assets(&version("damaged"), &mc, &game).unwrap_err();
+    assert!(e.starts_with(&damaged.display().to_string()), "{e}");
+    // An index that is neither virtual nor map_to_resources copies nothing.
+    fs::write(
+        indexes.join("modern.json"),
+        json!({"objects": {"a.ogg": {"hash": hash, "size": 1}}}).to_string(),
+    )
+    .unwrap();
+    assert_eq!(
+        game_assets(&version("modern"), &mc, &game).unwrap(),
+        mc.join("assets")
+    );
+    assert!(!mc.join("assets/virtual").exists() && !game.exists());
+    // A virtual index whose object is not in the store is an error naming the source file.
+    fs::write(
+        indexes.join("lost.json"),
+        json!({"virtual": true, "objects": {"a.ogg": {"hash": hash, "size": 1}}}).to_string(),
+    )
+    .unwrap();
+    let source = under(&mc, "assets/objects/01").join(hash);
+    let e = game_assets(&version("lost"), &mc, &game).unwrap_err();
+    assert!(e.starts_with(&source.display().to_string()), "{e}");
+    // An object name that climbs out of the target is refused, and nothing is written outside.
+    fs::write(
+        indexes.join("climb.json"),
+        json!({"virtual": true, "objects": {"../../evil.ogg": {"hash": hash, "size": 1}}})
+            .to_string(),
+    )
+    .unwrap();
+    let e = game_assets(&version("climb"), &mc, &game).unwrap_err();
+    assert!(e.starts_with("Unsafe path"), "{e}");
+    assert!(!mc.join("assets/evil.ogg").exists() && !mc.join("evil.ogg").exists());
+    // An object with a hash that is not 40 characters is skipped, not copied from a made-up path.
+    fs::write(
+        indexes.join("short.json"),
+        json!({"virtual": true, "objects": {"a.ogg": {"hash": "abc", "size": 1}}}).to_string(),
+    )
+    .unwrap();
+    let to = game_assets(&version("short"), &mc, &game).unwrap();
+    assert_eq!(to, under(&mc, "assets/virtual/short"));
+    assert!(!to.join("a.ogg").exists());
+    let _ = fs::remove_dir_all(&dir);
+}
