@@ -511,7 +511,11 @@ fn natives_version(path: &str) -> Value {
 fn natives_that_cannot_be_unpacked_are_an_error_and_nothing_leaves_the_folder() {
     let dir = scratch("natives-errors");
     let (mc, natives) = (dir.join("mc"), dir.join("natives"));
-    let jar = under(&mc, "libraries/a/b-natives.jar");
+    // The jar as the code joins it: the classifier's path is one piece, so on Windows the string
+    // keeps its slash and only a path joined the same way prints the same.
+    let jar = mc
+        .join("libraries")
+        .join(mojang::relative("a/b-natives.jar").unwrap());
     fs::create_dir_all(jar.parent().unwrap()).unwrap();
     let version = natives_version("a/b-natives.jar");
     // The jar is not there: the error names it.
