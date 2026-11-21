@@ -399,3 +399,23 @@ fn the_java_update_and_load_error_texts_are_translated_in_turkish_and_japanese()
         }
     }
 }
+
+/// The include-list, Funnel, landscape and server-form texts are shown in Turkish and
+/// Japanese, not English. (Machine-translated; no native speaker has reviewed them.)
+#[test]
+fn the_include_funnel_and_server_form_texts_are_translated_in_turkish_and_japanese() {
+    let keys = [
+        ", {count} listed by their modrinth download",
+        "settings, packs and horizon mods go in; logs, screenshots, backups and your account never do. worlds go without their per-player files.",
+        "game builds, servers made in the launcher, settings, skins.",
+        "GoatTech never turns on Funnel: the server isn't put on the public internet, only shared with the people you invite.",
+        "GoatTech's landscape. pick a png, jpeg or webp picture of your own.",
+        "players allowed in, separated by commas (you first)",
+        "seed (optional: leave empty for a random world)",
+    ];
+    for language in [Language::Turkish, Language::Japanese] {
+        for en in keys {
+            assert_ne!(tr_in(language, en), en, "{}: {en:?}", language.code());
+        }
+    }
+}
