@@ -2042,7 +2042,7 @@ impl Accounts {
 /// Write `bytes` to `path` so that a crash or a full disk leaves the old file or the new one,
 /// never half of one: written and flushed to a file of its own beside it, then renamed over it.
 /// The file of its own is removed again when the write or the rename fails.
-fn write_whole(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+pub(crate) fn write_whole(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     write_whole_with(path, bytes, |file, bytes| {
         use std::io::Write;
         file.write_all(bytes)?;

@@ -222,7 +222,8 @@ fn set_line(path: &Path, key: &str, value: &str) -> Result<(), String> {
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
-    fs::write(path, text).map_err(|e| format!("{}: {e}", path.display()))
+    crate::account::write_whole(path, text.as_bytes())
+        .map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// Turns a pack on or off. A resource pack turned on goes on top; a shader pack turned on

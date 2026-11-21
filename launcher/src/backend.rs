@@ -2164,7 +2164,8 @@ pub fn switch_to_dx12(home: &Path) -> Result<bool, String> {
         lines.push("graphicsApi:dx12".to_owned());
     }
     fs::create_dir_all(home).map_err(|e| format!("{}: {e}", home.display()))?;
-    fs::write(&path, lines.join("\n") + "\n").map_err(|e| format!("{}: {e}", path.display()))?;
+    crate::account::write_whole(&path, (lines.join("\n") + "\n").as_bytes())
+        .map_err(|e| format!("{}: {e}", path.display()))?;
     Ok(true)
 }
 
@@ -6090,5 +6091,26 @@ pub fn {f}("
         }
         let ok = Settings::parse(r#"{"keep_versions": 4, "skip_opening": true}"#);
         assert_eq!((ok.keep_versions, ok.skip_opening), (Some(4), true));
+    }
+
+    /// The graphics file is replaced whole: no partial file is left beside it.
+    #[test]
+    fn switching_to_dx12_leaves_only_the_graphics_file() {
+        let home = std::env::temp_dir().join(format!("horizon-dx12-whole-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&home);
+        fs::create_dir_all(&home).unwrap();
+        fs::write(home.join(GRAPHICS_FILE), "sky:false\ngraphicsApi:auto\n").unwrap();
+        assert_eq!(switch_to_dx12(&home), Ok(true));
+        let names: Vec<_> = fs::read_dir(&home)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, [GRAPHICS_FILE]);
+        assert_eq!(
+            fs::read_to_string(home.join(GRAPHICS_FILE)).unwrap(),
+            "sky:false\ngraphicsApi:dx12\n"
+        );
+        let _ = fs::remove_dir_all(&home);
     }
 }

@@ -207,3 +207,31 @@ fn a_pack_toggle_never_rewrites_an_options_file_it_cannot_read() {
     assert_eq!(fs::read(&graphics).unwrap(), b"a:1\n\xFF\n");
     fs::remove_dir_all(&home).unwrap();
 }
+
+#[test]
+fn toggling_packs_replaces_the_settings_files_whole_and_leaves_no_partial_file() {
+    let home = home("toggle-whole");
+    let names = |dir: &Path| -> Vec<String> {
+        let mut v: Vec<String> = fs::read_dir(dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        v.sort();
+        v
+    };
+    let before = names(&home);
+    let glass = find(&home, Kind::Resource, "Glass.zip").unwrap();
+    set_enabled(&home, &glass, true).unwrap();
+    set_enabled(&home, &glass, false).unwrap();
+    let warm = find(&home, Kind::Shader, "Warm Light").unwrap();
+    set_enabled(&home, &warm, true).unwrap();
+    set_enabled(&home, &warm, false).unwrap();
+    assert_eq!(names(&home), before, "a partial or extra file was left");
+    // The other lines of both files are still there.
+    let options = fs::read_to_string(home.join(OPTIONS)).unwrap();
+    assert!(options.contains("lang:fr_ch\n") && options.contains("version:4786\n"));
+    let graphics = fs::read_to_string(home.join(GRAPHICS)).unwrap();
+    assert!(graphics.contains("preset:custom\n") && graphics.contains("fxaa:true\n"));
+    fs::remove_dir_all(&home).unwrap();
+}
