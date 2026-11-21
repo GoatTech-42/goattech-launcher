@@ -627,7 +627,7 @@ impl Launcher {
         // are sharp at any window scale while the skin texture stays nearest-blocky.
         let dev_w = (player_model::W as f32 * 8. * scale).round().max(1.) as usize;
         let dev_h = (player_model::H as f32 * 8. * scale).round().max(1.) as usize;
-        let pixels = texture.and_then(|(path, slim)| {
+        let skin = texture.and_then(|(path, slim)| {
             let stamp = crate::servers_page::file_stamp(&path);
             let png = self.stage_skin.get(&path, stamp, || {
                 let Some(bytes) = horizon_launcher::browser::images::read_capped(&path, 1 << 20)
@@ -641,18 +641,26 @@ impl Launcher {
                         .map(std::sync::Arc::new),
                 )
             })?;
-            Some(player_model::render_posed_hi(
-                &png, yaw, pitch, &pose, slim, dev_w, dev_h,
-            ))
+            Some((png, slim))
         });
-        let real = pixels.is_some();
-        let pixels = pixels.or_else(|| {
-            player_model::fixture()
-                .map(|p| player_model::render_posed_hi(&p, yaw, pitch, &pose, false, dev_w, dev_h))
+        let real = skin.is_some();
+        // The same skin, pose, angle and size draw the same picture, so a render between two
+        // stage ticks (a hover elsewhere repaints the window) reuses the last baked image
+        // instead of rasterizing again; a new image is made only when the key differs.
+        let key = StageKey::new(skin.as_ref(), yaw, pitch, &pose, (dev_w, dev_h));
+        let (baked, fresh) = self.stage_frame.get(key, || {
+            let pixels = match &skin {
+                Some((png, slim)) => Some(player_model::render_posed_hi(
+                    png, yaw, pitch, &pose, *slim, dev_w, dev_h,
+                )),
+                None => player_model::fixture().map(|p| {
+                    player_model::render_posed_hi(&p, yaw, pitch, &pose, false, dev_w, dev_h)
+                }),
+            };
+            pixels.map(|p| art::bake(&p, dev_w, dev_h, 1., 1.))
         });
-        let baked = pixels.map(|p| art::bake(&p, dev_w, dev_h, 1., 1.));
-        if let Some(i) = &baked {
-            // Every repaint bakes a new image; the one it replaces leaves the atlas next render.
+        if let (true, Some(i)) = (fresh, &baked) {
+            // Every new image replaces the last; the one it replaces leaves the atlas next render.
             if let Some(old) = self.stage_image.replace(i.clone()) {
                 self.stage_replaced.push(old);
             }
@@ -1238,6 +1246,83 @@ fn time_left(spent: Duration, from: usize, done: usize, total: usize) -> Option<
         .then(|| spent.mul_f64(total.saturating_sub(done) as f64 / (done - from) as f64))
 }
 
+/// Everything that decides the stage picture: the decoded skin (None for the fixture), its
+/// model, the turn angles, the pose limbs and the size, each compared exactly (floats by bits,
+/// the skin by identity of the one decoded image the cache holds).
+pub(crate) struct StageKey {
+    skin: Option<std::sync::Arc<image::RgbaImage>>,
+    slim: bool,
+    angles: [u32; 2],
+    pose: [u32; 5],
+    size: (usize, usize),
+}
+
+impl StageKey {
+    fn new(
+        skin: Option<&(std::sync::Arc<image::RgbaImage>, bool)>,
+        yaw: f32,
+        pitch: f32,
+        pose: &player_model::Pose,
+        size: (usize, usize),
+    ) -> Self {
+        Self {
+            skin: skin.map(|(png, _)| png.clone()),
+            slim: skin.is_some_and(|(_, slim)| *slim),
+            angles: [yaw.to_bits(), pitch.to_bits()],
+            pose: [
+                pose.arm_r.to_bits(),
+                pose.arm_l.to_bits(),
+                pose.leg_r.to_bits(),
+                pose.leg_l.to_bits(),
+                pose.head_yaw.to_bits(),
+            ],
+            size,
+        }
+    }
+
+    fn same(&self, other: &Self) -> bool {
+        let skin = match (&self.skin, &other.skin) {
+            (Some(a), Some(b)) => std::sync::Arc::ptr_eq(a, b),
+            (None, None) => true,
+            _ => false,
+        };
+        skin && self.slim == other.slim
+            && self.angles == other.angles
+            && self.pose == other.pose
+            && self.size == other.size
+    }
+}
+
+/// The last stage picture and the key it was made for.
+pub(crate) struct StageFrame<T> {
+    last: Option<(StageKey, Option<T>)>,
+}
+
+impl<T> Default for StageFrame<T> {
+    fn default() -> Self {
+        Self { last: None }
+    }
+}
+
+impl<T: Clone> StageFrame<T> {
+    /// The picture for `key`: the kept one when the key is exactly the last (second value
+    /// false), else `make()`d and kept (true).
+    pub(crate) fn get(
+        &mut self,
+        key: StageKey,
+        make: impl FnOnce() -> Option<T>,
+    ) -> (Option<T>, bool) {
+        if let Some((last, picture)) = &self.last {
+            if last.same(&key) {
+                return (picture.clone(), false);
+            }
+        }
+        let picture = make();
+        self.last = Some((key, picture.clone()));
+        (picture, true)
+    }
+}
+
 /// What reading the stage's skin file gave. Only a file that was read decides the skin (`Done`,
 /// None when it is not a usable 64 by 64 skin); a failed read is `Retry` and never remembered.
 pub(crate) enum SkinRead {
@@ -1383,5 +1468,62 @@ mod tests {
             assert!(got.is_none());
         }
         assert_eq!(loads.get(), 7);
+    }
+
+    #[test]
+    fn the_stage_picture_is_made_again_only_when_something_that_draws_it_changes() {
+        use std::sync::Arc;
+        let png = Arc::new(image::RgbaImage::new(64, 64));
+        let other = Arc::new(image::RgbaImage::new(64, 64));
+        let pose = player_model::Pose::stage(1.0);
+        let size = (320, 352);
+        let made = std::cell::Cell::new(0u32);
+        let mut frame = StageFrame::<u32>::default();
+        let draw = |frame: &mut StageFrame<u32>, key: StageKey| {
+            frame.get(key, || {
+                made.set(made.get() + 1);
+                Some(made.get())
+            })
+        };
+        let key = |png: Option<&Arc<image::RgbaImage>>,
+                   slim,
+                   yaw: f32,
+                   pose: &player_model::Pose,
+                   size| {
+            StageKey::new(
+                png.map(|p| (p.clone(), slim)).as_ref(),
+                yaw,
+                0.1,
+                pose,
+                size,
+            )
+        };
+        // 500 renders of an unchanged stage make one picture, and only the first is fresh.
+        let (first, fresh) = draw(&mut frame, key(Some(&png), false, 0.4, &pose, size));
+        assert_eq!((first, fresh), (Some(1), true));
+        for _ in 0..500 {
+            let (got, fresh) = draw(&mut frame, key(Some(&png), false, 0.4, &pose, size));
+            assert_eq!((got, fresh), (Some(1), false));
+        }
+        assert_eq!(made.get(), 1);
+        // Each input that draws the picture, changed alone, makes a new one.
+        let mut later = pose;
+        later.arm_r += f32::EPSILON;
+        let changes: Vec<StageKey> = vec![
+            key(Some(&other), false, 0.4, &pose, size),
+            key(Some(&png), true, 0.4, &pose, size),
+            key(Some(&png), false, 0.5, &pose, size),
+            key(Some(&png), false, 0.4, &later, size),
+            key(Some(&png), false, 0.4, &pose, (321, 352)),
+            key(None, false, 0.4, &pose, size),
+        ];
+        for (n, k) in changes.into_iter().enumerate() {
+            // Back to the base picture, then one input differs.
+            draw(&mut frame, key(Some(&png), false, 0.4, &pose, size));
+            let before = made.get();
+            let (_, fresh) = draw(&mut frame, k);
+            assert!(fresh, "change {n} must make a new picture");
+            assert_eq!(made.get(), before + 1, "change {n}");
+        }
     }
 }
