@@ -334,3 +334,39 @@ fn the_launch_option_and_pack_notes_are_translated_in_turkish_and_japanese() {
         }
     }
 }
+
+/// The import, update-check, load-error and instance texts are shown in German, not English.
+/// (Machine-translated; no native speaker has reviewed them.)
+#[test]
+fn the_import_update_and_load_error_texts_are_translated_in_german() {
+    let keys = [
+        "add to {client}",
+        "install id {prefix}…{suffix}",
+        "jars: {summary}.",
+        "port gets the jars of the {count} mods this computer can port today (content with data and assets only) from the pack's own links, modrinth, or your folder, and carries them over. the ports stay here, in {folder}.",
+        "use these jars",
+        "use jars from my instance…",
+        "mods: {mods}",
+        "only on curseforge (curseforge downloads coming soon: choose your installed instance instead)",
+        "port {count} mods",
+        "copied from your folder",
+        "launcher updated to {version}",
+        "no build for this platform",
+        "no notes for this release.",
+        "no version",
+        "signed in as {name}.",
+        "couldn't check for updates. check the connection and try again in a few minutes.",
+        "mojang's version list could not be fetched. check the connection and try again in a few minutes.",
+        "the mod registry can't be reached. check the connection and try again in a few minutes.",
+        "choose client jar",
+        "client jar",
+        "install in new instance",
+        "hide technical details",
+        "technical details",
+        "couldn't load releases. check the connection and try again in a few minutes.",
+        "couldn't load patch notes. check the connection and try again in a few minutes.",
+    ];
+    for en in keys {
+        assert_ne!(tr_in(Language::German, en), en, "{en:?}");
+    }
+}
