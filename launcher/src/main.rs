@@ -515,16 +515,20 @@ fn stage_ease(
     ease_back(yaw, pitch, gap.clamp(0., STAGE_EASE_MAX_DT))
 }
 
-/// While a drag is held the player is still turning: the idle clock restarts at `now`.
+/// The idle clock's last touch as of this frame. While a drag is held the player is still
+/// turning, so it is `now`; otherwise it is the latest of the old touch and any press, move
+/// or release the drag recorded since the last frame (`pending`), so a release between frames
+/// starts the wait at the release, not at the next frame.
 fn stage_touch(
     held: bool,
     touched: std::time::Instant,
+    pending: Option<std::time::Instant>,
     now: std::time::Instant,
 ) -> std::time::Instant {
     if held {
         now
     } else {
-        touched
+        pending.map_or(touched, |p| p.max(touched))
     }
 }
 
@@ -548,6 +552,10 @@ struct StageDrag {
     /// How far the pointer has travelled this press: a release inside the slack is a
     /// click, not a turn.
     moved: f32,
+    /// When the player last pressed, moved or let go, for the ease-back's idle clock; the
+    /// stage frame takes it. Kept here so every press and release path records it, not just
+    /// the frames that run while a drag is held.
+    touch: Option<std::time::Instant>,
 }
 
 /// A press that moves less than this (in pixels) counts as a click.
@@ -593,23 +601,36 @@ enum Track {
 impl StageDrag {
     /// Only the stage's own mousedown starts a turn.
     fn begin(&mut self, at: (f32, f32)) {
+        self.begin_at(at, std::time::Instant::now());
+    }
+
+    fn begin_at(&mut self, at: (f32, f32), now: std::time::Instant) {
         self.last = Some(at);
         self.moved = 0.;
+        self.touch = Some(now);
     }
 
     /// A move with the left button held during an active drag turns from the
     /// last point. Without an active drag a held-button move turns nothing (no
     /// stale coordinates); without the button it ends a leftover drag.
     fn track(&mut self, at: (f32, f32), left_held: bool) -> Track {
+        self.track_at(at, left_held, std::time::Instant::now())
+    }
+
+    fn track_at(&mut self, at: (f32, f32), left_held: bool, now: std::time::Instant) -> Track {
         if !left_held {
             return match self.last.take() {
-                Some(_) => Track::Ended,
+                Some(_) => {
+                    self.touch = Some(now);
+                    Track::Ended
+                }
                 None => Track::Idle,
             };
         }
         match self.last {
             Some((lx, ly)) => {
                 self.last = Some(at);
+                self.touch = Some(now);
                 self.moved += (at.0 - lx).abs() + (at.1 - ly).abs();
                 Track::Turn(at.0 - lx, at.1 - ly)
             }
@@ -620,13 +641,21 @@ impl StageDrag {
     /// The button came up, wherever the window reported it. Returns whether a
     /// drag actually ended, so callers redraw only on a real change.
     fn release(&mut self) -> bool {
-        self.last.take().is_some()
+        self.release_at(std::time::Instant::now())
+    }
+
+    fn release_at(&mut self, now: std::time::Instant) -> bool {
+        let ended = self.last.take().is_some();
+        if ended {
+            self.touch = Some(now);
+        }
+        ended
     }
 
     /// The button came up inside the window: None when no drag was active, else
     /// whether the press never left the click slack (a click, not a turn).
     fn release_click(&mut self) -> Option<bool> {
-        let ended = self.last.take().is_some();
+        let ended = self.release();
         ended.then_some(self.moved <= CLICK_SLACK)
     }
 }
@@ -1125,7 +1154,8 @@ impl Launcher {
         let gap = now.duration_since(self.stage_tick_at).as_secs_f32();
         self.stage_tick_at = now;
         let held = self.stage_drag.last.is_some();
-        self.stage_touched = stage_touch(held, self.stage_touched, now);
+        self.stage_touched =
+            stage_touch(held, self.stage_touched, self.stage_drag.touch.take(), now);
         // A turned model eases back to face the camera once the player lets go for a while.
         (self.stage_yaw, self.stage_pitch) = stage_ease(
             self.stage_yaw,
@@ -6617,8 +6647,8 @@ mod tests {
         // Holding restarts the idle clock every frame, so a long hold does not ease on release.
         let t0 = std::time::Instant::now();
         let later = t0 + std::time::Duration::from_secs(30);
-        assert_eq!(stage_touch(true, t0, later), later);
-        assert_eq!(stage_touch(false, t0, later), t0);
+        assert_eq!(stage_touch(true, t0, None, later), later);
+        assert_eq!(stage_touch(false, t0, None, later), t0);
         // A key or drag turn is a touch at "now": zero idle, so no ease on that frame.
         assert_eq!(stage_ease(y, p, false, false, 0., 0.033), (y, p));
         // A long frame (a stall, or the first frame back on Play) steps as the capped gap.
@@ -6631,6 +6661,51 @@ mod tests {
         });
         let (b, _) = stage_ease(y, p, false, false, 10., 0.099);
         assert!((a - b).abs() < 1e-4);
+    }
+
+    #[test]
+    fn the_ease_wait_runs_from_the_release_not_the_next_frame() {
+        use crate::{stage_ease, stage_touch, StageDrag, Track};
+        use std::time::{Duration, Instant};
+        let t0 = Instant::now();
+        let ms = |n: u64| t0 + Duration::from_millis(n);
+        let idle = |touched: Instant, now: Instant| now.duration_since(touched).as_secs_f32();
+        let eases = |touched: Instant, now: Instant| {
+            stage_ease(1., 0.4, false, false, idle(touched, now), 0.033) != (1., 0.4)
+        };
+        // Press at t0, a held frame at t0, a 30 s stall, release at 30 s, the next frame 33 ms
+        // later: no ease until 2.5 s after the release.
+        let mut d = StageDrag::default();
+        d.begin_at((0., 0.), t0);
+        let mut touched = stage_touch(d.last.is_some(), t0, d.touch.take(), t0);
+        assert!(d.release_at(ms(30_000)));
+        touched = stage_touch(d.last.is_some(), touched, d.touch.take(), ms(30_033));
+        assert_eq!(touched, ms(30_000));
+        assert!(!eases(touched, ms(30_033)));
+        assert!(!eases(touched, ms(32_499)));
+        assert!(eases(touched, ms(32_500)));
+        // The same when the window reports the release as a hover move without the button.
+        let mut d = StageDrag::default();
+        d.begin_at((0., 0.), t0);
+        let touched = stage_touch(true, t0, d.touch.take(), t0);
+        assert!(matches!(
+            d.track_at((1., 1.), false, ms(30_000)),
+            Track::Ended
+        ));
+        let touched = stage_touch(false, touched, d.touch.take(), ms(30_033));
+        assert_eq!(touched, ms(30_000));
+        // A press and release between two frames on a long-idle model restarts the wait.
+        let mut d = StageDrag::default();
+        let old = t0;
+        d.begin_at((0., 0.), ms(60_000));
+        assert!(d.release_at(ms(60_010)));
+        let touched = stage_touch(false, old, d.touch.take(), ms(60_033));
+        assert_eq!(touched, ms(60_010));
+        assert!(!eases(touched, ms(60_033)));
+        // A release with no drag (a stray mouse-up) changes nothing.
+        let mut d = StageDrag::default();
+        assert!(!d.release_at(ms(70_000)));
+        assert_eq!(stage_touch(false, old, d.touch.take(), ms(70_033)), old);
     }
 
     #[test]
