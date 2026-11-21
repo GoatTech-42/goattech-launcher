@@ -21,9 +21,13 @@ env:
 
 jobs:
   capture:
-    name: windows runtime capture
+    name: windows runtime capture ${{ matrix.lang }}
     if: github.repository == 'GoatTech-42/goattech-launcher'
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lang: [en]
     # Uncached cold build on a 4-core runner can take a while; compute is free
     # for this public repo, the capture step still has its own 3-min bound.
     timeout-minutes: 90
@@ -31,12 +35,20 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-          ref: c8f08352ace8b350e09422ce2a0e17ab755b9b0d
+          ref: 21d7e6a2ccb0c812f233b8035657400e0ff1e844
       # No third-party toolchain action: rustup is preinstalled on windows-latest
       # (same style as ci.yml), one less mutable pin than dtolnay/rust-toolchain.
       - name: Rust toolchain
         shell: pwsh
         run: rustup toolchain install stable --profile minimal
+      - name: Hold the opening longer (capture only, not product code)
+        shell: pwsh
+        run: |
+          $f = 'crates/horizon-theme/src/lib.rs'
+          $t = Get-Content $f -Raw
+          $t = $t.Replace('OPENING_HOLD: Duration = Duration::from_millis(1400)', 'OPENING_HOLD: Duration = Duration::from_millis(40000)').Replace('OPENING_MAX: Duration = Duration::from_millis(2500)', 'OPENING_MAX: Duration = Duration::from_millis(60000)')
+          if ($t -notmatch '40000' -or $t -notmatch '60000') { throw 'opening constants not found' }
+          Set-Content -Path $f -Value $t -NoNewline
       - name: Build launcher
         working-directory: launcher
         run: cargo build --release --locked
@@ -45,23 +57,24 @@ jobs:
         # Step-level hard bound per Main: a hung capture phase dies here in 3
         # minutes instead of burning the 90-min job timeout. Runner-forced
         # cancellation can bypass the script's finally cleanup (best-effort only).
-        timeout-minutes: 3
+        timeout-minutes: 8
         env:
           HORIZON_LAUNCHER_HOME: ${{ runner.temp }}\launcher-home
           HORIZON_HOME: ${{ runner.temp }}\game-home
+          LANG_CODE: ${{ matrix.lang }}
           CAP: ${{ runner.temp }}\captures
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force $env:CAP | Out-Null
           $info = "$env:CAP\window-info.txt"
           # C# as ONE single-quoted line: no here-string anywhere in this file.
-          $src = 'using System;using System.Runtime.InteropServices;public class WinCap{[DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr h,out RECT r);[DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr h);[DllImport("user32.dll")]public static extern bool IsIconic(IntPtr h);[DllImport("user32.dll")]public static extern bool PrintWindow(IntPtr h,IntPtr dc,uint flags);public struct RECT{public int Left,Top,Right,Bottom;}}'
+          $src = 'using System;using System.Runtime.InteropServices;public class WinCap{[DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr h,out RECT r);[DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr h);[DllImport("user32.dll")]public static extern bool IsIconic(IntPtr h);[DllImport("user32.dll")]public static extern bool PrintWindow(IntPtr h,IntPtr dc,uint flags);[DllImport("user32.dll")]public static extern bool MoveWindow(IntPtr h,int x,int y,int w,int h2,bool r);[DllImport("user32.dll")]public static extern bool SetCursorPos(int x,int y);[DllImport("user32.dll")]public static extern void mouse_event(uint f,uint dx,uint dy,uint d,UIntPtr e);[DllImport("user32.dll")]public static extern bool SetForegroundWindow(IntPtr h);public struct RECT{public int Left,Top,Right,Bottom;}}'
           Add-Type -TypeDefinition $src -ReferencedAssemblies System.Drawing
           Add-Type -AssemblyName System.Drawing
           $bin = "$PWD\launcher\target\release\horizon-launcher.exe"
           $binHash = (Get-FileHash $bin -Algorithm SHA256).Hash
           $actual = (git rev-parse HEAD).Trim()
-          if ($actual -ne 'c8f08352ace8b350e09422ce2a0e17ab755b9b0d') { throw "Unexpected source $actual" }
+          if ($actual -ne '21d7e6a2ccb0c812f233b8035657400e0ff1e844') { throw "Unexpected source $actual" }
           "workflow-commit: $env:GITHUB_SHA" | Out-File $info
           "source-commit: $actual" | Out-File $info -Append
           "rustc: $(rustc --version)" | Out-File $info -Append
@@ -69,6 +82,7 @@ jobs:
           "os: $([System.Environment]::OSVersion.VersionString)" | Out-File $info -Append
           "runner-image: $env:ImageOS $env:ImageVersion" | Out-File $info -Append
           "binary-sha256: $binHash" | Out-File $info -Append
+          if ($env:LANG_CODE -ne 'en') { New-Item -ItemType Directory -Force $env:HORIZON_LAUNCHER_HOME | Out-Null; Set-Content -Path "$env:HORIZON_LAUNCHER_HOME\settings.json" -Value ('{"language": "' + $env:LANG_CODE + '"}') }
           $proc = Start-Process -FilePath $bin -PassThru -RedirectStandardOutput "$env:CAP\launcher.stdout" -RedirectStandardError "$env:CAP\launcher.stderr"
           $checksPass = $false
           try {
@@ -93,8 +107,16 @@ jobs:
             # frame; each PrintWindow runs in a child job with a BEST-EFFORT 30s
             # wait (see header: Stop-Job on a native hang may itself block).
             $okCount = 0; $seenCount = 0
-            for ($f = 1; $f -le 3; $f++) {
-              if ($f -gt 1) { Start-Sleep -Seconds 3 }
+            $steps = @(
+              @{n='open-1'; w=0}, @{n='open-2'; w=1}, @{n='open-3'; w=2}, @{n='open-4'; w=3}, @{n='open-5'; w=3}
+            )
+            for ($f = 1; $f -le $steps.Count; $f++) {
+              $st = $steps[$f-1]
+              if ($st.r) { $pr = New-Object WinCap+RECT; [WinCap]::GetWindowRect($proc.MainWindowHandle, [ref]$pr) | Out-Null; [WinCap]::MoveWindow($proc.MainWindowHandle, $pr.Left, $pr.Top, $st.r[0], $st.r[1], $true) | Out-Null }
+              if ($st.c) { $pr = New-Object WinCap+RECT; [WinCap]::GetWindowRect($proc.MainWindowHandle, [ref]$pr) | Out-Null; [WinCap]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::SetCursorPos($pr.Left + $st.c[0], $pr.Top + $st.c[1]) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::mouse_event(2,0,0,0,[UIntPtr]::Zero); Start-Sleep -Milliseconds 80; [WinCap]::mouse_event(4,0,0,0,[UIntPtr]::Zero) }
+              if ($st.d) { $pr = New-Object WinCap+RECT; [WinCap]::GetWindowRect($proc.MainWindowHandle, [ref]$pr) | Out-Null; [WinCap]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::SetCursorPos($pr.Left + $st.d[0], $pr.Top + $st.d[1]) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::mouse_event(2,0,0,0,[UIntPtr]::Zero); foreach ($k in 1..8) { Start-Sleep -Milliseconds 60; [WinCap]::SetCursorPos($pr.Left + $st.d[0] + [int]($st.d[2] * $k / 8), $pr.Top + $st.d[1]) | Out-Null }; Start-Sleep -Milliseconds 100; [WinCap]::mouse_event(4,0,0,0,[UIntPtr]::Zero) }
+              if ($st.s) { $pr = New-Object WinCap+RECT; [WinCap]::GetWindowRect($proc.MainWindowHandle, [ref]$pr) | Out-Null; [WinCap]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::SetCursorPos($pr.Left + $st.s[0], $pr.Top + $st.s[1]) | Out-Null; Start-Sleep -Milliseconds 300; $d = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int]$st.s[2]),0); [WinCap]::mouse_event(2048,0,0,$d,[UIntPtr]::Zero) }
+              Start-Sleep -Seconds $st.w
               $proc.Refresh()
               if ($proc.HasExited) { throw "FAIL: launcher died before frame $f (code $($proc.ExitCode))" }
               $h = $proc.MainWindowHandle
@@ -114,7 +136,7 @@ jobs:
                 "frame ${f}: CAPTURE-SKIPPED-OVERSIZE $state (limits 3840px/16MP)" | Out-File $info -Append; continue
               }
               $seenCount++
-              $png = "$env:CAP\frame-$f.png"
+              $png = "$env:CAP\frame-$($f.ToString('00'))-$($st.n).png"
               # HWND crosses the job boundary as Int64, not IntPtr (serialization-safe).
               $job = Start-Job -ArgumentList $h.ToInt64(), $w, $hgt, $png, $src -ScriptBlock {
                 param($hwnd64, $w, $hgt, $png, $src)
@@ -153,7 +175,7 @@ jobs:
             $proc.Refresh()
             if ($proc.HasExited) { throw "FAIL: launcher exited during captures (code $($proc.ExitCode))" }
             # Automation checks only. Window claim is what the per-frame lines show.
-            "AUTOMATION-CHECKS: process-alive=whole-phase initial-visible-owned-window>=200x200=yes frames-window-ok=$seenCount/3 captures-accepted=$okCount/3" | Out-File $info -Append
+            "AUTOMATION-CHECKS: process-alive=whole-phase initial-visible-owned-window>=200x200=yes frames-window-ok=$seenCount/$($steps.Count) captures-accepted=$okCount/$($steps.Count)" | Out-File $info -Append
             if ($seenCount -eq 0) { "WINDOW-AFTER-INITIAL: unverified (every frame skipped)" | Out-File $info -Append }
             "NOT-PROVEN: rendering/pixels/input/consent/game-launch/GPU/continuous-presence - frames require human inspection" | Out-File $info -Append
             $checksPass = $true
