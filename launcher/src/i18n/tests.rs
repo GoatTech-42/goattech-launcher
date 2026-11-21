@@ -306,3 +306,31 @@ fn the_ai_and_agent_texts_are_translated_in_turkish_japanese_and_german() {
         }
     }
 }
+
+/// The launch-option and pack-added notes are shown in Turkish and Japanese, not English.
+/// (Machine-translated; no native speaker has reviewed them.)
+#[test]
+fn the_launch_option_and_pack_notes_are_translated_in_turkish_and_japanese() {
+    let keys = [
+        "on the dedicated gpu",
+        "dedicated graphics card",
+        "with mangohud",
+        "with gamemode",
+        "when it starts",
+        "with 1 variable",
+        "with {count} variables",
+        "for example nice -n 5",
+        "for example ./backup.sh",
+        "for example name=value other=\"two words\"",
+        "{count} lines, the game is running",
+        "launcher updated to {version}",
+        "added {names}: turn it on below.",
+        "added {names}: the game turns it on when the world opens.",
+        "added {title} to {instance}'s packs: switch it on under packs.",
+    ];
+    for language in [Language::Turkish, Language::Japanese] {
+        for en in keys {
+            assert_ne!(tr_in(language, en), en, "{}: {en:?}", language.code());
+        }
+    }
+}
