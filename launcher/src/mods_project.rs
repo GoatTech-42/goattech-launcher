@@ -129,7 +129,10 @@ const IMAGE_RETRY_WAITS: [std::time::Duration; 3] = [
     std::time::Duration::from_secs(600),
 ];
 
-/// The most failed fetches remembered; past it the one that failed longest ago is forgotten.
+/// The most failed fetches remembered. Past it the failure that happened longest ago, among
+/// those with no new try out, is forgotten, and that image gets no more tries: a deliberate
+/// give-up under pressure. A failure with a new try out is never forgotten, so the image
+/// keeps its count and its three tries are three tries however many others fail meanwhile.
 const IMAGE_RETRY_TRACKED: usize = 256;
 
 /// One failed image: how many fetches failed, when the last did, and whether a new try is out.
@@ -143,7 +146,10 @@ struct ImageRetries {
 }
 
 impl ImageRetries {
-    /// A fetch of `key` failed at `now`.
+    /// A fetch of `key` failed at `now`. A key with no entry is a first failure: it is
+    /// remembered, if there is room once the oldest idle failure is forgotten. When every
+    /// entry has a try out (cannot happen with a few workers) it is not remembered and gets no
+    /// retries.
     fn failed(&mut self, key: (String, u32), now: std::time::Instant) {
         if let Some((count, at, out)) = self.failures.get_mut(&key) {
             *count += 1;
@@ -152,13 +158,17 @@ impl ImageRetries {
             return;
         }
         if self.failures.len() >= IMAGE_RETRY_TRACKED {
-            let oldest = self
+            let oldest_idle = self
                 .failures
                 .iter()
+                .filter(|(_, (_, _, out))| !*out)
                 .min_by_key(|(_, (_, at, _))| *at)
                 .map(|(k, _)| k.clone());
-            if let Some(k) = oldest {
-                self.failures.remove(&k);
+            match oldest_idle {
+                Some(k) => {
+                    self.failures.remove(&k);
+                }
+                None => return,
             }
         }
         self.failures.insert(key, (1, now, false));
@@ -280,7 +290,8 @@ impl Launcher {
         let key = (url.to_owned(), size);
         if let Some(state) = self.mods.browse.images.get(&key).cloned() {
             // A fetch that failed is asked for again after its wait, a few times at most, and
-            // never while one is already out: a repaint cannot start a request on its own.
+            // never before the wait has passed or while one is already out. A repaint that
+            // finds one due does start it; that is how a retry starts.
             if state.is_none()
                 && self
                     .mods
@@ -288,7 +299,14 @@ impl Launcher {
                     .image_retries
                     .due(&key, std::time::Instant::now())
             {
-                let _ = self.mods_image_queue().send(key);
+                if let Err(e) = self.mods_image_queue().send(key) {
+                    // The workers are gone: the try counts as failed, so it is not out forever
+                    // and the three tries are still the most there are.
+                    self.mods
+                        .browse
+                        .image_retries
+                        .failed(e.0, std::time::Instant::now());
+                }
             }
             return state;
         }
@@ -984,5 +1002,57 @@ mod image_retry_tests {
         assert!(r
             .failures
             .contains_key(&key(IMAGE_RETRY_TRACKED as u32 + 49)));
+    }
+
+    #[test]
+    fn a_try_that_is_out_keeps_its_count_while_other_failures_churn_the_book() {
+        let t0 = Instant::now();
+        let mut r = ImageRetries::default();
+        let a = key(1_000_000);
+        // A fails, and its first, second and third new tries are each started.
+        r.failed(a.clone(), t0);
+        assert!(r.due(&a, t0 + Duration::from_secs(30)));
+        r.failed(a.clone(), t0 + Duration::from_secs(31));
+        assert!(r.due(&a, t0 + Duration::from_secs(31 + 120)));
+        r.failed(a.clone(), t0 + Duration::from_secs(152));
+        let third = t0 + Duration::from_secs(152 + 600);
+        assert!(r.due(&a, third));
+        // While A's third try is out, far more other images fail than the book holds.
+        for n in 0..(IMAGE_RETRY_TRACKED as u32 * 3) {
+            r.failed(key(n), third + Duration::from_millis(n as u64 + 1));
+            assert!(r.failures.len() <= IMAGE_RETRY_TRACKED);
+        }
+        assert!(
+            r.failures.contains_key(&a),
+            "a try that is out is not forgotten"
+        );
+        // A's third new try fails: three new tries were made, so never again.
+        let end = third + Duration::from_secs(5);
+        r.failed(a.clone(), end);
+        assert_eq!(r.failures[&a].0, 4);
+        assert!(!r.due(&a, end + Duration::from_secs(10_000)));
+    }
+
+    #[test]
+    fn a_forgotten_idle_failure_gets_no_more_tries_and_a_full_book_of_tries_out_adds_none() {
+        let t0 = Instant::now();
+        let mut r = ImageRetries::default();
+        for n in 0..IMAGE_RETRY_TRACKED as u32 {
+            r.failed(key(n), t0 + Duration::from_millis(n as u64));
+        }
+        // Key 0 failed longest ago: the next new failure forgets it, and it is never due.
+        r.failed(key(900), t0 + Duration::from_secs(1));
+        assert!(!r.failures.contains_key(&key(0)));
+        assert!(!r.due(&key(0), t0 + Duration::from_secs(100_000)));
+        // Every entry gets a try out; a failure of one more image is not remembered.
+        let later = t0 + Duration::from_secs(100_000);
+        let tracked: Vec<_> = r.failures.keys().cloned().collect();
+        for k in &tracked {
+            assert!(r.due(k, later));
+        }
+        r.failed(key(901), later);
+        assert!(!r.failures.contains_key(&key(901)));
+        assert_eq!(r.failures.len(), IMAGE_RETRY_TRACKED);
+        assert!(!r.due(&key(901), later + Duration::from_secs(100_000)));
     }
 }
