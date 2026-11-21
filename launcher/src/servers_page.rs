@@ -234,6 +234,8 @@ pub(super) struct Servers {
     /// every handle to it is dropped, so baking one per render grew it without bound; one
     /// image per distinct face and size is kept and reused.
     baked: HeadCache,
+    /// Account faces decoded from their skin files, kept until the file changes.
+    decoded: DecodedFaces,
     tx: Sender<Event>,
     rx: Receiver<Event>,
 }
@@ -282,6 +284,7 @@ impl Servers {
             copied: None,
             faces: HashMap::new(),
             baked: HeadCache::default(),
+            decoded: DecodedFaces::default(),
             tx,
             rx,
         }
@@ -1113,7 +1116,6 @@ impl Launcher {
     /// Server data keeps dashed UUIDs; accounts store them normalized, so
     /// compare parsed UUIDs, never raw strings.
     pub(super) fn head(&mut self, uuid: &str, size: f32) -> Div {
-        let resources = servers::game_files(&servers::runtime_root(), "26.3");
         let account_skin = self
             .accounts
             .accounts
@@ -1123,9 +1125,15 @@ impl Launcher {
             .and_then(|(url, _)| horizon_launcher::skins::texture_url(url));
         let actual = account_skin
             .and_then(|url| self.mods_image(&url, 64))
-            .and_then(|p| horizon_launcher::browser::images::read_capped(&p, 1 << 20))
-            .and_then(|bytes| heads::face(&bytes));
+            .and_then(|p| {
+                let stamp = file_stamp(&p);
+                decoded_face(&mut self.servers.decoded, &p, stamp, || {
+                    horizon_launcher::browser::images::read_capped(&p, 1 << 20)
+                        .and_then(|bytes| heads::face(&bytes))
+                })
+            });
         let face = actual.or_else(|| {
+            let resources = servers::game_files(&servers::runtime_root(), "26.3");
             self.servers
                 .faces
                 .entry(uuid.to_string())
@@ -3180,6 +3188,77 @@ fn setting_name(key: &str) -> &str {
     }
 }
 
+/// A skin file's identity for the decoded-face cache: modified time (ns since the epoch) and
+/// length. None when the file cannot be read.
+type FileStamp = (u128, u64);
+
+fn file_stamp(path: &Path) -> Option<FileStamp> {
+    let meta = std::fs::metadata(path).ok()?;
+    let ns = meta
+        .modified()
+        .ok()?
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_nanos();
+    Some((ns, meta.len()))
+}
+
+/// A decoded face (None when the file held no usable skin).
+type Face = Option<Vec<[u8; 4]>>;
+
+/// One cached skin: the stamp it was decoded at, its face, and when it was last asked for.
+type DecodedEntry = (FileStamp, Face, u64);
+
+/// The most skin files whose decoded face is kept (one per account skin in use).
+const DECODED_MAX: usize = 64;
+
+/// Faces decoded from skin files by path, each with the file stamp it was decoded at and when
+/// it was last asked for.
+#[derive(Default)]
+struct DecodedFaces {
+    map: HashMap<PathBuf, DecodedEntry>,
+    tick: u64,
+}
+
+/// The face in the skin file at `path`: read and decoded once, then served from memory until the
+/// file's stamp changes (a refreshed skin has a new time or length). `head` runs for every
+/// account chip every render, including the home stage's 33 ms frames, and used to read and
+/// decode the PNG each time. A file that cannot be stat'ed has no face and is not cached.
+fn decoded_face(
+    cache: &mut DecodedFaces,
+    path: &Path,
+    stamp: Option<FileStamp>,
+    load: impl FnOnce() -> Face,
+) -> Face {
+    let Some(stamp) = stamp else {
+        cache.map.remove(path);
+        return None;
+    };
+    cache.tick += 1;
+    let tick = cache.tick;
+    if let Some((at, face, used)) = cache.map.get_mut(path) {
+        if *at == stamp {
+            *used = tick;
+            return face.clone();
+        }
+    }
+    if cache.map.len() >= DECODED_MAX && !cache.map.contains_key(path) {
+        let oldest = cache
+            .map
+            .iter()
+            .min_by_key(|(_, (_, _, used))| *used)
+            .map(|(k, _)| k.clone());
+        if let Some(k) = oldest {
+            cache.map.remove(&k);
+        }
+    }
+    let face = load();
+    cache
+        .map
+        .insert(path.to_path_buf(), (stamp, face.clone(), tick));
+    face
+}
+
 /// The most baked face images kept. Every face drawn this frame is looked up each frame, so
 /// this is the working set: a list shows far fewer faces than this, and past it the
 /// least recently drawn image is dropped one at a time (never the whole cache).
@@ -3228,6 +3307,71 @@ fn head_image(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_skin_is_decoded_once_until_its_file_changes() {
+        use std::path::Path;
+        let mut cache = super::DecodedFaces::default();
+        let path = Path::new("/skins/a.png");
+        let face = vec![[1u8, 2, 3, 255]; 64];
+        let loads = std::cell::Cell::new(0);
+        let load = |f: Vec<[u8; 4]>| {
+            let loads = &loads;
+            move || {
+                loads.set(loads.get() + 1);
+                Some(f)
+            }
+        };
+        let stamp = Some((100u128, 4096u64));
+        for _ in 0..1000 {
+            let got = super::decoded_face(&mut cache, path, stamp, load(face.clone()));
+            assert_eq!(got.as_deref(), Some(&face[..]));
+        }
+        assert_eq!(loads.get(), 1, "decoded once for 1000 frames");
+        // A new modified time or length is a new file: decode again, once.
+        let other = vec![[9u8, 9, 9, 255]; 64];
+        let got = super::decoded_face(&mut cache, path, Some((101, 4096)), load(other.clone()));
+        assert_eq!(got.as_deref(), Some(&other[..]));
+        super::decoded_face(&mut cache, path, Some((101, 4096)), load(other.clone()));
+        assert_eq!(loads.get(), 2);
+        super::decoded_face(&mut cache, path, Some((101, 4097)), load(other.clone()));
+        assert_eq!(loads.get(), 3);
+        // A file that cannot be stat'ed has no face, runs no load, and drops its entry.
+        assert_eq!(
+            super::decoded_face(&mut cache, path, None, load(face.clone())),
+            None
+        );
+        assert_eq!(loads.get(), 3);
+        assert!(cache.map.is_empty());
+        // A file that decodes to nothing is remembered too (no re-decode every frame).
+        for _ in 0..10 {
+            assert_eq!(
+                super::decoded_face(&mut cache, path, stamp, || {
+                    loads.set(loads.get() + 1);
+                    None
+                }),
+                None
+            );
+        }
+        assert_eq!(loads.get(), 4);
+    }
+
+    #[test]
+    fn the_decoded_face_cache_is_bounded_and_drops_the_least_recently_used() {
+        use std::path::PathBuf;
+        let mut cache = super::DecodedFaces::default();
+        let face = vec![[1u8, 2, 3, 255]; 64];
+        let p = |n: usize| PathBuf::from(format!("/skins/{n}.png"));
+        let stamp = Some((1u128, 1u64));
+        for n in 0..super::DECODED_MAX {
+            super::decoded_face(&mut cache, &p(n), stamp, || Some(face.clone()));
+        }
+        // Touch 0, add one: 1 is the oldest and goes, 0 stays.
+        super::decoded_face(&mut cache, &p(0), stamp, || panic!("0 is cached"));
+        super::decoded_face(&mut cache, &p(1000), stamp, || Some(face.clone()));
+        assert_eq!(cache.map.len(), super::DECODED_MAX);
+        assert!(cache.map.contains_key(&p(0)) && !cache.map.contains_key(&p(1)));
+    }
+
     #[test]
     fn a_face_is_baked_once_per_size_and_scale_not_once_per_render() {
         let face = vec![[10u8, 20, 30, 255]; 64];
