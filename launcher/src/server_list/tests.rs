@@ -416,7 +416,8 @@ fn a_save_that_fails_says_so_and_leaves_the_players_list_as_it_was() {
         );
         assert_eq!(fs::read(&file).unwrap(), original, "{blocker}");
         assert_eq!(entries(home.as_path()).len(), 2, "{blocker}");
-        // Out of the way, the same list saves, and nothing is left beside it.
+        // Out of the way, the same list saves, and no half-written servers.dat_new is left (the
+        // servers.dat_old backup may stay, as the game keeps it).
         fs::remove_dir(&path).unwrap();
         list.save(home.as_path()).unwrap();
         assert_eq!(entries(home.as_path()).len(), 3, "{blocker}");
