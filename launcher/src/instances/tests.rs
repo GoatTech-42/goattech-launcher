@@ -586,3 +586,57 @@ fn an_empty_list_picks_nothing_and_asks_for_a_pick() {
     assert!(needs_first_pick(&[], Some("x"), false));
     assert!(!needs_first_pick(&[], None, true));
 }
+
+// ----- A damaged instances.json at startup ----------------------------------------------------------
+
+#[test]
+fn a_damaged_store_still_lists_the_instances_on_disk_and_is_never_overwritten_by_a_listing() {
+    for damaged in ["", "not json", "{\"instances\": [", "null"] {
+        let root = scratch("damaged-store");
+        let (home, data) = (root.join("home"), root.join("data"));
+        // One own instance on disk; the store is unreadable.
+        fs::create_dir_all(home.join(OWN).join("survival")).unwrap();
+        put(&data.join(FILE), damaged);
+        let all = list_in(&home, &data);
+        let ids: Vec<_> = all.iter().map(|i| i.id.as_str()).collect();
+        assert_eq!(ids, [DEFAULT, "survival"], "store {damaged:?}");
+        // The listing is a read: the damaged file is exactly as it was, so nothing is lost for
+        // whoever repairs it, and no temporary file is left next to it.
+        assert_eq!(fs::read_to_string(data.join(FILE)).unwrap(), damaged);
+        assert_eq!(files(&data).len(), 1, "store {damaged:?}");
+        // Every write path refuses it instead of starting over.
+        assert!(Store::load_strict(&data).is_err(), "store {damaged:?}");
+        let _ = fs::remove_dir_all(&root);
+    }
+}
+
+#[test]
+fn a_damaged_store_with_an_instance_gone_from_disk_is_left_alone() {
+    // A store that cannot be read lists as empty, so nothing counts as forgotten and the prune
+    // (a write) never starts; the file stays byte for byte.
+    let root = scratch("damaged-prune");
+    let (home, data) = (root.join("home"), root.join("data"));
+    fs::create_dir_all(home.join(OWN).join("a")).unwrap();
+    put(&data.join(FILE), "{\"instances\": {\"b\": ");
+    let all = list_in(&home, &data);
+    assert_eq!(all.len(), 2);
+    assert_eq!(
+        fs::read_to_string(data.join(FILE)).unwrap(),
+        "{\"instances\": {\"b\": "
+    );
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn a_missing_store_is_an_empty_one_for_reads_and_writes_alike() {
+    let root = scratch("no-store");
+    let data = root.join("data");
+    assert!(Store::load(&data).instances.is_empty());
+    assert!(Store::load_strict(&data).unwrap().instances.is_empty());
+    // An empty object, and one without the `instances` key, are valid and empty.
+    for text in ["{}", "{\"instances\": {}}"] {
+        put(&data.join(FILE), text);
+        assert!(Store::load_strict(&data).unwrap().instances.is_empty());
+    }
+    let _ = fs::remove_dir_all(&root);
+}
