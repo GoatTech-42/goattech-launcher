@@ -1839,11 +1839,16 @@ impl Accounts {
             Ok(old) => {
                 if serde_json::from_slice::<Accounts>(&old).is_err() {
                     let kept = path.with_file_name("accounts.json.damaged");
-                    keep_damaged(&kept, &old, |f, bytes| {
-                        use std::io::Write;
-                        f.write_all(bytes)?;
-                        f.sync_all()
-                    })
+                    keep_damaged(
+                        &kept,
+                        &old,
+                        |f, bytes| {
+                            use std::io::Write;
+                            f.write_all(bytes)?;
+                            f.sync_all()
+                        },
+                        std::fs::remove_file,
+                    )
                     .map_err(|e| {
                         format!(
                             "{} is unreadable and its copy {} could not be kept ({e}); nothing was written",
@@ -2035,30 +2040,51 @@ impl Accounts {
 }
 
 /// Keep the exact bytes of an unreadable accounts file at `kept`, before it is replaced. Ok
-/// only when `kept` is afterwards a regular file (never a symlink or folder) that holds a copy:
-/// an earlier one that is there and readable stays (the first damaged copy is never replaced),
-/// else a new one is made with create-new, written by `write` and flushed. A copy that failed
-/// halfway is removed again.
+/// only when `kept` is afterwards a regular file (never a symlink or folder) holding a whole
+/// copy. The copy is written and flushed under a staging name of its own, and published as
+/// `kept` only once complete, with a hard link that never replaces: a copy that failed or was
+/// interrupted halfway is only ever a leftover stage, which nothing counts as the copy. An
+/// earlier `kept` that is a readable regular file stays (the first copy is never replaced).
+/// `write` fills the stage; `cleanup` removes a stage that is not needed.
 fn keep_damaged(
     kept: &Path,
     bytes: &[u8],
     write: impl FnOnce(&mut std::fs::File, &[u8]) -> std::io::Result<()>,
+    cleanup: impl Fn(&Path) -> std::io::Result<()>,
 ) -> std::io::Result<()> {
-    match std::fs::symlink_metadata(kept) {
-        Ok(meta) if meta.file_type().is_file() => std::fs::read(kept).map(|_| ()),
-        Ok(_) => Err(std::io::Error::other("it is not a regular file")),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            let mut file = std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(kept)?;
-            let done = write(&mut file, bytes);
-            drop(file);
-            if done.is_err() {
-                let _ = std::fs::remove_file(kept);
-            }
-            done
-        }
+    let existing = |kept: &Path| match std::fs::symlink_metadata(kept) {
+        Ok(meta) if meta.file_type().is_file() => Some(std::fs::read(kept).map(|_| ())),
+        Ok(_) => Some(Err(std::io::Error::other("it is not a regular file"))),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        Err(e) => Some(Err(e)),
+    };
+    if let Some(found) = existing(kept) {
+        return found;
+    }
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let stage = kept.with_file_name(format!(
+        "accounts.json.damaged.stage-{}-{nanos}",
+        std::process::id()
+    ));
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&stage)?;
+    let done = write(&mut file, bytes);
+    drop(file);
+    if let Err(e) = done {
+        let _ = cleanup(&stage);
+        return Err(e);
+    }
+    let published = std::fs::hard_link(&stage, kept);
+    let _ = cleanup(&stage);
+    match published {
+        Ok(()) => Ok(()),
+        // Another copy appeared meanwhile: it is the first one, and must be a good one.
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => existing(kept).unwrap_or(Err(e)),
         Err(e) => Err(e),
     }
 }

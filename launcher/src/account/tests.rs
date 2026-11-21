@@ -2879,26 +2879,60 @@ fn a_backup_that_cannot_be_confirmed_stops_the_save_and_leaves_the_original() {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    // A write that fails after the backup was created: an error, no partial copy left.
+    // A write that fails halfway, and a cleanup that fails too: an error, and the half copy is
+    // only a leftover stage, never the copy.
     let dir = empty_start_dir("damaged-write");
     std::fs::create_dir_all(&dir).unwrap();
     let kept = dir.join("accounts.json.damaged");
-    let err = keep_damaged(&kept, original, |f, _| {
-        use std::io::Write;
-        f.write_all(b"par")?;
-        Err(std::io::Error::other("disk full"))
-    })
+    let stages = |dir: &Path| {
+        std::fs::read_dir(dir)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().contains(".stage-"))
+            .count()
+    };
+    let err = keep_damaged(
+        &kept,
+        original,
+        |f, _| {
+            use std::io::Write;
+            f.write_all(b"par")?;
+            Err(std::io::Error::other("disk full"))
+        },
+        |_| Err(std::io::Error::other("cannot remove")),
+    )
     .unwrap_err();
     assert!(err.to_string().contains("disk full"));
-    assert!(!kept.exists(), "a partial copy was left");
-    // And it is the same helper that save_to relies on: a good write makes a regular file.
-    keep_damaged(&kept, original, |f, b| {
-        use std::io::Write;
-        f.write_all(b)
-    })
+    assert!(!kept.exists(), "a partial copy became the copy");
+    assert_eq!(stages(&dir), 1, "the failed stage should be the leftover");
+    // The retry is not fooled by the leftover: it makes a whole copy of its own.
+    keep_damaged(
+        &kept,
+        original,
+        |f, b| {
+            use std::io::Write;
+            f.write_all(b)
+        },
+        std::fs::remove_file,
+    )
     .unwrap();
     assert_eq!(std::fs::read(&kept).unwrap(), original);
+    // A later call keeps the first copy, whatever it is given.
+    keep_damaged(&kept, b"other", |_, _| unreachable!(), |_| Ok(())).unwrap();
+    assert_eq!(std::fs::read(&kept).unwrap(), original);
+    // The same through save_to: a leftover stage beside an unreadable file is no backup.
+    let dir2 = empty_start_dir("damaged-retry");
+    std::fs::create_dir_all(&dir2).unwrap();
+    let file = dir2.join("accounts.json");
+    std::fs::write(&file, original).unwrap();
+    std::fs::write(dir2.join("accounts.json.damaged.stage-1-1"), "par").unwrap();
+    Accounts::default().save_to(&file).unwrap();
+    assert_eq!(
+        std::fs::read(dir2.join("accounts.json.damaged")).unwrap(),
+        original
+    );
     let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::remove_dir_all(&dir2);
 }
 
 #[test]
