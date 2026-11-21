@@ -611,6 +611,69 @@ fn a_damaged_store_still_lists_the_instances_on_disk_and_is_never_overwritten_by
 }
 
 #[test]
+fn every_change_refuses_a_damaged_store_and_leaves_nothing_behind() {
+    let root = scratch("damaged-writes");
+    let (home, data) = (root.join("home"), root.join("data"));
+    fs::create_dir_all(home.join(OWN).join("keep")).unwrap();
+    let damaged = "{\"instances\": [";
+    put(&data.join(FILE), damaged);
+    let untouched = || {
+        assert_eq!(fs::read_to_string(data.join(FILE)).unwrap(), damaged);
+        // Only the store, and the lock file the write paths take.
+        let beside: Vec<_> = files(&data)
+            .into_keys()
+            .filter(|k| k != Path::new("instances.json.lock"))
+            .collect();
+        assert_eq!(
+            beside,
+            [PathBuf::from(FILE)],
+            "no temporary file beside the store"
+        );
+    };
+    // A new instance is not made: no folder is left that would show up as one.
+    let e = create_in(&home, &data, "Fresh", None, None).unwrap_err();
+    assert!(e.contains("nothing was written"), "{e}");
+    let folders = || -> Vec<String> {
+        let mut v: Vec<String> = fs::read_dir(home.join(OWN))
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        v.sort();
+        v
+    };
+    assert_eq!(folders(), ["keep"]);
+    let e = create_in(&home, &data, "Fresh Java", None, Some("1.21.4")).unwrap_err();
+    assert!(e.contains("nothing was written"), "{e}");
+    assert_eq!(folders(), ["keep"]);
+    let ids: Vec<_> = list_in(&home, &data).into_iter().map(|i| i.id).collect();
+    assert_eq!(ids, [DEFAULT, "keep"]);
+    untouched();
+    // Edits and play time are refused.
+    let e = edit_in(&home, &data, "keep", |m| m.group = Some("G".into())).unwrap_err();
+    assert!(e.contains("nothing was written"), "{e}");
+    let e = record_play_in(&data, "keep", Duration::from_secs(60), UNIX_EPOCH).unwrap_err();
+    assert!(e.contains("nothing was written"), "{e}");
+    untouched();
+    // A delete does not send the folder to the Trash when it cannot forget it.
+    let sent = std::cell::Cell::new(false);
+    let trash = |_: &Path| {
+        sent.set(true);
+        Ok(())
+    };
+    let e = delete_in(&home, &data, "keep", &trash).unwrap_err();
+    assert!(e.contains("nothing was written"), "{e}");
+    assert!(!sent.get() && home.join(OWN).join("keep").is_dir());
+    untouched();
+    // Once the store is whole again the same name can be made.
+    fs::remove_file(data.join(FILE)).unwrap();
+    assert_eq!(
+        create_in(&home, &data, "Fresh", None, None).unwrap().id,
+        "fresh"
+    );
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
 fn a_damaged_store_with_an_instance_gone_from_disk_is_left_alone() {
     // A store that cannot be read lists as empty, so nothing counts as forgotten and the prune
     // (a write) never starts; the file stays byte for byte.

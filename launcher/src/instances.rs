@@ -831,19 +831,27 @@ pub(crate) fn create_in(
             dir.display()
         ));
     }
-    let _lock = StoreLock::take(data)?;
-    let mut store = Store::load_strict(data)?;
-    let meta = store.instances.entry(slug.clone()).or_default();
-    meta.name = (name != slug).then(|| name.to_string());
-    meta.icon = from.and_then(|f| f.icon.clone());
-    meta.group = from.and_then(|f| f.group.clone());
-    meta.java = from.and_then(|f| f.java.clone()).or_else(|| {
-        minecraft.map(|v| JavaGame {
-            minecraft: v.to_string(),
-            ..JavaGame::default()
-        })
-    });
-    store.save(data)?;
+    // The folder is new (its name was free above): when the choices can't be stored, it goes
+    // again, or the instance would be listed that the player was told did not get made.
+    let stored = || -> Result<(), String> {
+        let _lock = StoreLock::take(data)?;
+        let mut store = Store::load_strict(data)?;
+        let meta = store.instances.entry(slug.clone()).or_default();
+        meta.name = (name != slug).then(|| name.to_string());
+        meta.icon = from.and_then(|f| f.icon.clone());
+        meta.group = from.and_then(|f| f.group.clone());
+        meta.java = from.and_then(|f| f.java.clone()).or_else(|| {
+            minecraft.map(|v| JavaGame {
+                minecraft: v.to_string(),
+                ..JavaGame::default()
+            })
+        });
+        store.save(data)
+    };
+    if let Err(e) = stored() {
+        let _ = fs::remove_dir_all(&dir);
+        return Err(e);
+    }
     find_in(&list_in(game_home, data), &slug)
 }
 
