@@ -465,6 +465,8 @@ struct Launcher {
     /// until it is dropped there, so each replaced frame is freed on the next render.
     stage_image: Option<std::sync::Arc<gpui::RenderImage>>,
     stage_replaced: Vec<std::sync::Arc<gpui::RenderImage>>,
+    /// The stage's decoded skin, kept until its file changes (the stage repaints every 33 ms).
+    stage_skin: home::StageSkin,
 }
 
 /// Milliseconds between stage repaints while Play is showing.
@@ -809,6 +811,7 @@ impl Launcher {
             stage_click_wave: None,
             stage_image: None,
             stage_replaced: Vec::new(),
+            stage_skin: home::StageSkin::default(),
             background_error: None,
             java_runtimes: None,
             java_runtimes_busy: false,

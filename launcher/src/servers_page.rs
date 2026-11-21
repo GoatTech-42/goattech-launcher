@@ -3186,9 +3186,9 @@ fn setting_name(key: &str) -> &str {
 
 /// A skin file's identity for the decoded-face cache: modified time (ns since the epoch) and
 /// length. None when the file cannot be read.
-type FileStamp = (u128, u64);
+pub(crate) type FileStamp = (u128, u64);
 
-fn file_stamp(path: &Path) -> Option<FileStamp> {
+pub(crate) fn file_stamp(path: &Path) -> Option<FileStamp> {
     let meta = std::fs::metadata(path).ok()?;
     let ns = meta
         .modified()

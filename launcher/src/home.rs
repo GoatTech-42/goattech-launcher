@@ -628,11 +628,19 @@ impl Launcher {
         let dev_w = (player_model::W as f32 * 8. * scale).round().max(1.) as usize;
         let dev_h = (player_model::H as f32 * 8. * scale).round().max(1.) as usize;
         let pixels = texture.and_then(|(path, slim)| {
-            let bytes = horizon_launcher::browser::images::read_capped(&path, 1 << 20)?;
-            let png = horizon_launcher::skins::read_skin(&bytes).ok()?;
-            if png.dimensions() != (64, 64) {
-                return None;
-            }
+            let stamp = crate::servers_page::file_stamp(&path);
+            let png = self.stage_skin.get(&path, stamp, || {
+                let Some(bytes) = horizon_launcher::browser::images::read_capped(&path, 1 << 20)
+                else {
+                    return SkinRead::Retry;
+                };
+                SkinRead::Done(
+                    horizon_launcher::skins::read_skin(&bytes)
+                        .ok()
+                        .filter(|png| png.dimensions() == (64, 64))
+                        .map(std::sync::Arc::new),
+                )
+            })?;
             Some(player_model::render_posed_hi(
                 &png, yaw, pitch, &pose, slim, dev_w, dev_h,
             ))
@@ -1230,6 +1238,56 @@ fn time_left(spent: Duration, from: usize, done: usize, total: usize) -> Option<
         .then(|| spent.mul_f64(total.saturating_sub(done) as f64 / (done - from) as f64))
 }
 
+/// What reading the stage's skin file gave. Only a file that was read decides the skin (`Done`,
+/// None when it is not a usable 64 by 64 skin); a failed read is `Retry` and never remembered.
+pub(crate) enum SkinRead {
+    Done(Option<std::sync::Arc<image::RgbaImage>>),
+    Retry,
+}
+
+/// The stage's decoded skin: one file (the stage shows one player), kept while its stamp is
+/// unchanged. The stage repaints every 33 ms and used to read and decode the PNG each time.
+#[derive(Default)]
+pub(crate) struct StageSkin {
+    entry: Option<(
+        std::path::PathBuf,
+        crate::servers_page::FileStamp,
+        Option<std::sync::Arc<image::RgbaImage>>,
+    )>,
+}
+
+impl StageSkin {
+    /// The decoded skin at `path`, loading it only when the stamp (or path) differs from the
+    /// kept one. No stamp (file not readable) or a `Retry` read gives no skin and keeps nothing,
+    /// so the next frame tries again.
+    pub(crate) fn get(
+        &mut self,
+        path: &std::path::Path,
+        stamp: Option<crate::servers_page::FileStamp>,
+        load: impl FnOnce() -> SkinRead,
+    ) -> Option<std::sync::Arc<image::RgbaImage>> {
+        let Some(stamp) = stamp else {
+            self.entry = None;
+            return None;
+        };
+        if let Some((p, s, png)) = &self.entry {
+            if p == path && *s == stamp {
+                return png.clone();
+            }
+        }
+        match load() {
+            SkinRead::Retry => {
+                self.entry = None;
+                None
+            }
+            SkinRead::Done(png) => {
+                self.entry = Some((path.to_path_buf(), stamp, png.clone()));
+                png
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1274,5 +1332,56 @@ mod tests {
         );
         assert_eq!(hero_status(false, false, None), PrepareFromRow);
         assert_eq!(hero_status(false, true, None), PrepareFromRow);
+    }
+
+    #[test]
+    fn the_stage_skin_is_decoded_once_and_a_failed_read_is_retried() {
+        use std::path::Path;
+        use std::sync::Arc;
+        let mut cache = StageSkin::default();
+        let a = Path::new("/skins/a.png");
+        let png = Arc::new(image::RgbaImage::new(64, 64));
+        let loads = std::cell::Cell::new(0);
+        let done = |png: &Arc<image::RgbaImage>| {
+            let png = png.clone();
+            let loads = &loads;
+            move || {
+                loads.set(loads.get() + 1);
+                SkinRead::Done(Some(png))
+            }
+        };
+        // A failed read is tried every frame and leaves nothing behind.
+        for n in 1..=3 {
+            let got = cache.get(a, Some((1, 9)), || {
+                loads.set(loads.get() + 1);
+                SkinRead::Retry
+            });
+            assert!(got.is_none());
+            assert_eq!(loads.get(), n);
+            assert!(cache.entry.is_none());
+        }
+        // Once read, 1000 frames decode it once and hand back the same image.
+        for _ in 0..1000 {
+            let got = cache.get(a, Some((1, 9)), done(&png)).unwrap();
+            assert!(Arc::ptr_eq(&got, &png));
+        }
+        assert_eq!(loads.get(), 4);
+        // A new stamp, or another path, loads again; no stamp drops it.
+        cache.get(a, Some((2, 9)), done(&png));
+        assert_eq!(loads.get(), 5);
+        cache.get(Path::new("/skins/b.png"), Some((2, 9)), done(&png));
+        assert_eq!(loads.get(), 6);
+        assert!(cache.get(a, None, done(&png)).is_none());
+        assert_eq!(loads.get(), 6);
+        assert!(cache.entry.is_none());
+        // A file that read but is not a usable skin is remembered as such.
+        for _ in 0..10 {
+            let got = cache.get(a, Some((3, 9)), || {
+                loads.set(loads.get() + 1);
+                SkinRead::Done(None)
+            });
+            assert!(got.is_none());
+        }
+        assert_eq!(loads.get(), 7);
     }
 }
