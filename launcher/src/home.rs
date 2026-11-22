@@ -10,6 +10,13 @@ use theme::night;
 /// big, crisp at display resolution.
 const STAGE_TEXEL: f32 = 9.;
 
+const NEXT_NEW_INSTANCE: &str = "next-new-instance";
+
+/// Separate the card namespace from the create tile: "new-instance" is a valid instance id.
+fn next_instance_control_id(id: &str) -> SharedString {
+    format!("next-instance-{id}").into()
+}
+
 /// The one-line state under Play. It names the real blocker: a bare "needs preparing"
 /// left a first run stuck when preparation really needs an account that owns the game
 /// (the resources row below is out of sight). The two states that were a dead end do
@@ -513,7 +520,7 @@ impl Launcher {
             row = row.child(
                 keyboard(
                     div()
-                        .id(SharedString::from(format!("next-{}", instance.id)))
+                        .id(next_instance_control_id(&instance.id))
                         .relative()
                         .flex()
                         .flex_none()
@@ -569,7 +576,7 @@ impl Launcher {
         row = row.child(
             keyboard(
                 div()
-                    .id("next-new-instance")
+                    .id(NEXT_NEW_INSTANCE)
                     .relative()
                     .flex()
                     .flex_none()
@@ -1474,6 +1481,16 @@ mod tests {
         ] {
             assert_eq!(hero_recovery(status, false), None);
         }
+    }
+
+    #[test]
+    fn new_instance_named_instance_and_create_tile_get_distinct_focus_slots() {
+        let mut slots = IdSlots::new(3);
+        slots.begin(|_| false);
+        for id in ["horizon", "new-instance"] {
+            assert!(slots.slot_for(next_instance_control_id(id).into()).is_some());
+        }
+        assert!(slots.slot_for(NEXT_NEW_INSTANCE.into()).is_some());
     }
 
     #[test]
