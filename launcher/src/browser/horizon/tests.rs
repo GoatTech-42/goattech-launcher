@@ -359,3 +359,14 @@ fn ratings_keep_only_what_is_well_formed() {
         "https://playhorizon.dev/api/mods/auth/login?back=/mods/zoom"
     );
 }
+
+#[test]
+fn registry_native_mods_are_listed_but_not_installable_yet() {
+    assert_eq!(
+        not_installable(&index::Kind::NativeMod),
+        Some(NATIVE_NOT_YET)
+    );
+    assert_eq!(not_installable(&index::Kind::Mod), None);
+    assert_eq!(not_installable(&index::Kind::ResourcePack), None);
+    assert!(NATIVE_NOT_YET.contains("not installable yet"));
+}

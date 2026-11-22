@@ -68,6 +68,17 @@ pub fn is_native_mod(id: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Why this launcher doesn't install a registry native mod: the registry's native `.hmod` (its
+/// `[native]` manifest, built against a signed SDK) is newer than the native format this launcher
+/// reads, so every install would fail. Browsing and listing still work.
+pub const NATIVE_NOT_YET: &str =
+    "native mods from the registry need a newer launcher than this one: not installable yet.";
+
+/// The reason a registry project of `kind` can't be installed here, if any.
+pub fn not_installable(kind: &index::Kind) -> Option<&'static str> {
+    (*kind == index::Kind::NativeMod).then_some(NATIVE_NOT_YET)
+}
+
 /// The index: the one fetched in the last ten minutes, else fetched again (and kept in the game
 /// folder), else the copy kept last time.
 pub fn index() -> Result<Arc<Index>, String> {
@@ -655,6 +666,9 @@ fn install_version(
     let project = project_of(p).ok_or_else(|| format!("{} can't be installed here.", p.name))?;
     if let Some(r) = index.revoked(&p.id, &v.file.sha256) {
         return Err(format!("{} was taken down: {}", p.name, r.reason));
+    }
+    if let Some(why) = not_installable(&p.kind) {
+        return Err(format!("{}: {why}", p.name));
     }
     let native = p.kind == index::Kind::NativeMod;
     let relative = match native {
