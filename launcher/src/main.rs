@@ -3509,34 +3509,37 @@ impl Launcher {
         // The rail carries only the face; the name and its `how` are the menu's header.
         let (name, how) = (name, how);
         let _ = &how;
-        let account = div()
-            .id("account")
-            .relative()
-            .flex_none()
-            .flex_col()
-            .items_center()
-            .gap(px(2.))
-            .cursor_pointer()
-            .child(div().relative().child(picture))
-            .child(
-                shell::text(theme::night::CAPTION, shell::c(n.muted))
-                    .text_size(px(11.))
-                    .max_w(px(64.))
-                    .truncate()
-                    .child(name.to_lowercase()),
-            )
-            .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
-                if this.closed_by_this_press(event) {
-                    return;
-                }
-                this.account_menu = !this.account_menu;
-                if this.account_menu {
-                    this.account_menu_top = false;
-                    // Who can play may have changed elsewhere since the window opened.
-                    this.accounts = Accounts::load();
-                }
-                cx.notify();
-            }));
+        let account = keyboard(
+            div()
+                .id("account")
+                .relative()
+                .flex_none()
+                .flex_col()
+                .items_center()
+                .gap(px(2.))
+                .cursor_pointer()
+                .child(div().relative().child(picture))
+                .child(
+                    shell::text(theme::night::CAPTION, shell::c(n.muted))
+                        .text_size(px(11.))
+                        .max_w(px(64.))
+                        .truncate()
+                        .child(name.to_lowercase()),
+                ),
+            &t,
+        )
+        .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
+            if this.closed_by_this_press(event) {
+                return;
+            }
+            this.account_menu = !this.account_menu;
+            if this.account_menu {
+                this.account_menu_top = false;
+                // Who can play may have changed elsewhere since the window opened.
+                this.accounts = Accounts::load();
+            }
+            cx.notify();
+        }));
         let account = div()
             .relative()
             .child(account)
