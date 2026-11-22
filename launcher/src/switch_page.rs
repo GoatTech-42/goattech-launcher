@@ -98,62 +98,68 @@ impl Launcher {
         for (i, (who, name, how)) in self.players().into_iter().enumerate() {
             let chosen = who == now;
             menu = menu.child(
-                div()
-                    .id(SharedString::from(format!("account-pick-{i}")))
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .gap(px(8.))
-                    .h(px(46.))
-                    .px(px(10.))
-                    .rounded(px(theme::RADIUS))
-                    .cursor_pointer()
-                    .hover(move |s| s.bg(t.plate_soft))
-                    .child(self.profile_heads.draw(
-                        match &who {
-                            Player::Microsoft(uuid) => Some(uuid),
-                            _ => None,
-                        },
-                        24.,
-                        self.scale,
-                        &t,
-                    ))
-                    .child(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .flex_1()
-                            .min_w_0()
-                            .child(text(theme::LABEL).truncate().text_color(t.ink).child(name))
-                            .child(text(theme::CAPTION).text_color(t.muted).child(how)),
-                    )
-                    .when(chosen, |d| {
-                        d.child(div().size(px(6.)).rounded_full().bg(t.accent))
-                    })
-                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                        this.play_as(who.clone());
-                        cx.notify();
-                    })),
+                keyboard(
+                    div()
+                        .id(SharedString::from(format!("account-pick-{i}")))
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .gap(px(8.))
+                        .h(px(46.))
+                        .px(px(10.))
+                        .rounded(px(theme::RADIUS))
+                        .cursor_pointer()
+                        .hover(move |s| s.bg(t.plate_soft))
+                        .child(self.profile_heads.draw(
+                            match &who {
+                                Player::Microsoft(uuid) => Some(uuid),
+                                _ => None,
+                            },
+                            24.,
+                            self.scale,
+                            &t,
+                        ))
+                        .child(
+                            div()
+                                .flex()
+                                .flex_col()
+                                .flex_1()
+                                .min_w_0()
+                                .child(text(theme::LABEL).truncate().text_color(t.ink).child(name))
+                                .child(text(theme::CAPTION).text_color(t.muted).child(how)),
+                        )
+                        .when(chosen, |d| {
+                            d.child(div().size(px(6.)).rounded_full().bg(t.accent))
+                        }),
+                    &t,
+                )
+                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                    this.play_as(who.clone());
+                    cx.notify();
+                })),
             );
         }
         menu = menu.child(div().my(px(6.)).h(px(1.)).bg(t.rule)).child(
-            div()
-                .id("account-manage")
-                .flex()
-                .items_center()
-                .h(px(32.))
-                .px(px(10.))
-                .rounded(px(theme::RADIUS))
-                .text_size(px(theme::LABEL.px))
-                .text_color(t.muted)
-                .cursor_pointer()
-                .hover(move |s| s.bg(t.plate_soft).text_color(t.ink))
-                .child(tr("manage accounts"))
-                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                    this.account_menu = false;
-                    this.go(Page::Settings);
-                    cx.notify();
-                })),
+            keyboard(
+                div()
+                    .id("account-manage")
+                    .flex()
+                    .items_center()
+                    .h(px(32.))
+                    .px(px(10.))
+                    .rounded(px(theme::RADIUS))
+                    .text_size(px(theme::LABEL.px))
+                    .text_color(t.muted)
+                    .cursor_pointer()
+                    .hover(move |s| s.bg(t.plate_soft).text_color(t.ink))
+                    .child(tr("manage accounts")),
+                &t,
+            )
+            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                this.account_menu = false;
+                this.go(Page::Settings);
+                cx.notify();
+            })),
         );
         Some(gpui::deferred(menu).with_priority(1))
     }
