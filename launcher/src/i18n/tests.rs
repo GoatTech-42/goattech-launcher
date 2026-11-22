@@ -209,7 +209,7 @@ fn a_missing_string_shows_in_english() {
     assert_eq!(tr_in(Language::Turkish, "settings"), "Ayarlar");
     assert_eq!(tr_in(Language::French, "settings"), "Paramètres");
     assert_eq!(tr_in(Language::Russian, "settings"), "Настройки");
-    assert_eq!(tr_in(Language::German, "settings"), "Einstellungen");
+    assert_eq!(tr_in(Language::German, "settings"), "Optionen");
     assert_eq!(tr_in(Language::Chinese, "settings"), "设置");
     assert_eq!(tr_in(Language::Spanish, "settings"), "Ajustes");
     assert_eq!(tr_in(Language::Ukrainian, "settings"), "Налаштування");
@@ -417,5 +417,29 @@ fn the_include_funnel_and_server_form_texts_are_translated_in_turkish_and_japane
         for en in keys {
             assert_ne!(tr_in(language, en), en, "{}: {en:?}", language.code());
         }
+    }
+}
+
+/// The client-jar, bundle-limits and file-picker texts are shown in Turkish, Japanese and German,
+/// not English, and German's two longest sidebar names are short enough for the 64px rail
+/// (they broke mid-word at 10, 13 and 16 letters). (Machine-translated; no native review.)
+#[test]
+fn the_client_jar_texts_are_translated_and_german_rail_names_are_short() {
+    let keys = [
+        "choose a local fabric client mod from its own website. inspect it here, then install it in a new instance, or in one of your fabric instances with the into button.",
+        "some clients and fabric api bundles need extra files this launcher can't fetch yet. sharing a client's own settings isn't available. options.txt sharing is separate.",
+        "the file picker isn't available. on linux, make sure your desktop's file chooser is running, then try again.",
+    ];
+    for language in [Language::Turkish, Language::Japanese, Language::German] {
+        for en in keys {
+            assert_ne!(tr_in(language, en), en, "{}: {en:?}", language.code());
+        }
+    }
+    for key in ["settings", "patch notes"] {
+        let word = tr_in(Language::German, key);
+        assert!(
+            word.chars().count() <= 9,
+            "{word:?} is too long for the rail"
+        );
     }
 }
