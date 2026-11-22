@@ -375,14 +375,34 @@ fn registry_native_mods_are_listed_but_not_installable_yet() {
 fn install_errors_say_what_is_wrong_in_plain_words() {
     let wasm = install_error(
         "Zoom",
-        "horizon-mod.toml: TOML parse error | [wasm] | unknown field `wasm`, expected one of `id`".into(),
+        "horizon-mod.toml: TOML parse error | [wasm] | unknown field `wasm`, expected one of `id`"
+            .into(),
     );
     assert_eq!(
         wasm,
         "Zoom is a WebAssembly mod, and WebAssembly mods don't run in this launcher."
     );
     let newer = install_error("Gravestone", "data/x.json: unknown field `occludes`".into());
-    assert!(newer.starts_with("Gravestone uses newer mod fields"), "{newer}");
+    assert!(
+        newer.starts_with("Gravestone uses newer mod fields"),
+        "{newer}"
+    );
     assert!(newer.contains("`occludes`"));
     assert_eq!(install_error("A", "size mismatch".into()), "size mismatch");
+}
+
+#[test]
+fn a_registry_wasm_manifest_reaches_the_wasm_message() {
+    // Right-Click Crops 2.0.1, MIT, registry archive SHA-256:
+    // e6b741f6d45f0d498eaf8fddbef5a517955befbedacca0093a4a5b3e64d8b1a1
+    let text = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../crates/horizon-mods/tests/index/right-click-crops-wasm.toml"
+    ));
+    let error = horizon_mods::Manifest::parse(text).unwrap_err();
+    assert!(error.contains("unknown field `wasm`"), "{error}");
+    assert_eq!(
+        install_error("Right-Click Crops", error),
+        "Right-Click Crops is a WebAssembly mod, and WebAssembly mods don't run in this launcher."
+    );
 }
