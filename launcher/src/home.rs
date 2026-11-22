@@ -246,17 +246,20 @@ impl Launcher {
                     )
                     .child(format!("{:.0}%", p * 100.)),
                 None => line.child(
-                    div()
-                        .id("install-update")
-                        .text_color(c(n.accent_hi))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .cursor_pointer()
-                        .hover(|s| s.opacity(0.8))
-                        .child(tr("install"))
-                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                            this.install_update();
-                            cx.notify();
-                        })),
+                    keyboard(
+                        div()
+                            .id("install-update")
+                            .text_color(c(n.accent_hi))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .cursor_pointer()
+                            .hover(|s| s.opacity(0.8))
+                            .child(tr("install")),
+                        &t,
+                    )
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                        this.install_update();
+                        cx.notify();
+                    })),
                 ),
             });
         }
