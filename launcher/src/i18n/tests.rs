@@ -462,3 +462,29 @@ fn the_retry_and_details_buttons_are_translated_in_every_language() {
         }
     }
 }
+
+/// The five load-error sentences are translated in every language, not English, and Polish's
+/// sidebar name for patch notes is short enough for the 64px rail (the long form wrapped
+/// mid-word and ran over the next item). (Machine-translated; no native speaker has reviewed them.)
+#[test]
+fn the_load_error_sentences_are_translated_in_every_language_and_polish_rail_name_is_short() {
+    for language in Language::ALL {
+        if matches!(language, Language::English) {
+            continue;
+        }
+        for en in [
+            "couldn't check for updates. check the connection and try again in a few minutes.",
+            "mojang's version list could not be fetched. check the connection and try again in a few minutes.",
+            "the mod registry can't be reached. check the connection and try again in a few minutes.",
+            "couldn't load releases. check the connection and try again in a few minutes.",
+            "couldn't load patch notes. check the connection and try again in a few minutes.",
+        ] {
+            assert_ne!(tr_in(language, en), en, "{}: {en:?}", language.code());
+        }
+    }
+    let word = tr_in(Language::Polish, "patch notes");
+    assert!(
+        word.chars().count() <= 9,
+        "{word:?} is too long for the rail"
+    );
+}
