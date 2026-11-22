@@ -69,6 +69,17 @@ impl Kind {
     }
 
     /// The extension of its files; None for a kind this build doesn't know.
+    /// Whether `name` has an extension this kind is published with. A native mod is `.hnmod`, or
+    /// the one-file `.hmod` the live registry lists them as (#5865).
+    pub fn accepts(&self, name: &str) -> bool {
+        match self {
+            Kind::NativeMod => name.ends_with(".hnmod") || name.ends_with(".hmod"),
+            other => other
+                .extension()
+                .is_none_or(|e| name.ends_with(&format!(".{e}"))),
+        }
+    }
+
     pub fn extension(&self) -> Option<&'static str> {
         match self {
             Kind::Mod => Some("hmod"),
@@ -243,7 +254,51 @@ impl Index {
     }
 
     fn check_with(&self, local_files: bool) -> Result<(), String> {
-        for (i, p) in self.projects.iter().enumerate() {
+        for i in 0..self.projects.len() {
+            self.check_project(i, local_files)?;
+        }
+        self.check_revoked()
+    }
+
+    /// Parses an index and drops each project that fails its checks (and, in turn, any that
+    /// needs a dropped one) instead of refusing the whole index. The ids of the dropped
+    /// projects come back with the index. A bad schema, bad JSON or a bad revocation still
+    /// refuse it: a revocation is never skipped.
+    pub fn parse_lenient(text: &str, local_files: bool) -> Result<(Index, Vec<String>), String> {
+        #[derive(Deserialize)]
+        struct Head {
+            schema: u32,
+        }
+        let head: Head = serde_json::from_str(text).map_err(|e| format!("not a mod index: {e}"))?;
+        if head.schema > SCHEMA {
+            return Err(format!(
+                "the mod index is schema {}; this build reads {SCHEMA}: update Horizon",
+                head.schema
+            ));
+        }
+        let mut index: Index = serde_json::from_str(text).map_err(|e| format!("mod index: {e}"))?;
+        let mut dropped = Vec::new();
+        while let Some(i) =
+            (0..index.projects.len()).find(|&i| index.check_project(i, local_files).is_err())
+        {
+            dropped.push(index.projects.remove(i).id);
+        }
+        index.check_revoked()?;
+        Ok((index, dropped))
+    }
+
+    fn check_revoked(&self) -> Result<(), String> {
+        for r in &self.revoked {
+            if let Some(h) = &r.sha256 {
+                hex64(h).map_err(|e| format!("revoked {}: {e}", r.id))?;
+            }
+        }
+        Ok(())
+    }
+
+    fn check_project(&self, i: usize, local_files: bool) -> Result<(), String> {
+        {
+            let p = &self.projects[i];
             let at = |e: String| format!("{}: {e}", p.id);
             if !valid_id(&p.id) {
                 return Err(format!("project id {:?} is not [a-z0-9_]{{1,64}}", p.id));
@@ -273,10 +328,7 @@ impl Index {
                     return Err(at("empty or repeated version".into()));
                 }
                 let f = &v.file;
-                let extension_ok = p
-                    .kind
-                    .extension()
-                    .is_none_or(|e| f.name.ends_with(&format!(".{e}")));
+                let extension_ok = p.kind.accepts(&f.name);
                 if !plain_name(&f.name) || !extension_ok {
                     return Err(at(format!(
                         "{:?} is not a plain file name for a {}",
@@ -326,11 +378,6 @@ impl Index {
                         }
                     }
                 }
-            }
-        }
-        for r in &self.revoked {
-            if let Some(h) = &r.sha256 {
-                hex64(h).map_err(|e| format!("revoked {}: {e}", r.id))?;
             }
         }
         Ok(())

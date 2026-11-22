@@ -87,11 +87,7 @@ pub fn index() -> Result<Arc<Index>, String> {
         }
         Err(e) => {
             let kept = fs::read_to_string(&cache).map_err(|_| e.clone())?;
-            match local() {
-                true => Index::parse_local(&kept),
-                false => Index::parse(&kept),
-            }
-            .map_err(|_| e)?
+            parse_index(&kept).map_err(|_| e)?
         }
     };
     let index = Arc::new(index);
@@ -117,11 +113,22 @@ fn fetch_index() -> Result<(Index, String), String> {
     } else {
         fs::read_to_string(&at).map_err(|e| format!("{at}: {e}"))?
     };
-    let index = match local() {
-        true => Index::parse_local(&text)?,
-        false => Index::parse(&text)?,
-    };
+    let index = parse_index(&text)?;
     Ok((index, text))
+}
+
+/// Reads an index, skipping any project that fails its checks so one bad row doesn't take the
+/// whole mod browser down for everyone.
+fn parse_index(text: &str) -> Result<Index, String> {
+    let (index, dropped) = Index::parse_lenient(text, local())?;
+    if !dropped.is_empty() {
+        eprintln!(
+            "The mod registry lists {} project(s) this launcher can't read, skipped: {}",
+            dropped.len(),
+            dropped.join(", ")
+        );
+    }
+    Ok(index)
 }
 
 /// A project's ratings: 1 to 5 stars, their mean and how many.
@@ -794,10 +801,7 @@ pub fn before_play(home: &Path) {
         return;
     }
     let kept = fs::read_to_string(crate::backend::game_home().join(CACHE)).ok();
-    let parse = |t: String| match local() {
-        true => Index::parse_local(&t).ok(),
-        false => Index::parse(&t).ok(),
-    };
+    let parse = |t: String| parse_index(&t).ok();
     if let Some(index) = kept.and_then(parse) {
         for line in turn_off_revoked(&index, home) {
             eprintln!("{line}");

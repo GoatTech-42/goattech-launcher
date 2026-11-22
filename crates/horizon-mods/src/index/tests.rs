@@ -257,3 +257,50 @@ fn shader_packs_pass_the_game_s_own_check() {
     assert_eq!(Kind::Shader.extension(), Some("hshader"));
     assert!(open(&Kind::Shader).is_ok());
 }
+
+#[test]
+fn a_native_mod_may_be_a_one_file_hmod() {
+    assert!(Kind::NativeMod.accepts("a.hnmod"));
+    assert!(Kind::NativeMod.accepts("a.hmod"));
+    assert!(!Kind::NativeMod.accepts("a.zip"));
+    assert!(Kind::Mod.accepts("a.hmod"));
+    assert!(!Kind::Mod.accepts("a.hnmod"));
+    assert!(Kind::Other("world".into()).accepts("anything"));
+}
+
+#[test]
+fn a_bad_project_is_skipped_not_fatal() {
+    let mut index = sample();
+    let good = index.projects.len();
+    let mut bad = index.projects[0].clone();
+    bad.id = "broken".into();
+    bad.versions[0].file.sha256 = "nothex".into();
+    let mut needs = index.projects[0].clone();
+    needs.id = "needs_broken".into();
+    needs.versions[0].requires = vec![Requirement {
+        id: "broken".into(),
+        version: bad.versions[0].version.clone(),
+        sha256: "nothex".into(),
+    }];
+    index.projects.push(bad);
+    index.projects.push(needs);
+    let text = serde_json::to_string(&index).unwrap();
+    assert!(Index::parse(&text).is_err());
+    let (kept, dropped) = Index::parse_lenient(&text, false).unwrap();
+    assert_eq!(kept.projects.len(), good);
+    assert_eq!(dropped, ["broken", "needs_broken"]);
+    assert!(kept.check().is_ok());
+}
+
+#[test]
+fn a_bad_revocation_still_refuses_the_index() {
+    let mut index = sample();
+    index.revoked.push(Revoked {
+        id: "x".into(),
+        sha256: Some("nothex".into()),
+        reason: "r".into(),
+        date: String::new(),
+    });
+    let text = serde_json::to_string(&index).unwrap();
+    assert!(Index::parse_lenient(&text, false).is_err());
+}
