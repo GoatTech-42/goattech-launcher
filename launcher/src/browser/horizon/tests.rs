@@ -370,3 +370,19 @@ fn registry_native_mods_are_listed_but_not_installable_yet() {
     assert_eq!(not_installable(&index::Kind::ResourcePack), None);
     assert!(NATIVE_NOT_YET.contains("not installable yet"));
 }
+
+#[test]
+fn install_errors_say_what_is_wrong_in_plain_words() {
+    let wasm = install_error(
+        "Zoom",
+        "horizon-mod.toml: TOML parse error | [wasm] | unknown field `wasm`, expected one of `id`".into(),
+    );
+    assert_eq!(
+        wasm,
+        "Zoom is a WebAssembly mod, and WebAssembly mods don't run in this launcher."
+    );
+    let newer = install_error("Gravestone", "data/x.json: unknown field `occludes`".into());
+    assert!(newer.starts_with("Gravestone uses newer mod fields"), "{newer}");
+    assert!(newer.contains("`occludes`"));
+    assert_eq!(install_error("A", "size mismatch".into()), "size mismatch");
+}

@@ -58,7 +58,7 @@ pub struct Manifest {
     /// accepted here, so the manifest keeps loading once it is promoted.
     #[serde(default)]
     pub experimental: Vec<Capability>,
-    /// Listing details the registry's newer manifests carry (the mod's licence, homepage and
+    /// Listing details the registry's newer manifests carry (the mod's licence, its link, homepage and
     /// issue tracker): read and ignored, they change nothing the game does.
     #[serde(default)]
     pub license: Option<String>,
@@ -66,6 +66,8 @@ pub struct Manifest {
     pub homepage: Option<String>,
     #[serde(default)]
     pub issues: Option<String>,
+    #[serde(default)]
+    pub license_url: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq)]
@@ -552,7 +554,7 @@ capabilities = ["game-read", "hud"]
     #[test]
     fn listing_details_are_read_and_a_real_unknown_field_still_refuses() {
         let with = format!(
-            "{EXAMPLE}license = \"MIT\"\nhomepage = \"https://example.com\"\nissues = \"https://example.com/i\"\n"
+            "{EXAMPLE}license = \"MIT\"\nhomepage = \"https://example.com\"\nissues = \"https://example.com/i\"\nlicense_url = \"https://example.com/l\"\n"
         );
         let m = Manifest::parse(&with).unwrap();
         assert_eq!(m.license.as_deref(), Some("MIT"));

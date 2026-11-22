@@ -74,6 +74,23 @@ pub fn is_native_mod(id: &str) -> bool {
 pub const NATIVE_NOT_YET: &str =
     "native mods from the registry need a newer launcher than this one: not installable yet.";
 
+/// What the player reads when a registry file fails the launcher's checks: a WebAssembly mod
+/// says so (they don't run any more), a file with fields this launcher doesn't know says it is
+/// newer than the launcher, anything else is the check's own text.
+pub fn install_error(name: &str, e: String) -> String {
+    if e.contains("unknown field `wasm`") {
+        return format!(
+            "{name} is a WebAssembly mod, and WebAssembly mods don't run in this launcher."
+        );
+    }
+    match e.contains("unknown field") {
+        true => format!(
+            "{name} uses newer mod fields than this launcher reads, so it can't be installed here yet: {e}"
+        ),
+        false => e,
+    }
+}
+
 /// The reason a registry project of `kind` can't be installed here, if any.
 pub fn not_installable(kind: &index::Kind) -> Option<&'static str> {
     (*kind == index::Kind::NativeMod).then_some(NATIVE_NOT_YET)
@@ -715,13 +732,7 @@ fn install_version(
             false => Ok(trust),
         }
     });
-    let checked = checked.map_err(|e| match e.contains("unknown field") {
-        true => format!(
-            "{} uses newer mod fields than this launcher reads, so it can't be installed here yet: {e}",
-            p.name
-        ),
-        false => e,
-    });
+    let checked = checked.map_err(|e| install_error(&p.name, e));
     let trust = checked.inspect_err(|_| {
         let _ = fs::remove_file(&path);
     })?;
