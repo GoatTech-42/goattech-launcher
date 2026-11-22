@@ -511,60 +511,64 @@ impl Launcher {
             };
             let clicked = instance.clone();
             row = row.child(
-                div()
-                    .id(SharedString::from(format!("next-{}", instance.id)))
-                    .relative()
-                    .flex()
-                    .flex_none()
-                    .flex_col()
-                    .justify_center()
-                    .gap(px(4.))
-                    .w(px(220.))
-                    .h(px(84.))
-                    .px(px(14.))
-                    .bg(alpha(n.card, n.card_alpha))
-                    .border_1()
-                    .border_color(alpha(n.stroke, n.stroke_alpha))
-                    .cursor_pointer()
-                    .when(active, |d| {
-                        d.child(
-                            div()
-                                .absolute()
-                                .left_0()
-                                .top_0()
-                                .bottom_0()
-                                .w(px(2.))
-                                .bg(c(n.ink)),
-                        )
-                    })
-                    .child(
-                        shell::text(night::UI, c(n.ink))
-                            .w_full()
-                            .truncate()
-                            .child(instance.name.clone()),
-                    )
-                    .child(
-                        shell::text(night::CAPTION, c(n.muted))
-                            .text_size(px(11.))
-                            .w_full()
-                            .truncate()
-                            .child(sub),
-                    )
-                    .child(
-                        shell::text(night::CAPTION, c(n.muted))
-                            .text_size(px(11.))
-                            .w_full()
-                            .truncate()
-                            .child(played),
-                    )
-                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                        this.select_instance(&clicked);
-                        cx.notify();
-                    })),
+                keyboard(
+                    div()
+                            .id(SharedString::from(format!("next-{}", instance.id)))
+                            .relative()
+                            .flex()
+                            .flex_none()
+                            .flex_col()
+                            .justify_center()
+                            .gap(px(4.))
+                            .w(px(220.))
+                            .h(px(84.))
+                            .px(px(14.))
+                            .bg(alpha(n.card, n.card_alpha))
+                            .border_1()
+                            .border_color(alpha(n.stroke, n.stroke_alpha))
+                            .cursor_pointer()
+                            .when(active, |d| {
+                                d.child(
+                                    div()
+                                        .absolute()
+                                        .left_0()
+                                        .top_0()
+                                        .bottom_0()
+                                        .w(px(2.))
+                                        .bg(c(n.ink)),
+                                )
+                            })
+                            .child(
+                                shell::text(night::UI, c(n.ink))
+                                    .w_full()
+                                    .truncate()
+                                    .child(instance.name.clone()),
+                            )
+                            .child(
+                                shell::text(night::CAPTION, c(n.muted))
+                                    .text_size(px(11.))
+                                    .w_full()
+                                    .truncate()
+                                    .child(sub),
+                            )
+                            .child(
+                                shell::text(night::CAPTION, c(n.muted))
+                                    .text_size(px(11.))
+                                    .w_full()
+                                    .truncate()
+                                    .child(played),
+                            ),
+                    &t,
+                )
+                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                    this.select_instance(&clicked);
+                    cx.notify();
+                })),
             );
         }
         row = row.child(
-            div()
+            keyboard(
+                div()
                 .id("next-new-instance")
                 .relative()
                 .flex()
@@ -588,11 +592,13 @@ impl Launcher {
                     shell::text(night::CAPTION, c(n.muted))
                         .text_size(px(11.))
                         .child(tr("new instance").to_string()),
-                )
-                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                    this.open_instance_dialog(None, cx);
-                    cx.notify();
-                })),
+                ),
+                &t,
+            )
+            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                this.open_instance_dialog(None, cx);
+                cx.notify();
+            })),
         );
         div()
             .flex()
@@ -1468,6 +1474,21 @@ mod tests {
         ] {
             assert_eq!(hero_recovery(status, false), None);
         }
+    }
+
+    #[test]
+    fn playing_next_select_and_create_tiles_keep_the_keyboard_control_path() {
+        let source = include_str!("home.rs");
+        let body = source
+            .split("pub(super) fn playing_next(")
+            .nth(1)
+            .unwrap()
+            .split("/// The home stage")
+            .next()
+            .unwrap();
+        assert_eq!(body.matches("keyboard(").count(), 2);
+        assert!(body.contains("this.select_instance(&clicked)"));
+        assert!(body.contains("this.open_instance_dialog(None, cx)"));
     }
 
     #[test]
