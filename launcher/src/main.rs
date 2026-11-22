@@ -5860,7 +5860,8 @@ impl Render for Launcher {
                     // The floating account menu owns Tab, but never clamps pointer focus.
                     "tab" if this.account_menu => {
                         KEYBOARD.store(true, Ordering::Relaxed);
-                        this.account_menu_keys().cycle(k.modifiers.shift, window, cx);
+                        this.account_menu_keys()
+                            .cycle(k.modifiers.shift, window, cx);
                     }
                     "tab" => {
                         KEYBOARD.store(true, Ordering::Relaxed);
