@@ -715,6 +715,13 @@ fn install_version(
             false => Ok(trust),
         }
     });
+    let checked = checked.map_err(|e| match e.contains("unknown field") {
+        true => format!(
+            "{} uses newer mod fields than this launcher reads, so it can't be installed here yet: {e}",
+            p.name
+        ),
+        false => e,
+    });
     let trust = checked.inspect_err(|_| {
         let _ = fs::remove_file(&path);
     })?;

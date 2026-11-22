@@ -58,6 +58,14 @@ pub struct Manifest {
     /// accepted here, so the manifest keeps loading once it is promoted.
     #[serde(default)]
     pub experimental: Vec<Capability>,
+    /// Listing details the registry's newer manifests carry (the mod's licence, homepage and
+    /// issue tracker): read and ignored, they change nothing the game does.
+    #[serde(default)]
+    pub license: Option<String>,
+    #[serde(default)]
+    pub homepage: Option<String>,
+    #[serde(default)]
+    pub issues: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq)]
@@ -539,5 +547,17 @@ capabilities = ["game-read", "hud"]
             "{base}capabilities = [\"hud\"]\nexperimental = [\"hud\"]\n"
         ))
         .unwrap();
+    }
+
+    #[test]
+    fn listing_details_are_read_and_a_real_unknown_field_still_refuses() {
+        let with = format!(
+            "{EXAMPLE}license = \"MIT\"\nhomepage = \"https://example.com\"\nissues = \"https://example.com/i\"\n"
+        );
+        let m = Manifest::parse(&with).unwrap();
+        assert_eq!(m.license.as_deref(), Some("MIT"));
+        assert_eq!(m.homepage.as_deref(), Some("https://example.com"));
+        let other = format!("{EXAMPLE}surprise = 1\n");
+        assert!(Manifest::parse(&other).unwrap_err().contains("unknown field"));
     }
 }
