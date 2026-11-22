@@ -62,6 +62,21 @@ impl Launcher {
         out
     }
 
+    /// Match only controls the menu drew. Missing handles contain Tab without falling
+    /// through to the page; lookup must not register the same control twice.
+    pub(super) fn account_menu_keys(&self) -> ModalKeys {
+        let ids = (0..self.players().len())
+            .map(|i| SharedString::from(format!("account-pick-{i}")))
+            .chain(std::iter::once(SharedString::from("account-manage")));
+        let order = CONTROL_HANDLES.with(|c| {
+            let c = c.borrow();
+            ids.map(|id| c.registered(id.into()))
+                .collect::<Option<Vec<_>>>()
+                .unwrap_or_default()
+        });
+        ModalKeys { order }
+    }
+
     /// The menu under the account chip, while open. `top` is which opener is asking: the
     /// rail's chip (false, menu opens upward over it) or the top bar's pill (true, menu opens
     /// downward under it, right-aligned). Only the opener that opened the menu renders it.

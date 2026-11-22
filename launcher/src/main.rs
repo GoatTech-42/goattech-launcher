@@ -2645,6 +2645,14 @@ impl IdSlots {
         Some(slot)
     }
 
+    /// Read a drawn slot without registering a second control or reviving an old one.
+    fn registered(&self, id: &gpui::ElementId) -> Option<usize> {
+        self.by_id
+            .get(id)
+            .filter(|(_, seen, _)| seen + 1 >= self.generation)
+            .map(|(slot, _, _)| *slot)
+    }
+
     fn len(&self) -> usize {
         self.size
     }
@@ -2692,6 +2700,11 @@ impl ControlHandles {
 
     fn handle_for(&mut self, id: gpui::ElementId) -> Option<FocusHandle> {
         let slot = self.slots.slot_for(id)?;
+        self.pool.get(slot).cloned()
+    }
+
+    fn registered(&self, id: gpui::ElementId) -> Option<FocusHandle> {
+        let slot = self.slots.registered(&id)?;
         self.pool.get(slot).cloned()
     }
 }
@@ -5796,7 +5809,7 @@ impl Render for Launcher {
             self.wake_sky(next, cx);
         }
         CONTROL_HANDLES.with(|c| c.borrow_mut().fill(window, cx));
-        let page_keys = self.modal_keys.is_none() && !self.asking_consent();
+        let page_keys = self.modal_keys.is_none() && !self.asking_consent() && !self.account_menu;
         PAGE_SCROLL
             .with(|h| *h.borrow_mut() = page_keys.then(|| self.content_scroll.handle.clone()));
         let sidebar = self.sidebar(window, cx);
@@ -5844,6 +5857,11 @@ impl Render for Launcher {
                             m.cycle(k.modifiers.shift, window, cx);
                         }
                     }
+                    // The floating account menu owns Tab, but never clamps pointer focus.
+                    "tab" if this.account_menu => {
+                        KEYBOARD.store(true, Ordering::Relaxed);
+                        this.account_menu_keys().cycle(k.modifiers.shift, window, cx);
+                    }
                     "tab" => {
                         KEYBOARD.store(true, Ordering::Relaxed);
                         if k.modifiers.shift {
@@ -5857,6 +5875,17 @@ impl Render for Launcher {
                     "escape" if this.instance_escape() => {}
                     "escape" if this.screenshot_escape() => {}
                     "escape" if this.confirm_escape() => {}
+                    "escape" if this.account_menu => {
+                        KEYBOARD.store(true, Ordering::Relaxed);
+                        this.account_menu = false;
+                        let opener = if this.account_menu_top {
+                            "topbar-account"
+                        } else {
+                            "account"
+                        };
+                        let focus = CONTROL_HANDLES.with(|c| c.borrow().registered(opener.into()));
+                        window.focus(focus.as_ref().unwrap_or(&this.root_focus), cx);
+                    }
                     "escape" if this.home_chrome_escape() => {}
                     "left" if this.screenshot_step(false) => {}
                     "right" if this.screenshot_step(true) => {}
@@ -6478,6 +6507,25 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn control_lookup_does_not_allocate_or_keep_stale_controls_alive() {
+        let mut s = super::IdSlots::new(2);
+        s.begin(|_| false);
+        let id = gpui::ElementId::from("menu-row");
+        assert_eq!(s.registered(&id), None);
+        let slot = s.slot_for(id.clone());
+        assert_eq!(s.registered(&id), slot);
+        s.begin(|_| false);
+        assert_eq!(s.registered(&id), slot);
+        s.begin(|_| true);
+        assert_eq!(
+            s.registered(&id),
+            None,
+            "a retained slot is not a drawn control"
+        );
+        assert_eq!(s.free.len(), 1, "lookup never consumes a slot");
     }
 
     #[test]
