@@ -1488,7 +1488,9 @@ mod tests {
         let mut slots = IdSlots::new(3);
         slots.begin(|_| false);
         for id in ["horizon", "new-instance"] {
-            assert!(slots.slot_for(next_instance_control_id(id).into()).is_some());
+            assert!(slots
+                .slot_for(next_instance_control_id(id).into())
+                .is_some());
         }
         assert!(slots.slot_for(NEXT_NEW_INSTANCE.into()).is_some());
     }
