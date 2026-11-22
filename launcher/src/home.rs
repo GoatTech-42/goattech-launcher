@@ -382,53 +382,56 @@ impl Launcher {
                 .child(blocks::icon("user", 16., c(n.muted)))
                 .into_any_element(),
         };
-        let account = div()
-            .id("topbar-account")
-            .relative()
-            .flex()
-            .items_center()
-            .gap(px(10.))
-            .h(px(40.))
-            .px(px(10.))
-            .bg(alpha(n.card, n.card_alpha))
-            .border_1()
-            .border_color(alpha(n.stroke, n.stroke_alpha))
-            .cursor_pointer()
-            .child(div().relative().child(picture))
-            .child(
-                div()
-                    .relative()
-                    .flex()
-                    .flex_col()
-                    .child(
-                        shell::text(night::UI, c(n.ink))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .line_height(px(16.))
-                            .child(name),
-                    )
-                    .child(
-                        shell::text(night::CAPTION, c(n.muted))
-                            .line_height(px(13.))
-                            .child(how),
-                    ),
-            )
-            .child(
-                div()
-                    .relative()
-                    .child(blocks::icon("chevron-down", 16., c(n.muted))),
-            )
-            .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
-                if this.closed_by_this_press(event) {
-                    return;
-                }
-                this.account_menu = !this.account_menu;
-                if this.account_menu {
-                    this.account_menu_top = true;
-                    // Who can play may have changed elsewhere since the window opened.
-                    this.accounts = Accounts::load();
-                }
-                cx.notify();
-            }));
+        let account = keyboard(
+            div()
+                .id("topbar-account")
+                .relative()
+                .flex()
+                .items_center()
+                .gap(px(10.))
+                .h(px(40.))
+                .px(px(10.))
+                .bg(alpha(n.card, n.card_alpha))
+                .border_1()
+                .border_color(alpha(n.stroke, n.stroke_alpha))
+                .cursor_pointer()
+                .child(div().relative().child(picture))
+                .child(
+                    div()
+                        .relative()
+                        .flex()
+                        .flex_col()
+                        .child(
+                            shell::text(night::UI, c(n.ink))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .line_height(px(16.))
+                                .child(name),
+                        )
+                        .child(
+                            shell::text(night::CAPTION, c(n.muted))
+                                .line_height(px(13.))
+                                .child(how),
+                        ),
+                )
+                .child(
+                    div()
+                        .relative()
+                        .child(blocks::icon("chevron-down", 16., c(n.muted))),
+                ),
+            &t,
+        )
+        .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
+            if this.closed_by_this_press(event) {
+                return;
+            }
+            this.account_menu = !this.account_menu;
+            if this.account_menu {
+                this.account_menu_top = true;
+                // Who can play may have changed elsewhere since the window opened.
+                this.accounts = Accounts::load();
+            }
+            cx.notify();
+        }));
         let account = div()
             .relative()
             .child(account)
