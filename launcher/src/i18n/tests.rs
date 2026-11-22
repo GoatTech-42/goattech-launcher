@@ -229,10 +229,9 @@ fn polish_entries_are_valid_and_keep_placeholders() {
     }
 }
 
-/// The data-collection and upload texts a player decides on are shown in Turkish, Japanese and
-/// German, not English. (Machine-translated; a native speaker has not reviewed them.)
+/// Consent's complete rendering scope ignores every translation, even in shared widgets.
 #[test]
-fn the_data_collection_texts_are_translated_in_turkish_japanese_and_german() {
+fn consent_is_fully_english_but_the_rest_of_the_ui_stays_translated() {
     let keys = [
         "after each session: frame-time percentiles and a 14-bucket histogram, tick times, peak memory and startup times, with your machine (os, cpu and its cores and clocks, memory size, gpu, its memory and driver, drive type, screen size and refresh rate, laptop or desktop, on battery or not) and the settings that change performance.",
         "bug reports",
@@ -252,10 +251,29 @@ fn the_data_collection_texts_are_translated_in_turkish_japanese_and_german() {
         "your data",
         "{count} waiting to be sent",
     ];
-    for language in [Language::Turkish, Language::Japanese, Language::German] {
-        for en in keys {
-            assert_ne!(tr_in(language, en), en, "{}: {en:?}", language.code());
+    for language in Language::ALL {
+        let outside = tr_in(language, "data collection").to_owned();
+        {
+            let _english = english_only();
+            for en in keys {
+                assert_eq!(tr_in(language, en), en, "{}: {en:?}", language.code());
+            }
+            {
+                let _nested = english_only();
+                assert_eq!(tr_in(language, "save choices"), "save choices");
+            }
+            assert_eq!(tr_in(language, "save choices"), "save choices");
         }
+        assert_eq!(tr_in(language, "data collection"), outside);
+    }
+    assert_ne!(tr_in(Language::German, "data collection"), "data collection");
+    let source = include_str!("../collection.rs");
+    for signature in [
+        "fn consent_screen(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {",
+        "fn collection_section(&mut self, cx: &mut Context<Self>) -> Div {",
+    ] {
+        let body = source.split(signature).nth(1).unwrap();
+        assert!(body.trim_start().starts_with("let _english ="));
     }
 }
 

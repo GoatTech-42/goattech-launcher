@@ -361,6 +361,7 @@ impl Launcher {
     }
 
     fn answer_consent(&mut self, choices: Choices) {
+        let _english = horizon_launcher::i18n::english_only();
         match telemetry::answer(choices) {
             Ok(consent) => {
                 self.collection.consent = consent;
@@ -382,6 +383,7 @@ impl Launcher {
     }
 
     fn toggle_view(&mut self) {
+        let _english = horizon_launcher::i18n::english_only();
         self.collection.view = match self.collection.view {
             Some(_) => None,
             None => Some(telemetry::preview()),
@@ -398,6 +400,7 @@ impl Launcher {
     /// The question, centred over the launcher. Everything optional starts off; "Keep optional data off" is one
     /// click, as easy as saying yes.
     pub(crate) fn consent_screen(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {
+        let _english = horizon_launcher::i18n::english_only();
         let t = self.theme;
         let draft = self.collection.draft;
         // Built first: the lazy `rows` below holds `cx` until `children(rows)` runs.
@@ -572,6 +575,7 @@ impl Launcher {
 
     /// Settings' data collection: a switch per kind, then the player's data.
     pub(crate) fn collection_section(&mut self, cx: &mut Context<Self>) -> Div {
+        let _english = horizon_launcher::i18n::english_only();
         let t = self.theme;
         let consent = self.collection.consent.clone();
         let mut list = div().flex().flex_col().border_t_1().border_color(t.rule);

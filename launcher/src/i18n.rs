@@ -179,8 +179,30 @@ fn table(language: Language) -> &'static Table {
     &tables[i]
 }
 
+thread_local! {
+    static ENGLISH_ONLY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Keep consent rendering (including shared button helpers) in English until its translations
+/// have been reviewed. Thread-local and scoped: the rest of the UI keeps its selected language.
+pub fn english_only() -> impl Drop {
+    struct Guard(bool, std::marker::PhantomData<std::rc::Rc<()>>);
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            ENGLISH_ONLY.with(|value| value.set(self.0));
+        }
+    }
+    Guard(
+        ENGLISH_ONLY.with(|value| value.replace(true)),
+        std::marker::PhantomData,
+    )
+}
+
 /// `en` in `language`, or `en` itself where the table lacks it.
 pub fn tr_in(language: Language, en: &str) -> &str {
+    if ENGLISH_ONLY.with(|value| value.get()) {
+        return en;
+    }
     table(language).get(en).copied().unwrap_or(en)
 }
 
