@@ -31,6 +31,23 @@ enum HeroStatus {
     SignInToLaunch,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum HeroRecovery {
+    SignIn,
+    Prepare,
+}
+
+fn hero_recovery(status: HeroStatus, preparing: bool) -> Option<HeroRecovery> {
+    if preparing {
+        return None;
+    }
+    match status {
+        HeroStatus::SignInToPrepare | HeroStatus::SignInToLaunch => Some(HeroRecovery::SignIn),
+        HeroStatus::PrepareFromRow => Some(HeroRecovery::Prepare),
+        _ => None,
+    }
+}
+
 fn hero_status(prepared: bool, signed: bool, owner: Option<bool>) -> HeroStatus {
     if prepared {
         if signed {
@@ -152,27 +169,33 @@ impl Launcher {
                     )
                 };
                 // While preparation runs its busy Play owns the moment: no second start.
-                match status {
-                    HeroStatus::SignInToPrepare if !self.preparing => div()
-                        .id("hero-status")
-                        .cursor_pointer()
-                        .hover(|s| s.opacity(0.8))
-                        .child(line())
-                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                            this.sign_in_to_play();
-                            cx.notify();
-                        }))
-                        .into_any_element(),
-                    HeroStatus::PrepareFromRow if !self.preparing => div()
-                        .id("hero-status")
-                        .cursor_pointer()
-                        .hover(|s| s.opacity(0.8))
-                        .child(line())
-                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                            this.prepare(backend::MinecraftFrom::Install);
-                            cx.notify();
-                        }))
-                        .into_any_element(),
+                match hero_recovery(status, self.preparing) {
+                    Some(HeroRecovery::SignIn) => keyboard(
+                        div()
+                            .id("hero-status")
+                            .cursor_pointer()
+                            .hover(|s| s.opacity(0.8))
+                            .child(line()),
+                        &t,
+                    )
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                        this.sign_in_to_play();
+                        cx.notify();
+                    }))
+                    .into_any_element(),
+                    Some(HeroRecovery::Prepare) => keyboard(
+                        div()
+                            .id("hero-status")
+                            .cursor_pointer()
+                            .hover(|s| s.opacity(0.8))
+                            .child(line()),
+                        &t,
+                    )
+                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                        this.prepare(backend::MinecraftFrom::Install);
+                        cx.notify();
+                    }))
+                    .into_any_element(),
                     _ => line().into_any_element(),
                 }
             })
@@ -1425,6 +1448,26 @@ mod tests {
         );
         assert_eq!(hero_status(false, false, None), PrepareFromRow);
         assert_eq!(hero_status(false, true, None), PrepareFromRow);
+    }
+
+    #[test]
+    fn both_sign_in_blockers_offer_the_same_recovery_and_busy_offers_none() {
+        for status in [HeroStatus::SignInToPrepare, HeroStatus::SignInToLaunch] {
+            assert_eq!(hero_recovery(status, false), Some(HeroRecovery::SignIn));
+            assert_eq!(hero_recovery(status, true), None);
+        }
+        assert_eq!(
+            hero_recovery(HeroStatus::PrepareFromRow, false),
+            Some(HeroRecovery::Prepare)
+        );
+        assert_eq!(hero_recovery(HeroStatus::PrepareFromRow, true), None);
+        for status in [
+            HeroStatus::Ready,
+            HeroStatus::NeedsPreparing,
+            HeroStatus::CheckingSignIn,
+        ] {
+            assert_eq!(hero_recovery(status, false), None);
+        }
     }
 
     #[test]
