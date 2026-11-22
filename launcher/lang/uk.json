@@ -251,7 +251,7 @@
   "use these jars": "use these jars",
   "starting": "Запуск",
   "show in folder": "Показати в папці",
-  "settings": "Налаштування",
+  "settings": "Параметри",
   "doesn't port": "Не портується",
   "the automatic report bodies do not include your account name or uuid, world names, server addresses, chat or ip address. network requests still expose ip information to the receiving service; GoatTech's collector uses it temporarily in memory for rate limiting, not in its database. detailed optional reports carry a day and a random install id you can delete; basic summaries carry no id. bug-report text and any log you choose to attach need your review before sending.": "Тіла автоматичних звітів не містять імені вашого облікового запису чи UUID, назв світів, адрес серверів, чату чи IP-адреси. Мережеві запити все одно розкривають IP-інформацію службі-одержувачу; колектор GoatTech використовує її тимчасово в пам'яті для обмеження частоти, а не в своїй базі даних. Докладні необов'язкові звіти несуть день і випадковий ідентифікатор інсталяції, який ви можете видалити; базові підсумки ідентифікатора не несуть. Текст звітів про помилки та будь-які вкладені журнали потребують вашого перегляду перед надсиланням.",
   "could not read {name}: {error}": "Не вдалося прочитати {name}: {error}",

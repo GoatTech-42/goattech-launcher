@@ -251,7 +251,7 @@
   "use these jars": "use these jars",
   "starting": "Démarrage",
   "show in folder": "Afficher dans le dossier",
-  "settings": "Paramètres",
+  "settings": "Réglages",
   "doesn't port": "Non porté",
   "the automatic report bodies do not include your account name or uuid, world names, server addresses, chat or ip address. network requests still expose ip information to the receiving service; GoatTech's collector uses it temporarily in memory for rate limiting, not in its database. detailed optional reports carry a day and a random install id you can delete; basic summaries carry no id. bug-report text and any log you choose to attach need your review before sending.": "Les corps des rapports automatiques n'incluent ni votre nom de compte ou UUID, ni les noms de mondes, les adresses de serveurs, le chat ou l'adresse IP. Les requêtes réseau exposent néanmoins des informations IP au service destinataire ; le collecteur de GoatTech les utilise temporairement en mémoire pour la limitation de débit, pas dans sa base de données. Les rapports optionnels détaillés portent un jour et un identifiant d'installation aléatoire que vous pouvez supprimer ; les résumés de base ne portent aucun identifiant. Le texte des rapports de bogues et tout journal que vous joignez doivent être relus par vous avant l'envoi.",
   "could not read {name}: {error}": "Impossible de lire {name} : {error}",

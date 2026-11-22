@@ -207,18 +207,15 @@ fn a_missing_string_shows_in_english() {
     assert_eq!(tr_in(Language::Polish, "settings"), "Ustawienia");
     assert_eq!(tr_in(Language::Japanese, "settings"), "設定");
     assert_eq!(tr_in(Language::Turkish, "settings"), "Ayarlar");
-    assert_eq!(tr_in(Language::French, "settings"), "Paramètres");
+    assert_eq!(tr_in(Language::French, "settings"), "Réglages");
     assert_eq!(tr_in(Language::Russian, "settings"), "Настройки");
     assert_eq!(tr_in(Language::German, "settings"), "Optionen");
     assert_eq!(tr_in(Language::Chinese, "settings"), "设置");
     assert_eq!(tr_in(Language::Spanish, "settings"), "Ajustes");
-    assert_eq!(tr_in(Language::Ukrainian, "settings"), "Налаштування");
+    assert_eq!(tr_in(Language::Ukrainian, "settings"), "Параметри");
     assert_eq!(tr_in(Language::English, "settings"), "settings");
     assert_eq!(tr_in(Language::French, "No such string"), "No such string");
-    assert_eq!(
-        tr_in(Language::PortugueseBrazil, "settings"),
-        "Configurações"
-    );
+    assert_eq!(tr_in(Language::PortugueseBrazil, "settings"), "Ajustes");
 }
 
 #[test]
@@ -487,4 +484,25 @@ fn the_load_error_sentences_are_translated_in_every_language_and_polish_rail_nam
         word.chars().count() <= 9,
         "{word:?} is too long for the rail"
     );
+}
+
+/// French, Brazilian Portuguese and Ukrainian sidebar names for settings and patch notes have no
+/// word longer than 9 letters, so none breaks mid-word in the 64px rail (the old long forms did).
+#[test]
+fn french_portuguese_and_ukrainian_rail_names_have_short_words() {
+    for language in [
+        Language::French,
+        Language::PortugueseBrazil,
+        Language::Ukrainian,
+    ] {
+        for key in ["settings", "patch notes"] {
+            for word in tr_in(language, key).split_whitespace() {
+                assert!(
+                    word.chars().count() <= 9,
+                    "{}: {word:?} is too long for the rail",
+                    language.code()
+                );
+            }
+        }
+    }
 }
