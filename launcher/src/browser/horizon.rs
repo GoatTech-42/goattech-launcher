@@ -11,7 +11,7 @@ use horizon_mods::index::{self, Index, Trust};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 /// Where the registry publishes its index (GitHub Pages of horizon-rust/horizon-mods).
@@ -94,6 +94,51 @@ pub fn install_error(name: &str, e: String) -> String {
 /// The reason a registry project of `kind` can't be installed here, if any.
 pub fn not_installable(kind: &index::Kind) -> Option<&'static str> {
     (*kind == index::Kind::NativeMod).then_some(NATIVE_NOT_YET)
+}
+
+/// Session-only parser rejections. A changed digest is a new file, not a failed retry.
+/// Network, checksum, signature, filesystem and other transient errors are never remembered.
+#[derive(Default)]
+struct Rejections(HashMap<(String, String), String>);
+
+impl Rejections {
+    fn remember(&mut self, project: &str, digest: &str, name: &str, error: &str) {
+        if !error.contains("unknown field") {
+            return;
+        }
+        // Bounded memory. Forgetting only permits a fresh attempt; it never blocks a file.
+        if self.0.len() >= 256 {
+            self.0.clear();
+        }
+        self.0.insert(
+            (project.to_owned(), digest.to_owned()),
+            install_error(name, error.to_owned()),
+        );
+    }
+
+    fn reason(&self, index: &Index, project: &index::Project) -> Option<String> {
+        let mut reason = None;
+        for version in project.versions.iter().filter(|v| {
+            v.game == GAME && index.revoked(&project.id, &v.file.sha256).is_none()
+        }) {
+            let rejected = self.0.get(&(project.id.clone(), version.file.sha256.clone()))?;
+            reason = Some(rejected.clone());
+        }
+        reason
+    }
+}
+
+fn rejections() -> &'static Mutex<Rejections> {
+    static REJECTIONS: OnceLock<Mutex<Rejections>> = OnceLock::new();
+    REJECTIONS.get_or_init(|| Mutex::new(Rejections::default()))
+}
+
+/// A reason from files already tried this run, never a request or speculative compatibility
+/// claim. An untried current-game version (including a new digest) keeps the project available.
+pub fn known_rejection(id: &str) -> Option<String> {
+    let index = known_index()?;
+    let project = index.project(id)?;
+    rejections().lock().unwrap().reason(&index, project)
 }
 
 /// The index: the one fetched in the last ten minutes, else fetched again (and kept in the game
@@ -732,7 +777,13 @@ fn install_version(
             false => Ok(trust),
         }
     });
-    let checked = checked.map_err(|e| install_error(&p.name, e));
+    let checked = checked.map_err(|e| {
+        rejections()
+            .lock()
+            .unwrap()
+            .remember(&p.id, &v.file.sha256, &p.name, &e);
+        install_error(&p.name, e)
+    });
     let trust = checked.inspect_err(|_| {
         let _ = fs::remove_file(&path);
     })?;

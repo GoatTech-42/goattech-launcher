@@ -141,8 +141,13 @@ pub struct Project {
 
 impl Project {
     pub fn support(&self) -> Support {
-        if self.source == SourceId::Horizon && horizon::is_native_mod(&self.id) {
-            return Support::No(horizon::NATIVE_NOT_YET.into());
+        if self.source == SourceId::Horizon {
+            if horizon::is_native_mod(&self.id) {
+                return Support::No(horizon::NATIVE_NOT_YET.into());
+            }
+            if let Some(reason) = horizon::known_rejection(&self.id) {
+                return Support::No(reason);
+            }
         }
         support(self.kind, &self.game_versions, &self.loaders)
     }

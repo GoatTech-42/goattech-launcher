@@ -406,3 +406,39 @@ fn a_registry_wasm_manifest_reaches_the_wasm_message() {
         "Right-Click Crops is a WebAssembly mod, and WebAssembly mods don't run in this launcher."
     );
 }
+
+#[test]
+fn known_parser_rejections_are_exact_file_session_state_not_network_failures() {
+    let mut index = sample();
+    let id = index.projects[0].id.clone();
+    let digest = index.projects[0].versions[0].file.sha256.clone();
+    let mut rejected = Rejections::default();
+    let reason = |rejected: &Rejections, index: &Index| {
+        rejected.reason(index, index.project(&id).unwrap())
+    };
+    rejected.remember(&id, &digest, "HUD", "connection timed out");
+    assert_eq!(reason(&rejected, &index), None);
+    rejected.remember(&id, &digest, "HUD", "unknown field `wasm`");
+    assert!(reason(&rejected, &index).unwrap().contains("WebAssembly"));
+    assert_eq!(reason(&Rejections::default(), &index), None);
+    let version = index.projects[0].versions[0].clone();
+    let mut newer = version.clone();
+    newer.file.sha256 = "b".repeat(64);
+    index.projects[0].versions.insert(0, newer);
+    assert_eq!(
+        reason(&rejected, &index),
+        None,
+        "an untried file is not blocked"
+    );
+    index.projects[0].versions.remove(0);
+    assert!(reason(&rejected, &index).is_some());
+    index.projects[0].versions[0].file.sha256 = "c".repeat(64);
+    assert_eq!(
+        reason(&rejected, &index),
+        None,
+        "changed digest resets the result"
+    );
+    index.projects[0].versions[0] = version;
+    index.projects[0].versions[0].game = "not-this-game".into();
+    assert_eq!(reason(&rejected, &index), None);
+}
