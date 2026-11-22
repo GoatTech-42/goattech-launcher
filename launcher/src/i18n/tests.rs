@@ -266,7 +266,10 @@ fn consent_is_fully_english_but_the_rest_of_the_ui_stays_translated() {
         }
         assert_eq!(tr_in(language, "data collection"), outside);
     }
-    assert_ne!(tr_in(Language::German, "data collection"), "data collection");
+    assert_ne!(
+        tr_in(Language::German, "data collection"),
+        "data collection"
+    );
     let source = include_str!("../collection.rs");
     for signature in [
         "fn consent_screen(&mut self, cx: &mut Context<Self>) -> Stateful<Div> {",
