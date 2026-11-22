@@ -413,9 +413,8 @@ fn known_parser_rejections_are_exact_file_session_state_not_network_failures() {
     let id = index.projects[0].id.clone();
     let digest = index.projects[0].versions[0].file.sha256.clone();
     let mut rejected = Rejections::default();
-    let reason = |rejected: &Rejections, index: &Index| {
-        rejected.reason(index, index.project(&id).unwrap())
-    };
+    let reason =
+        |rejected: &Rejections, index: &Index| rejected.reason(index, index.project(&id).unwrap());
     rejected.remember(&id, &digest, "HUD", "connection timed out");
     assert_eq!(reason(&rejected, &index), None);
     rejected.remember(&id, &digest, "HUD", "unknown field `wasm`");
@@ -441,4 +440,38 @@ fn known_parser_rejections_are_exact_file_session_state_not_network_failures() {
     index.projects[0].versions[0] = version;
     index.projects[0].versions[0].game = "not-this-game".into();
     assert_eq!(reason(&rejected, &index), None);
+}
+
+#[test]
+fn a_requested_wasm_file_is_remembered_only_after_local_validation_fails() {
+    use std::io::Write;
+    let home = scratch("known-parser-rejection");
+    let file = home.join("probe.hmod");
+    let mut zip = zip::ZipWriter::new(fs::File::create(&file).unwrap());
+    zip.start_file("horizon-mod.toml", zip::write::SimpleFileOptions::default())
+        .unwrap();
+    zip.write_all(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../crates/horizon-mods/tests/index/right-click-crops-wasm.toml"
+    )))
+    .unwrap();
+    zip.finish().unwrap();
+    let mut index = sample();
+    let p = &mut index.projects[0];
+    p.id = "known_parser_probe".into();
+    p.key = None;
+    let v = &mut p.versions[0];
+    v.capabilities = vec![horizon_mods::Capability::Registries];
+    v.file.signature = None;
+    v.file.size = fs::metadata(&file).unwrap().len();
+    v.file.sha256 = index::sha256_file(&file).unwrap();
+    v.file.url = format!("file://{}", file.display());
+    let p = &index.projects[0];
+    assert_eq!(rejections().lock().unwrap().reason(&index, p), None);
+    let result = install_version(&index, true, p, &p.versions[0], &home, &|_, _| {});
+    let error = result.unwrap_err();
+    assert!(error.contains("WebAssembly"), "{error}");
+    assert_eq!(rejections().lock().unwrap().reason(&index, p), Some(error));
+    assert!(!home.join("horizon-mods/known_parser_probe.hmod").exists());
+    let _ = fs::remove_dir_all(home);
 }

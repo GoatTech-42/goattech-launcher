@@ -118,10 +118,14 @@ impl Rejections {
 
     fn reason(&self, index: &Index, project: &index::Project) -> Option<String> {
         let mut reason = None;
-        for version in project.versions.iter().filter(|v| {
-            v.game == GAME && index.revoked(&project.id, &v.file.sha256).is_none()
-        }) {
-            let rejected = self.0.get(&(project.id.clone(), version.file.sha256.clone()))?;
+        for version in project
+            .versions
+            .iter()
+            .filter(|v| v.game == GAME && index.revoked(&project.id, &v.file.sha256).is_none())
+        {
+            let rejected = self
+                .0
+                .get(&(project.id.clone(), version.file.sha256.clone()))?;
             reason = Some(rejected.clone());
         }
         reason
