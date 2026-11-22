@@ -1219,6 +1219,11 @@ fn json(value: serde_json::Value) {
     println!("{}", serde_json::to_string_pretty(&value).unwrap());
 }
 
+/// One JSON array for a list command, so an empty list is `[]` and several items parse as one value.
+fn json_list(items: Vec<serde_json::Value>) -> String {
+    serde_json::to_string_pretty(&serde_json::Value::Array(items)).unwrap()
+}
+
 /// Runs a game process in this terminal and reports how it ended.
 fn attached(mut cmd: Command) -> Result<(), String> {
     let status = cmd
@@ -4184,18 +4189,21 @@ fn modpack(action: ModpackCmd, as_json: bool) -> Result<(), String> {
         let work = modpacks::ports_dir().join(pack);
         modpacks::load(&work).map(|_| work)
     };
+    let pack_value = |p: &Imported| {
+        serde_json::json!({
+            "pack": p.slug, "name": p.title(), "summary": p.summary(),
+            "counts": Status::ALL.iter().map(|s| (s.label(), p.count(*s))).collect::<std::collections::BTreeMap<_, _>>(),
+            "portable": p.portable, "ported_mods": p.mods.len(), "jars": p.jars(),
+            "report": p.work.join("coverage.md"),
+        })
+    };
     let show = |p: &Imported| {
         let counts: Vec<String> = Status::ALL
             .iter()
             .map(|s| format!("{} {}", p.count(*s), s.label()))
             .collect();
         if as_json {
-            json(serde_json::json!({
-                "pack": p.slug, "name": p.title(), "summary": p.summary(),
-                "counts": Status::ALL.iter().map(|s| (s.label(), p.count(*s))).collect::<std::collections::BTreeMap<_, _>>(),
-                "portable": p.portable, "ported_mods": p.mods.len(), "jars": p.jars(),
-                "report": p.work.join("coverage.md"),
-            }));
+            json(pack_value(p));
         } else {
             println!(
                 "{}  ({})\n  {}\n  {}",
@@ -4215,24 +4223,26 @@ fn modpack(action: ModpackCmd, as_json: bool) -> Result<(), String> {
         ModpackCmd::List => {
             let packs = modpacks::list();
             let registry = horizon::pack::list();
-            if packs.is_empty() && registry.is_empty() && !as_json {
+            if as_json {
+                let mut all: Vec<serde_json::Value> = packs.iter().map(pack_value).collect();
+                all.extend(registry.iter().map(|p| {
+                    serde_json::json!({"pack": p.id, "name": p.name, "version": p.version, "source": "horizon", "mods": p.mods})
+                }));
+                println!("{}", json_list(all));
+                return Ok(());
+            }
+            if packs.is_empty() && registry.is_empty() {
                 println!("No modpack imported yet: horizon-launcher modpack import <pack>");
             }
             packs.iter().for_each(show);
             for p in &registry {
-                if as_json {
-                    json(
-                        serde_json::json!({"pack": p.id, "name": p.name, "version": p.version, "source": "horizon", "mods": p.mods}),
-                    );
-                } else {
-                    println!(
-                        "{} {}  ({}, from Horizon's registry)\n  {}",
-                        p.name,
-                        p.version,
-                        p.id,
-                        p.mods.join(", ")
-                    );
-                }
+                println!(
+                    "{} {}  ({}, from Horizon's registry)\n  {}",
+                    p.name,
+                    p.version,
+                    p.id,
+                    p.mods.join(", ")
+                );
             }
         }
         ModpackCmd::Import { path } => show(&modpacks::import(&path, log)?),
@@ -4870,5 +4880,17 @@ mod tests {
             );
         }
         assert_eq!(native_mods::base_for(None, &[], false), None);
+    }
+
+    #[test]
+    fn a_json_list_is_one_array_even_when_empty_or_long() {
+        assert_eq!(super::json_list(vec![]), "[]");
+        let two = super::json_list(vec![
+            serde_json::json!({"pack": "a"}),
+            serde_json::json!({"pack": "b"}),
+        ]);
+        let parsed: serde_json::Value = serde_json::from_str(&two).unwrap();
+        assert_eq!(parsed.as_array().map(Vec::len), Some(2));
+        assert_eq!(parsed[1]["pack"], "b");
     }
 }
