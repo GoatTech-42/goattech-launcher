@@ -498,7 +498,7 @@ impl Launcher {
                     .justify_between()
                     .child(
                         shell::text(theme::night::CAPTION, shell::c(n.muted))
-                            .child("from other launchers".to_string()),
+                            .child(tr("from other launchers").to_string()),
                     )
                     .child(
                         shell::text(theme::night::CAPTION, shell::c(n.muted))

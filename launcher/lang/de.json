@@ -906,5 +906,9 @@
   "Stopped": "Angehalten",
   "Survival": "Überleben",
   "Vanilla": "vanilla",
-  "Version": "version"
+  "Version": "version",
+  "try again": "Erneut versuchen",
+  "details": "Details",
+  "hide details": "Details ausblenden",
+  "from other launchers": "Von anderen Launchern"
 }

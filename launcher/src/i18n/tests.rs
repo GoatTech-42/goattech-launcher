@@ -443,3 +443,22 @@ fn the_client_jar_texts_are_translated_and_german_rail_names_are_short() {
         );
     }
 }
+
+/// The retry and details buttons and the "from other launchers" heading are translated in every
+/// language, not English. (Machine-translated; no native speaker has reviewed them.)
+#[test]
+fn the_retry_and_details_buttons_are_translated_in_every_language() {
+    for language in Language::ALL {
+        if matches!(language, Language::English) {
+            continue;
+        }
+        for en in [
+            "try again",
+            "details",
+            "hide details",
+            "from other launchers",
+        ] {
+            assert_ne!(tr_in(language, en), en, "{}: {en:?}", language.code());
+        }
+    }
+}

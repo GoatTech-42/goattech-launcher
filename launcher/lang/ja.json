@@ -906,5 +906,9 @@
   "Stopped": "停止中",
   "Survival": "サバイバル",
   "Vanilla": "バニラ",
-  "Version": "バージョン"
+  "Version": "バージョン",
+  "try again": "再試行",
+  "details": "詳細",
+  "hide details": "詳細を隠す",
+  "from other launchers": "他のランチャーから"
 }

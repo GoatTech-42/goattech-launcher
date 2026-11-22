@@ -906,5 +906,9 @@
   "Stopped": "Durduruldu",
   "Survival": "Hayatta Kalma",
   "Vanilla": "Saf (Vanilla)",
-  "Version": "Sürüm"
+  "Version": "Sürüm",
+  "try again": "Yeniden dene",
+  "details": "Ayrıntılar",
+  "hide details": "Ayrıntıları gizle",
+  "from other launchers": "Diğer başlatıcılardan"
 }

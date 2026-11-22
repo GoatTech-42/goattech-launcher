@@ -906,5 +906,9 @@
   "Stopped": "Остановлен",
   "Survival": "Выживание",
   "Vanilla": "Ванильная",
-  "Version": "Версия"
+  "Version": "Версия",
+  "try again": "Повторить",
+  "details": "Подробности",
+  "hide details": "Скрыть подробности",
+  "from other launchers": "Из других лаунчеров"
 }

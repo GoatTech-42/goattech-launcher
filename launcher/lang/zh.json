@@ -906,5 +906,9 @@
   "Stopped": "已停止",
   "Survival": "生存",
   "Vanilla": "原版",
-  "Version": "版本"
+  "Version": "版本",
+  "try again": "重试",
+  "details": "详情",
+  "hide details": "隐藏详情",
+  "from other launchers": "来自其他启动器"
 }
