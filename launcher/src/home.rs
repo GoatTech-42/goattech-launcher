@@ -513,51 +513,51 @@ impl Launcher {
             row = row.child(
                 keyboard(
                     div()
-                            .id(SharedString::from(format!("next-{}", instance.id)))
-                            .relative()
-                            .flex()
-                            .flex_none()
-                            .flex_col()
-                            .justify_center()
-                            .gap(px(4.))
-                            .w(px(220.))
-                            .h(px(84.))
-                            .px(px(14.))
-                            .bg(alpha(n.card, n.card_alpha))
-                            .border_1()
-                            .border_color(alpha(n.stroke, n.stroke_alpha))
-                            .cursor_pointer()
-                            .when(active, |d| {
-                                d.child(
-                                    div()
-                                        .absolute()
-                                        .left_0()
-                                        .top_0()
-                                        .bottom_0()
-                                        .w(px(2.))
-                                        .bg(c(n.ink)),
-                                )
-                            })
-                            .child(
-                                shell::text(night::UI, c(n.ink))
-                                    .w_full()
-                                    .truncate()
-                                    .child(instance.name.clone()),
+                        .id(SharedString::from(format!("next-{}", instance.id)))
+                        .relative()
+                        .flex()
+                        .flex_none()
+                        .flex_col()
+                        .justify_center()
+                        .gap(px(4.))
+                        .w(px(220.))
+                        .h(px(84.))
+                        .px(px(14.))
+                        .bg(alpha(n.card, n.card_alpha))
+                        .border_1()
+                        .border_color(alpha(n.stroke, n.stroke_alpha))
+                        .cursor_pointer()
+                        .when(active, |d| {
+                            d.child(
+                                div()
+                                    .absolute()
+                                    .left_0()
+                                    .top_0()
+                                    .bottom_0()
+                                    .w(px(2.))
+                                    .bg(c(n.ink)),
                             )
-                            .child(
-                                shell::text(night::CAPTION, c(n.muted))
-                                    .text_size(px(11.))
-                                    .w_full()
-                                    .truncate()
-                                    .child(sub),
-                            )
-                            .child(
-                                shell::text(night::CAPTION, c(n.muted))
-                                    .text_size(px(11.))
-                                    .w_full()
-                                    .truncate()
-                                    .child(played),
-                            ),
+                        })
+                        .child(
+                            shell::text(night::UI, c(n.ink))
+                                .w_full()
+                                .truncate()
+                                .child(instance.name.clone()),
+                        )
+                        .child(
+                            shell::text(night::CAPTION, c(n.muted))
+                                .text_size(px(11.))
+                                .w_full()
+                                .truncate()
+                                .child(sub),
+                        )
+                        .child(
+                            shell::text(night::CAPTION, c(n.muted))
+                                .text_size(px(11.))
+                                .w_full()
+                                .truncate()
+                                .child(played),
+                        ),
                     &t,
                 )
                 .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
@@ -569,30 +569,30 @@ impl Launcher {
         row = row.child(
             keyboard(
                 div()
-                .id("next-new-instance")
-                .relative()
-                .flex()
-                .flex_none()
-                .flex_col()
-                .items_center()
-                .justify_center()
-                .gap(px(6.))
-                .w(px(220.))
-                .h(px(84.))
-                .border_1()
-                .border_dashed()
-                .border_color(alpha(n.stroke, n.stroke_alpha * 2.))
-                .cursor_pointer()
-                .child(
-                    div()
-                        .relative()
-                        .child(blocks::icon("plus", 20., c(n.muted))),
-                )
-                .child(
-                    shell::text(night::CAPTION, c(n.muted))
-                        .text_size(px(11.))
-                        .child(tr("new instance").to_string()),
-                ),
+                    .id("next-new-instance")
+                    .relative()
+                    .flex()
+                    .flex_none()
+                    .flex_col()
+                    .items_center()
+                    .justify_center()
+                    .gap(px(6.))
+                    .w(px(220.))
+                    .h(px(84.))
+                    .border_1()
+                    .border_dashed()
+                    .border_color(alpha(n.stroke, n.stroke_alpha * 2.))
+                    .cursor_pointer()
+                    .child(
+                        div()
+                            .relative()
+                            .child(blocks::icon("plus", 20., c(n.muted))),
+                    )
+                    .child(
+                        shell::text(night::CAPTION, c(n.muted))
+                            .text_size(px(11.))
+                            .child(tr("new instance").to_string()),
+                    ),
                 &t,
             )
             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
