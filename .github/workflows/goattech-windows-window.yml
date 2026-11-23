@@ -1,4 +1,4 @@
-name: GoatTech P23 stage-one calibration
+name: GoatTech P23 stage-two fixed clicks
 # CI-only harness branch. Never merge this harness or its runner seam into main.
 # Pins P23 cdcdaf06, with synthetic offline names only.
 # No repository secrets, real accounts, cache, release, or artifact upload.
@@ -122,18 +122,17 @@ jobs:
             finally { & '_capture/docs/qa/route-export.ps1' }
           }
           if ($failed.Count) { throw "Failed routes: $($failed -join ',')" }
-      - name: P23 pr_ready self-check (report actual outcome)
+      - name: P23 launcher-scoped self-check (not pr_ready)
         shell: pwsh
+        working-directory: launcher
         timeout-minutes: 20
-        continue-on-error: true
         env:
           HORIZON_MSA_CLIENT_ID: 00000000-0000-4000-8000-000000000000
         run: |
           $ErrorActionPreference = 'Stop'
-          if ((git rev-parse HEAD).Trim() -ne 'cdcdaf0609dd88626cdf7d45b223557ce14e50ce') { throw 'Unexpected self-check source' }
-          git fetch --no-tags --depth=1 origin f1fa45bba5e0835e6cabb1faf7be30a29591d5ed
-          if ($LASTEXITCODE -ne 0) { throw 'Cannot fetch self-check base' }
-          git fetch --no-tags --deepen=2 origin cdcdaf0609dd88626cdf7d45b223557ce14e50ce
-          if ($LASTEXITCODE -ne 0) { throw 'Cannot recover self-check ancestry' }
-          python tools/pr_ready.py --base f1fa45bba5e0835e6cabb1faf7be30a29591d5ed
-          if ($LASTEXITCODE -ne 0) { throw 'pr_ready failed; preserve its output, do not claim a passing self-check' }
+          cargo fmt --check
+          if ($LASTEXITCODE -ne 0) { throw 'launcher fmt failed' }
+          cargo clippy --locked --all-targets -- -D warnings
+          if ($LASTEXITCODE -ne 0) { throw 'launcher clippy failed' }
+          cargo test --locked --lib --bins --tests
+          if ($LASTEXITCODE -ne 0) { throw 'launcher tests failed' }
