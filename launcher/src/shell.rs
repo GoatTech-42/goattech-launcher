@@ -20,8 +20,10 @@ pub fn text(step: Step, color: Hsla) -> Div {
             theme::FONT
         })
         .font_weight(FontWeight(step.weight as f32))
-        .text_size(px(step.px))
-        .line_height(px(step.line_px()))
+        // The window's UI scale (theme::ui_scale) grows the step above 1028x780; the
+        // family branch above compares the unscaled size, which no step crosses.
+        .text_size(px(theme::step_px(step)))
+        .line_height(px(theme::step_line_px(step)))
         .text_color(color)
 }
 
@@ -361,7 +363,7 @@ pub fn action(id: impl Into<SharedString>, kind: Action, t: &Theme) -> Stateful<
         .px(px(16.))
         .font_family(theme::FONT)
         .font_weight(FontWeight::MEDIUM)
-        .text_size(px(night::UI.px))
+        .text_size(px(theme::step_px(night::UI)))
         .cursor_pointer();
     let fill = |d: Div| d.absolute().top_0().left_0().size_full();
     let round = move || fill(div()).rounded(px(night::RADIUS_CONTROL));
@@ -370,7 +372,7 @@ pub fn action(id: impl Into<SharedString>, kind: Action, t: &Theme) -> Stateful<
             .h(px(night::PLAY))
             .px(px(28.))
             .font_family(theme::PIXEL)
-            .text_size(px(night::TITLE.px))
+            .text_size(px(theme::step_px(night::TITLE)))
             .font_weight(FontWeight::BOLD)
             .text_color(c(n.on_accent))
             .child(fill(cut(

@@ -208,7 +208,7 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
                     .rounded(px(theme::RADIUS_PLATE))
                     .bg(t.plate)
                     .font_family(theme::MONO)
-                    .text_size(px(theme::CAPTION.px))
+                    .text_size(px(theme::step_px(theme::CAPTION)))
                     .line_height(px(18.))
                     .text_color(t.ink_soft)
                     .children(view.1.lines().map(|l| div().child(l.to_string()))),
@@ -472,7 +472,7 @@ impl Launcher {
                 keyboard(
                     div()
                         .id("ask-view")
-                        .text_size(px(theme::UI.px))
+                        .text_size(px(theme::step_px(theme::UI)))
                         .text_color(t.accent)
                         .cursor_pointer()
                         .hover(|s| s.opacity(0.8))

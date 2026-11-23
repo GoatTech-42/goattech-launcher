@@ -971,7 +971,7 @@ impl Launcher {
                 t.rule
             })
             .bg(t.surface)
-            .text_size(px(theme::UI.px))
+            .text_size(px(theme::step_px(theme::UI)))
             .cursor_text()
             .child(line_edit::content(
                 self.servers.text(f),
@@ -1171,7 +1171,7 @@ impl Launcher {
         let b = button(id, label, Kind::Ghost, &self.theme)
             .h(px(28.))
             .px(px(10.))
-            .text_size(px(theme::CAPTION.px));
+            .text_size(px(theme::step_px(theme::CAPTION)));
         if enabled {
             b.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                 action(this);
@@ -1444,7 +1444,7 @@ impl Launcher {
             b.min_w(px(132.))
                 .h(px(theme::CONTROL_LARGE))
                 .px(px(28.))
-                .text_size(px(theme::UI.px))
+                .text_size(px(theme::step_px(theme::UI)))
         };
         let idle = busy.is_none();
         let start = big(button(
@@ -1544,7 +1544,7 @@ impl Launcher {
                     .child(
                         div()
                             .flex_1()
-                            .text_size(px(theme::UI.px))
+                            .text_size(px(theme::step_px(theme::UI)))
                             .text_color(t.ink)
                             .child(n),
                     ),
@@ -1567,7 +1567,7 @@ impl Launcher {
                     .child(
                         div()
                             .flex_1()
-                            .text_size(px(theme::UI.px))
+                            .text_size(px(theme::step_px(theme::UI)))
                             .text_color(t.ink)
                             .child(trf(
                                 "saved. restart to apply: {settings}.",
@@ -1770,7 +1770,7 @@ impl Launcher {
             .py(px(12.))
             .overflow_y_scroll()
             .font_family(theme::MONO)
-            .text_size(px(theme::CAPTION.px))
+            .text_size(px(theme::step_px(theme::CAPTION)))
             .line_height(px(19.))
             .text_color(t.ink_soft)
             .when(empty, |d| {
@@ -1793,7 +1793,7 @@ impl Launcher {
             .border_0()
             .bg(t.plate_soft)
             .font_family(theme::MONO)
-            .text_size(px(theme::CAPTION.px))
+            .text_size(px(theme::step_px(theme::CAPTION)))
             .into_any_element()
         } else {
             div()
@@ -1801,7 +1801,7 @@ impl Launcher {
                 .h(px(theme::FIELD))
                 .flex()
                 .items_center()
-                .text_size(px(theme::CAPTION.px))
+                .text_size(px(theme::step_px(theme::CAPTION)))
                 .text_color(t.muted)
                 .child(tr("start the server to type commands"))
                 .into_any_element()
@@ -2980,7 +2980,7 @@ impl Launcher {
             .child(
                 div()
                     .id("create-eula-read")
-                    .text_size(px(theme::UI.px))
+                    .text_size(px(theme::step_px(theme::UI)))
                     .text_color(t.accent)
                     .cursor_pointer()
                     .hover(|s| s.opacity(0.8))

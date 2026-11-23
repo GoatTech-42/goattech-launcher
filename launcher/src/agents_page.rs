@@ -99,7 +99,7 @@ impl Launcher {
             .flex_col()
             .gap(px(12.))
             .p(px(24.))
-            .text_size(px(theme::UI.px))
+            .text_size(px(theme::step_px(theme::UI)))
             .line_height(px(21.))
             .child(
                 text(theme::HEADING)

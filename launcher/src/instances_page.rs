@@ -558,6 +558,7 @@ impl Launcher {
                             shell::text(theme::night::CAPTION, shell::c(n.muted))
                                 .font_family(theme::MONO)
                                 .text_size(px(13.))
+                                .line_height(px(17.))
                                 .child(tr(s).to_string())
                         })),
                 )
@@ -711,6 +712,7 @@ impl Launcher {
                         shell::text(theme::night::CAPTION, shell::c(n.muted))
                             .font_family(theme::MONO)
                             .text_size(px(13.))
+                            .line_height(px(17.))
                             .child(played_line(i)),
                     )
                     .child(
@@ -1922,7 +1924,7 @@ impl Launcher {
         let save = shell::action("instance-save", shell::Action::Main, &t)
             .track_focus(&save_key)
             .h(px(theme::CONTROL + 6.))
-            .text_size(px(theme::night::UI.px))
+            .text_size(px(theme::step_px(theme::night::UI)))
             .child(shell::label(tr(label).to_string()));
         // A modpack becomes an instance by being imported, on the Mods page.
         let import = (!editing && !busy).then(|| {

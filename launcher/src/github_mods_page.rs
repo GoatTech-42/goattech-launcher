@@ -207,7 +207,7 @@ impl Launcher {
             .border_2()
             .border_color(if focused { t.accent } else { t.outline })
             .bg(t.well)
-            .text_size(px(theme::UI.px))
+            .text_size(px(theme::step_px(theme::UI)))
             .cursor_text()
             .child(line_edit::content(
                 &self.github.text,
@@ -319,7 +319,7 @@ impl Launcher {
             .flex_col()
             .gap(px(10.))
             .p(px(16.))
-            .text_size(px(theme::UI.px))
+            .text_size(px(theme::step_px(theme::UI)))
             .text_color(t.ink)
             .child(micro(tr("not reviewed by the horizon registry")).text_color(t.danger))
             .child(what)
@@ -387,7 +387,7 @@ impl Launcher {
             .flex_col()
             .gap(px(10.))
             .p(px(16.))
-            .text_size(px(theme::UI.px))
+            .text_size(px(theme::step_px(theme::UI)))
             .text_color(t.ink)
             .child(trf(
                 "{name} holds {count} mods. install which?",

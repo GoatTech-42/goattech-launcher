@@ -2427,7 +2427,9 @@ fn hover_fade(
 
 /// Text set in one step of the type scale: headings (heading, title, display) in the pixel face.
 fn text(step: theme::Step) -> Div {
-    let d = div().text_size(px(step.px)).line_height(px(step.line_px()));
+    let d = div()
+        .text_size(px(theme::step_px(step)))
+        .line_height(px(theme::step_line_px(step)));
     let d = if step.mono {
         d.font_family(theme::MONO)
     } else if step.px >= theme::HEADING.px {
@@ -3293,7 +3295,7 @@ fn notice(text_: String, t: &Theme) -> Div {
         .flex()
         .gap(px(12.))
         .p(px(16.))
-        .text_size(px(theme::UI.px))
+        .text_size(px(theme::step_px(theme::UI)))
         .line_height(px(21.))
         .text_color(t.ink)
         .border_l(px(6.))
@@ -3751,7 +3753,7 @@ impl Launcher {
                         .px(px(10.))
                         .rounded(px(theme::RADIUS))
                         .font_family(theme::MONO)
-                        .text_size(px(theme::CAPTION.px))
+                        .text_size(px(theme::step_px(theme::CAPTION)))
                         .text_color(t.ink)
                         .cursor_pointer()
                         .hover(move |s| s.bg(t.plate_soft))
@@ -3786,7 +3788,7 @@ impl Launcher {
                     .h(px(32.))
                     .px(px(10.))
                     .rounded(px(theme::RADIUS))
-                    .text_size(px(theme::LABEL.px))
+                    .text_size(px(theme::step_px(theme::LABEL)))
                     .text_color(t.muted)
                     .cursor_pointer()
                     .hover(move |s| s.bg(t.plate_soft).text_color(t.ink))
@@ -4221,7 +4223,7 @@ impl Launcher {
             .flex()
             .gap(px(14.))
             .p(px(24.))
-            .text_size(px(theme::UI.px))
+            .text_size(px(theme::step_px(theme::UI)))
             .line_height(px(21.))
             .text_color(t.ink)
             .child(
@@ -5744,6 +5746,10 @@ fn progress_bar(fraction: Option<(f32, f32)>, t: &Theme) -> Div {
 impl Render for Launcher {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = self.theme;
+        let size = window.viewport_size();
+        self.viewport_w = size.width.into();
+        self.viewport_h = size.height.into();
+        theme::set_ui_scale(self.viewport_w, self.viewport_h);
         if specimen::wanted() {
             return div()
                 .flex()
@@ -5764,9 +5770,6 @@ impl Render for Launcher {
         self.github.note_focus(window);
         self.args_focused = self.args_focus.is_focused(window);
         self.proxy_focused = self.proxy_focus.is_focused(window);
-        let size = window.viewport_size();
-        self.viewport_w = size.width.into();
-        self.viewport_h = size.height.into();
         let content = match self.page {
             Page::Play => self.play_page(cx),
             Page::Instances => self.instances_page(cx),

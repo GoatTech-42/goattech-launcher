@@ -845,7 +845,7 @@ impl Launcher {
             .border_2()
             .border_color(if focused { t.accent } else { t.outline })
             .bg(t.well)
-            .text_size(px(theme::UI.px))
+            .text_size(px(theme::step_px(theme::UI)))
             .cursor_text()
             .child(blocks::icon("search", 18., t.muted))
             .child(line_edit::content(
@@ -1105,7 +1105,7 @@ impl Launcher {
                 .flex_col()
                 .gap(px(10.))
                 .p(px(16.))
-                .text_size(px(theme::UI.px))
+                .text_size(px(theme::step_px(theme::UI)))
                 .text_color(t.ink)
                 .child(tr(native_status::NOTICE).to_string())
                 .child(
@@ -1167,7 +1167,7 @@ impl Launcher {
             Some(Ok(done)) => out.push(
                 plate(&t)
                     .p(px(16.))
-                    .text_size(px(theme::UI.px))
+                    .text_size(px(theme::step_px(theme::UI)))
                     .text_color(t.ink)
                     .child(done.clone()),
             ),
