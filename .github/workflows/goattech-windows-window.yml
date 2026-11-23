@@ -28,12 +28,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { lang: en, net: off, label: instances, mode: home, width: 960, height: 600, source: '7be7cd107e360670b710b31be8b9811c15bbdc37' }
-          - { lang: en, net: off, label: mods, mode: home, width: 960, height: 600, source: '7be7cd107e360670b710b31be8b9811c15bbdc37' }
-          - { lang: en, net: off, label: servers, mode: home, width: 960, height: 600, source: '7be7cd107e360670b710b31be8b9811c15bbdc37' }
-          - { lang: en, net: off, label: versions, mode: home, width: 960, height: 600, source: '7be7cd107e360670b710b31be8b9811c15bbdc37' }
-          - { lang: en, net: off, label: settings, mode: home, width: 960, height: 600, source: '7be7cd107e360670b710b31be8b9811c15bbdc37' }
-          - { lang: en, net: off, label: new-instance, mode: home, width: 960, height: 600, source: '7be7cd107e360670b710b31be8b9811c15bbdc37' }
+          - { lang: en, net: off, label: base-instances, page: instances, mode: home, width: 960, height: 600, source: '33c781c4a36d55935527dd815fb63df69d27b5ca' }
+          - { lang: en, net: off, label: base-mods, page: mods, mode: home, width: 960, height: 600, source: '33c781c4a36d55935527dd815fb63df69d27b5ca' }
+          - { lang: en, net: off, label: base-servers, page: servers, mode: home, width: 960, height: 600, source: '33c781c4a36d55935527dd815fb63df69d27b5ca' }
+          - { lang: en, net: off, label: base-versions, page: versions, mode: home, width: 960, height: 600, source: '33c781c4a36d55935527dd815fb63df69d27b5ca' }
+          - { lang: en, net: off, label: base-settings, page: settings, mode: home, width: 960, height: 600, source: '33c781c4a36d55935527dd815fb63df69d27b5ca' }
+          - { lang: en, net: off, label: base-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '33c781c4a36d55935527dd815fb63df69d27b5ca' }
+          - { lang: en, net: off, label: branch-instances, page: instances, mode: home, width: 960, height: 600, source: '5bee58c127284ba21a3ea2ab053257e5aa891bd4' }
+          - { lang: en, net: off, label: branch-mods, page: mods, mode: home, width: 960, height: 600, source: '5bee58c127284ba21a3ea2ab053257e5aa891bd4' }
+          - { lang: en, net: off, label: branch-servers, page: servers, mode: home, width: 960, height: 600, source: '5bee58c127284ba21a3ea2ab053257e5aa891bd4' }
+          - { lang: en, net: off, label: branch-versions, page: versions, mode: home, width: 960, height: 600, source: '5bee58c127284ba21a3ea2ab053257e5aa891bd4' }
+          - { lang: en, net: off, label: branch-settings, page: settings, mode: home, width: 960, height: 600, source: '5bee58c127284ba21a3ea2ab053257e5aa891bd4' }
+          - { lang: en, net: off, label: branch-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '5bee58c127284ba21a3ea2ab053257e5aa891bd4' }
     # Uncached cold build on a 4-core runner can take a while; compute is free
     # for this public repo, the capture step still has its own 3-min bound.
     timeout-minutes: 90
@@ -115,7 +121,7 @@ jobs:
           HTTPS_PROXY: http://127.0.0.1:9
           ALL_PROXY: http://127.0.0.1:9
           CAP: ${{ runner.temp }}\captures
-          HORIZON_LAUNCHER_PAGE: ${{ matrix.label }}
+          HORIZON_LAUNCHER_PAGE: ${{ matrix.page }}
           CAP_MODE: ${{ matrix.mode }}
           CAP_WIDTH: ${{ matrix.width }}
           CAP_HEIGHT: ${{ matrix.height }}
@@ -277,7 +283,7 @@ jobs:
           HTTPS_PROXY: http://127.0.0.1:9
           ALL_PROXY: http://127.0.0.1:9
           CAP: ${{ runner.temp }}\captures
-          HORIZON_LAUNCHER_PAGE: ${{ matrix.label }}
+          HORIZON_LAUNCHER_PAGE: ${{ matrix.page }}
           CAP_MODE: ${{ matrix.mode }}
           CAP_WIDTH: ${{ matrix.width }}
           CAP_HEIGHT: ${{ matrix.height }}
