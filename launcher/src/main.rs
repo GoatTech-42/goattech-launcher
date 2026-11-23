@@ -3773,10 +3773,14 @@ impl Launcher {
         {
             let mut menu = div()
                 .absolute()
-                .top(px(theme::chrome(theme::night::PLAY + 6.)))
+                .top(px(if self.page == Page::Play {
+                    theme::night::PLAY + theme::chrome(6.)
+                } else {
+                    theme::chrome(theme::night::PLAY + 6.)
+                }))
                 .left_0()
-                .w(px(340.))
-                .p(px(6.))
+                .w(px(theme::chrome(340.)))
+                .p(px(theme::chrome(6.)))
                 .rounded(px(theme::night::RADIUS_CONTROL))
                 .border_1()
                 .border_color(plate::alpha(n.stroke, 2. * n.stroke_alpha))
@@ -3801,9 +3805,9 @@ impl Launcher {
                         .flex()
                         .items_center()
                         .justify_between()
-                        .gap(px(12.))
-                        .h(px(32.))
-                        .px(px(10.))
+                        .gap(px(theme::chrome(12.)))
+                        .h(px(theme::chrome(32.)))
+                        .px(px(theme::chrome(10.)))
                         .rounded(px(theme::RADIUS))
                         .font_family(theme::MONO)
                         .text_size(px(theme::step_px(theme::CAPTION)))
@@ -3816,7 +3820,7 @@ impl Launcher {
                                 .flex()
                                 .flex_none()
                                 .items_center()
-                                .gap(px(8.))
+                                .gap(px(theme::chrome(8.)))
                                 .when(latest, |d| {
                                     d.child(
                                         micro(tr("auto-update")).flex_none().text_color(t.muted),
@@ -3833,25 +3837,27 @@ impl Launcher {
                         })),
                 );
             }
-            menu = menu.child(div().my(px(6.)).h(px(1.)).bg(t.rule)).child(
-                div()
-                    .id("manage")
-                    .flex()
-                    .items_center()
-                    .h(px(32.))
-                    .px(px(10.))
-                    .rounded(px(theme::RADIUS))
-                    .text_size(px(theme::step_px(theme::LABEL)))
-                    .text_color(t.muted)
-                    .cursor_pointer()
-                    .hover(move |s| s.bg(t.plate_soft).text_color(t.ink))
-                    .child(tr("manage versions"))
-                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                        this.go(Page::Versions);
-                        this.picker_open = false;
-                        cx.notify();
-                    })),
-            );
+            menu = menu
+                .child(div().my(px(theme::chrome(6.))).h(px(1.)).bg(t.rule))
+                .child(
+                    div()
+                        .id("manage")
+                        .flex()
+                        .items_center()
+                        .h(px(theme::chrome(32.)))
+                        .px(px(theme::chrome(10.)))
+                        .rounded(px(theme::RADIUS))
+                        .text_size(px(theme::step_px(theme::LABEL)))
+                        .text_color(t.muted)
+                        .cursor_pointer()
+                        .hover(move |s| s.bg(t.plate_soft).text_color(t.ink))
+                        .child(tr("manage versions"))
+                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                            this.go(Page::Versions);
+                            this.picker_open = false;
+                            cx.notify();
+                        })),
+                );
             Some(gpui::deferred(menu).with_priority(1))
         }
     }

@@ -204,7 +204,9 @@ impl Launcher {
         let taken: chrono::DateTime<chrono::Local> = shot.taken.into();
         let step =
             |id: &'static str, key: &FocusHandle, label: &'static str, older: bool, can: bool| {
-                let b = button(id, label, Kind::Ghost, &t).track_focus(key);
+                let b = button(id, label, Kind::Ghost, &t)
+                    .text_size(px(theme::chrome(16.)))
+                    .track_focus(key);
                 if can {
                     b.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                         this.screenshot_step(older);
@@ -214,7 +216,7 @@ impl Launcher {
                     disabled(b)
                 }
             };
-        let mut actions = div().flex().items_center().gap(px(6.));
+        let mut actions = div().flex().items_center().gap(px(theme::chrome(6.)));
         if self.screenshots.confirm_delete {
             let gone = shot.clone();
             actions = actions
@@ -225,6 +227,7 @@ impl Launcher {
                 )
                 .child(
                     button("screenshot-keep", "keep", Kind::Ghost, &t)
+                        .text_size(px(theme::chrome(16.)))
                         .track_focus(&keys["screenshot-keep"])
                         .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.screenshots.confirm_delete = false;
@@ -233,6 +236,7 @@ impl Launcher {
                 )
                 .child(
                     button("screenshot-trash", "move to trash", Kind::Secondary, &t)
+                        .text_size(px(theme::chrome(16.)))
                         .track_focus(&keys["screenshot-trash"])
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.delete_screenshot(&gone);
@@ -244,6 +248,7 @@ impl Launcher {
             actions = actions
                 .child(
                     button("screenshot-copy", "copy", Kind::Ghost, &t)
+                        .text_size(px(theme::chrome(16.)))
                         .track_focus(&keys["screenshot-copy"])
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.copy_screenshot(&copy, cx);
@@ -252,16 +257,19 @@ impl Launcher {
                 )
                 .child(
                     button("screenshot-open", "open", Kind::Ghost, &t)
+                        .text_size(px(theme::chrome(16.)))
                         .track_focus(&keys["screenshot-open"])
                         .on_click(move |_, _, cx| cx.open_with_system(&open)),
                 )
                 .child(
                     button("screenshot-show", "show in folder", Kind::Ghost, &t)
+                        .text_size(px(theme::chrome(16.)))
                         .track_focus(&keys["screenshot-show"])
                         .on_click(move |_, _, cx| cx.reveal_path(&show)),
                 )
                 .child(
                     button("screenshot-delete", "delete", Kind::Ghost, &t)
+                        .text_size(px(theme::chrome(16.)))
                         .track_focus(&keys["screenshot-delete"])
                         .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.screenshots.confirm_delete = true;
@@ -277,7 +285,7 @@ impl Launcher {
         let top = div()
             .flex()
             .items_center()
-            .gap(px(12.))
+            .gap(px(theme::chrome(12.)))
             .child(
                 div()
                     .flex()
@@ -319,6 +327,7 @@ impl Launcher {
             ))
             .child(
                 button("screenshot-close", "close", Kind::Secondary, &t)
+                    .text_size(px(theme::chrome(16.)))
                     .track_focus(&keys["screenshot-close"])
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.screenshot_escape();
@@ -329,7 +338,7 @@ impl Launcher {
             .flex()
             .items_center()
             .justify_between()
-            .gap(px(12.))
+            .gap(px(theme::chrome(12.)))
             .child(div().children(note))
             .child(actions);
         let out = Some(
@@ -341,9 +350,9 @@ impl Launcher {
                 .size_full()
                 .flex()
                 .flex_col()
-                .gap(px(14.))
-                .px(px(32.))
-                .py(px(24.))
+                .gap(px(theme::chrome(14.)))
+                .px(px(theme::chrome(32.)))
+                .py(px(theme::chrome(24.)))
                 .bg(t.page.opacity(0.96))
                 .on_scroll(|_, _, cx| cx.stop_propagation())
                 .occlude()
