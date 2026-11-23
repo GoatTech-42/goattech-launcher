@@ -28,18 +28,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { lang: en, net: off, label: base-instances, page: instances, mode: home, width: 960, height: 600, source: '33c781c4a36d55935527dd815fb63df69d27b5ca' }
-          - { lang: en, net: off, label: base-mods, page: mods, mode: home, width: 960, height: 600, source: '33c781c4a36d55935527dd815fb63df69d27b5ca' }
-          - { lang: en, net: off, label: base-servers, page: servers, mode: home, width: 960, height: 600, source: '33c781c4a36d55935527dd815fb63df69d27b5ca' }
-          - { lang: en, net: off, label: base-versions, page: versions, mode: home, width: 960, height: 600, source: '33c781c4a36d55935527dd815fb63df69d27b5ca' }
-          - { lang: en, net: off, label: base-settings, page: settings, mode: home, width: 960, height: 600, source: '33c781c4a36d55935527dd815fb63df69d27b5ca' }
-          - { lang: en, net: off, label: base-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '33c781c4a36d55935527dd815fb63df69d27b5ca' }
-          - { lang: en, net: off, label: branch-instances, page: instances, mode: home, width: 960, height: 600, source: '5bee58c127284ba21a3ea2ab053257e5aa891bd4' }
-          - { lang: en, net: off, label: branch-mods, page: mods, mode: home, width: 960, height: 600, source: '5bee58c127284ba21a3ea2ab053257e5aa891bd4' }
-          - { lang: en, net: off, label: branch-servers, page: servers, mode: home, width: 960, height: 600, source: '5bee58c127284ba21a3ea2ab053257e5aa891bd4' }
-          - { lang: en, net: off, label: branch-versions, page: versions, mode: home, width: 960, height: 600, source: '5bee58c127284ba21a3ea2ab053257e5aa891bd4' }
-          - { lang: en, net: off, label: branch-settings, page: settings, mode: home, width: 960, height: 600, source: '5bee58c127284ba21a3ea2ab053257e5aa891bd4' }
-          - { lang: en, net: off, label: branch-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '5bee58c127284ba21a3ea2ab053257e5aa891bd4' }
+          - { lang: en, net: off, label: base-instances, page: instances, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
+          - { lang: en, net: off, label: base-mods, page: mods, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
+          - { lang: en, net: off, label: base-servers, page: servers, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
+          - { lang: en, net: off, label: base-versions, page: versions, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
+          - { lang: en, net: off, label: base-settings, page: settings, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
+          - { lang: en, net: off, label: base-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
+          - { lang: en, net: off, label: branch-instances, page: instances, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
+          - { lang: en, net: off, label: branch-mods, page: mods, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
+          - { lang: en, net: off, label: branch-servers, page: servers, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
+          - { lang: en, net: off, label: branch-versions, page: versions, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
+          - { lang: en, net: off, label: branch-settings, page: settings, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
+          - { lang: en, net: off, label: branch-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
     # Uncached cold build on a 4-core runner can take a while; compute is free
     # for this public repo, the capture step still has its own 3-min bound.
     timeout-minutes: 90
@@ -195,7 +195,8 @@ jobs:
                 @{n='sign-in-prompt'; c=@(500,649); w=3},
                 @{n='account-dismissed'; k='{ESC}'; w=2},
                 @{n='page-minimum'; r=@(960,600); w=3},
-                @{n='page-largest-requested'; r=@(2560,1440); w=3}
+                @{n='page-1028x780'; r=@(1028,780); w=3},
+                @{n='page-1024x720'; r=@(1024,720); w=3}
               )
             }
             for ($f = 1; $f -le $steps.Count; $f++) {
@@ -254,7 +255,7 @@ jobs:
             "AUTOMATION-CHECKS: process-alive=whole-phase initial-visible-owned-window>=200x200=yes frames-window-ok=$seenCount/$($steps.Count) captures-accepted=$okCount/$($steps.Count)" | Out-File $info -Append
             if ($seenCount -eq 0) { "WINDOW-AFTER-INITIAL: unverified (every frame skipped)" | Out-File $info -Append }
             "NOT-PROVEN: rendering/pixels/input/consent/game-launch/GPU/continuous-presence - frames require human inspection" | Out-File $info -Append
-            $required = @('account-dismissed','page-minimum','page-largest-requested')
+            $required = @('account-dismissed','page-minimum','page-1028x780','page-1024x720')
             foreach ($name in $required) {
               if (-not $savedSteps.ContainsKey($name) -or -not (Test-Path -LiteralPath $savedSteps[$name]) -or (Get-Item -LiteralPath $savedSteps[$name]).Length -eq 0) {
                 throw "Required saved capture missing or empty: $name"
