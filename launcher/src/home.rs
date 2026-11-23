@@ -180,10 +180,9 @@ impl Launcher {
                         if prepared && signed { t.success } else { t.warn },
                     )
                     .font_family(theme::PIXEL)
-                    // Pinned, not scaled: the hero keeps its exact sizes at every window
-                    // (stage_texel is the home page's own viewport response).
-                    .text_size(px(12.))
-                    .line_height(px(17.))
+                    // Supporting text scales; the player stage and Launch geometry stay pinned.
+                    .text_size(px(theme::chrome(12.)))
+                    .line_height(px(theme::chrome(17.)))
                     .child(
                         tr(match status {
                             HeroStatus::Ready => "ready to launch",
@@ -231,19 +230,19 @@ impl Launcher {
             .children(self.playing.map(|playing| {
                 shell::text(night::CAPTION, c(n.muted))
                     .relative()
-                    .text_size(px(12.))
-                    .line_height(px(17.))
+                    .text_size(px(theme::chrome(12.)))
+                    .line_height(px(theme::chrome(17.)))
                     .child(trf("{n} playing horizon now", &[("n", &thousands(playing))]))
             }))
             // Words sit on a plate where the sky would cross them (docs/design-system.md).
             .child(
                 shell::text(night::CAPTION, c(n.muted))
                     .bg(alpha(n.card, 0.6))
-                    .text_size(px(12.))
-                    .line_height(px(17.))
+                    .text_size(px(theme::chrome(12.)))
+                    .line_height(px(theme::chrome(17.)))
                     .px(px(10.))
                     .py(px(if compact { 2. } else { 4. }))
-                    .max_w(px(560.))
+                    .max_w(px(theme::chrome(560.)))
                     .child(
                         tr("its own runtime, mods and saves. nothing mixes with your other instances.")
                             .to_string(),
@@ -526,7 +525,7 @@ impl Launcher {
             return div();
         }
         let selected_id = self.selected_instance().map(|i| i.id.clone());
-        let mut row = div().flex().flex_wrap().gap(px(12.));
+        let mut row = div().flex().flex_wrap().gap(px(theme::chrome(12.)));
         for instance in self.instances.list.clone() {
             let active = selected_id.as_ref() == Some(&instance.id);
             let played = instances_page::played_line(&instance);
@@ -561,10 +560,10 @@ impl Launcher {
                         .flex_none()
                         .flex_col()
                         .justify_center()
-                        .gap(px(4.))
-                        .w(px(220.))
-                        .h(px(84.))
-                        .px(px(14.))
+                        .gap(px(theme::chrome(4.)))
+                        .w(px(theme::chrome(220.)))
+                        .h(px(theme::chrome(84.)))
+                        .px(px(theme::chrome(14.)))
                         .bg(alpha(n.card, n.card_alpha))
                         .border_1()
                         .border_color(alpha(n.stroke, n.stroke_alpha))
@@ -588,16 +587,16 @@ impl Launcher {
                         )
                         .child(
                             shell::text(night::CAPTION, c(n.muted))
-                                .text_size(px(11.))
-                                .line_height(px(17.))
+                                .text_size(px(theme::chrome(11.)))
+                                .line_height(px(theme::chrome(17.)))
                                 .w_full()
                                 .truncate()
                                 .child(sub),
                         )
                         .child(
                             shell::text(night::CAPTION, c(n.muted))
-                                .text_size(px(11.))
-                                .line_height(px(17.))
+                                .text_size(px(theme::chrome(11.)))
+                                .line_height(px(theme::chrome(17.)))
                                 .w_full()
                                 .truncate()
                                 .child(played),
@@ -620,9 +619,9 @@ impl Launcher {
                     .flex_col()
                     .items_center()
                     .justify_center()
-                    .gap(px(6.))
-                    .w(px(220.))
-                    .h(px(84.))
+                    .gap(px(theme::chrome(6.)))
+                    .w(px(theme::chrome(220.)))
+                    .h(px(theme::chrome(84.)))
                     .border_1()
                     .border_dashed()
                     .border_color(alpha(n.stroke, n.stroke_alpha * 2.))
@@ -634,8 +633,8 @@ impl Launcher {
                     )
                     .child(
                         shell::text(night::CAPTION, c(n.muted))
-                            .text_size(px(11.))
-                            .line_height(px(17.))
+                            .text_size(px(theme::chrome(11.)))
+                            .line_height(px(theme::chrome(17.)))
                             .child(tr("new instance").to_string()),
                     ),
                 &t,
@@ -649,12 +648,12 @@ impl Launcher {
             .flex()
             .flex_none()
             .flex_col()
-            .gap(px(10.))
+            .gap(px(theme::chrome(10.)))
             .child(
                 shell::text(night::CAPTION, c(n.muted))
                     .font_family(theme::PIXEL)
-                    .text_size(px(11.))
-                    .line_height(px(17.))
+                    .text_size(px(theme::chrome(11.)))
+                    .line_height(px(theme::chrome(17.)))
                     .child(tr("playing next").to_string()),
             )
             .child(row)
@@ -897,8 +896,8 @@ impl Launcher {
                     .when(!subtitle.is_empty(), |d| {
                         d.child(
                             shell::text(theme::MICRO, c(t.night.on_accent))
-                                .text_size(px(12.))
-                                .line_height(px(18.))
+                                .text_size(px(theme::chrome(12.)))
+                                .line_height(px(theme::chrome(18.)))
                                 .child(subtitle.to_lowercase()),
                         )
                     }),
