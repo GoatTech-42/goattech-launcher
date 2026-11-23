@@ -7,6 +7,16 @@ name: GoatTech Windows window qualification
 # Images and synthetic window state leave the runner in PUBLIC run logs.
 on:
   workflow_dispatch:
+    inputs:
+      state:
+        description: 'Optional synthetic state probe (requested state, not proof it opened)'
+        type: choice
+        default: survey
+        options: [survey, account, versions-popup, consent, screenshot-viewer, export, launch, skin]
+      actions:
+        description: 'Probe-only JSON input steps, calibrated at 1028x780: [{"n":"open","c":[x,y],"w":2}]. Empty captures fixture only.'
+        type: string
+        default: '[]'
 
 permissions:
   contents: read
@@ -27,29 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { lang: en, net: off, label: base-home, page: home, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
-          - { lang: en, net: off, label: base-instances, page: instances, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
-          - { lang: en, net: off, label: base-mods, page: mods, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
-          - { lang: en, net: off, label: base-servers, page: servers, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
-          - { lang: en, net: off, label: base-versions, page: versions, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
-          - { lang: en, net: off, label: base-notes, page: notes, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
-          - { lang: en, net: off, label: base-settings, page: settings, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
-          - { lang: en, net: off, label: base-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
-          - { lang: en, net: off, label: base-edit-instance, page: edit-instance, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
-          - { lang: en, net: off, label: base-sign-in, page: sign-in, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
-          - { lang: en, net: off, label: base-getting-ready, page: getting-ready, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
-          - { lang: en, net: off, label: branch-home, page: home, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
-          - { lang: en, net: off, label: branch-instances, page: instances, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
-          - { lang: en, net: off, label: branch-mods, page: mods, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
-          - { lang: en, net: off, label: branch-servers, page: servers, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
-          - { lang: en, net: off, label: branch-versions, page: versions, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
-          - { lang: en, net: off, label: branch-notes, page: notes, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
-          - { lang: en, net: off, label: branch-settings, page: settings, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
-          - { lang: en, net: off, label: branch-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
-          - { lang: en, net: off, label: branch-edit-instance, page: edit-instance, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
-          - { lang: en, net: off, label: branch-sign-in, page: sign-in, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
-          - { lang: en, net: off, label: branch-getting-ready, page: getting-ready, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
+        include: ${{ fromJSON(inputs.state != 'survey' && inputs.state != '' && '[{"lang":"en","net":false,"label":"base-home","page":"home","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"branch-home","page":"home","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"}]' || '[{"lang":"en","net":false,"label":"base-home","page":"home","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-instances","page":"instances","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-mods","page":"mods","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-servers","page":"servers","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-versions","page":"versions","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-notes","page":"notes","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-settings","page":"settings","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-new-instance","page":"new-instance","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-edit-instance","page":"edit-instance","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-sign-in","page":"sign-in","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-getting-ready","page":"getting-ready","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"branch-home","page":"home","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-instances","page":"instances","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-mods","page":"mods","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-servers","page":"servers","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-versions","page":"versions","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-notes","page":"notes","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-settings","page":"settings","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-new-instance","page":"new-instance","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-edit-instance","page":"edit-instance","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-sign-in","page":"sign-in","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-getting-ready","page":"getting-ready","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"}]') }}
     # Uncached cold build on a 4-core runner can take a while; compute is free
     # for this public repo, the capture step still has its own 3-min bound.
     timeout-minutes: 90
@@ -58,6 +46,12 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ matrix.source }}
+      - name: Reject unsupported state and unpaired probe jobs
+        shell: pwsh
+        env:
+          PROBE_STATE: ${{ inputs.state }}
+        run: |
+          if ($env:PROBE_STATE -notin @('survey','account','versions-popup','consent','screenshot-viewer','export','launch','skin')) { throw 'Unsupported synthetic probe' }
       - name: Rust toolchain
         shell: pwsh
         run: rustup toolchain install stable --profile minimal
@@ -135,6 +129,8 @@ jobs:
           CAP_MODE: ${{ matrix.mode }}
           CAP_WIDTH: ${{ matrix.width }}
           CAP_HEIGHT: ${{ matrix.height }}
+          PROBE_STATE: ${{ inputs.state }}
+          PROBE_ACTIONS: ${{ inputs.actions }}
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force $env:CAP | Out-Null
@@ -163,6 +159,31 @@ jobs:
           $binaryText = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($bin))
           if ($binaryText.Contains('my.sculkhosting.com/ref/horizon') -or $binaryText.Contains('HORIZON15')) { throw 'Referral payload found in build' }
           'sponsor-check: referral and promo strings absent; synthetic offline fixture; no runnable game/accounts' | Out-File $info -Append
+          if ($env:PROBE_STATE -and $env:PROBE_STATE -ne 'survey') {
+            # Synthetic, local-only fixtures. Never add Microsoft accounts or credentials.
+            $settings = @{install_new_versions=$false;skip_opening=$true;selected='v2026.10.15';owner_notice_seen=$true;ping_notice_seen=$true;basic_summaries=$false}
+            $settings | ConvertTo-Json | Set-Content (Join-Path $env:HORIZON_LAUNCHER_HOME 'settings.json')
+            $env:HORIZON_LAUNCHER_PAGE = switch ($env:PROBE_STATE) { 'skin' {'settings'} 'screenshot-viewer' {'screenshots'} default {'home'} }
+            if ($env:PROBE_STATE -ne 'consent') {
+              $telemetry = Join-Path $env:HORIZON_HOME 'telemetry'
+              New-Item -ItemType Directory -Force $telemetry | Out-Null
+              # Read the reviewed source's disclosure version, never bypass a new disclosure by guess.
+              $match = [regex]::Match((Get-Content 'crates/horizon-telemetry/src/lib.rs' -Raw), 'pub const CONSENT_VERSION: u32 = ([0-9]+);')
+              if (-not $match.Success) { throw 'Consent fixture schema unknown' }
+              @{version=[int]$match.Groups[1].Value;answered=1;choices=@{performance=$false;crashes=$false;bugs=$false;benchmarks=$false}} | ConvertTo-Json | Set-Content (Join-Path $telemetry 'consent.json')
+            }
+            @{accounts=@();offline=@('Capture_Player','Capture_Alt');offline_selected='Capture_Player'} | ConvertTo-Json | Set-Content (Join-Path $env:HORIZON_LAUNCHER_HOME 'accounts.json')
+            $shots = Join-Path $env:HORIZON_HOME 'screenshots'
+            New-Item -ItemType Directory -Force $shots | Out-Null
+            $fixture = New-Object System.Drawing.Bitmap 640,360
+            $paint = [System.Drawing.Graphics]::FromImage($fixture)
+            try { $paint.Clear([System.Drawing.Color]::SlateBlue); $fixture.Save((Join-Path $shots 'synthetic-capture-long-filename-2026-11-23.png'),[System.Drawing.Imaging.ImageFormat]::Png) }
+            finally { $paint.Dispose(); $fixture.Dispose() }
+            $env:HORIZON_LAUNCHER_TRASH = Join-Path $env:CAP 'synthetic-trash'
+            $env:HORIZON_LAUNCHER_CLIPBOARD = Join-Path $env:CAP 'synthetic-clipboard'
+            $env:HORIZON_LAUNCHER_DESKTOP = Join-Path $env:CAP 'synthetic-desktop'
+            "probe-request: $env:PROBE_STATE; fixtures local/synthetic; state unverified until pixel review" | Out-File $info -Append
+          }
           $proc = Start-Process -FilePath $bin -PassThru -RedirectStandardOutput "$env:CAP\launcher.stdout" -RedirectStandardError "$env:CAP\launcher.stderr"
           $checksPass = $false
           try {
@@ -215,6 +236,22 @@ jobs:
                 @{n='large-1920x1080'; r=@(1920,1080); w=5},
                 @{n='large-2560x1440'; r=@(2560,1440); w=5}
               )
+            }
+            if ($env:PROBE_STATE -and $env:PROBE_STATE -ne 'survey') {
+              Size-Client 1028 780
+              $inputSteps = @($env:PROBE_ACTIONS | ConvertFrom-Json -AsHashtable)
+              if ($inputSteps.Count -gt 16) { throw 'Probe permits at most 16 input steps' }
+              foreach ($st in $inputSteps) {
+                if ($st.n -notmatch '^[a-z0-9-]{1,40}$') { throw 'Invalid probe frame name' }
+                foreach ($key in $st.Keys) { if ($key -notin @('n','c','s','k','w')) { throw 'Unknown probe action' } }
+                if ($st.w -and ([int]$st.w -lt 1 -or [int]$st.w -gt 5)) { throw 'Probe wait outside 1..5s' }
+                if (-not $st.w) { $st.w = 2 }
+                if ($st.c -and ($st.c.Count -ne 2 -or $st.c[0] -lt 0 -or $st.c[0] -gt 1050 -or $st.c[1] -lt 0 -or $st.c[1] -gt 830)) { throw 'Click outside calibration window' }
+                if ($st.s -and ($st.s.Count -ne 3 -or $st.s[0] -lt 0 -or $st.s[0] -gt 1050 -or $st.s[1] -lt 0 -or $st.s[1] -gt 830 -or [Math]::Abs([int]$st.s[2]) -gt 2400)) { throw 'Invalid probe scroll' }
+                if ($st.k -and $st.k -notin @('{ESC}','{TAB}','+{TAB}','{ENTER}','{DOWN}','{UP}','{PGDN}','{PGUP}')) { throw 'Unsupported probe keys' }
+              }
+              $steps = @(@{n='probe-fixture';w=8}) + $inputSteps + @(@{n='probe-1028x780';w=2},@{n='probe-2560x1440';r=@(2560,1440);w=4})
+              'probe-input: outer-window pixel coordinates at 1028x780; each input has a retained post-action frame; no state assertion' | Out-File $info -Append
             }
             for ($f = 1; $f -le $steps.Count; $f++) {
               $st = $steps[$f-1]
@@ -273,6 +310,7 @@ jobs:
             if ($seenCount -eq 0) { "WINDOW-AFTER-INITIAL: unverified (every frame skipped)" | Out-File $info -Append }
             "NOT-PROVEN: rendering/pixels/input/consent/game-launch/GPU/continuous-presence - frames require human inspection" | Out-File $info -Append
             $required = @('account-dismissed','page-minimum','page-1028x780','page-1024x720','large-1920x1080','large-2560x1440')
+            if ($env:PROBE_STATE -and $env:PROBE_STATE -ne 'survey') { $required = @('probe-fixture','probe-1028x780','probe-2560x1440') }
             foreach ($name in $required) {
               if (-not $savedSteps.ContainsKey($name) -or -not (Test-Path -LiteralPath $savedSteps[$name]) -or (Get-Item -LiteralPath $savedSteps[$name]).Length -eq 0) {
                 throw "Required saved capture missing or empty: $name"
