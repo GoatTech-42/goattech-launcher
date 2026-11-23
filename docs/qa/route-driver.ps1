@@ -99,35 +99,37 @@ try {
       [WinCap]::MoveWindow($h,0,0,($width+$dw),($height+$dh),$true) | Out-Null
     }
   }
-  if ($env:CAP_MODE -eq 'opening') {
-    Size-Client ([int]$env:CAP_WIDTH) ([int]$env:CAP_HEIGHT)
-    $steps=@(@{n='opening-early'; ms=150},@{n='opening-held'; ms=250},@{n='opening-late'; ms=350})
-  } else {
-    $steps = @(
-      @{n='dialog'; w=8},
-      @{n='sign-in-prompt'; c=@(500,649); w=3},
-      @{n='account-dismissed'; k='{ESC}'; w=2},
-      @{n='page-minimum'; r=@(960,600); w=3},
-      @{n='page-1028x780'; r=@(1028,780); w=3},
-      @{n='page-1024x720'; r=@(1024,720); w=3},
-      @{n='large-1920x1080'; r=@(1920,1080); w=5},
-      @{n='large-2560x1440'; r=@(2560,1440); w=5}
-    )
-  }
-  if ($true) {
-    Size-Client 1028 780
-    # Calibration only: no pointer, keyboard, or drag input.
-    $inputSteps = @()
-    $steps = @(@{n='probe-fixture';w=8}) + $inputSteps + @(@{n='probe-1028x780';w=2})
-              $steps += @{n='probe-960x600';r=@(960,600);w=3}
-              $steps += @{n='probe-2560x1440';r=@(2560,1440);w=4}
-              $steps += @{n='scroll-lower';s=@(850,600,-900);w=2}
-    'probe-input: calibration-only geometry and lower-scroll; no pointer click or keyboard input' | Out-File $info -Append
-  }
+  if ($env:CAP_ROUTE -notin @('worlds','screenshots','instance-mods')) { throw 'Unsupported scroll calibration route' }
+  Size-Client 1028 780
+  # Fixed calibration sequence. No clicks, keyboard input, or offscreen pointer targets.
+  $steps = @(
+    @{n='probe-fixture-1028x780';w=8},
+    @{n='pre-scroll-1028x780';w=2},
+    @{n='post-scroll-1028x780';s=@(850,600,-900);w=2}
+  )
+  'probe-input: 1028x780 scroll calibration only; fixed outer-window (850,600), delta=-900; no pointer click or keyboard input' | Out-File $info -Append
   for ($f = 1; $f -le $steps.Count; $f++) {
     $st = $steps[$f-1]
     if ($st.r) { Size-Client $st.r[0] $st.r[1] }
-    if ($st.s) { $pr = New-Object WinCap+RECT; [WinCap]::GetWindowRect($proc.MainWindowHandle, [ref]$pr) | Out-Null; [WinCap]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::SetCursorPos($pr.Left + $st.s[0], $pr.Top + $st.s[1]) | Out-Null; Start-Sleep -Milliseconds 300; $d = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int]$st.s[2]),0); [WinCap]::mouse_event(2048,0,0,$d,[UIntPtr]::Zero) }
+    if ($st.s) {
+      if (-not $savedSteps.ContainsKey('pre-scroll-1028x780')) { throw 'Cannot scroll without saved original pre-scroll frame' }
+      $h = $proc.MainWindowHandle
+      $pr = New-Object WinCap+RECT; $pc = New-Object WinCap+RECT
+      if (-not [WinCap]::GetWindowRect($h,[ref]$pr) -or -not [WinCap]::GetClientRect($h,[ref]$pc)) { throw 'Cannot verify scroll geometry' }
+      if ($pc.Right -ne 1028 -or $pc.Bottom -ne 780 -or -not [WinCap]::IsWindowVisible($h) -or [WinCap]::IsIconic($h)) { throw 'Scroll requires visible 1028x780 client' }
+      $sx = $pr.Left + 850; $sy = $pr.Top + 600
+      $desktop = [System.Windows.Forms.SystemInformation]::VirtualScreen
+      if (-not $desktop.Contains([int]$sx,[int]$sy)) { throw 'Scroll target is outside the desktop' }
+      [WinCap]::SetForegroundWindow($h) | Out-Null
+      Start-Sleep -Milliseconds 300
+      if ([WinCap]::GetForegroundWindow() -ne $h) { throw 'Scroll requires owned foreground main window' }
+      if (-not [WinCap]::SetCursorPos($sx,$sy)) { throw 'Cannot position scroll pointer' }
+      Start-Sleep -Milliseconds 300
+      if ([WinCap]::GetForegroundWindow() -ne $h) { throw 'Foreground changed before scroll' }
+      "scroll-target: outer=(850,600) desktop=($sx,$sy) client=1028x780 delta=-900" | Out-File $info -Append
+      $delta = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int]-900),0)
+      [WinCap]::mouse_event(2048,0,0,$delta,[UIntPtr]::Zero)
+    }
     if ($st.ms) { Start-Sleep -Milliseconds $st.ms } else { Start-Sleep -Seconds $st.w }
     $proc.Refresh()
     if ($proc.HasExited) { throw "FAIL: launcher died before frame $f (code $($proc.ExitCode))" }
@@ -172,15 +174,14 @@ try {
   "AUTOMATION-CHECKS: process-alive=whole-phase initial-visible-owned-window>=200x200=yes frames-window-ok=$seenCount/$($steps.Count) captures-accepted=$okCount/$($steps.Count)" | Out-File $info -Append
   if ($seenCount -eq 0) { "WINDOW-AFTER-INITIAL: unverified (every frame skipped)" | Out-File $info -Append }
   "NOT-PROVEN: rendering/pixels/input/consent/game-launch/GPU/continuous-presence - frames require human inspection" | Out-File $info -Append
-  $required = @('account-dismissed','page-minimum','page-1028x780','page-1024x720','large-1920x1080','large-2560x1440')
-  if ($true) { $required = @('probe-fixture','probe-1028x780','probe-960x600','probe-2560x1440','scroll-lower') }
+  $required = @('probe-fixture-1028x780','pre-scroll-1028x780','post-scroll-1028x780')
   foreach ($name in $required) {
     if (-not $savedSteps.ContainsKey($name) -or -not (Test-Path -LiteralPath $savedSteps[$name]) -or (Get-Item -LiteralPath $savedSteps[$name]).Length -eq 0) {
       throw "Required saved capture missing or empty: $name"
     }
   }
   if ($okCount -ne $steps.Count) { throw "Saved capture count $okCount does not match requested step count $($steps.Count)" }
-  'NOT-PROVEN: unobscured requested page or dismissed consent/account screens until pixel review; Escape may be consumed by consent if the earlier click missed. Requested names are labels only; use measured client size and DPI. Foreground check/send has a race; pointer clicks are coordinate-based.' | Out-File $info -Append
+  'NOT-PROVEN: unobscured requested page and scroll result until pixel review. No clicks or keyboard input. Foreground check/send has a race; original pre/post frames require review.' | Out-File $info -Append
   $checksPass = $true
 } finally {
   # Best-effort cleanup: any leftover capture jobs, then the launcher's main
