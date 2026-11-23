@@ -259,7 +259,7 @@ impl Launcher {
             .copied
             .as_ref()
             .is_some_and(|(what, at)| what == &text && at.elapsed() < Duration::from_secs(2));
-        button(
+        scaled_button(
             id,
             if copied { "copied" } else { "copy" },
             kind,
@@ -278,16 +278,16 @@ impl Launcher {
         let mut panel = plate(&t)
             .flex()
             .flex_col()
-            .gap(px(12.))
-            .p(px(20.))
+            .gap(px(theme::chrome(12.)))
+            .p(px(theme::chrome(20.)))
             .child(micro(tr("friends over the internet · tailscale")).text_color(t.muted));
         let line = |s: String| text(theme::CAPTION).text_color(t.muted).child(s);
-        let check = button("ts-check", "check again", Kind::Ghost, &t).on_click(cx.listener(
-            |this, _: &ClickEvent, _, cx| {
+        let check = scaled_button("ts-check", "check again", Kind::Ghost, &t).on_click(
+            cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.internet_refresh();
                 cx.notify();
-            },
-        ));
+            }),
+        );
         match self.internet.state.clone() {
             None => return panel.child(line(tr("looking for tailscale…").into())),
             Some(State::Missing) => {
@@ -298,9 +298,9 @@ impl Launcher {
                     .child(
                         div()
                             .flex()
-                            .gap(px(8.))
+                            .gap(px(theme::chrome(8.)))
                             .child(
-                                button("ts-install", "install tailscale", Kind::Secondary, &t)
+                                scaled_button("ts-install", "install tailscale", Kind::Secondary, &t)
                                     .bg(t.plate)
                                     .on_click(|_, _, cx| cx.open_url(tailscale::install_url())),
                             )
@@ -308,7 +308,7 @@ impl Launcher {
                     );
             }
             Some(State::Off(why)) => {
-                let open = button("ts-open", "open tailscale", Kind::Secondary, &t)
+                let open = scaled_button("ts-open", "open tailscale", Kind::Secondary, &t)
                     .bg(t.plate)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         if let Err(e) = tailscale::open_app() {
@@ -322,24 +322,31 @@ impl Launcher {
                         "tailscale is installed but not running. open it and switch it on.",
                     )))
                     .when(!why.is_empty(), |d| d.child(line(why)))
-                    .child(div().flex().gap(px(8.)).child(open).child(check));
+                    .child(
+                        div()
+                            .flex()
+                            .gap(px(theme::chrome(8.)))
+                            .child(open)
+                            .child(check),
+                    );
                 return self.internet_message(panel);
             }
             Some(State::SignedOut { auth_url }) => {
-                let sign_in = button("ts-login", "sign in to tailscale", Kind::Secondary, &t)
-                    .bg(t.plate)
-                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                        match &auth_url {
-                            Some(url) => cx.open_url(url),
-                            None => {
-                                if let Err(e) = tailscale::open_app() {
-                                    this.internet.message = Some(Err(e));
+                let sign_in =
+                    scaled_button("ts-login", "sign in to tailscale", Kind::Secondary, &t)
+                        .bg(t.plate)
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            match &auth_url {
+                                Some(url) => cx.open_url(url),
+                                None => {
+                                    if let Err(e) = tailscale::open_app() {
+                                        this.internet.message = Some(Err(e));
+                                    }
                                 }
                             }
-                        }
-                        this.internet.read = None;
-                        cx.notify();
-                    }));
+                            this.internet.read = None;
+                            cx.notify();
+                        }));
                 panel = panel
                     .child(text(theme::UI).text_color(t.ink).child(tr(
                         "tailscale is installed. sign in with your own account in tailscale (horizon never sees it), then come back here.",
@@ -350,7 +357,7 @@ impl Launcher {
                             &[("cmd", tailscale::LINUX_LOGIN)],
                         )))
                     })
-                    .child(div().flex().gap(px(8.)).child(sign_in).child(check));
+                    .child(div().flex().gap(px(theme::chrome(8.))).child(sign_in).child(check));
                 return self.internet_message(panel);
             }
             Some(State::Running(_)) => {}
@@ -358,11 +365,11 @@ impl Launcher {
         let node = self.internet.node().cloned().unwrap_or_default();
         let address = node.address(port);
         let ip = node.ipv4().unwrap_or_default().to_string();
-        let mut where_ = div().flex().flex_col().gap(px(6.)).child(
+        let mut where_ = div().flex().flex_col().gap(px(theme::chrome(6.))).child(
             div()
                 .flex()
                 .items_center()
-                .gap(px(12.))
+                .gap(px(theme::chrome(12.)))
                 .child(
                     text(theme::TITLE)
                         .font_family(theme::MONO)
@@ -392,10 +399,10 @@ impl Launcher {
             div()
                 .border_t_1()
                 .border_color(t.rule)
-                .pt(px(12.))
+                .pt(px(theme::chrome(12.)))
                 .flex()
                 .flex_col()
-                .gap(px(10.))
+                .gap(px(theme::chrome(10.)))
                 .child(
                     text(theme::UI)
                         .text_color(t.ink)
@@ -425,11 +432,11 @@ impl Launcher {
         let t = self.theme;
         let line = |s: String| text(theme::CAPTION).text_color(t.muted).child(s);
         let link = |id: &'static str, label: &'static str, url: &'static str| {
-            button(id, label, Kind::Ghost, &t).on_click(move |_, _, cx| cx.open_url(url))
+            scaled_button(id, label, Kind::Ghost, &t).on_click(move |_, _, cx| cx.open_url(url))
         };
         let token = self.internet.token();
         if token.is_none() {
-            let mut d = div().flex().flex_col().gap(px(10.)).child(line(
+            let mut d = div().flex().flex_col().gap(px(theme::chrome(10.))).child(line(
                 tr("share this computer with a friend: they get it in their own tailscale, and nothing else of yours. do it in tailscale's admin console (machines, this computer, share), or here with an access token you make there.")
                     .into(),
             ));
@@ -439,7 +446,7 @@ impl Launcher {
                 "https://login.tailscale.com/admin/machines",
             );
             if self.internet.asking_token {
-                let save = button("ts-token-save", "save", Kind::Secondary, &t)
+                let save = scaled_button("ts-token-save", "save", Kind::Secondary, &t)
                     .bg(t.plate)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.save_token();
@@ -450,8 +457,8 @@ impl Launcher {
                         div()
                             .flex()
                             .items_center()
-                            .gap(px(8.))
-                            .child(self.field(Field::Token, "tskey-api-…", 300., cx))
+                            .gap(px(theme::chrome(8.)))
+                            .child(self.scaled_field(Field::Token, "tskey-api-…", theme::chrome(300.), cx))
                             .child(save)
                             .child(link("ts-keys", "make a token", tailscale::KEYS)),
                     )
@@ -460,22 +467,28 @@ impl Launcher {
                             .into(),
                     ));
             } else {
-                d = d.child(div().flex().gap(px(8.)).child(machines).child(
-                    button("ts-token", "use an access token…", Kind::Ghost, &t).on_click(
-                        cx.listener(|this, _: &ClickEvent, _, cx| {
-                            this.internet.asking_token = true;
-                            this.internet.message = None;
-                            cx.notify();
-                        }),
-                    ),
-                ));
+                d = d.child(
+                    div()
+                        .flex()
+                        .gap(px(theme::chrome(8.)))
+                        .child(machines)
+                        .child(
+                            scaled_button("ts-token", "use an access token…", Kind::Ghost, &t)
+                                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                                    this.internet.asking_token = true;
+                                    this.internet.message = None;
+                                    cx.notify();
+                                })),
+                        ),
+                );
             }
             return d;
         }
 
         // Invite.
         let busy = self.internet.busy;
-        let invite = button("ts-invite", "make an invitation", Kind::Secondary, &t).bg(t.plate);
+        let invite =
+            scaled_button("ts-invite", "make an invitation", Kind::Secondary, &t).bg(t.plate);
         let invite = if busy {
             disabled(invite)
         } else {
@@ -487,13 +500,13 @@ impl Launcher {
         let mut d = div()
             .flex()
             .flex_col()
-            .gap(px(10.))
+            .gap(px(theme::chrome(10.)))
             .child(
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(8.))
-                    .child(self.field(Field::Email, "Their email (optional)", 260., cx))
+                    .gap(px(theme::chrome(8.)))
+                    .child(self.scaled_field(Field::Email, "Their email (optional)", theme::chrome(260.), cx))
                     .child(invite),
             )
             .child(line(
@@ -505,7 +518,7 @@ impl Launcher {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(10.))
+                    .gap(px(theme::chrome(10.)))
                     .child(
                         text(theme::CAPTION)
                             .font_family(theme::MONO)
@@ -526,7 +539,7 @@ impl Launcher {
                         (None, None) => "Link not used yet".to_string(),
                     };
                     let id = inv.id.clone();
-                    let withdraw = button(
+                    let withdraw = scaled_button(
                         SharedString::from(format!("ts-revoke-{n}")),
                         if inv.accepted {
                             "Stop sharing"
@@ -579,7 +592,11 @@ impl Launcher {
             None => None,
         };
         if let Some((reach, policy, etag)) = reach {
-            let mut safety = div().flex().flex_col().gap(px(8.)).pt(px(4.));
+            let mut safety = div()
+                .flex()
+                .flex_col()
+                .gap(px(theme::chrome(8.)))
+                .pt(px(theme::chrome(4.)));
             match reach {
                 Reach::Everything => {
                     safety = safety.child(text(theme::UI).text_color(t.ink).child(
@@ -597,9 +614,9 @@ impl Launcher {
                             .child(
                                 div()
                                     .flex()
-                                    .gap(px(8.))
+                                    .gap(px(theme::chrome(8.)))
                                     .child(
-                                        button("ts-limit-go", "change the access controls", Kind::Primary, &t)
+                                        scaled_button("ts-limit-go", "change the access controls", Kind::Primary, &t)
                                             .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                                                 if let Some(new) = new.clone() {
                                                     this.change_policy(
@@ -611,7 +628,7 @@ impl Launcher {
                                                 cx.notify();
                                             })),
                                     )
-                                    .child(button("ts-limit-cancel", "cancel", Kind::Ghost, &t).on_click(
+                                    .child(scaled_button("ts-limit-cancel", "cancel", Kind::Ghost, &t).on_click(
                                         cx.listener(|this, _: &ClickEvent, _, cx| {
                                             this.internet.confirm_limit = false;
                                             cx.notify();
@@ -619,8 +636,13 @@ impl Launcher {
                                     )),
                             );
                     } else {
-                        let b = button("ts-limit", "limit them to minecraft", Kind::Secondary, &t)
-                            .bg(t.plate);
+                        let b = scaled_button(
+                            "ts-limit",
+                            "limit them to minecraft",
+                            Kind::Secondary,
+                            &t,
+                        )
+                        .bg(t.plate);
                         safety = safety.child(div().flex().child(if busy {
                             disabled(b)
                         } else {
@@ -633,12 +655,12 @@ impl Launcher {
                 }
                 Reach::ServerOnly => {
                     let undo = tailscale::unlimit_shared(&policy, ip, port);
-                    let b = button("ts-unlimit", "remove the limit", Kind::Ghost, &t);
+                    let b = scaled_button("ts-unlimit", "remove the limit", Kind::Ghost, &t);
                     safety = safety.child(
                         div()
                             .flex()
                             .items_center()
-                            .gap(px(12.))
+                            .gap(px(theme::chrome(12.)))
                             .child(div().flex_none().size(px(6.)).rounded_full().bg(t.success))
                             .child(
                                 text(theme::UI)
@@ -673,7 +695,7 @@ impl Launcher {
                         ))
                         .child(
                             div()
-                                .p(px(12.))
+                                .p(px(theme::chrome(12.)))
                                 .rounded(px(theme::RADIUS))
                                 .bg(t.plate)
                                 .font_family(theme::MONO)
@@ -684,7 +706,7 @@ impl Launcher {
                         .child(
                             div()
                                 .flex()
-                                .gap(px(8.))
+                                .gap(px(theme::chrome(8.)))
                                 .child(self.copy_button(
                                     "ts-snippet-copy",
                                     snippet,
@@ -698,7 +720,7 @@ impl Launcher {
             d = d.child(safety);
         }
         d.child(div().flex().child(
-            button("ts-forget", tr("forget the access token"), Kind::Ghost, &t).on_click(
+            scaled_button("ts-forget", tr("forget the access token"), Kind::Ghost, &t).on_click(
                 cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.forget_token();
                     cx.notify();

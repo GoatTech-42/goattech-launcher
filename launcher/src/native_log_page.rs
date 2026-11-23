@@ -187,7 +187,8 @@ impl Launcher {
         let open = path.clone();
         let reveal = path.clone();
         let copy = {
-            let b = button("native-log-copy", "copy log", Kind::Ghost, &t).track_focus(&copy_key);
+            let b = scaled_button("native-log-copy", "copy log", Kind::Ghost, &t)
+                .track_focus(&copy_key);
             match loaded {
                 Some(Ok(_)) => b.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     // The whole file as it was read, never a stale or missing one.
@@ -205,10 +206,10 @@ impl Launcher {
             .flex()
             .flex_wrap()
             .items_center()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .child(copy)
             .child({
-                let b = button("native-log-file", "open full log", Kind::Ghost, &t)
+                let b = scaled_button("native-log-file", "open full log", Kind::Ghost, &t)
                     .track_focus(&file_key);
                 if gone {
                     disabled(b)
@@ -217,7 +218,7 @@ impl Launcher {
                 }
             })
             .child({
-                let b = button("native-log-reveal", "show in folder", Kind::Ghost, &t)
+                let b = scaled_button("native-log-reveal", "show in folder", Kind::Ghost, &t)
                     .track_focus(&reveal_key);
                 if gone {
                     disabled(b)
@@ -226,7 +227,7 @@ impl Launcher {
                 }
             })
             .child(
-                button("native-log-refresh", "refresh", Kind::Ghost, &t)
+                scaled_button("native-log-refresh", "refresh", Kind::Ghost, &t)
                     .track_focus(&refresh_key)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.native_log.stale = true;
@@ -245,7 +246,7 @@ impl Launcher {
             .flex()
             .flex_wrap()
             .items_center()
-            .gap(px(12.))
+            .gap(px(theme::chrome(12.)))
             .child(
                 div()
                     .flex()
@@ -263,12 +264,12 @@ impl Launcher {
                             .font_family(theme::MONO)
                             .text_color(t.muted)
                             .min_w_0()
-                            .line_height(px(18.))
+                            .line_height(px(theme::chrome(18.)))
                             .child(short(&path)),
                     ),
             )
             .child(
-                button("native-log-close", "close", Kind::Secondary, &t)
+                scaled_button("native-log-close", "close", Kind::Secondary, &t)
                     .track_focus(&close_key)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.native_log_escape();
@@ -288,7 +289,7 @@ impl Launcher {
             Some(Ok(log)) => div()
                 .flex()
                 .flex_col()
-                .gap(px(8.))
+                .gap(px(theme::chrome(8.)))
                 // Only the tail is laid out; the whole log stays one Copy away.
                 .children((log.lines > SHOWN).then(|| {
                     quiet_note(
@@ -306,12 +307,12 @@ impl Launcher {
                         .flex_1()
                         .min_h_0()
                         .overflow_scroll()
-                        .p(px(10.))
+                        .p(px(theme::chrome(10.)))
                         .border_2()
                         .border_color(t.outline)
                         .bg(t.well)
                         .font_family(theme::MONO)
-                        .text_size(px(12.))
+                        .text_size(px(theme::chrome(12.)))
                         .children(
                             log.preview
                                 .iter()
@@ -330,9 +331,9 @@ impl Launcher {
                 .min_w_0()
                 .flex()
                 .flex_col()
-                .gap(px(14.))
-                .px(px(32.))
-                .py(px(24.))
+                .gap(px(theme::chrome(14.)))
+                .px(px(theme::chrome(32.)))
+                .py(px(theme::chrome(24.)))
                 .bg(t.page.opacity(0.96))
                 .on_scroll(|_, _, cx| cx.stop_propagation())
                 .occlude()
