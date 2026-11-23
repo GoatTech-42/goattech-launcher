@@ -2,7 +2,7 @@
 //! uninstall` removes. The launcher's own sky and plates (docs/design-system.md, "Night"); the
 //! work is `horizon_launcher::installer`, on a thread, reported over a channel.
 use crate::plate::plate;
-use crate::shell::{action, c, label, text, Action};
+use crate::shell::{c, label, spaced_action as action, text, Action};
 use crate::sky::Sky;
 use crate::theme::{self, night, Theme};
 use crate::titlebar;

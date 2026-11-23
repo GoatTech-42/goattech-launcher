@@ -342,7 +342,7 @@ impl Launcher {
             .items_center()
             .gap(px(8.))
             .children((updates > 0 && !busy).then(|| {
-                shell::action("instance-mods-update-all", Action::Raised, &t)
+                shell::spaced_action("instance-mods-update-all", Action::Raised, &t)
                     .child(shell::label(trf(
                         "update all ({count})",
                         &[("count", &updates.to_string())],
@@ -353,7 +353,7 @@ impl Launcher {
                     }))
             }))
             .child(
-                shell::action("instance-mods-add", Action::Raised, &t)
+                shell::spaced_action("instance-mods-add", Action::Raised, &t)
                     .child(shell::label(tr("add mods").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.go(Page::Mods);

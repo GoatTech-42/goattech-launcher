@@ -199,10 +199,10 @@ impl Launcher {
             .track_focus(&self.github.focus)
             .flex()
             .items_center()
-            .gap(px(10.))
+            .gap(px(theme::chrome(10.)))
             .w(px(460.))
             .h(px(theme::chrome(theme::FIELD + 4.)))
-            .px(px(12.))
+            .px(px(theme::chrome(12.)))
             .overflow_hidden()
             .border_2()
             .border_color(if focused { t.accent } else { t.outline })
@@ -254,7 +254,7 @@ impl Launcher {
         let mut panel = div()
             .flex()
             .flex_col()
-            .gap(px(12.))
+            .gap(px(theme::chrome(12.)))
             .child(micro(tr("add a native mod from github")).text_color(t.muted))
             .child(
                 text(theme::CAPTION).text_color(t.muted).child(
@@ -266,7 +266,7 @@ impl Launcher {
                     .flex()
                     .flex_wrap()
                     .items_center()
-                    .gap(px(12.))
+                    .gap(px(theme::chrome(12.)))
                     .child(self.github_field(cx))
                     .child(add),
             );
@@ -287,7 +287,12 @@ impl Launcher {
         }
         match &self.github.message {
             Some(Ok(done)) => {
-                panel = panel.child(plate(&t).p(px(12.)).text_color(t.ink).child(done.clone()))
+                panel = panel.child(
+                    plate(&t)
+                        .p(px(theme::chrome(12.)))
+                        .text_color(t.ink)
+                        .child(done.clone()),
+                )
             }
             Some(Err(e)) => panel = panel.child(notice(e.clone(), &t)),
             None => {}
@@ -317,8 +322,8 @@ impl Launcher {
         plate(&t)
             .flex()
             .flex_col()
-            .gap(px(10.))
-            .p(px(16.))
+            .gap(px(theme::chrome(10.)))
+            .p(px(theme::chrome(16.)))
             .text_size(px(theme::step_px(theme::UI)))
             .text_color(t.ink)
             .child(micro(tr("not reviewed by the horizon registry")).text_color(t.danger))
@@ -331,7 +336,7 @@ impl Launcher {
                 div()
                     .flex()
                     .flex_wrap()
-                    .gap(px(8.))
+                    .gap(px(theme::chrome(8.)))
                     .child(
                         button("github-source", "open the source", Kind::Secondary, &t)
                             .on_click(move |_, _, cx| cx.open_url(&open)),
@@ -357,7 +362,7 @@ impl Launcher {
     /// A source with several mods: one, or all.
     fn github_choice(&self, found: &Resolved, mods: &[Packed], cx: &mut Context<Self>) -> Div {
         let t = self.theme;
-        let mut buttons = div().flex().flex_wrap().gap(px(8.));
+        let mut buttons = div().flex().flex_wrap().gap(px(theme::chrome(8.)));
         for (i, p) in mods.iter().enumerate() {
             let (found, all, id) = (found.clone(), mods.to_vec(), p.id.clone());
             buttons = buttons.child(
@@ -385,8 +390,8 @@ impl Launcher {
         plate(&t)
             .flex()
             .flex_col()
-            .gap(px(10.))
-            .p(px(16.))
+            .gap(px(theme::chrome(10.)))
+            .p(px(theme::chrome(16.)))
             .text_size(px(theme::step_px(theme::UI)))
             .text_color(t.ink)
             .child(trf(
@@ -400,7 +405,11 @@ impl Launcher {
     fn github_actions(&self, origin: &Origin, busy: bool, cx: &Context<Self>) -> Div {
         let t = self.theme;
         let id = origin.id.clone();
-        let mut right = div().flex().flex_wrap().items_center().gap(px(8.));
+        let mut right = div()
+            .flex()
+            .flex_wrap()
+            .items_center()
+            .gap(px(theme::chrome(8.)));
         let known = self
             .github
             .newer
@@ -463,7 +472,7 @@ impl Launcher {
         let t = self.theme;
         let busy = busy || self.github.busy();
         let mut right = row.origin.as_ref().map_or_else(
-            || div().flex().items_center().gap(px(8.)),
+            || div().flex().items_center().gap(px(theme::chrome(8.))),
             |origin| self.github_actions(origin, busy, cx),
         );
         let home = self.mods.home();

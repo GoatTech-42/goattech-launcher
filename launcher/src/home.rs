@@ -256,8 +256,8 @@ impl Launcher {
             let line = shell::text(night::CAPTION, c(n.muted))
                 .flex()
                 .items_center()
-                .gap(px(8.))
-                .child(div().size(px(6.)).bg(c(n.accent_hi)))
+                .gap(px(theme::chrome(8.)))
+                .child(div().size(px(theme::chrome(6.))).bg(c(n.accent_hi)))
                 .child(trf(
                     "{version} available",
                     &[("version", update_name(release))],
@@ -266,9 +266,9 @@ impl Launcher {
                 Some((_, p)) => line
                     .child(
                         div()
-                            .w(px(120.))
+                            .w(px(theme::chrome(120.)))
                             .flex()
-                            .child(progress_bar(Some(self.bar), &t)),
+                            .child(progress_bar(Some(self.bar), &t).h(px(theme::chrome(6.)))),
                     )
                     .child(format!("{:.0}%", p * 100.)),
                 None => line.child(

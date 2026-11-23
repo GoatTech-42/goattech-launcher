@@ -433,9 +433,9 @@ impl Launcher {
                 .relative()
                 .flex()
                 .items_center()
-                .gap(px(10.))
+                .gap(px(theme::chrome(10.)))
                 .h(px(theme::control_large()))
-                .px(px(14.))
+                .px(px(theme::chrome(14.)))
                 // The button's bottom lip isn't part of its face: centre the text on the face.
                 .pb(px(theme::LIP))
                 .border_2()
@@ -465,7 +465,7 @@ impl Launcher {
                 .top(px(theme::chrome(theme::CONTROL_LARGE + 4.)))
                 .left_0()
                 .w(px(220.))
-                .p(px(6.))
+                .p(px(theme::chrome(6.)))
                 .border_2()
                 .border_color(t.outline)
                 .bg(t.surface)
@@ -479,9 +479,9 @@ impl Launcher {
                         .flex()
                         .items_center()
                         .justify_between()
-                        .gap(px(8.))
+                        .gap(px(theme::chrome(8.)))
                         .h(px(30.))
-                        .px(px(10.))
+                        .px(px(theme::chrome(10.)))
                         .rounded(px(theme::RADIUS))
                         .cursor_pointer()
                         .hover(move |s| s.bg(t.plate_soft))
@@ -530,12 +530,12 @@ impl Launcher {
             this.mods.browse.show_filters = !this.mods.browse.show_filters;
             cx.notify();
         }));
-        let mut bar = div().flex().flex_col().gap(px(12.)).child(
+        let mut bar = div().flex().flex_col().gap(px(theme::chrome(12.))).child(
             div()
                 .flex()
                 .flex_wrap()
                 .items_center()
-                .gap(px(12.))
+                .gap(px(theme::chrome(12.)))
                 .child(sort)
                 .child(toggle),
         );
@@ -559,7 +559,7 @@ impl Launcher {
                 .flex()
                 .flex_wrap()
                 .items_center()
-                .gap(px(4.))
+                .gap(px(theme::chrome(4.)))
                 .child(micro(tr(title)).text_color(t.muted).w(px(120.)))
         };
         let mut loaders = row("loader");
@@ -691,15 +691,19 @@ impl Launcher {
         let busy = self.mods.busy.as_ref().map(|b| b.0.clone());
         let installed = self.mods.entry(&p).is_some();
         let checking = self.mods.checking(&p);
-        let mut action = div().flex().items_center().gap(px(8.)).child(
-            micro(if checking {
-                tr("checking")
-            } else {
-                tr(support.label())
-            })
-            .flex_none()
-            .text_color(color),
-        );
+        let mut action = div()
+            .flex()
+            .items_center()
+            .gap(px(theme::chrome(8.)))
+            .child(
+                micro(if checking {
+                    tr("checking")
+                } else {
+                    tr(support.label())
+                })
+                .flex_none()
+                .text_color(color),
+            );
         if busy.as_deref() == Some(p.id.as_str()) {
             action = action.child(micro(tr("installing")).text_color(t.accent));
         } else if installed {
@@ -725,7 +729,7 @@ impl Launcher {
         let head = div()
             .flex()
             .items_center()
-            .gap(px(20.))
+            .gap(px(theme::chrome(20.)))
             .child(icon)
             .child(
                 div()
@@ -733,7 +737,7 @@ impl Launcher {
                     .flex_col()
                     .flex_1()
                     .min_w_0()
-                    .gap(px(4.))
+                    .gap(px(theme::chrome(4.)))
                     .child(text(theme::TITLE).text_color(t.ink).child(p.title.clone()))
                     .child(
                         text(theme::UI)
@@ -758,7 +762,7 @@ impl Launcher {
         let mut page = div()
             .flex()
             .flex_col()
-            .gap(px(24.))
+            .gap(px(theme::chrome(24.)))
             .child(div().flex().child(back))
             .child(head);
         // Registry projects are rated on the site, signed in with GitHub (one rating per account).
@@ -768,7 +772,7 @@ impl Launcher {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(16.))
+                    .gap(px(theme::chrome(16.)))
                     .children(super::mods_page::stars(&p.id, &t).map(|s| text(theme::UI).child(s)))
                     .child(
                         button("mods-rate", "sign in with github to rate", Kind::Ghost, &t)
@@ -788,14 +792,14 @@ impl Launcher {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(2.))
+                    .gap(px(theme::chrome(2.)))
                     .child(micro(tr(title)).text_color(t.muted))
                     .children(
                         list.iter()
                             .map(|l| text(theme::CAPTION).text_color(t.ink_soft).child(l.clone())),
                     )
             };
-            let mut what = div().flex().gap(px(32.));
+            let mut what = div().flex().gap(px(theme::chrome(32.)));
             if !c.ports.is_empty() {
                 what = what.child(lines("ports", &c.ports));
             }
@@ -805,7 +809,7 @@ impl Launcher {
             page = page.child(what);
         }
         if let Some(Ok(d)) = &details {
-            let mut links = div().flex().flex_wrap().gap(px(8.));
+            let mut links = div().flex().flex_wrap().gap(px(theme::chrome(8.)));
             let page_url = p.page.clone();
             if !page_url.is_empty() {
                 links = links.child(
@@ -849,7 +853,7 @@ impl Launcher {
                 Some(Err(e)) => notice(e.clone(), &t),
                 Some(Ok(d)) if d.gallery.is_empty() => centered(tr("no gallery images."), &t),
                 Some(Ok(d)) => {
-                    let mut grid = div().flex().flex_wrap().gap(px(16.));
+                    let mut grid = div().flex().flex_wrap().gap(px(theme::chrome(16.)));
                     for g in &d.gallery {
                         let shot = match self.mods_image(&g.url, images::GALLERY) {
                             Some(path) => img(path).w(px(360.)).h(px(203.)).into_any_element(),
@@ -859,7 +863,7 @@ impl Launcher {
                             div()
                                 .flex()
                                 .flex_col()
-                                .gap(px(6.))
+                                .gap(px(theme::chrome(6.)))
                                 .w(px(360.))
                                 .child(plate(&t).overflow_hidden().child(shot))
                                 .when(!g.title.is_empty(), |d| {

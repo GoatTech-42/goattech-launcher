@@ -135,7 +135,7 @@ impl Launcher {
                                 ),
                         )
                         .child(
-                            shell::action("owner-copy", shell::Action::Raised, &t)
+                            shell::spaced_action("owner-copy", shell::Action::Raised, &t)
                                 .track_focus(&copy_key)
                                 .child(shell::label(tr("copy code").to_string()))
                                 .on_click(move |_, _, cx| {
@@ -165,7 +165,7 @@ impl Launcher {
             Shown::Code(uri, _) => {
                 let uri = uri.to_string();
                 Some(
-                    shell::action("owner-open", shell::Action::Main, &t)
+                    shell::spaced_action("owner-open", shell::Action::Main, &t)
                         .track_focus(&main_key)
                         .child(shell::label(tr("open link").to_string()))
                         .on_click(move |_, _, cx| cx.open_url(&uri)),
@@ -200,7 +200,7 @@ impl Launcher {
             .mt(px(14.))
             .children(main)
             .child(
-                shell::action("owner-later", shell::Action::Quiet, &t)
+                shell::spaced_action("owner-later", shell::Action::Quiet, &t)
                     .track_focus(&later_key)
                     .child(shell::label(tr("not now").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
