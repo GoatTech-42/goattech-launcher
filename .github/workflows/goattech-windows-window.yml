@@ -1,6 +1,6 @@
-name: GoatTech 1028 scroll calibration
+name: GoatTech P23 stage-one calibration
 # CI-only harness branch. Never merge this harness or its runner seam into main.
-# Pins merged main f1fa45b, with synthetic offline names only.
+# Pins P23 cdcdaf06, with synthetic offline names only.
 # No repository secrets, real accounts, cache, release, or artifact upload.
 # Exact shipping source only. No source seam, production changes or running-ref changes.
 on:
@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-          ref: f1fa45bba5e0835e6cabb1faf7be30a29591d5ed
+          ref: cdcdaf0609dd88626cdf7d45b223557ce14e50ce
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
@@ -104,7 +104,7 @@ jobs:
           ALL_PROXY: http://127.0.0.1:9
         run: |
           $ErrorActionPreference = 'Stop'
-          $exact = @('worlds','screenshots','instance-mods')
+          $exact = @('screenshots','worlds')
           $routes = $exact
           if ($env:CAP_ONLY_ROUTE -ne 'all') {
             if ($env:CAP_ONLY_ROUTE -notin $exact) { throw 'Unsupported route' }
@@ -122,3 +122,18 @@ jobs:
             finally { & '_capture/docs/qa/route-export.ps1' }
           }
           if ($failed.Count) { throw "Failed routes: $($failed -join ',')" }
+      - name: P23 pr_ready self-check (report actual outcome)
+        shell: pwsh
+        timeout-minutes: 20
+        continue-on-error: true
+        env:
+          HORIZON_MSA_CLIENT_ID: 00000000-0000-4000-8000-000000000000
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git rev-parse HEAD).Trim() -ne 'cdcdaf0609dd88626cdf7d45b223557ce14e50ce') { throw 'Unexpected self-check source' }
+          git fetch --no-tags --depth=1 origin f1fa45bba5e0835e6cabb1faf7be30a29591d5ed
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot fetch self-check base' }
+          git fetch --no-tags --deepen=2 origin cdcdaf0609dd88626cdf7d45b223557ce14e50ce
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot recover self-check ancestry' }
+          python tools/pr_ready.py --base f1fa45bba5e0835e6cabb1faf7be30a29591d5ed
+          if ($LASTEXITCODE -ne 0) { throw 'pr_ready failed; preserve its output, do not claim a passing self-check' }
