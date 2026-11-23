@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Pinned source: merged main dc03648, P20, combined s=1, or P21'
+        description: 'Pinned source: merged main dc03648, P22 Home, P20, combined s=1, or P21'
         type: choice
-        options: [main, p20, combined, p21]
+        options: [main, p22, p20, combined, p21]
         default: main
       route:
         description: 'all or a single route listed in docs/qa/route-survey.md'
@@ -42,6 +42,7 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.target == 'main' && 'dc036480276da81ee2806600a521e3e2c3a53b67'
+            || inputs.target == 'p22' && '9fbca9458a396462e66c9c476ea3fb95ce0ba5e8'
             || inputs.target == 'p21' && 'b47844135a09a1d0990847709590e1d34029ffaa'
             || inputs.target == 'combined' && 'c5ef0ce75222bf4d223f21ece8b90bc609abc153'
             || '43c56fa7583e89c453969a1f6e32ceef01fb5418' }}
