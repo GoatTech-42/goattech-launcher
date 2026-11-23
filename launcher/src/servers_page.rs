@@ -960,7 +960,7 @@ impl Launcher {
             .flex()
             .items_center()
             .w(px(width))
-            .h(px(theme::FIELD))
+            .h(px(theme::field()))
             .px(px(12.))
             .overflow_hidden()
             .rounded(px(theme::RADIUS))
@@ -1444,7 +1444,7 @@ impl Launcher {
         // The big buttons.
         let big = |b: Stateful<Div>| {
             b.min_w(px(132.))
-                .h(px(theme::CONTROL_LARGE))
+                .h(px(theme::control_large()))
                 .px(px(28.))
                 .text_size(px(theme::step_px(theme::UI)))
         };
@@ -1800,7 +1800,7 @@ impl Launcher {
         } else {
             div()
                 .px(px(12.))
-                .h(px(theme::FIELD))
+                .h(px(theme::field()))
                 .flex()
                 .items_center()
                 .text_size(px(theme::step_px(theme::CAPTION)))
@@ -1895,7 +1895,7 @@ impl Launcher {
                     .flex()
                     .items_center()
                     .gap(px(14.))
-                    .min_h(px(theme::ROW))
+                    .min_h(px(theme::row()))
                     .py(px(8.))
                     .border_b_1()
                     .border_color(t.rule)
@@ -2018,7 +2018,7 @@ impl Launcher {
                     .flex()
                     .items_center()
                     .gap(px(14.))
-                    .min_h(px(theme::ROW))
+                    .min_h(px(theme::row()))
                     .py(px(8.))
                     .border_b_1()
                     .border_color(t.rule)
@@ -2133,7 +2133,7 @@ impl Launcher {
             .flex()
             .items_center()
             .gap(px(16.))
-            .min_h(px(theme::ROW))
+            .min_h(px(theme::row()))
             .py(px(12.))
             .border_b_1()
             .border_color(t.rule)

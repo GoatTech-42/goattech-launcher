@@ -434,7 +434,7 @@ impl Launcher {
                 .flex()
                 .items_center()
                 .gap(px(10.))
-                .h(px(theme::CONTROL_LARGE))
+                .h(px(theme::control_large()))
                 .px(px(14.))
                 // The button's bottom lip isn't part of its face: centre the text on the face.
                 .pb(px(theme::LIP))
@@ -452,7 +452,7 @@ impl Launcher {
                         .text_color(t.ink)
                         .child(trf("sort by: {order}", &[("order", tr(name))])),
                 )
-                .child(blocks::icon("chevron-down", 16., t.muted))
+                .child(blocks::chrome_icon("chevron-down", 16., t.muted))
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.mods.browse.sort_menu = !this.mods.browse.sort_menu;
                     cx.notify();
@@ -462,7 +462,7 @@ impl Launcher {
             let mut menu = div()
                 .id("mods-sort-menu")
                 .absolute()
-                .top(px(theme::CONTROL_LARGE + 4.))
+                .top(px(theme::chrome(theme::CONTROL_LARGE + 4.)))
                 .left_0()
                 .w(px(220.))
                 .p(px(6.))

@@ -2878,7 +2878,7 @@ fn button(
         .flex_none()
         .items_center()
         .justify_center()
-        .h(px(theme::CONTROL))
+        .h(px(theme::control()))
         .px(px(14.))
         .font_family(theme::PIXEL)
         .text_size(px(16.))
@@ -3069,7 +3069,7 @@ fn segments<T: Copy + PartialEq + 'static>(
                 .relative()
                 .flex()
                 .items_center()
-                .h(px(theme::SEGMENT))
+                .h(px(theme::segment()))
                 .px(px(14.))
                 .pb(px(2.))
                 .font_family(theme::PIXEL)
@@ -3194,7 +3194,7 @@ fn page_header(title: &str, description: &str, t: &Theme) -> Div {
         .flex_col()
         .gap(px(10.))
         .child(
-            blocks::pixel(36., FontWeight::SEMIBOLD)
+            blocks::pixel(theme::page_title(), FontWeight::SEMIBOLD)
                 .text_color(t.ink)
                 .child(tr(title).to_string()),
         )
@@ -3240,7 +3240,7 @@ fn slot_row(
         .flex()
         .items_center()
         .gap(px(16.))
-        .min_h(px(theme::ROW))
+        .min_h(px(theme::row()))
         .mb(px(8.))
         .px(px(16.))
         .py(px(12.))
@@ -3583,7 +3583,7 @@ impl Launcher {
                 .flex_none()
                 .items_center()
                 .justify_center()
-                .h(px(theme::TOPBAR))
+                .h(px(theme::topbar()))
                 .child(
                     div()
                         .flex()
@@ -3598,7 +3598,7 @@ impl Launcher {
             .flex()
             .flex_col()
             .flex_none()
-            .w(px(theme::SIDEBAR))
+            .w(px(theme::sidebar()))
             .h_full()
             .px(px(6.))
             .pb(px(12.))
@@ -3675,7 +3675,7 @@ impl Launcher {
                 .flex()
                 .items_center()
                 .gap(px(14.))
-                .h(px(theme::night::PLAY))
+                .h(px(theme::play()))
                 .pl(px(14.))
                 .pr(px(12.))
                 .rounded(px(theme::night::RADIUS_CONTROL))
@@ -3696,7 +3696,7 @@ impl Launcher {
                         )
                         .child(shell::text(theme::night::UI, t.ink).child(label)),
                 )
-                .child(blocks::icon("chevron-down", 20., t.muted))
+                .child(blocks::chrome_icon("chevron-down", 20., t.muted))
                 .on_click(cx.listener(|this, event: &ClickEvent, _, cx| {
                     if !this.closed_by_this_press(event) {
                         this.picker_open = !this.picker_open;
@@ -3720,7 +3720,7 @@ impl Launcher {
         {
             let mut menu = div()
                 .absolute()
-                .top(px(theme::night::PLAY + 6.))
+                .top(px(theme::chrome(theme::night::PLAY + 6.)))
                 .left_0()
                 .w(px(340.))
                 .p(px(6.))
@@ -4088,8 +4088,8 @@ impl Launcher {
             .flex_col()
             .justify_end()
             .min_h(px(200.))
-            .mx(px(-theme::PAGE_GUTTER))
-            .px(px(theme::PAGE_GUTTER))
+            .mx(px(-theme::page_gutter()))
+            .px(px(theme::page_gutter()))
             .pb(px(16.))
             .gap(px(16.))
             .overflow_hidden()
@@ -5940,13 +5940,13 @@ impl Render for Launcher {
                                                 .flex()
                                                 .w_full()
                                                 .min_w_0()
-                                                .px(px(theme::PAGE_GUTTER))
+                                                .px(px(theme::page_gutter()))
                                                 .pt(px(if self.page == Page::Play {
                                                     0.
                                                 } else {
-                                                    28.
+                                                    theme::chrome(28.)
                                                 }))
-                                                .pb(px(48.))
+                                                .pb(px(theme::chrome(48.)))
                                                 .child(content),
                                         ),
                                     &t,

@@ -81,7 +81,7 @@ pub fn row(id: impl Into<SharedString>, selected_now: bool, t: &Theme) -> Statef
         .flex()
         .items_center()
         .gap(px(12.))
-        .h(px(52.))
+        .h(px(theme::chrome(52.)))
         .px(px(8.))
         .cursor_pointer();
     let d = if selected_now {
@@ -101,7 +101,7 @@ pub fn heading(label: impl Into<SharedString>, t: &Theme) -> Div {
         .flex()
         .items_center()
         .justify_between()
-        .h(px(32.))
+        .h(px(theme::chrome(32.)))
         .px(px(8.))
         .mt(px(8.))
         .child(
@@ -120,7 +120,7 @@ pub fn tab(id: impl Into<SharedString>, label: &str, active: bool, t: &Theme) ->
         .relative()
         .flex()
         .items_center()
-        .h(px(32.))
+        .h(px(theme::chrome(32.)))
         .px(px(14.))
         .cursor_pointer();
     let d = if active {
@@ -161,7 +161,7 @@ pub fn nav_item(
         .flex()
         .items_center()
         .gap(px(10.))
-        .h(px(34.))
+        .h(px(theme::chrome(34.)))
         .px(px(10.))
         .cursor_pointer();
     let d = if active {
@@ -175,7 +175,7 @@ pub fn nav_item(
                 div()
                     .relative()
                     .flex_none()
-                    .child(crate::blocks::icon(icon, 16., color)),
+                    .child(crate::blocks::chrome_icon(icon, 16., color)),
             )
             .child(
                 text(night::UI, color)
@@ -209,11 +209,11 @@ pub fn rail_item(
         .flex_col()
         .items_center()
         .justify_center()
-        .gap(px(3.))
-        .w(px(64.))
+        .gap(px(theme::chrome(3.)))
+        .w(px(theme::chrome(64.)))
         // Two-line labels ("patch notes") at the 12 px step need 20+3+2x14 = 51, plus the
         // active item's 4 px bottom border: 56 clears 55.
-        .h(px(56.))
+        .h(px(theme::chrome(56.)))
         .cursor_pointer();
     if active {
         d = d.bg(c(n.ink)).border_b_4().border_color(c(n.muted));
@@ -226,13 +226,13 @@ pub fn rail_item(
                 div()
                     .relative()
                     .flex_none()
-                    .child(crate::blocks::icon(icon, 20., c(fg))),
+                    .child(crate::blocks::chrome_icon(icon, 20., c(fg))),
             )
             .child(
                 text(night::CAPTION, c(fg))
                     .font_family(crate::theme::PIXEL)
-                    .text_size(px(12.))
-                    .line_height(px(14.))
+                    .text_size(px(theme::chrome(12.)))
+                    .line_height(px(theme::chrome(14.)))
                     .relative()
                     .child(label),
             ),
@@ -257,7 +257,7 @@ pub fn chip_tag(label: impl Into<SharedString>, t: &Theme) -> Div {
         .flex()
         .flex_none()
         .items_center()
-        .h(px(22.))
+        .h(px(theme::chrome(22.)))
         .px(px(9.))
         .rounded(px(11.))
         .bg(alpha(n.card_hi, n.card_hi_alpha))
@@ -317,7 +317,7 @@ pub fn chip(id: impl Into<SharedString>, t: &Theme) -> Stateful<Div> {
         .min_w_0()
         .items_center()
         .gap(px(10.))
-        .h(px(40.))
+        .h(px(theme::chrome(40.)))
         .pl(px(6.))
         .pr(px(12.))
         .cursor_pointer()
@@ -369,7 +369,7 @@ pub fn action(id: impl Into<SharedString>, kind: Action, t: &Theme) -> Stateful<
     let round = move || fill(div()).rounded(px(night::RADIUS_CONTROL));
     let d = match kind {
         Action::Main => d
-            .h(px(night::PLAY))
+            .h(px(theme::play()))
             .px(px(28.))
             .font_family(theme::PIXEL)
             .text_size(px(theme::step_px(night::TITLE)))
@@ -394,7 +394,7 @@ pub fn action(id: impl Into<SharedString>, kind: Action, t: &Theme) -> Stateful<
                 |d, a| d.opacity(a),
             )),
         Action::Raised => d
-            .h(px(theme::CONTROL))
+            .h(px(theme::control()))
             .rounded(px(night::RADIUS_CONTROL))
             .bg(alpha(n.card_hi, n.card_hi_alpha))
             .border_1()
@@ -404,7 +404,7 @@ pub fn action(id: impl Into<SharedString>, kind: Action, t: &Theme) -> Stateful<
                 d.bg(alpha(n.ink, 0.06 * a))
             })),
         Action::Quiet => d
-            .h(px(theme::CONTROL))
+            .h(px(theme::control()))
             .rounded(px(night::RADIUS_CONTROL))
             .text_color(c(n.ink_soft))
             .child(hover_fade(&id, round, move |d, a| {
