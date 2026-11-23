@@ -1,13 +1,16 @@
 name: GoatTech pinned route survey
+# CI-only harness branch. Never merge this harness or its runner seam into main.
+# main target pins merged source dc03648, with synthetic offline names only.
+# No repository secrets, real accounts, cache, release, or artifact upload.
 # Separate exact-tip and runner-instrumented jobs. No production source or running ref changes.
 on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Pinned source: P20 large survey, combined s=1 sanity, or P21 review'
+        description: 'Pinned source: merged main dc03648, P20, combined s=1, or P21'
         type: choice
-        options: [p20, combined, p21]
-        default: p20
+        options: [main, p20, combined, p21]
+        default: main
       route:
         description: 'all or a single route listed in docs/qa/route-survey.md'
         type: string
@@ -38,7 +41,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-          ref: ${{ inputs.target == 'p21' && 'b47844135a09a1d0990847709590e1d34029ffaa'
+          ref: ${{ inputs.target == 'main' && 'dc036480276da81ee2806600a521e3e2c3a53b67'
+            || inputs.target == 'p21' && 'b47844135a09a1d0990847709590e1d34029ffaa'
             || inputs.target == 'combined' && 'c5ef0ce75222bf4d223f21ece8b90bc609abc153'
             || '43c56fa7583e89c453969a1f6e32ceef01fb5418' }}
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -61,24 +65,24 @@ jobs:
           git apply $patch
           if ($LASTEXITCODE -ne 0) { throw 'Capture seam apply failed' }
           "INSTRUMENTED: source tip plus runner-only patch sha256 28bcaf3fe1eef9ea5bae0b80c939e6661fe666f0d3a002c358f4d82c91cbe7c2; never shipping source"
-      - name: Build configured release binary
+      - name: Build fake-ID capture binary (never release)
         working-directory: launcher
         shell: pwsh
         env:
-          HORIZON_MSA_CLIENT_ID: ${{ secrets.HORIZON_MSA_CLIENT_ID }}
+          HORIZON_MSA_CLIENT_ID: 00000000-0000-4000-8000-000000000000
           RUSTFLAGS: -C target-feature=+crt-static
         run: |
           $ErrorActionPreference = 'Stop'
-          if ([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($env:HORIZON_MSA_CLIENT_ID))).ToLowerInvariant() -ne 'aea41f3c67b6424b9a1329e43a4d1e49387ab169c5e7abb2267d5bb560a03c11') { throw 'Repository client ID missing or changed; review before building.' }
+          if ([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($env:HORIZON_MSA_CLIENT_ID))).ToLowerInvariant() -ne 'db8055e0e0307d5a016bec4dc338d69875eb0fb7e614a8b125b08fb082095d98') { throw 'Fake capture client ID changed; stop before building.' }
           cargo build --release --locked
           if ($LASTEXITCODE -ne 0) { throw "cargo build failed: $LASTEXITCODE" }
-      - name: Verify built-in configuration without signing in
+      - name: Verify fake built-in configuration without signing in
         shell: pwsh
         timeout-minutes: 3
         env:
           HORIZON_LAUNCHER_HOME: ${{ runner.temp }}\configured-launcher-home
           HORIZON_HOME: ${{ runner.temp }}\configured-game-home
-          EXPECTED_BUILD_CLIENT_ID: ${{ secrets.HORIZON_MSA_CLIENT_ID }}
+          EXPECTED_BUILD_CLIENT_ID: 00000000-0000-4000-8000-000000000000
         run: |
           $ErrorActionPreference = 'Stop'
           Remove-Item Env:HORIZON_MSA_CLIENT_ID -ErrorAction SilentlyContinue
@@ -115,7 +119,7 @@ jobs:
           "cargo: $(cargo --version)"
           "runner-image: $env:ImageOS $env:ImageVersion"
           'runtime-client-id: absent'
-          'embedded-client-id: exact match'
+          'embedded-client-id: fake capture ID only, not sign-in capable'
           'synthetic-sign-in-configured: true; owner: false; accounts: 0; offline: 0'
       - name: Capture isolated routes and export evidence
         shell: pwsh
