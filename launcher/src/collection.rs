@@ -161,11 +161,7 @@ fn ping_row(t: &Theme) -> Div {
 }
 
 /// The full wording for every kind, then the exact JSON, in mono, scrolling inside a plate.
-fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
-    json_view_at_scale(view, t, scroll, 1.)
-}
-
-fn json_view_at_scale(view: &(String, String), t: &Theme, scroll: &Scrollbar, scale: f32) -> Div {
+fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar, scale: f32) -> Div {
     let detail = |name: &'static str, what: &'static str| {
         div()
             .flex()
@@ -503,7 +499,7 @@ impl Launcher {
                     cx.notify();
                 })),
             )
-            .children(self.collection.view.as_ref().map(|v| json_view_at_scale(v, &t, &self.collection.json_scroll, theme::ui_scale_current())));
+            .children(self.collection.view.as_ref().map(|v| json_view(v, &t, &self.collection.json_scroll, theme::ui_scale_current())));
         let answers = div()
             .flex()
             .flex_none()
@@ -728,7 +724,7 @@ impl Launcher {
                 scaled_button("data-details-top", if self.collection.view.is_some() { "hide details and example reports" } else { "view details and example reports" }, Kind::Ghost, &t)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| { this.toggle_view(); cx.notify(); })),
             )
-            .children(self.collection.view.as_ref().map(|v| json_view_at_scale(v, &t, &self.collection.json_scroll, theme::ui_scale_current())))
+            .children(self.collection.view.as_ref().map(|v| json_view(v, &t, &self.collection.json_scroll, theme::ui_scale_current())))
             .child(list)
             .child(
                 text(theme::CAPTION)
