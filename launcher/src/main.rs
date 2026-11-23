@@ -4386,7 +4386,7 @@ impl Launcher {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(8.))
+                    .gap(px(theme::chrome(8.)))
                     .child(
                         scaled_button(
                             "update-error-detail",
@@ -4513,12 +4513,14 @@ impl Launcher {
             },
         );
         let group = |label: &'static str, icon: &'static str| {
-            section_title(label, icon, &t).mt(px(20.)).mb(px(12.))
+            section_title(label, icon, &t)
+                .mt(px(theme::chrome(20.)))
+                .mb(px(theme::chrome(12.)))
         };
         div()
             .flex()
             .flex_col()
-            .gap(px(32.))
+            .gap(px(theme::chrome(32.)))
             .child(scaled_page_header(
                 "settings",
                 "accounts, updates, and the launcher itself.",
@@ -4604,7 +4606,7 @@ impl Launcher {
                             d.child(
                                 div()
                                     .max_w(px(560.))
-                                    .p(px(12.))
+                                    .p(px(theme::chrome(12.)))
                                     .bg(t.well)
                                     .font_family(theme::MONO)
                                     .text_size(px(12.))
@@ -4912,24 +4914,23 @@ impl Launcher {
         for (i, a) in self.accounts.accounts.clone().into_iter().enumerate() {
             let plays = selected.as_ref() == Some(&a.uuid);
             let uuid = a.uuid.clone();
-            let mut actions = div().flex().gap(px(4.));
+            let mut actions = div().flex().gap(px(theme::chrome(4.)));
             if plays {
                 actions = actions.child(
-                    button(format!("offline-{i}"), "play offline", Kind::Ghost, &t).on_click(
-                        cx.listener(|this, _: &ClickEvent, _, cx| {
+                    scaled_button(format!("offline-{i}"), "play offline", Kind::Ghost, &t)
+                        .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             let mut accounts = Accounts::load();
                             accounts.selected = None;
                             if accounts.save().is_ok() {
                                 this.accounts = accounts;
                             }
                             cx.notify();
-                        }),
-                    ),
+                        })),
                 );
             } else {
                 let uuid = uuid.clone();
                 actions = actions.child(
-                    button(format!("select-{i}"), "play as", Kind::Secondary, &t).on_click(
+                    scaled_button(format!("select-{i}"), "play as", Kind::Secondary, &t).on_click(
                         cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.play_as(account::Player::Microsoft(uuid.clone()));
                             cx.notify();
@@ -4954,7 +4955,7 @@ impl Launcher {
             let needs_sign_in =
                 status.is_some_and(|s| s.state == account::session::State::SignInRequired);
             let refresh_id = uuid.clone();
-            let refresh = button(
+            let refresh = scaled_button(
                 format!("refresh-{i}"),
                 if busy {
                     "checking…"
@@ -4978,7 +4979,7 @@ impl Launcher {
                     cx.notify();
                 }))
             });
-            let sign_out = button(format!("sign-out-{i}"), "sign out", Kind::Ghost, &t);
+            let sign_out = scaled_button(format!("sign-out-{i}"), "sign out", Kind::Ghost, &t);
             actions = actions.child(if busy {
                 disabled(sign_out)
             } else {
@@ -5038,7 +5039,7 @@ impl Launcher {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(4.))
+                    .gap(px(theme::chrome(4.)))
                     .child(plain)
                     .children(details)
             }
@@ -5047,7 +5048,7 @@ impl Launcher {
             Some(SignInState::Code(code)) => div()
                 .flex()
                 .flex_col()
-                .gap(px(6.))
+                .gap(px(theme::chrome(6.)))
                 .child(trf(
                     "open {link} in your browser and enter this code:",
                     &[("link", &code.verification_uri)],
@@ -5071,7 +5072,7 @@ impl Launcher {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(4.))
+                .gap(px(theme::chrome(4.)))
                 .child(trf(
                     "use the microsoft account for {name}.",
                     &[("name", &target.name)],
@@ -5084,7 +5085,7 @@ impl Launcher {
             Some(said) if !self.accounts.accounts.is_empty() => div()
                 .flex()
                 .flex_col()
-                .gap(px(4.))
+                .gap(px(theme::chrome(4.)))
                 .child(detail)
                 .child(div().child(said)),
             _ => detail,
@@ -5096,9 +5097,9 @@ impl Launcher {
             Some(
                 div()
                     .flex()
-                    .gap(px(4.))
+                    .gap(px(theme::chrome(4.)))
                     .child(
-                        button("sign-in-copy", "copy code", Kind::Secondary, &t).on_click(
+                        scaled_button("sign-in-copy", "copy code", Kind::Secondary, &t).on_click(
                             move |_, _, cx| {
                                 copy_to_clipboard(
                                     cx,
@@ -5108,22 +5109,22 @@ impl Launcher {
                         ),
                     )
                     .child(
-                        button("sign-in-open", "open link", Kind::Secondary, &t)
+                        scaled_button("sign-in-open", "open link", Kind::Secondary, &t)
                             .on_click(move |_, _, cx| cx.open_url(&uri)),
                     )
                     .child(
-                        button("sign-in-cancel", "cancel", Kind::Ghost, &t).on_click(cx.listener(
-                            |this, _: &ClickEvent, _, cx| {
+                        scaled_button("sign-in-cancel", "cancel", Kind::Ghost, &t).on_click(
+                            cx.listener(|this, _: &ClickEvent, _, cx| {
                                 this.cancel_sign_in();
                                 cx.notify();
-                            },
-                        )),
+                            }),
+                        ),
                     )
                     .into_any_element(),
             )
         } else if busy {
             Some(
-                button("sign-in-cancel-working", "cancel", Kind::Ghost, &t)
+                scaled_button("sign-in-cancel-working", "cancel", Kind::Ghost, &t)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.cancel_sign_in();
                         cx.notify();
@@ -5135,23 +5136,26 @@ impl Launcher {
             let targeted = target.is_some();
             // Re-signing one account names it; adding one is Microsoft's own button.
             let sign_in = if targeted {
-                button("sign-in", "sign in again", Kind::Secondary, &t)
+                scaled_button("sign-in", "sign in again", Kind::Secondary, &t)
             } else {
                 microsoft::sign_in_button("sign-in", &t)
             };
-            let mut actions = div().flex().gap(px(4.)).child(sign_in.on_click(cx.listener(
-                move |this, _: &ClickEvent, _, cx| {
-                    if let Some(uuid) = &target {
-                        this.re_sign_in(uuid);
-                    } else {
-                        this.start_sign_in();
-                    }
-                    cx.notify();
-                },
-            )));
+            let mut actions = div()
+                .flex()
+                .gap(px(theme::chrome(4.)))
+                .child(
+                    sign_in.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        if let Some(uuid) = &target {
+                            this.re_sign_in(uuid);
+                        } else {
+                            this.start_sign_in();
+                        }
+                        cx.notify();
+                    })),
+                );
             if targeted {
                 actions = actions.child(
-                    button("sign-in-cancel-target", "cancel", Kind::Ghost, &t).on_click(
+                    scaled_button("sign-in-cancel-target", "cancel", Kind::Ghost, &t).on_click(
                         cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.cancel_sign_in();
                             cx.notify();

@@ -22,11 +22,12 @@ impl Launcher {
     pub(crate) fn no_ai_row(&mut self, n: usize, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let on = backend::no_ai();
-        let toggle =
-            switch("no-ai", on, &t).on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+        let toggle = scaled_switch("no-ai", on, &t).on_click(cx.listener(
+            move |this, _: &ClickEvent, _, cx| {
                 this.agents.status = backend::set_no_ai(!on).err().map(|e| (false, e));
                 cx.notify();
-            }));
+            },
+        ));
         index_row(
             n,
             tr("no ai"),
@@ -70,7 +71,7 @@ impl Launcher {
         });
         let copy = |id: &'static str, text: String, cx: &mut Context<Self>| {
             let copied = self.agents.copied == Some(id);
-            button(
+            scaled_button(
                 id,
                 if copied { "copied" } else { "copy" },
                 Kind::Secondary,
@@ -84,23 +85,23 @@ impl Launcher {
         };
         let code = |s: &str| {
             div()
-                .p(px(10.))
+                .p(px(theme::chrome(10.)))
                 .bg(t.well)
                 .border_2()
                 .border_color(t.outline)
                 .font_family(theme::MONO)
-                .text_size(px(12.))
-                .line_height(px(18.))
+                .text_size(px(theme::chrome(12.)))
+                .line_height(px(theme::chrome(18.)))
                 .text_color(t.ink)
                 .children(s.lines().map(|l| div().child(l.to_owned())))
         };
         let mut section = plate(&t)
             .flex()
             .flex_col()
-            .gap(px(12.))
-            .p(px(24.))
+            .gap(px(theme::chrome(12.)))
+            .p(px(theme::chrome(24.)))
             .text_size(px(theme::step_px(theme::UI)))
-            .line_height(px(21.))
+            .line_height(px(theme::chrome(21.)))
             .child(
                 text(theme::HEADING)
                     .text_color(t.ink)
@@ -114,7 +115,7 @@ impl Launcher {
             let line = client.add_line().unwrap_or_default();
             let label = trf("add to {client}", &[("client", client.name)]);
             let busy = self.agents.busy;
-            let add = button(
+            let add = scaled_button(
                 "agent-add",
                 if busy {
                     tr("running…").to_owned()
@@ -151,11 +152,13 @@ impl Launcher {
                     &[("client", client.name)],
                 )))
                 .child(code(&line))
-                .child(div().flex().gap(px(8.)).child(add).child(copy(
-                    "agent-copy-command",
-                    line.clone(),
-                    cx,
-                )));
+                .child(
+                    div()
+                        .flex()
+                        .gap(px(theme::chrome(8.)))
+                        .child(add)
+                        .child(copy("agent-copy-command", line.clone(), cx)),
+                );
         }
         section = section
             .child(div().text_color(t.muted).child(trf(
@@ -167,8 +170,8 @@ impl Launcher {
                 &[("file", tr(client.file))],
             )))
             .child(code(&client.config))
-            .child(div().flex().gap(px(8.)).child(copy("agent-copy-config", client.config.clone(), cx)).child(
-                button("agent-test", "test the connection", Kind::Secondary, &t).on_click(cx.listener(
+            .child(div().flex().gap(px(theme::chrome(8.))).child(copy("agent-copy-config", client.config.clone(), cx)).child(
+                scaled_button("agent-test", "test the connection", Kind::Secondary, &t).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         if this.agents.busy {
                             return;

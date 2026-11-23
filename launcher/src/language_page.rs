@@ -22,9 +22,9 @@ impl Launcher {
                 .relative()
                 .flex()
                 .items_center()
-                .gap(px(10.))
+                .gap(px(theme::chrome(10.)))
                 .h(px(theme::control()))
-                .px(px(14.))
+                .px(px(theme::chrome(14.)))
                 .border_2()
                 .border_color(t.outline)
                 .bg(t.button)
@@ -35,7 +35,7 @@ impl Launcher {
                     div()
                         .flex_1()
                         .font_family(theme::PIXEL)
-                        .text_size(px(15.))
+                        .text_size(px(theme::chrome(15.)))
                         .font_weight(FontWeight::MEDIUM)
                         .text_color(t.ink)
                         .child(choice_name(self.settings.language)),
@@ -52,8 +52,8 @@ impl Launcher {
                 .absolute()
                 .top(px(theme::chrome(theme::CONTROL + 4.)))
                 .right_0()
-                .w(px(220.))
-                .p(px(6.))
+                .w(px(theme::chrome(220.)))
+                .p(px(theme::chrome(6.)))
                 .border_2()
                 .border_color(t.outline)
                 .bg(t.surface)
@@ -69,9 +69,9 @@ impl Launcher {
                         .flex()
                         .items_center()
                         .justify_between()
-                        .gap(px(8.))
-                        .h(px(30.))
-                        .px(px(10.))
+                        .gap(px(theme::chrome(8.)))
+                        .h(px(theme::chrome(30.)))
+                        .px(px(theme::chrome(10.)))
                         .rounded(px(theme::RADIUS))
                         .cursor_pointer()
                         .hover(move |s| s.bg(t.plate_soft))
@@ -81,7 +81,12 @@ impl Launcher {
                                 .child(choice_name(choice)),
                         )
                         .when(chosen, |d| {
-                            d.child(div().size(px(6.)).rounded_full().bg(t.accent))
+                            d.child(
+                                div()
+                                    .size(px(theme::chrome(6.)))
+                                    .rounded_full()
+                                    .bg(t.accent),
+                            )
                         })
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.settings.language = choice;

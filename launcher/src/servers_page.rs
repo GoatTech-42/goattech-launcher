@@ -1170,9 +1170,9 @@ impl Launcher {
         cx: &mut Context<Self>,
         action: impl Fn(&mut Self) + 'static,
     ) -> Stateful<Div> {
-        let b = button(id, label, Kind::Ghost, &self.theme)
-            .h(px(28.))
-            .px(px(10.))
+        let b = scaled_button(id, label, Kind::Ghost, &self.theme)
+            .h(px(theme::chrome(28.)))
+            .px(px(theme::chrome(10.)))
             .text_size(px(theme::step_px(theme::CAPTION)));
         if enabled {
             b.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
@@ -1202,7 +1202,7 @@ impl Launcher {
             }
             self.servers.open = None;
         }
-        let header = page_header(
+        let header = scaled_page_header(
             "servers",
             "host a world for your friends on this computer. create one, press start, and give them the address.",
             &t,
@@ -1210,9 +1210,9 @@ impl Launcher {
         let actions = div()
             .flex()
             .items_center()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .child(
-                button("server-create", "create a server", Kind::Primary, &t).on_click(
+                scaled_button("server-create", "create a server", Kind::Primary, &t).on_click(
                     cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.open_create(cx);
                         cx.notify();
@@ -1220,7 +1220,7 @@ impl Launcher {
                 ),
             )
             .child({
-                let b = button("server-add", "add a server folder…", Kind::Ghost, &t);
+                let b = scaled_button("server-add", "add a server folder…", Kind::Ghost, &t);
                 if self.servers.creating {
                     disabled(b)
                 } else {
@@ -1233,7 +1233,7 @@ impl Launcher {
         let mut page = div()
             .flex()
             .flex_col()
-            .gap(px(32.))
+            .gap(px(theme::chrome(32.)))
             .child(header)
             .child(actions);
         if let Some(p) = self
@@ -1246,7 +1246,7 @@ impl Launcher {
         }
         if self.servers.list.is_empty() {
             return page
-                .child(centered(
+                .child(scaled_centered(
                     tr("no server yet. create one: it takes a few seconds, and with the defaults (tick the eula, press create) you get a friends-only survival world."),
                     &t,
                 ))
@@ -1281,7 +1281,7 @@ impl Launcher {
                 e.name.clone(),
                 Some(detail.into_any_element()),
                 Some(
-                    button(
+                    scaled_button(
                         SharedString::from(format!("server-open-{i}")),
                         "open",
                         Kind::Secondary,
@@ -1351,7 +1351,7 @@ impl Launcher {
 
     fn problem_notice(&self, p: Problem, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
-        let mut n = notice(p.message.clone(), &t).items_center();
+        let mut n = scaled_notice(p.message.clone(), &t).items_center();
         if let Some(fix) = p.fix {
             let label = match &fix {
                 Fix::UsePort(port) => format!("use port {port}"),
@@ -1360,7 +1360,7 @@ impl Launcher {
                 Fix::ShowLog => "open the logs".into(),
             };
             n = n.child(
-                button("problem-fix", label, Kind::Secondary, &t)
+                scaled_button("problem-fix", label, Kind::Secondary, &t)
                     .bg(t.plate)
                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                         this.fix(fix.clone(), cx);
@@ -1369,7 +1369,7 @@ impl Launcher {
             );
         }
         n.child(
-            button("problem-dismiss", "dismiss", Kind::Ghost, &t).on_click(cx.listener(
+            scaled_button("problem-dismiss", "dismiss", Kind::Ghost, &t).on_click(cx.listener(
                 |this, _: &ClickEvent, _, cx| {
                     this.servers.problem = None;
                     cx.notify();
@@ -1390,7 +1390,7 @@ impl Launcher {
             .unwrap_or_default();
         let running = status.running();
         let busy = self.servers.busy.clone();
-        let mut top = div().flex().flex_col().gap(px(10.));
+        let mut top = div().flex().flex_col().gap(px(theme::chrome(10.)));
         if self.servers.list.len() > 1 || self.servers.create.is_none() {
             top = top.child(
                 div().flex().child(
@@ -1420,8 +1420,8 @@ impl Launcher {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(10.))
-                    .child(div().size(px(8.)).rounded_full().bg(dot))
+                    .gap(px(theme::chrome(10.)))
+                    .child(div().size(px(theme::chrome(8.))).rounded_full().bg(dot))
                     .child(micro(phase_label(&status)).text_color(t.muted))
                     .when_some(status.uptime.filter(|_| running), |d, up| {
                         d.child(micro(format!("· up {}", uptime(up))).text_color(t.muted))
@@ -1443,13 +1443,13 @@ impl Launcher {
 
         // The big buttons.
         let big = |b: Stateful<Div>| {
-            b.min_w(px(132.))
+            b.min_w(px(theme::chrome(132.)))
                 .h(px(theme::control_large()))
-                .px(px(28.))
+                .px(px(theme::chrome(28.)))
                 .text_size(px(theme::step_px(theme::UI)))
         };
         let idle = busy.is_none();
-        let start = big(button(
+        let start = big(scaled_button(
             "server-start",
             if running { "stop" } else { "start" },
             if running {
@@ -1472,7 +1472,12 @@ impl Launcher {
                 cx.notify();
             }))
         };
-        let restart = big(button("server-restart", "restart", Kind::Secondary, &t));
+        let restart = big(scaled_button(
+            "server-restart",
+            "restart",
+            Kind::Secondary,
+            &t,
+        ));
         let restart = if idle && running {
             restart.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.servers.restart_needed.clear();
@@ -1482,7 +1487,7 @@ impl Launcher {
         } else {
             disabled(restart)
         };
-        let panel = button("server-panel", "open the web panel", Kind::Ghost, &t);
+        let panel = scaled_button("server-panel", "open the web panel", Kind::Ghost, &t);
         let panel = if running {
             let d = dir.to_path_buf();
             panel.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
@@ -1501,19 +1506,19 @@ impl Launcher {
             .flex()
             .flex_wrap()
             .items_center()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .child(start)
             .child(restart)
             .child(panel)
             .child(
-                button("server-folder", "open the folder", Kind::Ghost, &t)
+                scaled_button("server-folder", "open the folder", Kind::Ghost, &t)
                     .on_click(move |_, _, cx| cx.open_with_system(&folder)),
             );
 
         let mut page = div()
             .flex()
             .flex_col()
-            .gap(px(24.))
+            .gap(px(theme::chrome(24.)))
             .child(top)
             .child(buttons);
         if let Some(label) = &busy {
@@ -1522,8 +1527,8 @@ impl Launcher {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(8.))
-                    .child(progress_bar(None, &t))
+                    .gap(px(theme::chrome(8.)))
+                    .child(scaled_progress_bar(None, &t))
                     .child(
                         text(theme::CAPTION)
                             .text_color(t.muted)
@@ -1540,9 +1545,15 @@ impl Launcher {
                 plate(&t)
                     .flex()
                     .items_center()
-                    .gap(px(12.))
-                    .p(px(16.))
-                    .child(div().flex_none().size(px(6.)).rounded_full().bg(t.success))
+                    .gap(px(theme::chrome(12.)))
+                    .p(px(theme::chrome(16.)))
+                    .child(
+                        div()
+                            .flex_none()
+                            .size(px(theme::chrome(6.)))
+                            .rounded_full()
+                            .bg(t.success),
+                    )
                     .child(
                         div()
                             .flex_1()
@@ -1563,9 +1574,15 @@ impl Launcher {
                 plate(&t)
                     .flex()
                     .items_center()
-                    .gap(px(12.))
-                    .p(px(16.))
-                    .child(div().flex_none().size(px(6.)).rounded_full().bg(t.accent))
+                    .gap(px(theme::chrome(12.)))
+                    .p(px(theme::chrome(16.)))
+                    .child(
+                        div()
+                            .flex_none()
+                            .size(px(theme::chrome(6.)))
+                            .rounded_full()
+                            .bg(t.accent),
+                    )
                     .child(
                         div()
                             .flex_1()
@@ -1577,8 +1594,8 @@ impl Launcher {
                             )),
                     )
                     .child({
-                        let b =
-                            button("restart-apply", "restart now", Kind::Secondary, &t).bg(t.plate);
+                        let b = scaled_button("restart-apply", "restart now", Kind::Secondary, &t)
+                            .bg(t.plate);
                         if idle {
                             b.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                                 this.servers.restart_needed.clear();
@@ -1622,8 +1639,8 @@ impl Launcher {
                 .flex()
                 .flex_col()
                 .flex_1()
-                .gap(px(4.))
-                .p(px(16.))
+                .gap(px(theme::chrome(4.)))
+                .p(px(theme::chrome(16.)))
                 .child(text(theme::TITLE).text_color(t.ink).child(value))
                 .child(micro(tr(label)).text_color(t.muted))
         };
@@ -1631,7 +1648,7 @@ impl Launcher {
         let on = status.running();
         div()
             .flex()
-            .gap(px(12.))
+            .gap(px(theme::chrome(12.)))
             .child(tile(
                 if on {
                     format!(
@@ -1688,14 +1705,14 @@ impl Launcher {
         let address_plate = plate(&t)
             .flex()
             .flex_col()
-            .gap(px(10.))
-            .p(px(20.))
+            .gap(px(theme::chrome(10.)))
+            .p(px(theme::chrome(20.)))
             .child(micro(tr("address on this network")).text_color(t.muted))
             .child(
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(12.))
+                    .gap(px(theme::chrome(12.)))
                     .child(
                         text(theme::TITLE)
                             .font_family(theme::MONO)
@@ -1703,7 +1720,7 @@ impl Launcher {
                             .child(address),
                     )
                     .child(
-                        button(
+                        scaled_button(
                             "address-copy",
                             if copied { "copied" } else { "copy" },
                             Kind::Secondary,
@@ -1726,15 +1743,19 @@ impl Launcher {
                 "friends elsewhere can't reach it as it is: use tailscale (free, nothing to change on your router, only people you invite), or forward tcp port {port} on your router to this computer.",
                 &[("port", &port.to_string())],
             )));
-        let mut tab = div().flex().flex_col().gap(px(20.)).child(address_plate);
+        let mut tab = div()
+            .flex()
+            .flex_col()
+            .gap(px(theme::chrome(20.)))
+            .child(address_plate);
         if !status.players.is_empty() {
-            let mut row = div().flex().flex_wrap().gap(px(16.));
+            let mut row = div().flex().flex_wrap().gap(px(theme::chrome(16.)));
             for p in status.players.clone() {
                 row = row.child(
                     div()
                         .flex()
                         .items_center()
-                        .gap(px(8.))
+                        .gap(px(theme::chrome(8.)))
                         .child(self.head(&p.uuid, 20.))
                         .child(text(theme::UI).text_color(t.ink).child(p.name.clone())),
                 );
@@ -1743,7 +1764,7 @@ impl Launcher {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(10.))
+                    .gap(px(theme::chrome(10.)))
                     .child(micro(tr("online now")).text_color(t.muted))
                     .child(row),
             );
@@ -1767,13 +1788,13 @@ impl Launcher {
         let empty = self.servers.log.is_empty();
         let log = div()
             .id("server-console")
-            .h(px(240.))
-            .px(px(20.))
-            .py(px(12.))
+            .h(px(theme::chrome(240.)))
+            .px(px(theme::chrome(20.)))
+            .py(px(theme::chrome(12.)))
             .overflow_y_scroll()
             .font_family(theme::MONO)
             .text_size(px(theme::step_px(theme::CAPTION)))
-            .line_height(px(19.))
+            .line_height(px(theme::chrome(19.)))
             .text_color(t.ink_soft)
             .when(empty, |d| {
                 d.child(div().text_color(t.muted).child(if running {
@@ -1799,7 +1820,7 @@ impl Launcher {
             .into_any_element()
         } else {
             div()
-                .px(px(12.))
+                .px(px(theme::chrome(12.)))
                 .h(px(theme::field()))
                 .flex()
                 .items_center()
@@ -1816,8 +1837,8 @@ impl Launcher {
                 div()
                     .flex()
                     .items_center()
-                    .h(px(40.))
-                    .px(px(20.))
+                    .h(px(theme::chrome(40.)))
+                    .px(px(theme::chrome(20.)))
                     .border_b_1()
                     .border_color(t.rule)
                     .child(micro(tr("console")).text_color(t.muted)),
@@ -1827,11 +1848,16 @@ impl Launcher {
                 div()
                     .flex()
                     .items_center()
-                    .px(px(8.))
-                    .py(px(4.))
+                    .px(px(theme::chrome(8.)))
+                    .py(px(theme::chrome(4.)))
                     .border_t_1()
                     .border_color(t.rule)
-                    .child(div().text_color(t.accent).ml(px(12.)).child("›"))
+                    .child(
+                        div()
+                            .text_color(t.accent)
+                            .ml(px(theme::chrome(12.)))
+                            .child("›"),
+                    )
                     .child(input),
             )
     }
@@ -1844,7 +1870,7 @@ impl Launcher {
         let whitelist = servers::entries(dir, "whitelist.json");
         let banned = servers::names(dir, "banned-players.json");
         let is_op = |n: &str| ops.iter().any(|o| o.eq_ignore_ascii_case(n));
-        let mut tab = div().flex().flex_col().gap(px(28.));
+        let mut tab = div().flex().flex_col().gap(px(theme::chrome(28.)));
 
         // Online now.
         let mut online = div().flex().flex_col().border_t_1().border_color(t.rule);
@@ -1853,7 +1879,7 @@ impl Launcher {
             let (n1, n2, n3) = (p.name.clone(), p.name.clone(), p.name.clone());
             let actions = div()
                 .flex()
-                .gap(px(2.))
+                .gap(px(theme::chrome(2.)))
                 .child(self.small(
                     SharedString::from(format!("online-op-{i}")),
                     if op {
@@ -1894,9 +1920,9 @@ impl Launcher {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(14.))
+                    .gap(px(theme::chrome(14.)))
                     .min_h(px(theme::row()))
-                    .py(px(8.))
+                    .py(px(theme::chrome(8.)))
                     .border_b_1()
                     .border_color(t.rule)
                     .child(self.head(&p.uuid, 24.))
@@ -1917,7 +1943,7 @@ impl Launcher {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(10.))
+                .gap(px(theme::chrome(10.)))
                 .child(text(theme::HEADING).text_color(t.ink).child(trf(
                     "online now ({count})",
                     &[("count", &status.players.len().to_string())],
@@ -1942,7 +1968,7 @@ impl Launcher {
             .setting("server", "whitelist")
             .and_then(Value::as_bool)
             .unwrap_or(true);
-        let toggle = switch("friends-only", friends_only, &t).on_click(cx.listener(
+        let toggle = scaled_switch("friends-only", friends_only, &t).on_click(cx.listener(
             move |this, _: &ClickEvent, _, cx| {
                 this.set_setting("server.whitelist", (!friends_only).to_string());
                 cx.notify();
@@ -1951,10 +1977,10 @@ impl Launcher {
         let add = div()
             .flex()
             .items_center()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .child(self.field(Field::AddPlayer, tr("a player's name"), 240., cx))
             .child({
-                let b = button("player-add", "let in", Kind::Secondary, &t);
+                let b = scaled_button("player-add", "let in", Kind::Secondary, &t);
                 if idle {
                     b.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.add_player();
@@ -1975,7 +2001,7 @@ impl Launcher {
             let op = is_op(&name);
             let listed = whitelist.iter().any(|(n, _)| n == &name);
             let (n1, n2) = (name.clone(), name.clone());
-            let mut actions = div().flex().gap(px(2.)).child(self.small(
+            let mut actions = div().flex().gap(px(theme::chrome(2.))).child(self.small(
                 SharedString::from(format!("allowed-op-{i}")),
                 if op {
                     "remove operator"
@@ -2017,9 +2043,9 @@ impl Launcher {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(14.))
+                    .gap(px(theme::chrome(14.)))
                     .min_h(px(theme::row()))
-                    .py(px(8.))
+                    .py(px(theme::chrome(8.)))
                     .border_b_1()
                     .border_color(t.rule)
                     .child(head)
@@ -2040,7 +2066,7 @@ impl Launcher {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(14.))
+                .gap(px(theme::chrome(14.)))
                 .child(
                     text(theme::HEADING)
                         .text_color(t.ink)
@@ -2050,7 +2076,7 @@ impl Launcher {
                     div()
                         .flex()
                         .items_center()
-                        .gap(px(14.))
+                        .gap(px(theme::chrome(14.)))
                         .child(toggle)
                         .child(
                             div()
@@ -2100,7 +2126,7 @@ impl Launcher {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(10.))
+                    .gap(px(theme::chrome(10.)))
                     .child(text(theme::HEADING).text_color(t.ink).child(tr("banned")))
                     .when(!running, |d| {
                         d.child(
@@ -2132,9 +2158,9 @@ impl Launcher {
         div()
             .flex()
             .items_center()
-            .gap(px(16.))
+            .gap(px(theme::chrome(16.)))
             .min_h(px(theme::row()))
-            .py(px(12.))
+            .py(px(theme::chrome(12.)))
             .border_b_1()
             .border_color(t.rule)
             .child(
@@ -2143,7 +2169,7 @@ impl Launcher {
                     .flex_col()
                     .flex_1()
                     .min_w_0()
-                    .gap(px(2.))
+                    .gap(px(theme::chrome(2.)))
                     .child(text(theme::UI).text_color(t.ink).child(name.to_string()))
                     .child(match error {
                         Some(e) => text(theme::CAPTION).text_color(t.danger).child(tr(e)),
@@ -2164,14 +2190,14 @@ impl Launcher {
         let (section, field) = key.split_once('.').unwrap_or_default();
         let value: i64 = self.servers.shown(section, field).parse().unwrap_or(0);
         let make = |id: &'static str, label: &'static str, to: i64, cx: &mut Context<Self>| {
-            let b = button(
+            let b = scaled_button(
                 SharedString::from(format!("{key}-{id}")),
                 label,
                 Kind::Secondary,
                 &t,
             )
-            .w(px(36.))
-            .px(px(0.));
+            .w(px(theme::chrome(36.)))
+            .px(px(theme::chrome(0.)));
             if range.contains(&to) && to != value {
                 b.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                     this.set_setting(key, to.to_string());
@@ -2184,11 +2210,11 @@ impl Launcher {
         div()
             .flex()
             .items_center()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .child(make("less", "−", value - 1, cx))
             .child(
                 text(theme::UI)
-                    .w(px(44.))
+                    .w(px(theme::chrome(44.)))
                     .flex()
                     .justify_center()
                     .text_color(t.ink)
@@ -2225,7 +2251,7 @@ impl Launcher {
         let t = self.theme;
         let running = status.running();
         if self.servers.config.is_none() {
-            return div().child(centered(
+            return div().child(scaled_centered(
                 if self.older_horizon() {
                     tr(
                         "this server's horizon is too old to show its settings here. update it on the backups tab, then they appear.",
@@ -2249,7 +2275,7 @@ impl Launcher {
             self.servers.text(Field::Port).set(port);
         }
         let save = |id: &'static str, f: Field, cx: &mut Context<Self>| {
-            button(id, "save", Kind::Secondary, &t).on_click(cx.listener(
+            scaled_button(id, "save", Kind::Secondary, &t).on_click(cx.listener(
                 move |this, _: &ClickEvent, _, cx| {
                     this.field_enter(f);
                     cx.notify();
@@ -2258,32 +2284,32 @@ impl Launcher {
         };
         let motd = div()
             .flex()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .child(self.field(Field::Motd, tr("a minecraft server"), 260., cx))
             .child(save("motd-save", Field::Motd, cx))
             .into_any_element();
         let port = div()
             .flex()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .child(self.field(Field::Port, "25565", 100., cx))
             .child(save("port-save", Field::Port, cx))
             .into_any_element();
         let pvp = match (running, self.servers.pvp) {
-            (true, Some(on)) => switch("pvp", on, &t)
+            (true, Some(on)) => scaled_switch("pvp", on, &t)
                 .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                     this.servers.pvp = Some(!on);
                     this.api_command(format!("gamerule pvp {}", !on));
                     cx.notify();
                 }))
                 .into_any_element(),
-            _ => disabled(switch("pvp", true, &t)).into_any_element(),
+            _ => disabled(scaled_switch("pvp", true, &t)).into_any_element(),
         };
         let accounts = self
             .servers
             .setting("server", "online_mode")
             .and_then(Value::as_bool)
             .unwrap_or(false);
-        let accounts_switch = switch("online-mode", accounts, &t)
+        let accounts_switch = scaled_switch("online-mode", accounts, &t)
             .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                 this.set_setting("server.online_mode", (!accounts).to_string());
                 cx.notify();
@@ -2385,7 +2411,7 @@ impl Launcher {
         div()
             .flex()
             .flex_col()
-            .gap(px(12.))
+            .gap(px(theme::chrome(12.)))
             .child(text(theme::CAPTION).text_color(t.muted).child(tr(
                 "changes save as you make them. those the game can't take while it runs wait for a restart, and the page says so.",
             )))
@@ -2420,12 +2446,12 @@ impl Launcher {
             .flex_col()
             .items_end()
             .flex_none()
-            .w(px(260.))
-            .gap(px(12.));
+            .w(px(theme::chrome(260.)))
+            .gap(px(theme::chrome(12.)));
         if self.servers.confirm_delete {
             let matches = self.servers.value(Field::DeleteServer) == name && !name.is_empty();
             let field = self.field(Field::DeleteServer, tr("server name"), 225., cx);
-            let confirm = button(
+            let confirm = scaled_button(
                 "server-delete-confirm",
                 "move to trash",
                 Kind::Secondary,
@@ -2465,20 +2491,19 @@ impl Launcher {
                 .child(
                     div()
                         .flex()
-                        .gap(px(8.))
+                        .gap(px(theme::chrome(8.)))
                         .child(
-                            button("server-delete-cancel", "cancel", Kind::Ghost, &t).on_click(
-                                cx.listener(|this, _: &ClickEvent, _, cx| {
+                            scaled_button("server-delete-cancel", "cancel", Kind::Ghost, &t)
+                                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                                     this.servers.confirm_delete = false;
                                     cx.notify();
-                                }),
-                            ),
+                                })),
                         )
                         .child(confirm),
                 );
         } else {
-            let delete =
-                button("server-delete", "delete server…", Kind::Secondary, &t).text_color(t.danger);
+            let delete = scaled_button("server-delete", "delete server…", Kind::Secondary, &t)
+                .text_color(t.danger);
             let delete = if ready {
                 delete.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.servers.confirm_delete = true;
@@ -2496,7 +2521,7 @@ impl Launcher {
             controls = controls.child(
                 text(theme::CAPTION)
                     .text_color(t.muted)
-                    .w(px(260.))
+                    .w(px(theme::chrome(260.)))
                     .text_align(gpui::TextAlign::Right)
                     .child(hint),
             );
@@ -2513,7 +2538,7 @@ impl Launcher {
         let t = self.theme;
         let on = self.servers.service.unwrap_or(false);
         let idle = self.servers.busy.is_none() && self.servers.service.is_some();
-        let toggle = switch("background", on, &t);
+        let toggle = scaled_switch("background", on, &t);
         let toggle = if idle {
             toggle.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                 this.server_command(
@@ -2577,7 +2602,7 @@ impl Launcher {
         };
         let control = match available {
             Some(tag) => {
-                let b = button("update-now", "update now", Kind::Primary, &t);
+                let b = scaled_button("update-now", "update now", Kind::Primary, &t);
                 if idle {
                     b.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                         this.servers.update = None;
@@ -2595,17 +2620,20 @@ impl Launcher {
                     disabled(b)
                 }
             }
-            None if self.servers.checking => {
-                disabled(button("update-check", "checking…", Kind::Secondary, &t))
-            }
-            None if !idle => disabled(button(
+            None if self.servers.checking => disabled(scaled_button(
+                "update-check",
+                "checking…",
+                Kind::Secondary,
+                &t,
+            )),
+            None if !idle => disabled(scaled_button(
                 "update-check",
                 "check for updates",
                 Kind::Secondary,
                 &t,
             )),
-            None => button("update-check", "check for updates", Kind::Secondary, &t).on_click(
-                cx.listener(|this, _: &ClickEvent, _, cx| {
+            None => scaled_button("update-check", "check for updates", Kind::Secondary, &t)
+                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     if let Some(dir) = this.servers.open.clone() {
                         this.servers.checking = true;
                         let tx = this.servers.tx.clone();
@@ -2619,8 +2647,7 @@ impl Launcher {
                         });
                     }
                     cx.notify();
-                }),
-            ),
+                })),
         };
         let mut rows = div()
             .flex()
@@ -2639,7 +2666,7 @@ impl Launcher {
         div()
             .flex()
             .flex_col()
-            .gap(px(10.))
+            .gap(px(theme::chrome(10.)))
             .child(text(theme::HEADING).text_color(t.ink).child(tr("updates")))
             .child(rows)
     }
@@ -2657,7 +2684,7 @@ impl Launcher {
         let auto = !every.is_empty() && every != "0";
         let keep = self.servers.shown("backups", "keep");
         let now = {
-            let b = button("backup-now", "back up now", Kind::Primary, &t);
+            let b = scaled_button("backup-now", "back up now", Kind::Primary, &t);
             if idle {
                 b.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.server_command("backing up", vec!["backup".into()]);
@@ -2667,7 +2694,7 @@ impl Launcher {
                 disabled(b)
             }
         };
-        let toggle = switch("auto-backup", auto, &t).on_click(cx.listener(
+        let toggle = scaled_switch("auto-backup", auto, &t).on_click(cx.listener(
             move |this, _: &ClickEvent, _, cx| {
                 this.set_setting("backups.every", if auto { "0".into() } else { "6h".into() });
                 cx.notify();
@@ -2681,7 +2708,7 @@ impl Launcher {
             let restored = format!(
                 "the world is back as it was on {when}. the one it replaced is in the backups folder."
             );
-            let restore = button(
+            let restore = scaled_button(
                 SharedString::from(format!("restore-{i}")),
                 if confirming {
                     "replace the world"
@@ -2714,15 +2741,15 @@ impl Launcher {
             } else {
                 disabled(restore)
             };
-            let mut right = div().flex().items_center().gap(px(8.));
+            let mut right = div().flex().items_center().gap(px(theme::chrome(8.)));
             if confirming {
                 right = right.child(
-                    button("restore-cancel", "cancel", Kind::Ghost, &t).on_click(cx.listener(
-                        |this, _: &ClickEvent, _, cx| {
+                    scaled_button("restore-cancel", "cancel", Kind::Ghost, &t).on_click(
+                        cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.servers.confirm_restore = None;
                             cx.notify();
-                        },
-                    )),
+                        }),
+                    ),
                 );
             }
             right = right.child(restore);
@@ -2739,16 +2766,21 @@ impl Launcher {
                 &t,
             ));
         }
-        let mut tab = div().flex().flex_col().gap(px(20.)).child(
-            div().flex().items_center().gap(px(16.)).child(now).child(
-                text(theme::CAPTION)
-                    .text_color(t.muted)
-                    .child(if status.running() {
-                        tr("players stay online: the world is saved, then zipped.")
-                    } else {
-                        tr("zips the world and the server's settings into its backups folder.")
-                    }),
-            ),
+        let mut tab = div().flex().flex_col().gap(px(theme::chrome(20.))).child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(theme::chrome(16.)))
+                .child(now)
+                .child(
+                    text(theme::CAPTION)
+                        .text_color(t.muted)
+                        .child(if status.running() {
+                            tr("players stay online: the world is saved, then zipped.")
+                        } else {
+                            tr("zips the world and the server's settings into its backups folder.")
+                        }),
+                ),
         );
         if self.older_horizon() {
             return tab
@@ -2761,7 +2793,7 @@ impl Launcher {
             div()
                 .flex()
                 .items_center()
-                .gap(px(14.))
+                .gap(px(theme::chrome(14.)))
                 .child(toggle)
                 .child(
                     div()
@@ -2783,7 +2815,7 @@ impl Launcher {
                 ),
         );
         if self.servers.confirm_restore.is_some() {
-            tab = tab.child(notice(
+            tab = tab.child(scaled_notice(
                 tr(
                     "restoring replaces the world with this backup. the world as it is now isn't deleted: it's moved into the backups folder. a running server stops and starts again with the restored world.",
                 )
@@ -2817,7 +2849,7 @@ impl Launcher {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(8.))
+                .gap(px(theme::chrome(8.)))
                 .child(micro(label).text_color(t.muted))
                 .child(control)
         };
@@ -2854,7 +2886,7 @@ impl Launcher {
                 .child("you have no single-player world yet: play one first, or choose new world.")
                 .into_any_element()
         } else {
-            let mut list = div().flex().flex_col().gap(px(2.));
+            let mut list = div().flex().flex_col().gap(px(theme::chrome(2.)));
             for (i, (name, path)) in worlds.into_iter().take(8).enumerate() {
                 let chosen = copy.as_ref() == Some(&path);
                 list = list.child(
@@ -2862,16 +2894,16 @@ impl Launcher {
                         .id(SharedString::from(format!("create-copy-{i}")))
                         .flex()
                         .items_center()
-                        .gap(px(10.))
-                        .h(px(32.))
-                        .px(px(10.))
+                        .gap(px(theme::chrome(10.)))
+                        .h(px(theme::chrome(32.)))
+                        .px(px(theme::chrome(10.)))
                         .rounded(px(theme::RADIUS))
                         .cursor_pointer()
                         .when(chosen, |d| d.bg(t.plate_soft))
                         .hover(move |s| s.bg(t.plate_soft))
                         .child(
                             div()
-                                .size(px(12.))
+                                .size(px(theme::chrome(12.)))
                                 .rounded_full()
                                 .border_1()
                                 .border_color(if chosen { t.accent } else { t.muted })
@@ -2889,7 +2921,7 @@ impl Launcher {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(6.))
+                .gap(px(theme::chrome(6.)))
                 .child(list)
                 .child(
                     text(theme::CAPTION)
@@ -2917,9 +2949,9 @@ impl Launcher {
             pick(|c, v| c.friends_only = v == "friends"),
         );
         let step = |id: &'static str, label: &'static str, delta: i32, cx: &mut Context<Self>| {
-            button(id, label, Kind::Secondary, &t)
-                .w(px(36.))
-                .px(px(0.))
+            scaled_button(id, label, Kind::Secondary, &t)
+                .w(px(theme::chrome(36.)))
+                .px(px(theme::chrome(0.)))
                 .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                     if let Some(c) = &mut this.servers.create {
                         c.max_players = (c.max_players as i32 + delta).clamp(1, 100) as u32;
@@ -2930,11 +2962,11 @@ impl Launcher {
         let players = div()
             .flex()
             .items_center()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .child(step("create-fewer", "−", -1, cx))
             .child(
                 text(theme::UI)
-                    .w(px(44.))
+                    .w(px(theme::chrome(44.)))
                     .flex()
                     .justify_center()
                     .text_color(t.ink)
@@ -2945,7 +2977,7 @@ impl Launcher {
             div()
                 .id(id)
                 .flex_none()
-                .size(px(18.))
+                .size(px(theme::chrome(18.)))
                 .rounded(px(4.))
                 .border_1()
                 .border_color(if on { t.accent } else { t.muted })
@@ -2954,7 +2986,7 @@ impl Launcher {
                 .items_center()
                 .justify_center()
                 .text_color(t.on_accent)
-                .text_size(px(12.))
+                .text_size(px(theme::chrome(12.)))
                 .cursor_pointer()
                 .when(on, |d| d.child("✓"))
         };
@@ -2962,7 +2994,7 @@ impl Launcher {
         let eula_line = div()
             .flex()
             .items_center()
-            .gap(px(10.))
+            .gap(px(theme::chrome(10.)))
             .child(
                 checkbox("create-eula", eula)
                     .track_focus(&eula_key)
@@ -2994,10 +3026,10 @@ impl Launcher {
             .flex()
             .flex_col()
             .min_h_0()
-            .gap(px(20.))
-            .px(px(28.))
-            .pt(px(28.))
-            .pb(px(20.))
+            .gap(px(theme::chrome(20.)))
+            .px(px(theme::chrome(28.)))
+            .pt(px(theme::chrome(28.)))
+            .pb(px(theme::chrome(20.)))
             .overflow_y_scroll()
             .child(micro("new server").text_color(t.muted))
             .child(
@@ -3018,7 +3050,7 @@ impl Launcher {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(10.))
+                    .gap(px(theme::chrome(10.)))
                     .child(div().flex().child(world_kind))
                     .child(world_detail)
                     .into_any_element(),
@@ -3037,7 +3069,7 @@ impl Launcher {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(10.))
+                    .gap(px(theme::chrome(10.)))
                     .child(div().flex().child(who))
                     .when(friends_only, |d| {
                         d.child(self.field(
@@ -3058,10 +3090,10 @@ impl Launcher {
             .flex_none()
             .items_center()
             .justify_end()
-            .gap(px(12.))
-            .px(px(28.))
-            .pt(px(8.))
-            .pb(px(28.));
+            .gap(px(theme::chrome(12.)))
+            .px(px(theme::chrome(28.)))
+            .pt(px(theme::chrome(8.)))
+            .pb(px(theme::chrome(28.)));
         if creating {
             let last = self.servers.job_log.back().cloned().unwrap_or_default();
             foot = foot.child(
@@ -3082,12 +3114,11 @@ impl Launcher {
             );
             if let Some(fix @ Fix::Prepare) = p.fix.clone() {
                 foot = foot.child(
-                    button("create-fix", "prepare the game files", Kind::Secondary, &t).on_click(
-                        cx.listener(move |this, _: &ClickEvent, _, cx| {
+                    scaled_button("create-fix", "prepare the game files", Kind::Secondary, &t)
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.fix(fix.clone(), cx);
                             cx.notify();
-                        }),
-                    ),
+                        })),
                 );
             }
         } else if eula_missing {
@@ -3101,8 +3132,9 @@ impl Launcher {
         let cancel_key = self.key_handle("create-cancel", cx);
         let create_key = self.key_handle("create-go", cx);
         let cancel =
-            button("create-cancel", "cancel", Kind::Secondary, &t).track_focus(&cancel_key);
-        let create = button("create-go", "create", Kind::Primary, &t).track_focus(&create_key);
+            scaled_button("create-cancel", "cancel", Kind::Secondary, &t).track_focus(&cancel_key);
+        let create =
+            scaled_button("create-go", "create", Kind::Primary, &t).track_focus(&create_key);
         foot = if creating {
             foot.child(disabled(cancel)).child(disabled(create))
         } else {
@@ -3120,7 +3152,7 @@ impl Launcher {
             .flex()
             .flex_col()
             .w_full()
-            .max_w(px(640.))
+            .max_w(px(theme::chrome(640.)))
             .max_h_full()
             .bg(t.page)
             .border_1()
@@ -3137,8 +3169,8 @@ impl Launcher {
                 .flex()
                 .flex_col()
                 .items_center()
-                .px(px(32.))
-                .py(px(24.))
+                .px(px(theme::chrome(32.)))
+                .py(px(theme::chrome(24.)))
                 .bg(t.page.opacity(0.92))
                 .on_scroll(|_, _, cx| cx.stop_propagation())
                 .occlude()

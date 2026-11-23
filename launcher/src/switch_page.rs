@@ -203,21 +203,20 @@ impl Launcher {
         let now = self.accounts.player();
         for (i, name) in self.accounts.offline.clone().into_iter().enumerate() {
             let plays = now == Player::Offline(name.clone());
-            let mut actions = div().flex().gap(px(4.));
+            let mut actions = div().flex().gap(px(theme::chrome(4.)));
             if !plays {
                 let who = Player::Offline(name.clone());
                 actions = actions.child(
-                    button(format!("offline-play-{i}"), "play as", Kind::Secondary, &t).on_click(
-                        cx.listener(move |this, _: &ClickEvent, _, cx| {
+                    scaled_button(format!("offline-play-{i}"), "play as", Kind::Secondary, &t)
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.play_as(who.clone());
                             cx.notify();
-                        }),
-                    ),
+                        })),
                 );
             }
             let dressed = name.clone();
             actions = actions.child(
-                button(format!("offline-skin-{i}"), "skin…", Kind::Ghost, &t).on_click(
+                scaled_button(format!("offline-skin-{i}"), "skin…", Kind::Ghost, &t).on_click(
                     cx.listener(move |this, _: &ClickEvent, _, cx| {
                         this.open_skin(dressed.clone());
                         cx.notify();
@@ -226,7 +225,7 @@ impl Launcher {
             );
             let forget = name.clone();
             actions = actions.child(
-                button(format!("offline-forget-{i}"), "forget", Kind::Ghost, &t).on_click(
+                scaled_button(format!("offline-forget-{i}"), "forget", Kind::Ghost, &t).on_click(
                     cx.listener(move |this, _: &ClickEvent, _, cx| {
                         let mut accounts = Accounts::load();
                         if accounts
@@ -276,7 +275,7 @@ impl Launcher {
                         .into_any_element(),
                 ),
                 Some(
-                    button("game-name-new", "new name", Kind::Ghost, &t)
+                    scaled_button("game-name-new", "new name", Kind::Ghost, &t)
                         .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             match instances::new_player_name() {
                                 Ok(name) => this.offline_name = Some(name),
@@ -293,10 +292,10 @@ impl Launcher {
         let add = div()
             .flex()
             .items_center()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .child(self.field(Field::OfflineName, tr("a name, 3 to 16 letters"), 220., cx))
             .child(
-                button("offline-add", "add", Kind::Secondary, &t).on_click(cx.listener(
+                scaled_button("offline-add", "add", Kind::Secondary, &t).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
                         this.add_offline_name();
                         cx.notify();
