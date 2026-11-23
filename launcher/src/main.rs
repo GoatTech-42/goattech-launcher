@@ -440,6 +440,11 @@ struct Launcher {
     sky_wake: Option<(Instant, gpui::Task<()>)>,
     /// The window's scale, as of its last frame, for art drawn outside `render`'s reach.
     scale: f32,
+    /// The window's logical size, as of its last frame: the home stage's model and the
+    /// opening wordmark size from it (bigger layouts on 27"+ monitors, unchanged on small
+    /// or narrow windows).
+    viewport_w: f32,
+    viewport_h: f32,
     /// The home stage's baked model, keyed by scale and the selected account texture.
     /// The home stage's live player: turn/pitch from dragging, the animation clock, and an
     /// in-progress drag's last pointer position.
@@ -929,6 +934,8 @@ impl Launcher {
             sky: sky::Sky::default(),
             sky_wake: None,
             scale: window.scale_factor(),
+            viewport_w: window.viewport_size().width.into(),
+            viewport_h: window.viewport_size().height.into(),
         };
         this.reload_instances();
         if this.bench.is_some() {
@@ -5762,6 +5769,8 @@ impl Render for Launcher {
         self.args_focused = self.args_focus.is_focused(window);
         self.proxy_focused = self.proxy_focus.is_focused(window);
         let size = window.viewport_size();
+        self.viewport_w = size.width.into();
+        self.viewport_h = size.height.into();
         let content = match self.page {
             Page::Play => self.play_page(cx),
             Page::Instances => self.instances_page(cx),
@@ -6065,7 +6074,12 @@ impl Render for Launcher {
             // TT=+110 (the font's +23 with the wordmark's tracking left the two crossbars fused
             // into one bar at the opening's size; +110 leaves a clear gap like the other pairs).
             const WORDMARK_KERN: [f32; 7] = [0., -35., 0., 110., 0., -22., 0.]; // GO OA AT TT TE EC CH
-            let word_size = theme::WORDMARK.px * 0.5;
+            // The wordmark grows with the window: its fixed size in the default window, up
+            // to 190 px on a maximized 27" monitor. Width sets the size (the word must never
+            // outgrow the window), height guards squat windows.
+            let word_size = (self.viewport_w * 0.072)
+                .min(self.viewport_h * 0.19)
+                .clamp(theme::WORDMARK.px * 0.5, 190.);
             let word = div()
                 .flex()
                 // One bundled display face keeps every letter in the wordmark consistent.
@@ -6110,7 +6124,7 @@ impl Render for Launcher {
                             .flex_col()
                             .items_center()
                             .gap(px(32.))
-                            .child(mark(112., &t))
+                            .child(mark(word_size * (112. / 110.), &t))
                             .child(word),
                     )
                     .when(reveal == 0., |d| {
