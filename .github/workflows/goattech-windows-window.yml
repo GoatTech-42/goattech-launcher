@@ -1,19 +1,14 @@
-name: GoatTech populated native capture
+name: GoatTech 1028 scroll calibration
 # CI-only harness branch. Never merge this harness or its runner seam into main.
 # Pins merged main f1fa45b, with synthetic offline names only.
 # No repository secrets, real accounts, cache, release, or artifact upload.
 # Exact shipping source only. No source seam, production changes or running-ref changes.
 on:
   workflow_dispatch:
-    inputs:
-      route:
-        description: 'all or a single route listed in docs/qa/route-survey.md'
-        type: string
-        default: all
 permissions:
   contents: read
 concurrency:
-  group: goattech-route-survey-${{ github.ref }}-${{ github.sha }}-${{ inputs.route }}
+  group: goattech-route-survey-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 env:
   HORIZON_TELEMETRY_URL: 'off'
@@ -103,13 +98,13 @@ jobs:
         env:
           CAP_KIND: ${{ matrix.kind }}
           CAP_TARGET: populated
-          CAP_ONLY_ROUTE: ${{ inputs.route }}
+          CAP_ONLY_ROUTE: all
           HTTP_PROXY: http://127.0.0.1:9
           HTTPS_PROXY: http://127.0.0.1:9
           ALL_PROXY: http://127.0.0.1:9
         run: |
           $ErrorActionPreference = 'Stop'
-          $exact = @('export','launch','skin','worlds','screenshots','instance-mods','servers')
+          $exact = @('worlds','screenshots','instance-mods')
           $routes = $exact
           if ($env:CAP_ONLY_ROUTE -ne 'all') {
             if ($env:CAP_ONLY_ROUTE -notin $exact) { throw 'Unsupported route' }
