@@ -78,6 +78,64 @@ pub fn step_line_px(step: Step) -> f32 {
     (step.px * ui_scale_current() * step.line).round()
 }
 
+/// The sidebar rail's width at the current frame's scale.
+pub fn sidebar() -> f32 {
+    SIDEBAR * ui_scale_current()
+}
+
+/// The page gutter at the current frame's scale. Horizontal margins that mirror the gutter
+/// (the bleed pair in `render`) must read this same accessor so they stay equal.
+pub fn page_gutter() -> f32 {
+    PAGE_GUTTER * ui_scale_current()
+}
+
+/// A control's height at the current frame's scale.
+pub fn control() -> f32 {
+    CONTROL * ui_scale_current()
+}
+
+/// The top bar's height at the current frame's scale.
+pub fn topbar() -> f32 {
+    TOPBAR * ui_scale_current()
+}
+
+/// An index row's height at the current frame's scale.
+pub fn row() -> f32 {
+    ROW * ui_scale_current()
+}
+
+/// The large control's height at the current frame's scale.
+pub fn control_large() -> f32 {
+    tokens::CONTROL_LARGE * ui_scale_current()
+}
+
+/// A field's height at the current frame's scale.
+pub fn field() -> f32 {
+    tokens::FIELD * ui_scale_current()
+}
+
+/// A segment's height at the current frame's scale.
+pub fn segment() -> f32 {
+    SEGMENT * ui_scale_current()
+}
+
+/// The main action's height at the current frame's scale.
+pub fn play() -> f32 {
+    night::PLAY * ui_scale_current()
+}
+
+/// The page title's pixel-face size at the current frame's scale.
+pub fn page_title() -> f32 {
+    36. * ui_scale_current()
+}
+
+/// A chrome size without its own constant (shell-kit internals, the dialog's max width) at
+/// the current frame's scale. Card banners scale with their cards. Picker art (36px instance
+/// icons and the 160px banner preview) and the home stage keep their own sizing.
+pub fn chrome(v: f32) -> f32 {
+    v * ui_scale_current()
+}
+
 /// Motion: short and eased out, never bouncy.
 pub const QUICK: Duration = tokens::QUICK.duration();
 pub const MOVE: Duration = tokens::MOVE.duration();

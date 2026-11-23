@@ -23,7 +23,7 @@ impl Launcher {
                 .flex()
                 .items_center()
                 .gap(px(10.))
-                .h(px(theme::CONTROL))
+                .h(px(theme::control()))
                 .px(px(14.))
                 .border_2()
                 .border_color(t.outline)
@@ -40,7 +40,7 @@ impl Launcher {
                         .text_color(t.ink)
                         .child(choice_name(self.settings.language)),
                 )
-                .child(blocks::icon("chevron-down", 16., t.muted))
+                .child(blocks::chrome_icon("chevron-down", 16., t.muted))
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     this.language_menu = !this.language_menu;
                     cx.notify();
@@ -50,7 +50,7 @@ impl Launcher {
             let mut menu = div()
                 .id("language-menu")
                 .absolute()
-                .top(px(theme::CONTROL + 4.))
+                .top(px(theme::chrome(theme::CONTROL + 4.)))
                 .right_0()
                 .w(px(220.))
                 .p(px(6.))

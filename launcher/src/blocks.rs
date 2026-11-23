@@ -45,6 +45,11 @@ pub fn icon(name: &'static str, size: f32, color: Hsla) -> Svg {
         .text_color(color)
 }
 
+/// An icon inside a control that scales with the window. Art and fixed slots use `icon`.
+pub fn chrome_icon(name: &'static str, size: f32, color: Hsla) -> Svg {
+    icon(name, theme::chrome(size), color)
+}
+
 /// Text in the pixel face: headings, navigation, buttons, badges.
 pub fn pixel(size: f32, weight: FontWeight) -> Div {
     div()

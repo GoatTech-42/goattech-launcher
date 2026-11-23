@@ -9,6 +9,10 @@ use horizon_launcher::instances::{self, Icon, Instance, Kind as InstanceKind};
 /// The Instances page's card: width and banner strip height, logical pixels. Wide enough that
 /// a card reads as the page's main content on a large screen, not a small tile.
 const CARD_W: f32 = 360.;
+/// A card's width at the window's UI scale (theme::ui_scale): 360 at and below 1028x780.
+fn card_w() -> f32 {
+    CARD_W * theme::ui_scale_current()
+}
 const CARD_BANNER_H: f32 = 84.;
 use horizon_launcher::{other_launchers, sources};
 use servers_page::Field;
@@ -610,7 +614,7 @@ impl Launcher {
         let t = self.theme;
         let n = t.night;
         let icon = self.instance_icon(i, 36.);
-        let banner = self.instance_banner(i, CARD_W);
+        let banner = self.instance_banner(i, card_w());
         let mut chips: Vec<Div> = Vec::new();
         match &i.java {
             Some(j) => {
@@ -648,19 +652,22 @@ impl Launcher {
             .id(SharedString::from(format!("instance-card-{id}")))
             .flex()
             .flex_col()
-            .w(px(CARD_W))
+            .w(px(card_w()))
             .overflow_hidden()
             .cursor_pointer()
             // A banner strip appears only when the instance has its own readable banner.png
             // (cover-cropped); without one the card is flat, no empty strip.
             .when_some(banner, |card, image| {
                 card.child(
-                    div().h(px(CARD_BANNER_H)).overflow_hidden().child(
-                        gpui::img(image)
-                            .w(px(CARD_W))
-                            .h(px(CARD_BANNER_H))
-                            .object_fit(gpui::ObjectFit::Cover),
-                    ),
+                    div()
+                        .h(px(theme::chrome(CARD_BANNER_H)))
+                        .overflow_hidden()
+                        .child(
+                            gpui::img(image)
+                                .w(px(card_w()))
+                                .h(px(theme::chrome(CARD_BANNER_H)))
+                                .object_fit(gpui::ObjectFit::Cover),
+                        ),
                 )
             })
             .child(
@@ -722,11 +729,11 @@ impl Launcher {
                             &t,
                         )
                         .w_full()
-                        .child(
-                            div()
-                                .relative()
-                                .child(blocks::icon("play", 14., shell::c(n.ink))),
-                        )
+                        .child(div().relative().child(blocks::chrome_icon(
+                            "play",
+                            14.,
+                            shell::c(n.ink),
+                        )))
                         .child(shell::label(tr("play").to_string()))
                         .on_click(cx.listener(
                             move |this, _: &ClickEvent, _, cx| {
@@ -1923,7 +1930,7 @@ impl Launcher {
         let save_key = self.key_handle("instance-save", cx);
         let save = shell::action("instance-save", shell::Action::Main, &t)
             .track_focus(&save_key)
-            .h(px(theme::CONTROL + 6.))
+            .h(px(theme::chrome(theme::CONTROL + 6.)))
             .text_size(px(theme::step_px(theme::night::UI)))
             .child(shell::label(tr(label).to_string()));
         // A modpack becomes an instance by being imported, on the Mods page.
@@ -1974,7 +1981,7 @@ impl Launcher {
         .flex_col()
         .flex_none()
         .w_full()
-        .max_w(px(600.))
+        .max_w(px(theme::chrome(600.)))
         .max_h_full()
         .child(scroll.wrap(body, &t))
         .child(foot);

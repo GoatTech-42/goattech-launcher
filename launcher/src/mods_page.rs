@@ -839,7 +839,7 @@ impl Launcher {
             .items_center()
             .gap(px(10.))
             .w(px(320.))
-            .h(px(theme::FIELD + 4.))
+            .h(px(theme::chrome(theme::FIELD + 4.)))
             .px(px(12.))
             .overflow_hidden()
             .border_2()
@@ -847,7 +847,7 @@ impl Launcher {
             .bg(t.well)
             .text_size(px(theme::step_px(theme::UI)))
             .cursor_text()
-            .child(blocks::icon("search", 18., t.muted))
+            .child(blocks::chrome_icon("search", 18., t.muted))
             .child(line_edit::content(
                 &m.text,
                 &t,
@@ -1856,7 +1856,7 @@ fn source_switch(
     let soon = div()
         .flex()
         .items_center()
-        .h(px(theme::SEGMENT))
+        .h(px(theme::segment()))
         .px(px(14.))
         .pb(px(2.))
         .opacity(theme::DISABLED)

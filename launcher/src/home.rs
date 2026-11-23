@@ -496,6 +496,7 @@ impl Launcher {
                     .gap(px(10.))
                     .children(self.native_log.available.then(|| {
                         shell::action("topbar-build-log", shell::Action::Quiet, &t)
+                            .h(px(theme::CONTROL))
                             .child(shell::label("build log".to_string()))
                             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                                 this.native_log_open();
@@ -504,6 +505,7 @@ impl Launcher {
                     }))
                     .child(
                         shell::action("topbar-new-instance", shell::Action::Raised, &t)
+                            .h(px(theme::CONTROL))
                             .child(div().relative().child(blocks::icon("plus", 16., c(n.ink))))
                             .child(shell::label(tr("new instance").to_string()))
                             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -830,6 +832,7 @@ impl Launcher {
                 .gap(px(10.))
                 .child(
                     action("play", Action::Main, &t)
+                        .h(px(night::PLAY))
                         .text_size(px(20.))
                         .min_w(px(260.))
                         .cursor_default()
@@ -837,6 +840,7 @@ impl Launcher {
                 )
                 .children(download.map(|_| {
                     action("download-cancel", Action::Quiet, &t)
+                        .h(px(theme::CONTROL))
                         .child(label(tr("cancel").to_string()))
                         .on_click(|_, _, _| {
                             horizon_launcher::mojang::CANCEL.store(true, Ordering::Relaxed)
@@ -853,6 +857,7 @@ impl Launcher {
         ) {
             return div().flex().child(
                 action("play", Action::Main, &t)
+                    .h(px(night::PLAY))
                     .text_size(px(20.))
                     .min_w(px(320.))
                     .child(label(tr("new instance").to_string()))
@@ -866,6 +871,7 @@ impl Launcher {
         let live = !matches!(press, PlayPress::Nothing);
         // The concept's Play wears the instance's facts as a small second line.
         let mut play = action("play", Action::Main, &t)
+            .h(px(night::PLAY))
             .text_size(px(20.))
             .min_w(px(320.))
             .child(
@@ -992,6 +998,7 @@ impl Launcher {
             .gap(px(10.))
             .child(
                 action("home-mods", Action::Quiet, &t)
+                    .h(px(theme::CONTROL))
                     .child(label(tr("mods").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.go(Page::Mods);
@@ -1000,6 +1007,7 @@ impl Launcher {
             )
             .children(folder.map(|home| {
                 action("home-folder", Action::Quiet, &t)
+                    .h(px(theme::CONTROL))
                     .child(label(tr("folder").to_string()))
                     .on_click(move |_, _, cx| {
                         let _ = std::fs::create_dir_all(&home);
@@ -1172,8 +1180,9 @@ impl Launcher {
             }));
         let field = line_edit::mouse(field, cx, |this| &mut this.friend_code);
         let valid = horizon_friends::invite::parse(self.friend_code.text()).is_some();
-        let mut join =
-            action("join-friend", Action::Raised, &t).child(label(tr("join").to_string()));
+        let mut join = action("join-friend", Action::Raised, &t)
+            .h(px(theme::CONTROL))
+            .child(label(tr("join").to_string()));
         if can_play && valid {
             join = join.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.join_friend();

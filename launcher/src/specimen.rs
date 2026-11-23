@@ -1,7 +1,7 @@
 //! The night look's specimen: its type and colours drawn by the launcher itself, over the sky's
 //! stops, for checking the tokens in the real renderer (`HORIZON_LAUNCHER_PAGE=specimen`; not a
 //! page players reach).
-use crate::blocks::icon;
+use crate::blocks;
 use crate::plate::{alpha, cut, plate};
 use crate::theme::{self, night, Theme};
 use gpui::{div, prelude::*, px, rgb, Div, FontWeight, Hsla, Rgba};
@@ -143,7 +143,7 @@ pub fn render(t: &Theme) -> Div {
         div()
             .flex()
             .items_center()
-            .h(px(theme::CONTROL))
+            .h(px(theme::control()))
             .px(px(14.))
             .rounded(px(night::RADIUS_CONTROL))
             .when_some(fill, |d, f| d.bg(f))
@@ -188,9 +188,9 @@ pub fn render(t: &Theme) -> Div {
                 .gap(px(10.))
                 .mt(px(18.))
                 .child(
-                    control(true, night::PLAY, Some(rgb(n.accent)), None)
+                    control(true, theme::play(), Some(rgb(n.accent)), None)
                         .px(px(26.))
-                        .child(icon("play", 20., rgb(n.on_accent).into()))
+                        .child(blocks::chrome_icon("play", 20., rgb(n.on_accent).into()))
                         .child(text(night::TITLE, rgb(n.on_accent)).child("play")),
                 )
                 .child(button(
@@ -226,26 +226,31 @@ pub fn render(t: &Theme) -> Div {
                     .child(if pixel { "4 px step" } else { "radius 8" }),
             )
             .child(
-                control(pixel, night::PLAY, Some(rgb(n.accent)), None)
-                    .child(icon("play", 20., rgb(n.on_accent).into()))
+                control(pixel, theme::play(), Some(rgb(n.accent)), None)
+                    .child(blocks::chrome_icon("play", 20., rgb(n.on_accent).into()))
                     .child(text(night::TITLE, rgb(n.on_accent)).child("play")),
             )
             .child(
                 control(
                     pixel,
-                    theme::CONTROL,
+                    theme::control(),
                     Some(alpha(n.card_hi, n.card_hi_alpha)),
                     None,
                 )
                 .child(text(night::UI, ink).child("Spring Valley")),
             )
             .child(
-                control(pixel, theme::CONTROL, Some(field_fill), Some(field_stroke))
-                    .w(px(150.))
-                    .child(text(night::UI, muted).child("Search mods")),
+                control(
+                    pixel,
+                    theme::control(),
+                    Some(field_fill),
+                    Some(field_stroke),
+                )
+                .w(px(150.))
+                .child(text(night::UI, muted).child("Search mods")),
             )
             .child(
-                control(pixel, theme::CONTROL, None, Some((rgb(n.accent_hi), 2.)))
+                control(pixel, theme::control(), None, Some((rgb(n.accent_hi), 2.)))
                     .child(text(night::UI, ink_soft).child("folder")),
             )
             .child(

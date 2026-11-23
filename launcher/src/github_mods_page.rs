@@ -201,7 +201,7 @@ impl Launcher {
             .items_center()
             .gap(px(10.))
             .w(px(460.))
-            .h(px(theme::FIELD + 4.))
+            .h(px(theme::chrome(theme::FIELD + 4.)))
             .px(px(12.))
             .overflow_hidden()
             .border_2()
