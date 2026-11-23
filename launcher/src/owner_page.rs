@@ -66,7 +66,7 @@ impl Launcher {
             .relative()
             .flex()
             .flex_col()
-            .gap(px(10.))
+            .gap(px(theme::chrome(10.)))
             .child(
                 shell::text(theme::night::CAPTION, shell::c(n.muted))
                     .font_weight(FontWeight::SEMIBOLD)
@@ -74,7 +74,7 @@ impl Launcher {
             )
             .child(
                 shell::text(theme::night::TITLE, shell::c(n.ink))
-                    .mb(px(4.))
+                    .mb(px(theme::chrome(4.)))
                     .child(tr("sign in to play").to_string()),
             )
             .child(line(
@@ -92,8 +92,8 @@ impl Launcher {
         let raised = || {
             div()
                 .relative()
-                .mt(px(10.))
-                .p(px(18.))
+                .mt(px(theme::chrome(10.)))
+                .p(px(theme::chrome(18.)))
                 .rounded(px(theme::night::RADIUS_CONTROL))
                 .bg(plate::alpha(n.card_hi, n.card_hi_alpha))
                 .border_1()
@@ -107,14 +107,14 @@ impl Launcher {
                         .flex()
                         .items_center()
                         .justify_between()
-                        .gap(px(16.))
+                        .gap(px(theme::chrome(16.)))
                         .child(
                             div()
                                 .flex_1()
                                 .min_w_0()
                                 .flex()
                                 .flex_col()
-                                .gap(px(4.))
+                                .gap(px(theme::chrome(4.)))
                                 .child(
                                     shell::text(theme::night::CAPTION, shell::c(n.ink_soft)).child(
                                         trf(
@@ -128,8 +128,8 @@ impl Launcher {
                                     div()
                                         .font_family(theme::MONO)
                                         .font_weight(FontWeight::BOLD)
-                                        .text_size(px(30.))
-                                        .line_height(px(38.))
+                                        .text_size(px(theme::chrome(30.)))
+                                        .line_height(px(theme::chrome(38.)))
                                         .text_color(shell::c(n.ink))
                                         .child(user_code.to_string()),
                                 ),
@@ -196,8 +196,8 @@ impl Launcher {
             .relative()
             .flex()
             .items_center()
-            .gap(px(10.))
-            .mt(px(14.))
+            .gap(px(theme::chrome(10.)))
+            .mt(px(theme::chrome(14.)))
             .children(main)
             .child(
                 shell::spaced_action("owner-later", shell::Action::Quiet, &t)
@@ -227,11 +227,11 @@ impl Launcher {
         )
         .flex()
         .flex_col()
-        .gap(px(8.))
+        .gap(px(theme::chrome(8.)))
         // A set width: text measured at it wraps where it is drawn.
-        .w(px(520.))
+        .w(px(theme::chrome(520.)))
         .max_w_full()
-        .p(px(32.))
+        .p(px(theme::chrome(32.)))
         .child(body)
         .child(answers)
         .children(waiting);
@@ -246,8 +246,8 @@ impl Launcher {
             .flex_col()
             .items_center()
             .justify_center()
-            .px(px(32.))
-            .py(px(24.))
+            .px(px(theme::chrome(32.)))
+            .py(px(theme::chrome(24.)))
             .bg(plate::alpha(n.page, 0.8))
             .on_scroll(|_, _, cx| cx.stop_propagation())
             .occlude()

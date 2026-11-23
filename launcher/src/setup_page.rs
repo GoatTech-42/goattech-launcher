@@ -206,7 +206,7 @@ impl Setup {
         div()
             .flex()
             .items_center()
-            .gap(px(14.))
+            .gap(px(theme::chrome(14.)))
             .child(crate::scaled_switch(id, on, &t).on_click(cx.listener(
                 move |this, _: &ClickEvent, _, cx| {
                     flip(&mut this.options);
@@ -228,7 +228,7 @@ impl Setup {
         div()
             .flex()
             .items_center()
-            .gap(px(12.))
+            .gap(px(theme::chrome(12.)))
             .child(
                 div()
                     .flex()
@@ -252,7 +252,7 @@ impl Setup {
 
     fn card(&self, cx: &mut Context<Self>) -> Div {
         let (t, n) = (self.theme, self.theme.night);
-        let mut body = div().flex().flex_col().gap(px(16.));
+        let mut body = div().flex().flex_col().gap(px(theme::chrome(16.)));
         match &self.stage {
             Stage::Welcome if self.mode == Mode::Install => {
                 body = body
@@ -301,7 +301,7 @@ impl Setup {
                             .flex()
                             .items_center()
                             .justify_end()
-                            .gap(px(12.))
+                            .gap(px(theme::chrome(12.)))
                             .child(
                                 action("cancel", Action::Raised, &t)
                                     .on_click(cx.listener(|_, _: &ClickEvent, _, cx| cx.quit()))
@@ -370,11 +370,11 @@ impl Setup {
             }
         }
         plate(&n)
-            .w(px(560.))
-            .p(px(32.))
+            .w(px(theme::chrome(560.)))
+            .p(px(theme::chrome(32.)))
             .flex()
             .flex_col()
-            .gap(px(18.))
+            .gap(px(theme::chrome(18.)))
             .child(text(night::DISPLAY, c(n.ink)).child("goattech launcher"))
             .child(body)
     }

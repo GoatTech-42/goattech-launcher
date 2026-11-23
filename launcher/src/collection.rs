@@ -162,11 +162,15 @@ fn ping_row(t: &Theme) -> Div {
 
 /// The full wording for every kind, then the exact JSON, in mono, scrolling inside a plate.
 fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
+    json_view_at_scale(view, t, scroll, 1.)
+}
+
+fn json_view_at_scale(view: &(String, String), t: &Theme, scroll: &Scrollbar, scale: f32) -> Div {
     let detail = |name: &'static str, what: &'static str| {
         div()
             .flex()
             .flex_col()
-            .gap(px(4.))
+            .gap(px(4. * scale))
             .child(text(theme::UI).text_color(t.ink).child(tr(name)))
             .children(telemetry::bullets(what).into_iter().map(|line| {
                 text(theme::UI)
@@ -181,7 +185,7 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
     div()
         .flex()
         .flex_col()
-        .gap(px(12.))
+        .gap(px(12. * scale))
         .child(
             // How to read on, said where the reading starts.
             text(theme::CAPTION)
@@ -193,7 +197,7 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(16.))
+                .gap(px(16. * scale))
                 .child(detail(telemetry::BASIC_NAME, telemetry::BASIC_WHAT).into_any_element())
                 .children(kinds)
                 .child(detail(telemetry::PING_NAME, telemetry::ping_text()).into_any_element()),
@@ -202,14 +206,14 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
             scroll.wrap(
                 div()
                     .id("data-json")
-                    .max_h(px(260.))
+                    .max_h(px(260. * scale))
                     .overflow_y_scroll()
-                    .p(px(16.))
+                    .p(px(16. * scale))
                     .rounded(px(theme::RADIUS_PLATE))
                     .bg(t.plate)
                     .font_family(theme::MONO)
                     .text_size(px(theme::step_px(theme::CAPTION)))
-                    .line_height(px(18.))
+                    .line_height(px(18. * scale))
                     .text_color(t.ink_soft)
                     .children(view.1.lines().map(|l| div().child(l.to_string()))),
                 t,
@@ -257,7 +261,11 @@ impl Launcher {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let on = self.settings.basic_summaries == Some(true);
-        let sw = switch(id, on, &self.theme);
+        let sw = if focus.is_none() {
+            scaled_switch(id, on, &self.theme)
+        } else {
+            switch(id, on, &self.theme)
+        };
         let sw = match focus {
             Some(f) => sw.track_focus(f),
             None => sw,
@@ -589,7 +597,7 @@ impl Launcher {
         list = list.child(basic);
         for (i, &(kind, name, _)) in telemetry::SWITCHES.iter().enumerate() {
             let on = !consent.needs_asking() && consent.choices.allows(kind);
-            let toggle = switch(kind_id("data", kind), on, &t).on_click(cx.listener(
+            let toggle = scaled_switch(kind_id("data", kind), on, &t).on_click(cx.listener(
                 move |this, _: &ClickEvent, _, cx| {
                     let mut choices = if this.collection.consent.needs_asking() {
                         Choices::NONE
@@ -639,9 +647,9 @@ impl Launcher {
         let confirm = self.collection.confirm_delete;
         let actions = div()
             .flex()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .child(
-                button(
+                scaled_button(
                     "data-view",
                     if self.collection.view.is_some() {
                         "hide"
@@ -657,7 +665,7 @@ impl Launcher {
                 })),
             )
             .child(
-                button(
+                scaled_button(
                     "data-delete",
                     if confirm {
                         "delete everything?"
@@ -695,7 +703,7 @@ impl Launcher {
         div()
             .flex()
             .flex_col()
-            .gap(px(16.))
+            .gap(px(theme::chrome(16.)))
             .child(
                 text(theme::HEADING)
                     .text_color(t.ink)
@@ -705,7 +713,7 @@ impl Launcher {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(6.))
+                    .gap(px(theme::chrome(6.)))
                     .max_w(px(600.))
                     .child(text(theme::UI).text_color(t.muted).child(tr(
                         "basic performance summaries are on by default only on a genuinely new install; existing installs stay off unless you turn them on.",
@@ -721,10 +729,10 @@ impl Launcher {
                     ))),
             )
             .child(
-                button("data-details-top", if self.collection.view.is_some() { "hide details and example reports" } else { "view details and example reports" }, Kind::Ghost, &t)
+                scaled_button("data-details-top", if self.collection.view.is_some() { "hide details and example reports" } else { "view details and example reports" }, Kind::Ghost, &t)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| { this.toggle_view(); cx.notify(); })),
             )
-            .children(self.collection.view.as_ref().map(|v| json_view(v, &t, &self.collection.json_scroll)))
+            .children(self.collection.view.as_ref().map(|v| json_view_at_scale(v, &t, &self.collection.json_scroll, theme::ui_scale_current())))
             .child(list)
             .child(
                 text(theme::CAPTION)

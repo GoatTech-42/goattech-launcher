@@ -29,7 +29,7 @@ impl Launcher {
 
     pub(super) fn accent_row(&self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
-        let mut swatches = div().flex().gap(px(6.));
+        let mut swatches = div().flex().gap(px(theme::chrome(6.)));
         for accent in Accent::ALL {
             let face = Theme::for_appearance(
                 if t.dark {
@@ -47,7 +47,7 @@ impl Launcher {
                     div().id(SharedString::from(format!("accent-{}", accent.name()))),
                     &t,
                 )
-                .size(px(SWATCH))
+                .size(px(theme::chrome(SWATCH)))
                 .bg(face)
                 .border_2()
                 .border_color(if chosen { t.ink } else { t.outline })
@@ -56,7 +56,7 @@ impl Launcher {
                     d.flex()
                         .items_center()
                         .justify_center()
-                        .child(div().size(px(8.)).bg(t.on_face))
+                        .child(div().size(px(theme::chrome(8.))).bg(t.on_face))
                 })
                 .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
                     this.settings.accent = accent;
@@ -80,7 +80,7 @@ impl Launcher {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(12.))
+                    .gap(px(theme::chrome(12.)))
                     .child(swatches)
                     .child(self.hue_strip(&t, cx))
                     .into_any_element(),
@@ -100,8 +100,8 @@ impl Launcher {
         div()
             .relative()
             .flex_none()
-            .w(px(STRIP))
-            .h(px(SWATCH))
+            .w(px(theme::chrome(STRIP)))
+            .h(px(theme::chrome(SWATCH)))
             .border_2()
             .border_color(outline)
             .cursor_pointer()
@@ -225,8 +225,8 @@ impl Launcher {
     pub(super) fn home_background_row(&self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let custom = self.home_background().is_some();
-        let mut actions = div().flex().gap(px(4.)).child(
-            button(
+        let mut actions = div().flex().gap(px(theme::chrome(4.))).child(
+            scaled_button(
                 "background-choose",
                 "choose a picture…",
                 Kind::Secondary,
@@ -239,13 +239,13 @@ impl Launcher {
         );
         if custom {
             actions = actions.child(
-                button("background-reset", "landscape", Kind::Ghost, &t).on_click(cx.listener(
-                    |this, _: &ClickEvent, _, cx| {
+                scaled_button("background-reset", "landscape", Kind::Ghost, &t).on_click(
+                    cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.settings.background = None;
                         let _ = this.settings.save();
                         cx.notify();
-                    },
-                )),
+                    }),
+                ),
             );
         }
         let said = if custom {
