@@ -153,6 +153,7 @@ impl Launcher {
                     .flex_none()
                     .w(px(THUMB_W))
                     .h(px(THUMB_H))
+                    .overflow_hidden()
                     .border_2()
                     .border_color(t.outline)
                     .bg(t.well)
