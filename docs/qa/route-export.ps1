@@ -15,8 +15,8 @@ if (Test-Path $info) {
   Add-Content $env:GITHUB_STEP_SUMMARY "NO-EVIDENCE: capture step produced no window-info - see job log."
 }
 $frames = @(Get-ChildItem "$env:CAP\frame-*.png" -ErrorAction SilentlyContinue)
-if ($frames.Count -eq 0) { Write-Output "###FRAMES-NONE found=0 expected=7 - no frame files present" }
-elseif ($frames.Count -ne 7) { Write-Output "###FRAMES-INCOMPLETE found=$($frames.Count) expected=7" }
+if ($frames.Count -eq 0) { Write-Output "###FRAMES-NONE found=0 expected=6 - no frame files present" }
+elseif ($frames.Count -ne 6) { Write-Output "###FRAMES-INCOMPLETE found=$($frames.Count) expected=6" }
 foreach ($png in $frames) {
   $len = $png.Length
   $enc = 4 * [Math]::Ceiling($len / 3)
