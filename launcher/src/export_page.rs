@@ -104,11 +104,11 @@ impl Launcher {
         }
         let panel = self.export.as_ref()?;
         let formats = [(Format::Mrpack, ".mrpack"), (Format::Zip, ".zip")];
-        let mut pick = div().flex().items_center().gap(px(6.));
+        let mut pick = div().flex().items_center().gap(px(theme::chrome(6.)));
         for (format, label) in formats {
             let on = panel.format == format;
             pick = pick.child(
-                button(
+                scaled_button(
                     SharedString::from(format!("export-{}", format.extension())),
                     label,
                     if on { Kind::Secondary } else { Kind::Ghost },
@@ -129,7 +129,7 @@ impl Launcher {
             ),
             Format::Zip => tr("the game folder's own layout, zipped."),
         };
-        let mut worlds = div().flex().flex_col().gap(px(6.));
+        let mut worlds = div().flex().flex_col().gap(px(theme::chrome(6.)));
         if panel.worlds.is_empty() {
             worlds = worlds.child(
                 text(theme::CAPTION)
@@ -143,9 +143,9 @@ impl Launcher {
                     .id(SharedString::from(format!("export-world-{n}")))
                     .flex()
                     .items_center()
-                    .gap(px(10.))
+                    .gap(px(theme::chrome(10.)))
                     .cursor_pointer()
-                    .child(switch(
+                    .child(scaled_switch(
                         SharedString::from(format!("export-world-switch-{n}")),
                         *on,
                         &t,
@@ -163,7 +163,7 @@ impl Launcher {
                     })),
             );
         }
-        let go = button("export-run", "export", Kind::Secondary, &t);
+        let go = scaled_button("export-run", "export", Kind::Secondary, &t);
         let go = match panel.busy {
             true => disabled(go),
             false => go.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -178,10 +178,10 @@ impl Launcher {
                     div()
                         .flex()
                         .items_center()
-                        .gap(px(10.))
+                        .gap(px(theme::chrome(10.)))
                         .child(text(theme::CAPTION).text_color(t.muted).child(said.clone()))
                         .child(
-                            button("export-show", "show in folder", Kind::Ghost, &t)
+                            scaled_button("export-show", "show in folder", Kind::Ghost, &t)
                                 .on_click(move |_, _, cx| cx.reveal_path(&path)),
                         ),
                 )
@@ -193,9 +193,9 @@ impl Launcher {
             plate(&t)
                 .flex()
                 .flex_col()
-                .gap(px(12.))
-                .px(px(14.))
-                .py(px(12.))
+                .gap(px(theme::chrome(12.)))
+                .px(px(theme::chrome(14.)))
+                .py(px(theme::chrome(12.)))
                 .ml(px(40.))
                 .child(micro(tr("export to share")).text_color(t.muted))
                 .child(pick)
@@ -209,7 +209,7 @@ impl Launcher {
                     div()
                         .flex()
                         .items_center()
-                        .gap(px(10.))
+                        .gap(px(theme::chrome(10.)))
                         .child(go)
                         .when(panel.busy, |d| {
                             d.child(

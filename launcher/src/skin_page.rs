@@ -173,7 +173,7 @@ impl Launcher {
             },
         );
         let pick = |id: &'static str, label: &'static str, cape: bool, cx: &mut Context<Self>| {
-            button(id, label, Kind::Secondary, &t).on_click(cx.listener(
+            scaled_button(id, label, Kind::Secondary, &t).on_click(cx.listener(
                 move |this, _: &ClickEvent, _, cx| {
                     this.choose_look_file(cape, cx);
                     cx.notify();
@@ -181,7 +181,7 @@ impl Launcher {
             ))
         };
         let drop = |id: &'static str, label: &'static str, cape: bool, cx: &mut Context<Self>| {
-            button(id, label, Kind::Ghost, &t).on_click(cx.listener(
+            scaled_button(id, label, Kind::Ghost, &t).on_click(cx.listener(
                 move |this, _: &ClickEvent, _, cx| {
                     let _ = this.save_look(|l| match cape {
                         false => l.skin = false,
@@ -191,19 +191,21 @@ impl Launcher {
                 },
             ))
         };
-        let mut skin_buttons =
-            div()
-                .flex()
-                .gap(px(6.))
-                .child(pick("skin-choose", "choose a skin…", false, cx));
+        let mut skin_buttons = div().flex().gap(px(theme::chrome(6.))).child(pick(
+            "skin-choose",
+            "choose a skin…",
+            false,
+            cx,
+        ));
         if look.skin {
             skin_buttons = skin_buttons.child(drop("skin-remove", "default skin", false, cx));
         }
-        let mut cape_buttons =
-            div()
-                .flex()
-                .gap(px(6.))
-                .child(pick("cape-choose", "choose a cape…", true, cx));
+        let mut cape_buttons = div().flex().gap(px(theme::chrome(6.))).child(pick(
+            "cape-choose",
+            "choose a cape…",
+            true,
+            cx,
+        ));
         if look.cape {
             cape_buttons = cape_buttons.child(drop("cape-remove", "no cape", true, cx));
         }
@@ -211,9 +213,9 @@ impl Launcher {
         Some(
             plate(&t)
                 .flex()
-                .gap(px(20.))
-                .px(px(16.))
-                .py(px(14.))
+                .gap(px(theme::chrome(20.)))
+                .px(px(theme::chrome(16.)))
+                .py(px(theme::chrome(14.)))
                 .ml(px(40.))
                 .child(frame(16. * TEXEL, 32. * TEXEL, skin, "default"))
                 .child(frame(10. * TEXEL, 16. * TEXEL, cape, "no cape"))
@@ -223,7 +225,7 @@ impl Launcher {
                         .flex_col()
                         .flex_1()
                         .min_w_0()
-                        .gap(px(12.))
+                        .gap(px(theme::chrome(12.)))
                         .child(micro(trf("{name}'s skin", &[("name", &name)])).text_color(t.muted))
                         .child(skin_buttons)
                         .child(model)
