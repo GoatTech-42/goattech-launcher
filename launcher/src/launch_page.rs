@@ -364,7 +364,7 @@ impl Launcher {
             true => "nvidia render offload: __nv_prime_render_offload and its vulkan layer.",
             false => "mesa's DRI_PRIME=1, so vulkan picks the other card.",
         };
-        let mut list = div().flex().flex_col().gap(px(10.));
+        let mut list = div().flex().flex_col().gap(px(theme::chrome(10.)));
         for (toggle, shown, on, label, about) in [
             (
                 Toggle::GameMode,
@@ -396,9 +396,9 @@ impl Launcher {
                     .id(SharedString::from(format!("launch-switch-{label}")))
                     .flex()
                     .items_center()
-                    .gap(px(10.))
+                    .gap(px(theme::chrome(10.)))
                     .cursor_pointer()
-                    .child(switch(
+                    .child(scaled_switch(
                         SharedString::from(format!("launch-switch-{label}-s")),
                         on,
                         &t,
@@ -415,7 +415,7 @@ impl Launcher {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(8.))
+                .gap(px(theme::chrome(8.)))
                 .child(micro(tr("on this computer")).text_color(t.muted))
                 .child(list)
         })
@@ -438,9 +438,9 @@ impl Launcher {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(6.))
+                .gap(px(theme::chrome(6.)))
                 .child(micro(tr(label)).text_color(t.muted))
-                .child(this.field(field, tr(placeholder), 520., cx))
+                .child(this.scaled_field(field, tr(placeholder), theme::chrome(520.), cx))
                 .child(text(theme::CAPTION).text_color(t.muted).child(tr(about)))
         };
         let pre = row(
@@ -475,7 +475,7 @@ impl Launcher {
             "for example ./backup.sh",
             "a shell command, run in the instance's folder once the game has exited.",
         );
-        let save = button("launch-save", "save", Kind::Secondary, &t).on_click(cx.listener(
+        let save = scaled_button("launch-save", "save", Kind::Secondary, &t).on_click(cx.listener(
             |this, _: &ClickEvent, _, cx| {
                 this.save_launch();
                 cx.notify();
@@ -494,9 +494,9 @@ impl Launcher {
             plate(&t)
                 .flex()
                 .flex_col()
-                .gap(px(14.))
-                .px(px(14.))
-                .py(px(12.))
+                .gap(px(theme::chrome(14.)))
+                .px(px(theme::chrome(14.)))
+                .py(px(theme::chrome(12.)))
                 .ml(px(40.))
                 .child(micro(tr("when it starts")).text_color(t.muted))
                 .child(pre)
@@ -508,7 +508,7 @@ impl Launcher {
                     div()
                         .flex()
                         .items_center()
-                        .gap(px(12.))
+                        .gap(px(theme::chrome(12.)))
                         .child(save)
                         .children(result),
                 ),
