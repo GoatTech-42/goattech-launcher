@@ -224,6 +224,7 @@ jobs:
               $g=[System.Drawing.Graphics]::FromImage($bmp); $dc=[IntPtr]::Zero
               try {
                 $dc=$g.GetHdc(); $ok=[WinCap]::PrintWindow($h,$dc,2)
+                $g.ReleaseHdc($dc); $dc=[IntPtr]::Zero
                 if (-not $ok) { throw 'PrintWindow refused capture' }
                 $bmp.Save($png,[System.Drawing.Imaging.ImageFormat]::Png)
                 $okCount++
