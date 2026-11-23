@@ -9,7 +9,7 @@ Add-Type -AssemblyName System.Windows.Forms
 $bin = "$PWD\launcher\target\release\horizon-launcher.exe"
 $binHash = (Get-FileHash $bin -Algorithm SHA256).Hash
 $actual = (git rev-parse HEAD).Trim()
-if ($actual -ne 'f1fa45bba5e0835e6cabb1faf7be30a29591d5ed') { throw 'Unexpected capture source' }
+if ($actual -ne 'cdcdaf0609dd88626cdf7d45b223557ce14e50ce') { throw 'Unexpected capture source' }
 if ($env:CAP_KIND -ne 'exact') { throw 'This job permits exact source only' }
 "workflow-commit: $env:GITHUB_SHA" | Out-File $info
 "source-commit: $actual" | Out-File $info -Append
@@ -99,24 +99,29 @@ try {
       [WinCap]::MoveWindow($h,0,0,($width+$dw),($height+$dh),$true) | Out-Null
     }
   }
-  if ($env:CAP_ROUTE -notin @('worlds','screenshots','instance-mods')) { throw 'Unsupported scroll calibration route' }
+  if ($env:CAP_ROUTE -notin @('screenshots','worlds')) { throw 'Unsupported stage-one route' }
   Size-Client 1028 780
-  # Fixed calibration sequence. No clicks, keyboard input, or offscreen pointer targets.
+  # Stage one only. Retain original pixels for frontend approval before any click.
   $steps = @(
-    @{n='probe-fixture-1028x780';w=8},
+    @{n='initial-1028x780';w=8},
     @{n='pre-scroll-1028x780';w=2},
-    @{n='post-scroll-1028x780';s=@(850,600,-900);w=2}
+    @{n='post-scroll-1028x780';s=$true;w=2},
+    @{n='resized-960x600';r=@(960,600);w=3},
+    @{n='resized-2560x1440';r=@(2560,1440);w=4},
+    @{n='returned-1028x780';r=@(1028,780);w=3},
+    @{n='pre-click-1028x780';w=2}
   )
-  'probe-input: 1028x780 scroll calibration only; fixed outer-window (850,600), delta=-900; no pointer click or keyboard input' | Out-File $info -Append
+  'probe-input: stage-one calibration only; fixed wheel delta=-900 at outer (850,600); no pointer click or keyboard input' | Out-File $info -Append
+  $expectedClient = @(1028,780)
   for ($f = 1; $f -le $steps.Count; $f++) {
     $st = $steps[$f-1]
-    if ($st.r) { Size-Client $st.r[0] $st.r[1] }
+    if ($st.r) { $expectedClient = $st.r; Size-Client $st.r[0] $st.r[1] }
     if ($st.s) {
       if (-not $savedSteps.ContainsKey('pre-scroll-1028x780')) { throw 'Cannot scroll without saved original pre-scroll frame' }
       $h = $proc.MainWindowHandle
       $pr = New-Object WinCap+RECT; $pc = New-Object WinCap+RECT
       if (-not [WinCap]::GetWindowRect($h,[ref]$pr) -or -not [WinCap]::GetClientRect($h,[ref]$pc)) { throw 'Cannot verify scroll geometry' }
-      if ($pc.Right -ne 1028 -or $pc.Bottom -ne 780 -or -not [WinCap]::IsWindowVisible($h) -or [WinCap]::IsIconic($h)) { throw 'Scroll requires visible 1028x780 client' }
+      if ($pc.Right -ne 1028 -or $pc.Bottom -ne 780 -or [WinCap]::GetDpiForWindow($h) -ne 96 -or -not [WinCap]::IsWindowVisible($h) -or [WinCap]::IsIconic($h)) { throw 'Wheel requires visible 1028x780 client at 96 DPI' }
       $sx = $pr.Left + 850; $sy = $pr.Top + 600
       $desktop = [System.Windows.Forms.SystemInformation]::VirtualScreen
       if (-not $desktop.Contains([int]$sx,[int]$sy)) { throw 'Scroll target is outside the desktop' }
@@ -126,7 +131,10 @@ try {
       if (-not [WinCap]::SetCursorPos($sx,$sy)) { throw 'Cannot position scroll pointer' }
       Start-Sleep -Milliseconds 300
       if ([WinCap]::GetForegroundWindow() -ne $h) { throw 'Foreground changed before scroll' }
-      "scroll-target: outer=(850,600) desktop=($sx,$sy) client=1028x780 delta=-900" | Out-File $info -Append
+      $nowClient = New-Object WinCap+RECT; $nowOuter = New-Object WinCap+RECT
+      if (-not [WinCap]::GetClientRect($h,[ref]$nowClient) -or -not [WinCap]::GetWindowRect($h,[ref]$nowOuter)) { throw 'Cannot revalidate wheel geometry' }
+      if ($nowClient.Right -ne 1028 -or $nowClient.Bottom -ne 780 -or [WinCap]::GetDpiForWindow($h) -ne 96 -or $nowOuter.Left -ne $pr.Left -or $nowOuter.Top -ne $pr.Top -or -not [WinCap]::IsWindowVisible($h) -or [WinCap]::IsIconic($h)) { throw 'Wheel geometry or DPI changed immediately before send' }
+      "scroll-target: outer=(850,600) desktop=($sx,$sy) client=$($pc.Right)x$($pc.Bottom) delta=-900" | Out-File $info -Append
       $delta = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int]-900),0)
       [WinCap]::mouse_event(2048,0,0,$delta,[UIntPtr]::Zero)
     }
@@ -153,7 +161,10 @@ try {
     $png = "$env:CAP\frame-$($f.ToString('00'))-$($st.n).png"
     $client=New-Object WinCap+RECT
     [WinCap]::GetClientRect($h,[ref]$client) | Out-Null
-    "viewport: frame=$f client=$($client.Right)x$($client.Bottom) dpi=$([WinCap]::GetDpiForWindow($h))" | Out-File $info -Append
+    $dpi = [WinCap]::GetDpiForWindow($h)
+    "viewport: frame=$f outer=${w}x${hgt} client=$($client.Right)x$($client.Bottom) dpi=$dpi" | Out-File $info -Append
+    if ($dpi -ne 96) { throw 'Unexpected capture DPI; stop for recalibration' }
+    if ($client.Right -ne $expectedClient[0] -or $client.Bottom -ne $expectedClient[1]) { throw 'Unexpected client geometry for requested frame' }
     $bmp=New-Object System.Drawing.Bitmap $w,$hgt
     $g=[System.Drawing.Graphics]::FromImage($bmp); $dc=[IntPtr]::Zero
     try {
@@ -174,7 +185,7 @@ try {
   "AUTOMATION-CHECKS: process-alive=whole-phase initial-visible-owned-window>=200x200=yes frames-window-ok=$seenCount/$($steps.Count) captures-accepted=$okCount/$($steps.Count)" | Out-File $info -Append
   if ($seenCount -eq 0) { "WINDOW-AFTER-INITIAL: unverified (every frame skipped)" | Out-File $info -Append }
   "NOT-PROVEN: rendering/pixels/input/consent/game-launch/GPU/continuous-presence - frames require human inspection" | Out-File $info -Append
-  $required = @('probe-fixture-1028x780','pre-scroll-1028x780','post-scroll-1028x780')
+  $required = @($steps | ForEach-Object { $_.n })
   foreach ($name in $required) {
     if (-not $savedSteps.ContainsKey($name) -or -not (Test-Path -LiteralPath $savedSteps[$name]) -or (Get-Item -LiteralPath $savedSteps[$name]).Length -eq 0) {
       throw "Required saved capture missing or empty: $name"
