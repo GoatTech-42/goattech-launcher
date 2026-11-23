@@ -26,16 +26,16 @@ fn text(step: horizon_theme::Step, color: impl Into<Hsla>) -> Div {
             theme::FONT
         })
         .font_weight(FontWeight(step.weight as f32))
-        .text_size(px(step.px))
-        .line_height(px(step.line_px()))
+        .text_size(px(crate::theme::step_px(step)))
+        .line_height(px(crate::theme::step_line_px(step)))
         .text_color(color.into())
 }
 
 fn mono(color: Hsla) -> Div {
     div()
         .font_family(theme::MONO)
-        .text_size(px(MICRO.px))
-        .line_height(px(MICRO.line_px()))
+        .text_size(px(crate::theme::step_px(MICRO)))
+        .line_height(px(crate::theme::step_line_px(MICRO)))
         .text_color(color)
 }
 

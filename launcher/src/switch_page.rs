@@ -163,7 +163,7 @@ impl Launcher {
                     .h(px(32.))
                     .px(px(10.))
                     .rounded(px(theme::RADIUS))
-                    .text_size(px(theme::LABEL.px))
+                    .text_size(px(theme::step_px(theme::LABEL)))
                     .text_color(t.muted)
                     .cursor_pointer()
                     .hover(move |s| s.bg(t.plate_soft).text_color(t.ink))

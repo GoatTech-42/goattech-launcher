@@ -180,7 +180,10 @@ impl Launcher {
                         if prepared && signed { t.success } else { t.warn },
                     )
                     .font_family(theme::PIXEL)
+                    // Pinned, not scaled: the hero keeps its exact sizes at every window
+                    // (stage_texel is the home page's own viewport response).
                     .text_size(px(12.))
+                    .line_height(px(17.))
                     .child(
                         tr(match status {
                             HeroStatus::Ready => "ready to launch",
@@ -228,12 +231,16 @@ impl Launcher {
             .children(self.playing.map(|playing| {
                 shell::text(night::CAPTION, c(n.muted))
                     .relative()
+                    .text_size(px(12.))
+                    .line_height(px(17.))
                     .child(trf("{n} playing horizon now", &[("n", &thousands(playing))]))
             }))
             // Words sit on a plate where the sky would cross them (docs/design-system.md).
             .child(
                 shell::text(night::CAPTION, c(n.muted))
                     .bg(alpha(n.card, 0.6))
+                    .text_size(px(12.))
+                    .line_height(px(17.))
                     .px(px(10.))
                     .py(px(if compact { 2. } else { 4. }))
                     .max_w(px(560.))
@@ -473,6 +480,7 @@ impl Launcher {
                         shell::text(night::TITLE, c(n.ink))
                             .font_family(theme::PIXEL)
                             .text_size(px(20.))
+                            .line_height(px(25.))
                             .child("goattech"),
                     )
                     .child(
@@ -579,6 +587,7 @@ impl Launcher {
                         .child(
                             shell::text(night::CAPTION, c(n.muted))
                                 .text_size(px(11.))
+                                .line_height(px(17.))
                                 .w_full()
                                 .truncate()
                                 .child(sub),
@@ -586,6 +595,7 @@ impl Launcher {
                         .child(
                             shell::text(night::CAPTION, c(n.muted))
                                 .text_size(px(11.))
+                                .line_height(px(17.))
                                 .w_full()
                                 .truncate()
                                 .child(played),
@@ -623,6 +633,7 @@ impl Launcher {
                     .child(
                         shell::text(night::CAPTION, c(n.muted))
                             .text_size(px(11.))
+                            .line_height(px(17.))
                             .child(tr("new instance").to_string()),
                     ),
                 &t,
@@ -641,6 +652,7 @@ impl Launcher {
                 shell::text(night::CAPTION, c(n.muted))
                     .font_family(theme::PIXEL)
                     .text_size(px(11.))
+                    .line_height(px(17.))
                     .child(tr("playing next").to_string()),
             )
             .child(row)
@@ -745,6 +757,8 @@ impl Launcher {
             .child(
                 shell::text(night::CAPTION, c(n.ink))
                     .font_family(theme::PIXEL)
+                    .text_size(px(12.))
+                    .line_height(px(17.))
                     .child(who.to_lowercase()),
             );
         if let Some(i) = baked {
@@ -785,7 +799,10 @@ impl Launcher {
             stage
         } else {
             stage.child(
-                shell::text(night::CAPTION, c(n.muted)).child(tr("preview player").to_string()),
+                shell::text(night::CAPTION, c(n.muted))
+                    .text_size(px(12.))
+                    .line_height(px(17.))
+                    .child(tr("preview player").to_string()),
             )
         }
     }
@@ -813,6 +830,7 @@ impl Launcher {
                 .gap(px(10.))
                 .child(
                     action("play", Action::Main, &t)
+                        .text_size(px(20.))
                         .min_w(px(260.))
                         .cursor_default()
                         .child(label(busy)),
@@ -835,6 +853,7 @@ impl Launcher {
         ) {
             return div().flex().child(
                 action("play", Action::Main, &t)
+                    .text_size(px(20.))
                     .min_w(px(320.))
                     .child(label(tr("new instance").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -846,34 +865,38 @@ impl Launcher {
         let press = play_press(ready, self.owner, self.preparing || running);
         let live = !matches!(press, PlayPress::Nothing);
         // The concept's Play wears the instance's facts as a small second line.
-        let mut play = action("play", Action::Main, &t).min_w(px(320.)).child(
-            div()
-                .flex()
-                .flex_col()
-                .items_center()
-                .gap(px(3.))
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap(px(10.))
-                        .child(div().relative().child(blocks::icon(
-                            "play",
-                            20.,
-                            c(t.night.on_accent),
-                        )))
-                        .child(label(
-                            tr(if running { "running" } else { "launch" }).to_string(),
-                        )),
-                )
-                .when(!subtitle.is_empty(), |d| {
-                    d.child(
-                        shell::text(theme::MICRO, c(t.night.on_accent))
-                            .text_size(px(12.))
-                            .child(subtitle.to_lowercase()),
+        let mut play = action("play", Action::Main, &t)
+            .text_size(px(20.))
+            .min_w(px(320.))
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .items_center()
+                    .gap(px(3.))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(10.))
+                            .child(div().relative().child(blocks::icon(
+                                "play",
+                                20.,
+                                c(t.night.on_accent),
+                            )))
+                            .child(label(
+                                tr(if running { "running" } else { "launch" }).to_string(),
+                            )),
                     )
-                }),
-        );
+                    .when(!subtitle.is_empty(), |d| {
+                        d.child(
+                            shell::text(theme::MICRO, c(t.night.on_accent))
+                                .text_size(px(12.))
+                                .line_height(px(18.))
+                                .child(subtitle.to_lowercase()),
+                        )
+                    }),
+            );
         match press {
             PlayPress::Nothing => play = play.opacity(0.78).cursor_default().tab_stop(false),
             PlayPress::Play => {

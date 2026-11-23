@@ -677,7 +677,7 @@ impl Launcher {
                                 .rounded(px(theme::RADIUS))
                                 .bg(t.plate)
                                 .font_family(theme::MONO)
-                                .text_size(px(theme::CAPTION.px))
+                                .text_size(px(theme::step_px(theme::CAPTION)))
                                 .text_color(t.ink_soft)
                                 .child(snippet.clone()),
                         )

@@ -169,7 +169,7 @@ pub fn render(source: &str, t: &Theme) -> AnyElement {
         .flex()
         .flex_col()
         .gap(px(8.))
-        .text_size(px(crate::theme::UI.px))
+        .text_size(px(crate::theme::step_px(crate::theme::UI)))
         .line_height(px(22.))
         .text_color(t.ink_soft);
     for block in blocks {
