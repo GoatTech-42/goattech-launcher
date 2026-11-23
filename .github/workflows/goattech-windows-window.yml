@@ -28,18 +28,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { lang: en, net: off, label: base-instances, page: instances, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
-          - { lang: en, net: off, label: base-mods, page: mods, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
-          - { lang: en, net: off, label: base-servers, page: servers, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
-          - { lang: en, net: off, label: base-versions, page: versions, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
-          - { lang: en, net: off, label: base-settings, page: settings, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
-          - { lang: en, net: off, label: base-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
-          - { lang: en, net: off, label: branch-instances, page: instances, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
-          - { lang: en, net: off, label: branch-mods, page: mods, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
-          - { lang: en, net: off, label: branch-servers, page: servers, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
-          - { lang: en, net: off, label: branch-versions, page: versions, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
-          - { lang: en, net: off, label: branch-settings, page: settings, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
-          - { lang: en, net: off, label: branch-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
+          - { lang: en, net: off, label: display-mode, page: instances, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
+          - { lang: en, net: off, label: oversized-native, page: instances, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
     # Uncached cold build on a 4-core runner can take a while; compute is free
     # for this public repo, the capture step still has its own 3-min bound.
     timeout-minutes: 90
@@ -122,6 +112,7 @@ jobs:
           ALL_PROXY: http://127.0.0.1:9
           CAP: ${{ runner.temp }}\captures
           HORIZON_LAUNCHER_PAGE: ${{ matrix.page }}
+          CAP_METHOD: ${{ matrix.label }}
           CAP_MODE: ${{ matrix.mode }}
           CAP_WIDTH: ${{ matrix.width }}
           CAP_HEIGHT: ${{ matrix.height }}
@@ -130,7 +121,7 @@ jobs:
           New-Item -ItemType Directory -Force $env:CAP | Out-Null
           $info = "$env:CAP\window-info.txt"
           # C# as ONE single-quoted line: no here-string anywhere in this file.
-          $src = 'using System;using System.Runtime.InteropServices;public class WinCap{[DllImport("user32.dll")]public static extern IntPtr GetLastActivePopup(IntPtr h);[DllImport("user32.dll")]public static extern IntPtr GetForegroundWindow();[DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);[DllImport("user32.dll")]public static extern uint GetDpiForWindow(IntPtr h);[DllImport("user32.dll")]public static extern bool GetClientRect(IntPtr h,out RECT r);[DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr h,out RECT r);[DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr h);[DllImport("user32.dll")]public static extern bool IsIconic(IntPtr h);[DllImport("user32.dll")]public static extern bool PrintWindow(IntPtr h,IntPtr dc,uint flags);[DllImport("user32.dll")]public static extern bool MoveWindow(IntPtr h,int x,int y,int w,int h2,bool r);[DllImport("user32.dll")]public static extern bool SetCursorPos(int x,int y);[DllImport("user32.dll")]public static extern void mouse_event(uint f,uint dx,uint dy,uint d,UIntPtr e);[DllImport("user32.dll")]public static extern bool SetForegroundWindow(IntPtr h);public struct RECT{public int Left,Top,Right,Bottom;}}'
+          $src = 'using System;using System.Runtime.InteropServices;public class WinCap{[DllImport("user32.dll",SetLastError=true)]public static extern bool SetWindowPos(IntPtr h,IntPtr after,int x,int y,int w,int height,uint flags);[DllImport("user32.dll")]public static extern IntPtr GetLastActivePopup(IntPtr h);[DllImport("user32.dll")]public static extern IntPtr GetForegroundWindow();[DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);[DllImport("user32.dll")]public static extern uint GetDpiForWindow(IntPtr h);[DllImport("user32.dll")]public static extern bool GetClientRect(IntPtr h,out RECT r);[DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr h,out RECT r);[DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr h);[DllImport("user32.dll")]public static extern bool IsIconic(IntPtr h);[DllImport("user32.dll")]public static extern bool PrintWindow(IntPtr h,IntPtr dc,uint flags);[DllImport("user32.dll")]public static extern bool MoveWindow(IntPtr h,int x,int y,int w,int h2,bool r);[DllImport("user32.dll")]public static extern bool SetCursorPos(int x,int y);[DllImport("user32.dll")]public static extern void mouse_event(uint f,uint dx,uint dy,uint d,UIntPtr e);[DllImport("user32.dll")]public static extern bool SetForegroundWindow(IntPtr h);public struct RECT{public int Left,Top,Right,Bottom;}}'
           Add-Type -TypeDefinition $src -ReferencedAssemblies System.Drawing
           Add-Type -AssemblyName System.Drawing
           Add-Type -AssemblyName System.Windows.Forms
@@ -184,7 +175,12 @@ jobs:
               [WinCap]::GetWindowRect($h,[ref]$outer) | Out-Null
               [WinCap]::GetClientRect($h,[ref]$client) | Out-Null
               $dw=($outer.Right-$outer.Left)-$client.Right; $dh=($outer.Bottom-$outer.Top)-$client.Bottom
-              [WinCap]::MoveWindow($h,0,0,($width+$dw),($height+$dh),$true) | Out-Null
+              if ($env:CAP_METHOD -eq 'oversized-native') {
+                $sized=[WinCap]::SetWindowPos($h,[IntPtr]::Zero,0,0,($width+$dw),($height+$dh),0x0544)
+                "resize-method: SetWindowPos NOSENDCHANGING result=$sized requested-client=${width}x${height}" | Out-File $info -Append
+              } else {
+                [WinCap]::MoveWindow($h,0,0,($width+$dw),($height+$dh),$true) | Out-Null
+              }
             }
             if ($env:CAP_MODE -eq 'opening') {
               Size-Client ([int]$env:CAP_WIDTH) ([int]$env:CAP_HEIGHT)
@@ -194,13 +190,21 @@ jobs:
                 @{n='dialog'; w=8},
                 @{n='sign-in-prompt'; c=@(500,649); w=3},
                 @{n='account-dismissed'; k='{ESC}'; w=2},
-                @{n='page-minimum'; r=@(960,600); w=3},
-                @{n='page-1028x780'; r=@(1028,780); w=3},
-                @{n='page-1024x720'; r=@(1024,720); w=3}
+                @{n='large-1920x1080'; r=@(1920,1080); display=@(2560,1440); w=5},
+                @{n='large-2560x1440'; r=@(2560,1440); display=@(3840,2160); w=5}
               )
             }
             for ($f = 1; $f -le $steps.Count; $f++) {
               $st = $steps[$f-1]
+              if ($st.display -and $env:CAP_METHOD -eq 'display-mode') {
+                $cmd=Get-Command Set-DisplayResolution -ErrorAction SilentlyContinue
+                if ($cmd) {
+                  try { Set-DisplayResolution -Width $st.display[0] -Height $st.display[1] -Force -ErrorAction Stop | Out-String | Out-File $info -Append }
+                  catch { "display-change-failed: $_" | Out-File $info -Append }
+                } else { 'display-change-unavailable: Set-DisplayResolution missing' | Out-File $info -Append }
+                Start-Sleep -Seconds 2
+              }
+              "desktop: $([System.Windows.Forms.SystemInformation]::VirtualScreen) method=$env:CAP_METHOD" | Out-File $info -Append
               if ($st.r) { Size-Client $st.r[0] $st.r[1] }
               if ($st.c) { $pr = New-Object WinCap+RECT; [WinCap]::GetWindowRect($proc.MainWindowHandle, [ref]$pr) | Out-Null; [WinCap]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::SetCursorPos($pr.Left + $st.c[0], $pr.Top + $st.c[1]) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::mouse_event(2,0,0,0,[UIntPtr]::Zero); Start-Sleep -Milliseconds 80; [WinCap]::mouse_event(4,0,0,0,[UIntPtr]::Zero) }
               if ($st.d) { $pr = New-Object WinCap+RECT; [WinCap]::GetWindowRect($proc.MainWindowHandle, [ref]$pr) | Out-Null; [WinCap]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::SetCursorPos($pr.Left + $st.d[0], $pr.Top + $st.d[1]) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::mouse_event(2,0,0,0,[UIntPtr]::Zero); foreach ($k in 1..8) { Start-Sleep -Milliseconds 60; [WinCap]::SetCursorPos($pr.Left + $st.d[0] + [int]($st.d[2] * $k / 8), $pr.Top + $st.d[1]) | Out-Null }; Start-Sleep -Milliseconds 100; [WinCap]::mouse_event(4,0,0,0,[UIntPtr]::Zero) }
@@ -255,7 +259,7 @@ jobs:
             "AUTOMATION-CHECKS: process-alive=whole-phase initial-visible-owned-window>=200x200=yes frames-window-ok=$seenCount/$($steps.Count) captures-accepted=$okCount/$($steps.Count)" | Out-File $info -Append
             if ($seenCount -eq 0) { "WINDOW-AFTER-INITIAL: unverified (every frame skipped)" | Out-File $info -Append }
             "NOT-PROVEN: rendering/pixels/input/consent/game-launch/GPU/continuous-presence - frames require human inspection" | Out-File $info -Append
-            $required = @('account-dismissed','page-minimum','page-1028x780','page-1024x720')
+            $required = @('account-dismissed','large-1920x1080','large-2560x1440')
             foreach ($name in $required) {
               if (-not $savedSteps.ContainsKey($name) -or -not (Test-Path -LiteralPath $savedSteps[$name]) -or (Get-Item -LiteralPath $savedSteps[$name]).Length -eq 0) {
                 throw "Required saved capture missing or empty: $name"
@@ -285,6 +289,7 @@ jobs:
           ALL_PROXY: http://127.0.0.1:9
           CAP: ${{ runner.temp }}\captures
           HORIZON_LAUNCHER_PAGE: ${{ matrix.page }}
+          CAP_METHOD: ${{ matrix.label }}
           CAP_MODE: ${{ matrix.mode }}
           CAP_WIDTH: ${{ matrix.width }}
           CAP_HEIGHT: ${{ matrix.height }}
@@ -293,8 +298,8 @@ jobs:
           # Export ceilings, checked BEFORE reading each file: no unbounded
           # ReadAllBytes/base64 into the log. Per-file raw limit 1,500,000 bytes;
           # total ENCODED base64 characters across all frames 6,000,000.
-          $maxPngBytes = 1500000
-          $maxEncodedTotal = 6000000
+          $maxPngBytes = 4000000
+          $maxEncodedTotal = 16000000
           $encodedTotal = 0
           $info = "$env:CAP\window-info.txt"
           if (Test-Path $info) {
