@@ -240,6 +240,14 @@ pub fn rail_item(
     )
 }
 
+/// Vertical chrome at short window heights: interpolates linearly from `compact` at the
+/// 960x600 minimum window (600 pt) to `normal` at 720 pt, and stays `normal` above, so
+/// pages keep their exact tall-window layout while short windows reclaim space. Continuous
+/// in height everywhere: no jump at 720.
+pub fn compact_v(viewport_h: f32, compact: f32, normal: f32) -> f32 {
+    compact + (normal - compact) * ((viewport_h - 600.) / 120.).clamp(0., 1.)
+}
+
 /// A small fact chip on a card (concept Home): raised ground, pill, an 11px muted label.
 pub fn chip_tag(label: impl Into<SharedString>, t: &Theme) -> Div {
     let n = t.night;

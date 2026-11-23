@@ -535,11 +535,15 @@ impl Launcher {
                 rust.push(card);
             }
         }
+        // At the 960x600 minimum window the rust card's Play sat half below the fold;
+        // short windows compact the sections' vertical chrome (shell::compact_v) so the
+        // primary action is fully visible. 720 pt and up is unchanged.
+        let vh = self.viewport_h;
         let section = |title: &str, note: Option<&'static str>, cards: Vec<AnyElement>| {
             div()
                 .flex()
                 .flex_col()
-                .mt(px(26.))
+                .mt(px(shell::compact_v(vh, 14., 26.)))
                 .child(
                     div()
                         .flex()
@@ -562,7 +566,7 @@ impl Launcher {
                         .flex()
                         .flex_wrap()
                         .gap(px(16.))
-                        .mt(px(10.))
+                        .mt(px(shell::compact_v(vh, 6., 10.)))
                         .children(cards),
                 )
         };
@@ -662,10 +666,10 @@ impl Launcher {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(10.))
-                    .pt(px(16.))
+                    .gap(px(shell::compact_v(self.viewport_h, 8., 10.)))
+                    .pt(px(shell::compact_v(self.viewport_h, 12., 16.)))
                     .px(px(16.))
-                    .pb(px(16.))
+                    .pb(px(shell::compact_v(self.viewport_h, 12., 16.)))
                     .child(
                         div()
                             .flex()

@@ -192,7 +192,9 @@ impl Launcher {
         let t = self.theme;
         let n = t.night;
         let busy = self.instances.client.busy;
-        let mut section=div().flex().flex_col().gap(px(10.)).mt(px(26.))
+        // Short-window compaction like the sections on the instances page (shell::compact_v).
+        let vh = self.viewport_h;
+        let mut section=div().flex().flex_col().gap(px(shell::compact_v(vh,6.,10.))).mt(px(shell::compact_v(vh,14.,26.)))
             .child(shell::text(theme::night::CAPTION,shell::c(n.ink)).child(tr("client jar").to_string()))
             .child(shell::text(theme::night::CAPTION,shell::c(n.muted)).child(tr("choose a local fabric client mod from its own website. inspect it here, then install it in a new instance, or in one of your fabric instances with the into button.").to_string()))
             .child(shell::text(theme::night::CAPTION,shell::c(n.muted)).child(tr("some clients and fabric api bundles need extra files this launcher can't fetch yet. sharing a client's own settings isn't available. options.txt sharing is separate.").to_string()));
