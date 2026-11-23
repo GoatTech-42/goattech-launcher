@@ -951,7 +951,9 @@ impl Launcher {
         let focused = self.servers.focused == Some(f);
         let selected = focused && self.servers.selected == Some(f);
         let invalid = self.servers.invalid.is_some_and(|(g, _)| g == f);
-        self.servers.text(f).show(((width - 24.) / 7.5) as usize);
+        self.servers
+            .text(f)
+            .show(visible_chars(width, theme::ui_scale_current()));
         let field = div()
             .id(SharedString::from(format!("field-{f:?}")))
             .track_focus(&handle)
@@ -3610,5 +3612,24 @@ mod tests {
         assert_eq!(backup_label(&b("odd.zip")), ("odd".into(), String::new()));
         assert_eq!(bytes(5_292_542), "5.3 mb");
         assert_eq!(uptime(3725), "1 h 02 min");
+    }
+}
+
+/// How many characters a fixed-width field shows: the 7.5 px-per-char heuristic scales with
+/// the window's UI scale like the field's font does. A heuristic, not a full shaping fit; a
+/// real caret fit is a separate later change.
+fn visible_chars(width: f32, scale: f32) -> usize {
+    ((width - 24.) / (7.5 * scale)) as usize
+}
+
+#[cfg(test)]
+mod visible_chars_tests {
+    use super::visible_chars;
+
+    /// Regression: a fixed-width field's visible-character budget at scale 1.0 and 1.2.
+    #[test]
+    fn fixed_width_field_at_1_and_1_2() {
+        assert_eq!(visible_chars(324., 1.0), 40); // (324 - 24) / 7.5 = 40.0
+        assert_eq!(visible_chars(324., 1.2), 33); // (324 - 24) / 9.0 = 33.33
     }
 }
