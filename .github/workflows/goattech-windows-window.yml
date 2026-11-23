@@ -21,14 +21,19 @@ env:
 
 jobs:
   capture:
-    name: responsive unobscured small-screen ${{ matrix.label }}
+    name: page survey ${{ matrix.label }}
     if: github.repository == 'GoatTech-42/goattech-launcher'
     runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { lang: en, net: off, label: home, mode: home, width: 1000, height: 720, source: 'a1ceb4b8a95347c1772bc051420a3c871ac8e95c' }
+          - { lang: en, net: off, label: instances, mode: home, width: 960, height: 600, source: '7be7cd107e360670b710b31be8b9811c15bbdc37' }
+          - { lang: en, net: off, label: mods, mode: home, width: 960, height: 600, source: '7be7cd107e360670b710b31be8b9811c15bbdc37' }
+          - { lang: en, net: off, label: servers, mode: home, width: 960, height: 600, source: '7be7cd107e360670b710b31be8b9811c15bbdc37' }
+          - { lang: en, net: off, label: versions, mode: home, width: 960, height: 600, source: '7be7cd107e360670b710b31be8b9811c15bbdc37' }
+          - { lang: en, net: off, label: settings, mode: home, width: 960, height: 600, source: '7be7cd107e360670b710b31be8b9811c15bbdc37' }
+          - { lang: en, net: off, label: new-instance, mode: home, width: 960, height: 600, source: '7be7cd107e360670b710b31be8b9811c15bbdc37' }
     # Uncached cold build on a 4-core runner can take a while; compute is free
     # for this public repo, the capture step still has its own 3-min bound.
     timeout-minutes: 90
@@ -110,6 +115,7 @@ jobs:
           HTTPS_PROXY: http://127.0.0.1:9
           ALL_PROXY: http://127.0.0.1:9
           CAP: ${{ runner.temp }}\captures
+          HORIZON_LAUNCHER_PAGE: ${{ matrix.label }}
           CAP_MODE: ${{ matrix.mode }}
           CAP_WIDTH: ${{ matrix.width }}
           CAP_HEIGHT: ${{ matrix.height }}
@@ -182,9 +188,8 @@ jobs:
                 @{n='dialog'; w=8},
                 @{n='sign-in-prompt'; c=@(500,649); w=3},
                 @{n='account-dismissed'; k='{ESC}'; w=2},
-                @{n='home-1000x720'; r=@(1000,720); w=3},
-                @{n='home-960x600'; r=@(960,600); w=3},
-                @{n='home-1028x760'; r=@(1028,760); w=3}
+                @{n='page-minimum'; r=@(960,600); w=3},
+                @{n='page-largest-requested'; r=@(2560,1440); w=3}
               )
             }
             for ($f = 1; $f -le $steps.Count; $f++) {
@@ -243,14 +248,14 @@ jobs:
             "AUTOMATION-CHECKS: process-alive=whole-phase initial-visible-owned-window>=200x200=yes frames-window-ok=$seenCount/$($steps.Count) captures-accepted=$okCount/$($steps.Count)" | Out-File $info -Append
             if ($seenCount -eq 0) { "WINDOW-AFTER-INITIAL: unverified (every frame skipped)" | Out-File $info -Append }
             "NOT-PROVEN: rendering/pixels/input/consent/game-launch/GPU/continuous-presence - frames require human inspection" | Out-File $info -Append
-            $required = @('account-dismissed','home-1000x720','home-960x600','home-1028x760')
+            $required = @('account-dismissed','page-minimum','page-largest-requested')
             foreach ($name in $required) {
               if (-not $savedSteps.ContainsKey($name) -or -not (Test-Path -LiteralPath $savedSteps[$name]) -or (Get-Item -LiteralPath $savedSteps[$name]).Length -eq 0) {
                 throw "Required saved capture missing or empty: $name"
               }
             }
             if ($okCount -ne $steps.Count) { throw "Saved capture count $okCount does not match requested step count $($steps.Count)" }
-            'NOT-PROVEN: unobscured Home or dismissed consent/account screens until pixel review; Escape may be consumed by consent if the earlier click missed. Requested names are labels only; use measured client size and DPI. Foreground check/send has a race; pointer clicks are coordinate-based.' | Out-File $info -Append
+            'NOT-PROVEN: unobscured requested page or dismissed consent/account screens until pixel review; Escape may be consumed by consent if the earlier click missed. Requested names are labels only; use measured client size and DPI. Foreground check/send has a race; pointer clicks are coordinate-based.' | Out-File $info -Append
             $checksPass = $true
           } finally {
             # Best-effort cleanup: any leftover capture jobs, then the launcher's main
@@ -272,6 +277,7 @@ jobs:
           HTTPS_PROXY: http://127.0.0.1:9
           ALL_PROXY: http://127.0.0.1:9
           CAP: ${{ runner.temp }}\captures
+          HORIZON_LAUNCHER_PAGE: ${{ matrix.label }}
           CAP_MODE: ${{ matrix.mode }}
           CAP_WIDTH: ${{ matrix.width }}
           CAP_HEIGHT: ${{ matrix.height }}
