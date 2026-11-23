@@ -2448,8 +2448,8 @@ fn text(step: theme::Step) -> Div {
 fn version_tag(tag: &str) -> Div {
     div()
         .font_family(theme::MONO)
-        .text_size(px(22.))
-        .line_height(px(28.))
+        .text_size(px(theme::chrome(22.)))
+        .line_height(px(theme::chrome(28.)))
         .font_weight(FontWeight::MEDIUM)
         .child(
             horizon_launcher::nightly::label(tag)
@@ -2913,6 +2913,16 @@ fn button(
     keyboard(track_hover(base, id), &t).active(|s| s.opacity(theme::PRESSED).top(px(1.)))
 }
 
+/// A button label for scaled pages. Home retains the original `button` label.
+fn scaled_button(
+    id: impl Into<SharedString>,
+    label: impl Into<SharedString>,
+    kind: Kind,
+    t: &Theme,
+) -> Stateful<Div> {
+    button(id, label, kind, t).text_size(px(theme::chrome(16.)))
+}
+
 /// Copies to the clipboard, or into `HORIZON_LAUNCHER_CLIPBOARD` when a test run sets it
 /// (`horizon_launcher::desktop_seams`).
 fn copy_to_clipboard(cx: &mut App, item: gpui::ClipboardItem) {
@@ -2978,17 +2988,36 @@ fn sync_system_clipboard(text: String) {
 const SWITCH_W: f32 = 56.;
 const SWITCH_H: f32 = 30.;
 const SWITCH_KNOB: f32 = 22.;
-const SWITCH_TRAVEL: f32 = SWITCH_W - 4. - SWITCH_KNOB - 4.;
 
 /// An on/off switch: a square knob sliding in a sunk track that turns violet when on.
 fn switch(id: impl Into<SharedString>, on: bool, t: &Theme) -> Stateful<Div> {
+    switch_at_scale(id, on, t, 1.)
+}
+
+/// A switch on scaled pages; Home callers retain the original geometry.
+fn scaled_switch(id: impl Into<SharedString>, on: bool, t: &Theme) -> Stateful<Div> {
+    switch_at_scale(id, on, t, theme::ui_scale_current())
+}
+
+fn switch_geometry(scale: f32) -> (f32, f32, f32, f32, f32) {
+    let width = SWITCH_W * scale;
+    let height = SWITCH_H * scale;
+    let knob_side = SWITCH_KNOB * scale;
+    // Borders stay 2px; the remaining inset and travel grow inside them.
+    let inset = (height - 4. - knob_side) / 2.;
+    let travel = width - 4. - knob_side - 2. * inset;
+    (width, height, knob_side, inset, travel)
+}
+
+fn switch_at_scale(id: impl Into<SharedString>, on: bool, t: &Theme, scale: f32) -> Stateful<Div> {
+    let (width, height, knob_side, inset, travel) = switch_geometry(scale);
     let t = *t;
     let id: SharedString = id.into();
     let face = if on { t.on_face } else { t.muted };
     let knob = div()
         .absolute()
-        .top(px(2.))
-        .size(px(SWITCH_KNOB))
+        .top(px(inset))
+        .size(px(knob_side))
         .bg(face)
         .child(
             div()
@@ -3002,7 +3031,7 @@ fn switch(id: impl Into<SharedString>, on: bool, t: &Theme) -> Stateful<Div> {
     // The knob slides where the switch flips, and holds still under Reduce motion.
     let knob = match reduce_motion() {
         true => knob
-            .left(px(if on { 2. + SWITCH_TRAVEL } else { 2. }))
+            .left(px(if on { inset + travel } else { inset }))
             .into_any_element(),
         false => knob
             .with_animation(
@@ -3010,9 +3039,9 @@ fn switch(id: impl Into<SharedString>, on: bool, t: &Theme) -> Stateful<Div> {
                 Animation::new(theme::MOVE).with_easing(ease_out_quint()),
                 move |d, p| {
                     d.left(px(if on {
-                        2. + SWITCH_TRAVEL * p
+                        inset + travel * p
                     } else {
-                        2. + SWITCH_TRAVEL * (1. - p)
+                        inset + travel * (1. - p)
                     }))
                 },
             )
@@ -3021,8 +3050,8 @@ fn switch(id: impl Into<SharedString>, on: bool, t: &Theme) -> Stateful<Div> {
     keyboard(div().id(id.clone()), &t)
         .relative()
         .flex_none()
-        .w(px(SWITCH_W))
-        .h(px(SWITCH_H))
+        .w(px(width))
+        .h(px(height))
         .border_2()
         .border_color(t.outline)
         .cursor_pointer()
@@ -3206,6 +3235,11 @@ fn page_header(title: &str, description: &str, t: &Theme) -> Div {
         )
 }
 
+/// A page header outside Home, with scaled spacing.
+fn scaled_page_header(title: &str, description: &str, t: &Theme) -> Div {
+    page_header(title, description, t).gap(px(theme::chrome(10.)))
+}
+
 /// One row of a list, as its own panel: a name in the pixel face with an optional detail under
 /// it, then a value or a control on the right. Rows were numbered in the quiet look; `_n` keeps
 /// the call sites as they are.
@@ -3291,6 +3325,10 @@ fn quiet_note(text_: impl Into<SharedString>, t: &Theme) -> Div {
 
 /// Something went wrong: a dot in the danger colour, then what happened.
 fn notice(text_: String, t: &Theme) -> Div {
+    notice_with_icon(text_, t, 20.)
+}
+
+fn notice_with_icon(text_: String, t: &Theme, icon_side: f32) -> Div {
     plate(t)
         .flex()
         .gap(px(12.))
@@ -3308,8 +3346,16 @@ fn notice(text_: String, t: &Theme) -> Div {
                 .w(px(6.))
                 .bg(t.danger),
         )
-        .child(blocks::icon("info-box", 20., t.danger))
+        .child(blocks::icon("info-box", icon_side, t.danger))
         .child(div().flex_1().min_w_0().child(text_))
+}
+
+/// A notice on scaled pages. Home retains the original `notice` geometry.
+fn scaled_notice(text_: String, t: &Theme) -> Div {
+    notice_with_icon(text_, t, theme::chrome(20.))
+        .gap(px(theme::chrome(12.)))
+        .p(px(theme::chrome(16.)))
+        .line_height(px(theme::chrome(21.)))
 }
 
 /// An empty state: a short sentence, and the one thing to do about it.
@@ -3321,6 +3367,13 @@ fn centered(text_: &str, t: &Theme) -> Div {
         .gap(px(16.))
         .py(px(48.))
         .child(text(theme::UI).text_color(t.muted).child(text_.to_string()))
+}
+
+/// An empty state outside Home, with scaled spacing.
+fn scaled_centered(text_: &str, t: &Theme) -> Div {
+    centered(text_, t)
+        .gap(px(theme::chrome(16.)))
+        .py(px(theme::chrome(48.)))
 }
 
 /// The name the game made up for a player without an account, once it has run.
@@ -4272,7 +4325,7 @@ impl Launcher {
             )
             .to_string(),
         };
-        let toggle = switch("auto-install", self.settings.auto_install(), &t).on_click(
+        let toggle = scaled_switch("auto-install", self.settings.auto_install(), &t).on_click(
             cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.settings.install_new_versions = Some(!this.settings.auto_install());
                 let _ = this.settings.save();
@@ -4282,21 +4335,21 @@ impl Launcher {
                 cx.notify();
             }),
         );
-        let prune = switch("auto-prune", self.settings.auto_prune(), &t).on_click(cx.listener(
-            |this, _: &ClickEvent, _, cx| {
+        let prune = scaled_switch("auto-prune", self.settings.auto_prune(), &t).on_click(
+            cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.settings.prune_old_versions = Some(!this.settings.auto_prune());
                 let _ = this.settings.save();
                 cx.notify();
-            },
-        ));
-        let opening = switch("opening", !self.settings.skip_opening, &t).on_click(cx.listener(
-            |this, _: &ClickEvent, _, cx| {
+            }),
+        );
+        let opening = scaled_switch("opening", !self.settings.skip_opening, &t).on_click(
+            cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.settings.skip_opening = !this.settings.skip_opening;
                 let _ = this.settings.save();
                 cx.notify();
-            },
-        ));
-        let reduce = switch("reduce-motion", self.settings.reduce_motion(), &t).on_click(
+            }),
+        );
+        let reduce = scaled_switch("reduce-motion", self.settings.reduce_motion(), &t).on_click(
             cx.listener(|this, _: &ClickEvent, _, cx| {
                 let on = !this.settings.reduce_motion();
                 this.settings.reduce_motion = Some(on);
@@ -4306,8 +4359,8 @@ impl Launcher {
             }),
         );
         // Linux: the launcher's entry in the applications menu (`horizon_launcher::desktop`).
-        let menu_entry = switch("desktop-entry", self.settings.desktop_entry(), &t).on_click(
-            cx.listener(|this, _: &ClickEvent, _, cx| {
+        let menu_entry = scaled_switch("desktop-entry", self.settings.desktop_entry(), &t)
+            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                 let on = !this.settings.desktop_entry();
                 this.settings.desktop_entry = Some(on);
                 let _ = this.settings.save();
@@ -4317,8 +4370,7 @@ impl Launcher {
                     horizon_launcher::desktop::remove()
                 };
                 cx.notify();
-            }),
-        );
+            }));
         let horizon = match (&self.updates.horizon, &self.update_error) {
             (Some(r), _) => trf("{version} available", &[("version", update_name(r))]),
             (None, Some(_)) => tr(
@@ -4336,7 +4388,7 @@ impl Launcher {
                     .items_center()
                     .gap(px(8.))
                     .child(
-                        button(
+                        scaled_button(
                             "update-error-detail",
                             if detail { "hide details" } else { "details" },
                             Kind::Ghost,
@@ -4350,14 +4402,13 @@ impl Launcher {
                         )),
                     )
                     .child(
-                        button("retry-update-check", "try again", Kind::Secondary, &t).on_click(
-                            cx.listener(|this, _: &ClickEvent, _, cx| {
+                        scaled_button("retry-update-check", "try again", Kind::Secondary, &t)
+                            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                                 this.update_error = None;
                                 this.update_error_detail = false;
                                 this.check_updates();
                                 cx.notify();
-                            }),
-                        ),
+                            })),
                     )
                     .into_any_element(),
             )
@@ -4367,7 +4418,7 @@ impl Launcher {
                 .as_ref()
                 .filter(|_| self.installing.is_none())
                 .map(|_| {
-                    button("settings-install", "install", Kind::Secondary, &t)
+                    scaled_button("settings-install", "install", Kind::Secondary, &t)
                         .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.install_update();
                             cx.notify();
@@ -4418,7 +4469,7 @@ impl Launcher {
         };
         let launcher_action = match &self.self_update {
             SelfUpdate::Ready(_) => Some(
-                button("restart-settings", "restart", Kind::Secondary, &t)
+                scaled_button("restart-settings", "restart", Kind::Secondary, &t)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.self_update = SelfUpdate::Failed(backend::restart());
                         cx.notify();
@@ -4427,7 +4478,7 @@ impl Launcher {
             ),
             SelfUpdate::Downloading(..) => None,
             _ => Some(
-                button("check", "check now", Kind::Ghost, &t)
+                scaled_button("check", "check now", Kind::Ghost, &t)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.check_updates();
                         cx.notify();
@@ -4468,7 +4519,7 @@ impl Launcher {
             .flex()
             .flex_col()
             .gap(px(32.))
-            .child(page_header(
+            .child(scaled_page_header(
                 "settings",
                 "accounts, updates, and the launcher itself.",
                 &t,
@@ -4585,7 +4636,7 @@ impl Launcher {
                             tr("crash reports beside it")
                         ))),
                         Some(
-                            button("open-logs", "open", Kind::Secondary, &t)
+                            scaled_button("open-logs", "open", Kind::Secondary, &t)
                                 .on_click(|_, _, cx| {
                                     let dir = backend::logs_dir();
                                     let _ = std::fs::create_dir_all(&dir);
@@ -5159,20 +5210,20 @@ impl Launcher {
         div()
             .flex()
             .items_center()
-            .gap(px(4.))
+            .gap(px(theme::chrome(4.)))
             .when(!selected && !confirming, |d| {
                 d.child(
-                    button(format!("use-{tag}"), "use", Kind::Ghost, &t).on_click(cx.listener(
-                        move |this, _: &ClickEvent, _, cx| {
+                    scaled_button(format!("use-{tag}"), "use", Kind::Ghost, &t).on_click(
+                        cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.settings.selected = Some(t1.clone());
                             let _ = this.settings.save();
                             cx.notify();
-                        },
-                    )),
+                        }),
+                    ),
                 )
             })
             .child(
-                button(
+                scaled_button(
                     format!("remove-{tag}"),
                     if confirming {
                         "remove for good"
@@ -5224,9 +5275,9 @@ impl Launcher {
             div()
                 .flex()
                 .items_center()
-                .gap(px(10.))
-                .w(px(180.))
-                .child(progress_bar(None, &t))
+                .gap(px(theme::chrome(10.)))
+                .w(px(theme::chrome(180.)))
+                .child(scaled_progress_bar(None, &t))
                 .child(text(theme::MICRO).text_color(t.muted).child("removing…"))
         } else {
             self.version_actions(tag, selected, cx)
@@ -5239,9 +5290,9 @@ impl Launcher {
         div()
             .flex()
             .flex_col()
-            .gap(px(10.))
-            .py(px(14.))
-            .px(px(16.))
+            .gap(px(theme::chrome(10.)))
+            .py(px(theme::chrome(14.)))
+            .px(px(theme::chrome(16.)))
             .bg(t.panel)
             .border_2()
             .border_color(t.outline)
@@ -5251,14 +5302,14 @@ impl Launcher {
                     .relative()
                     .flex()
                     .items_center()
-                    .gap(px(16.))
+                    .gap(px(theme::chrome(16.)))
                     .child(
                         div()
                             .flex()
                             .flex_col()
                             .flex_1()
                             .min_w_0()
-                            .gap(px(4.))
+                            .gap(px(theme::chrome(4.)))
                             .child(version_tag(tag).text_color(t.ink))
                             .child(micro(meta.join("  ·  ")).text_color(t.muted)),
                     )
@@ -5267,12 +5318,12 @@ impl Launcher {
                         div()
                             .flex()
                             .justify_end()
-                            .w(px(190.))
+                            .w(px(theme::chrome(190.)))
                             .flex_none()
                             .child(right),
                     ),
             )
-            .children(error.map(|e| notice(e, &t)))
+            .children(error.map(|e| scaled_notice(e, &t)))
     }
 
     /// The installed builds of one kind made here (`is`: native or imported) under their caption,
@@ -5296,9 +5347,9 @@ impl Launcher {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(8.))
+                .gap(px(theme::chrome(8.)))
                 .child(micro(tr(title)).text_color(t.muted))
-                .children(notice_.map(|n| notice(n.to_string(), &t)))
+                .children(notice_.map(|n| scaled_notice(n.to_string(), &t)))
                 .children(
                     tags.into_iter()
                         .map(|tag| self.local_build_row(tag, on_disk, cx)),
@@ -5308,7 +5359,7 @@ impl Launcher {
 
     fn versions_page(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
-        let header = page_header(
+        let header = scaled_page_header(
             "versions",
             "builds from github. each one installs into its own folder.",
             &t,
@@ -5337,9 +5388,9 @@ impl Launcher {
             div()
                 .flex()
                 .items_center()
-                .gap(px(10.))
-                .w(px(180.))
-                .child(progress_bar(None, &t))
+                .gap(px(theme::chrome(10.)))
+                .w(px(theme::chrome(180.)))
+                .child(scaled_progress_bar(None, &t))
                 .child(
                     text(theme::MICRO)
                         .text_color(t.muted)
@@ -5347,21 +5398,21 @@ impl Launcher {
                 )
                 .into_any_element()
         } else {
-            button("import-build", "import a game build…", Kind::Secondary, &t)
+            scaled_button("import-build", "import a game build…", Kind::Secondary, &t)
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.import_build(cx)))
                 .into_any_element()
         };
         let page = div()
             .flex()
             .flex_col()
-            .gap(px(32.))
+            .gap(px(theme::chrome(32.)))
             .child(header)
             .child(
                 div()
                     .flex()
                     .items_center()
                     .justify_between()
-                    .gap(px(16.))
+                    .gap(px(theme::chrome(16.)))
                     .child(text(theme::UI).text_color(t.muted).when(used > 0, |d| {
                         d.child(trf(
                             "installed versions use {size}.",
@@ -5370,7 +5421,7 @@ impl Launcher {
                     }))
                     .child(import),
             )
-            .children(self.import_error.clone().map(|e| notice(e, &t)));
+            .children(self.import_error.clone().map(|e| scaled_notice(e, &t)));
         // Builds made here, not downloaded, are listed apart from the releases.
         let page = page
             .children(self.local_builds(
@@ -5390,18 +5441,18 @@ impl Launcher {
                 cx,
             ));
         let releases = match &self.releases {
-            Load::Loading => return page.child(centered(tr("loading releases…"), &t)),
+            Load::Loading => return page.child(scaled_centered(tr("loading releases…"), &t)),
             Load::Failed(e) => {
                 // One plain line carries the state; the raw error sits behind details.
                 let detail = self.versions_error_detail;
                 let raw = e.clone();
                 return page.child(
-                    centered(
+                    scaled_centered(
                         tr("couldn't load releases. check the connection and try again in a few minutes."),
                         &t,
                     )
                     .child(
-                        button("retry", "try again", Kind::Secondary, &t).on_click(cx.listener(
+                        scaled_button("retry", "try again", Kind::Secondary, &t).on_click(cx.listener(
                             |this, _: &ClickEvent, _, cx| {
                                 this.fetch_releases();
                                 cx.notify();
@@ -5409,7 +5460,7 @@ impl Launcher {
                         )),
                     )
                     .child(
-                        button(
+                        scaled_button(
                             "releases-error-detail",
                             if detail { "hide details" } else { "details" },
                             Kind::Ghost,
@@ -5424,7 +5475,7 @@ impl Launcher {
                         d.child(
                             div()
                                 .max_w(px(560.))
-                                .p(px(12.))
+                                .p(px(theme::chrome(12.)))
                                 .bg(t.well)
                                 .font_family(theme::MONO)
                                 .text_size(px(12.))
@@ -5435,7 +5486,7 @@ impl Launcher {
                 );
             }
             Load::Ready(r) if r.is_empty() => {
-                return page.child(centered(tr("no releases yet."), &t));
+                return page.child(scaled_centered(tr("no releases yet."), &t));
             }
             Load::Ready(r) => r,
         };
@@ -5450,7 +5501,7 @@ impl Launcher {
         let list = self.long_list.clone().column(
             &self.content_scroll.handle,
             releases.len(),
-            8.,
+            theme::chrome(8.),
             keep,
             |i| {
                 let release = releases[i].clone();
@@ -5469,50 +5520,50 @@ impl Launcher {
                     .split_once(": ")
                     .map(|(_, rest)| rest.to_string())
                     .unwrap_or_else(|| release.name.clone());
-                let right: gpui::AnyElement = if let Some((_, p)) =
-                    self.installing.as_ref().filter(|(t, _)| *t == tag)
-                {
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap(px(10.))
-                        .w(px(180.))
-                        .child(progress_bar(Some(self.bar), &t))
-                        .child(
-                            text(theme::MICRO)
-                                .w(px(36.))
-                                .text_color(t.muted)
-                                .child(format!("{:.0}%", p * 100.)),
-                        )
-                        .into_any_element()
-                } else if self.removing.contains(&tag) {
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap(px(10.))
-                        .w(px(180.))
-                        .child(progress_bar(None, &t))
-                        .child(text(theme::MICRO).text_color(t.muted).child("removing…"))
-                        .into_any_element()
-                } else if installed {
-                    self.version_actions(&tag, selected, cx).into_any_element()
-                } else if release.asset.is_none() {
-                    text(theme::CAPTION)
-                        .text_color(t.muted)
-                        .child(tr("no build for this platform"))
-                        .into_any_element()
-                } else {
-                    let mut b = button(format!("install-{tag}"), "install", Kind::Secondary, &t);
-                    if self.installing.is_some() {
-                        b = disabled(b);
+                let right: gpui::AnyElement =
+                    if let Some((_, p)) = self.installing.as_ref().filter(|(t, _)| *t == tag) {
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(theme::chrome(10.)))
+                            .w(px(theme::chrome(180.)))
+                            .child(scaled_progress_bar(Some(self.bar), &t))
+                            .child(
+                                text(theme::MICRO)
+                                    .w(px(theme::chrome(36.)))
+                                    .text_color(t.muted)
+                                    .child(format!("{:.0}%", p * 100.)),
+                            )
+                            .into_any_element()
+                    } else if self.removing.contains(&tag) {
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(theme::chrome(10.)))
+                            .w(px(theme::chrome(180.)))
+                            .child(scaled_progress_bar(None, &t))
+                            .child(text(theme::MICRO).text_color(t.muted).child("removing…"))
+                            .into_any_element()
+                    } else if installed {
+                        self.version_actions(&tag, selected, cx).into_any_element()
+                    } else if release.asset.is_none() {
+                        text(theme::CAPTION)
+                            .text_color(t.muted)
+                            .child(tr("no build for this platform"))
+                            .into_any_element()
                     } else {
-                        b = b.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                            this.install(&release);
-                            cx.notify();
-                        }));
-                    }
-                    b.into_any_element()
-                };
+                        let mut b =
+                            scaled_button(format!("install-{tag}"), "install", Kind::Secondary, &t);
+                        if self.installing.is_some() {
+                            b = disabled(b);
+                        } else {
+                            b = b.on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                                this.install(&release);
+                                cx.notify();
+                            }));
+                        }
+                        b.into_any_element()
+                    };
                 let status = if selected {
                     Some(micro(tr("in use")).text_color(t.accent))
                 } else if installed {
@@ -5531,10 +5582,10 @@ impl Launcher {
                     .relative()
                     .flex()
                     .flex_col()
-                    .gap(px(10.))
-                    .py(px(14.))
-                    .px(px(16.))
-                    .mb(px(8.))
+                    .gap(px(theme::chrome(10.)))
+                    .py(px(theme::chrome(14.)))
+                    .px(px(theme::chrome(16.)))
+                    .mb(px(theme::chrome(8.)))
                     .bg(t.panel)
                     .border_2()
                     .border_color(t.outline)
@@ -5545,14 +5596,14 @@ impl Launcher {
                             .relative()
                             .flex()
                             .items_center()
-                            .gap(px(16.))
+                            .gap(px(theme::chrome(16.)))
                             .child(
                                 div()
                                     .flex()
                                     .flex_col()
                                     .flex_1()
                                     .min_w_0()
-                                    .gap(px(4.))
+                                    .gap(px(theme::chrome(4.)))
                                     .child(version_tag(&tag).text_color(t.ink))
                                     .child(
                                         text(theme::UI)
@@ -5566,7 +5617,7 @@ impl Launcher {
                                     .flex()
                                     .flex_col()
                                     .items_end()
-                                    .gap(px(2.))
+                                    .gap(px(theme::chrome(2.)))
                                     .flex_none()
                                     .children(status)
                                     .child(micro(meta.join("  ·  ")).text_color(t.muted)),
@@ -5575,12 +5626,12 @@ impl Launcher {
                                 div()
                                     .flex()
                                     .justify_end()
-                                    .w(px(190.))
+                                    .w(px(theme::chrome(190.)))
                                     .flex_none()
                                     .child(right),
                             ),
                     )
-                    .children(error.map(|e| notice(e, &t)));
+                    .children(error.map(|e| scaled_notice(e, &t)));
                 track_hover(row, id)
             },
         );
@@ -5589,24 +5640,28 @@ impl Launcher {
 
     fn notes_page(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
-        let page = div().flex().flex_col().gap(px(32.)).child(page_header(
-            "patch notes",
-            "what changed in each release, newest first.",
-            &t,
-        ));
+        let page = div()
+            .flex()
+            .flex_col()
+            .gap(px(theme::chrome(32.)))
+            .child(scaled_page_header(
+                "patch notes",
+                "what changed in each release, newest first.",
+                &t,
+            ));
         let releases = match &self.releases {
-            Load::Loading => return page.child(centered(tr("loading patch notes…"), &t)),
+            Load::Loading => return page.child(scaled_centered(tr("loading patch notes…"), &t)),
             Load::Failed(e) => {
                 // One plain line carries the state; the raw error sits behind details.
                 let detail = self.notes_error_detail;
                 let raw = e.clone();
                 return page.child(
-                    centered(
+                    scaled_centered(
                         tr("couldn't load patch notes. check the connection and try again in a few minutes."),
                         &t,
                     )
                     .child(
-                        button("retry-notes", "try again", Kind::Secondary, &t).on_click(
+                        scaled_button("retry-notes", "try again", Kind::Secondary, &t).on_click(
                             cx.listener(|this, _: &ClickEvent, _, cx| {
                                 this.fetch_releases();
                                 cx.notify();
@@ -5614,7 +5669,7 @@ impl Launcher {
                         ),
                     )
                     .child(
-                        button(
+                        scaled_button(
                             "notes-error-detail",
                             if detail { "hide details" } else { "details" },
                             Kind::Ghost,
@@ -5629,7 +5684,7 @@ impl Launcher {
                         d.child(
                             div()
                                 .max_w(px(560.))
-                                .p(px(12.))
+                                .p(px(theme::chrome(12.)))
                                 .bg(t.well)
                                 .font_family(theme::MONO)
                                 .text_size(px(12.))
@@ -5644,7 +5699,7 @@ impl Launcher {
         let list = self.long_list.clone().column(
             &self.content_scroll.handle,
             releases.len(),
-            10.,
+            theme::chrome(10.),
             |_| false,
             |i| {
                 let release = &releases[i];
@@ -5657,9 +5712,9 @@ impl Launcher {
                     .flex()
                     .flex_col()
                     .relative()
-                    .gap(px(16.))
-                    .p(px(20.))
-                    .mb(px(10.))
+                    .gap(px(theme::chrome(16.)))
+                    .p(px(theme::chrome(20.)))
+                    .mb(px(theme::chrome(10.)))
                     .bg(t.panel)
                     .border_2()
                     .border_color(t.outline)
@@ -5668,14 +5723,14 @@ impl Launcher {
                         div()
                             .flex()
                             .items_center()
-                            .gap(px(16.))
+                            .gap(px(theme::chrome(16.)))
                             .child(
                                 div()
                                     .flex()
                                     .flex_col()
                                     .flex_1()
                                     .min_w_0()
-                                    .gap(px(4.))
+                                    .gap(px(theme::chrome(4.)))
                                     .child(version_tag(&release.tag).text_color(t.ink))
                                     .when(!summary.is_empty(), |d| {
                                         d.child(text(theme::UI).text_color(t.muted).child(summary))
@@ -5741,6 +5796,11 @@ fn progress_bar(fraction: Option<(f32, f32)>, t: &Theme) -> Div {
             ),
         ),
     }
+}
+
+/// A progress track on scaled pages. Home retains the original track height.
+fn scaled_progress_bar(fraction: Option<(f32, f32)>, t: &Theme) -> Div {
+    progress_bar(fraction, t).h(px(theme::chrome(6.)))
 }
 
 impl Render for Launcher {
@@ -7002,5 +7062,29 @@ mod tests {
             .map(super::thousands)
             .collect();
         assert_eq!(shown, ["0", "7", "999", "1,000", "12,300", "1,234,500"]);
+    }
+}
+
+#[cfg(test)]
+mod switch_scale_tests {
+    #[test]
+    fn switch_endpoints_keep_equal_insets_inside_fixed_borders() {
+        for (scale, want) in [
+            (1., (56., 30., 22., 2., 26.)),
+            (1.2, (67.2, 36., 26.4, 2.8, 31.2)),
+        ] {
+            let (width, height, knob, inset, travel) = super::switch_geometry(scale);
+            for (got, expected) in [
+                (width, want.0),
+                (height, want.1),
+                (knob, want.2),
+                (inset, want.3),
+                (travel, want.4),
+            ] {
+                assert!((got - expected).abs() < 0.00002);
+            }
+            assert!((height - 4. - knob - 2. * inset).abs() < 0.00002);
+            assert!((width - 4. - (inset + travel + knob) - inset).abs() < 0.00002);
+        }
     }
 }

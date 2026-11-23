@@ -207,7 +207,7 @@ impl Setup {
             .flex()
             .items_center()
             .gap(px(14.))
-            .child(crate::switch(id, on, &t).on_click(cx.listener(
+            .child(crate::scaled_switch(id, on, &t).on_click(cx.listener(
                 move |this, _: &ClickEvent, _, cx| {
                     flip(&mut this.options);
                     cx.notify();
@@ -319,7 +319,7 @@ impl Setup {
             Stage::Working { step, fraction } => {
                 body = body
                     .child(text(night::UI, c(n.ink)).child(step_text(*step)))
-                    .child(crate::progress_bar(Some((0., *fraction)), &t));
+                    .child(crate::scaled_progress_bar(Some((0., *fraction)), &t));
             }
             Stage::Done { left } => {
                 let said = match self.mode {
@@ -384,6 +384,7 @@ impl Render for Setup {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = self.theme;
         let viewport = window.viewport_size();
+        theme::set_ui_scale(viewport.width.into(), viewport.height.into());
         self.sky.free_replaced(window);
         let (sky, next) = self.sky.render(
             &t.night,
