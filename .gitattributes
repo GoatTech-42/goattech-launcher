@@ -15,3 +15,6 @@ crates/horizon-client-render/src/gfx/native_render/generated.rs linguist-generat
 # Git for Windows' core.autocrlf.
 packaging/goattech/upstream-notices/** -text
 packaging/goattech/covered-source/** -text
+
+# Capture-only patch is SHA256-pinned before runner application. Never convert its bytes.
+docs/qa/route-capture-only.patch -text
