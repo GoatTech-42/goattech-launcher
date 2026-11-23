@@ -36,9 +36,7 @@ mod new_instance;
 mod owner_page;
 mod packs_page;
 mod player_model;
-// Kept compiled, never rendered (ad-free): upstream attribution and its assets stay.
-#[allow(dead_code)]
-mod partner;
+// The upstream partner implementation and assets stay in source, outside this build.
 mod plate;
 mod profile_heads;
 mod screenshots_page;
@@ -3554,8 +3552,7 @@ impl Launcher {
             }
             _ => {}
         }
-        // GoatTech is ad-free (Luke, 2026-10-31): no partner card in the sidebar. The
-        // partner module and its assets stay for attribution; nothing of it renders.
+        // No partner slot in the sidebar; the remaining footer links keep their layout.
         // No Discord server exists (Luke, 2026-11-03): the sidebar never shows a
         // Discord entry, whatever the remote links file carries.
         if !self.links.website.is_empty() {
