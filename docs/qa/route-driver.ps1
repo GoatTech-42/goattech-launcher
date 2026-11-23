@@ -122,6 +122,7 @@ try {
       if ($st.k -and $st.k -notin @('{ESC}','{TAB}','+{TAB}','{ENTER}','{DOWN}','{UP}','{PGDN}','{PGUP}')) { throw 'Unsupported probe keys' }
     }
     $steps = @(@{n='probe-fixture';w=8}) + $inputSteps + @(@{n='probe-1028x780';w=2})
+              if ($env:CAP_TARGET -in @('main','p22')) { $steps += @{n='probe-960x600';r=@(960,600);w=3} }
               if ($env:CAP_TARGET -ne 'combined') { $steps += @{n='probe-2560x1440';r=@(2560,1440);w=4} }
               if ($env:CAP_KIND -eq 'exact' -and $env:CAP_ROUTE -notin @('new-instance','edit-instance','sign-in')) { $steps += @{n='scroll-lower';s=@(850,600,-900);w=2} }
     'probe-input: outer-window pixel coordinates at 1028x780; each input has a retained post-action frame; no state assertion' | Out-File $info -Append
