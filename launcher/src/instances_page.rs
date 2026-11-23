@@ -503,7 +503,6 @@ impl Launcher {
                     .child(
                         shell::text(theme::night::CAPTION, shell::c(n.muted))
                             .font_family(theme::MONO)
-                            .text_size(px(11.))
                             .child(
                                 "import a copy - the other launcher's instance stays as it is"
                                     .to_string(),
@@ -1779,11 +1778,9 @@ impl Launcher {
                 .overflow_hidden()
                 .child(match mark {
                     Some(mark) => instance_icons::centred(mark, 28., self.scale).into_any_element(),
-                    None => text(theme::MICRO)
-                        .text_size(px(8.5))
-                        .text_color(t.muted)
-                        .child(tr("none"))
-                        .into_any_element(),
+                    // No icon: an x glyph reads "none" at a size text never could in 28 px
+                    // (the label it replaces had to be 8.5 px to fit).
+                    None => blocks::icon("close", 14., t.muted).into_any_element(),
                 })
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     if let Some(d) = &mut this.instances.dialog {

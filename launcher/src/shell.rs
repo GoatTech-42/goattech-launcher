@@ -209,7 +209,9 @@ pub fn rail_item(
         .justify_center()
         .gap(px(3.))
         .w(px(64.))
-        .h(px(52.))
+        // Two-line labels ("patch notes") at the 12 px step need 20+3+2x14 = 51, plus the
+        // active item's 4 px bottom border: 56 clears 55.
+        .h(px(56.))
         .cursor_pointer();
     if active {
         d = d.bg(c(n.ink)).border_b_4().border_color(c(n.muted));
@@ -227,8 +229,8 @@ pub fn rail_item(
             .child(
                 text(night::CAPTION, c(fg))
                     .font_family(crate::theme::PIXEL)
-                    .text_size(px(11.))
-                    .line_height(px(13.))
+                    .text_size(px(12.))
+                    .line_height(px(14.))
                     .relative()
                     .child(label),
             ),

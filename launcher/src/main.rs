@@ -3378,12 +3378,14 @@ impl Launcher {
         self.load_packs();
         // The pages' nav under the wordmark (the concept shell has no top bar).
         // The slim icon rail: every page but Settings up top, Settings pinned at the foot.
+        // Tighter gaps buy back the height the 56 px rail items (two-line labels) spend,
+        // so the whole rail still fits the 960x600 minimum window without scrolling.
         let mut nav = div()
             .flex()
             .flex_none()
             .flex_col()
             .items_center()
-            .gap(px(4.))
+            .gap(px(2.))
             .mt(px(4.));
         for (page, label, icon) in Page::ALL {
             if page == Page::Settings {
@@ -3423,11 +3425,7 @@ impl Launcher {
                             .relative()
                             .child(blocks::icon(icon, 16., shell::c(n.muted))),
                     )
-                    .child(
-                        shell::text(theme::night::CAPTION, shell::c(n.muted))
-                            .text_size(px(10.))
-                            .child(label),
-                    )
+                    .child(shell::text(theme::night::CAPTION, shell::c(n.muted)).child(label))
                     .on_click(move |_, _, cx| cx.open_url(&url)),
                 id,
             )
@@ -3437,8 +3435,8 @@ impl Launcher {
             .flex()
             .flex_col()
             .items_center()
-            .gap(px(6.))
-            .pt(px(12.));
+            .gap(px(4.))
+            .pt(px(8.));
         foot = foot.child(
             shell::rail_item(
                 "nav-settings",
@@ -3541,7 +3539,6 @@ impl Launcher {
                 .child(div().relative().child(picture))
                 .child(
                     shell::text(theme::night::CAPTION, shell::c(n.muted))
-                        .text_size(px(11.))
                         .max_w(px(64.))
                         .truncate()
                         .child(name.to_lowercase()),
@@ -3568,7 +3565,6 @@ impl Launcher {
         foot = foot.child(
             shell::text(theme::night::CAPTION, shell::c(n.muted))
                 .id("launcher-version")
-                .text_size(px(11.))
                 .pt(px(2.))
                 .child(backend::VERSION)
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
