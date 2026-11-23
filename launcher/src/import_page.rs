@@ -133,28 +133,30 @@ impl Launcher {
         Some(
             div()
                 .absolute()
-                .bottom(px(24.))
-                .right(px(24.))
-                .w(px(440.))
+                .bottom(px(theme::chrome(24.)))
+                .right(px(theme::chrome(24.)))
+                .w(px(theme::chrome(440.)))
                 .child(
                     plate(&t)
                         .w_full()
                         .flex()
                         .items_center()
-                        .gap(px(12.))
-                        .px(px(16.))
-                        .py(px(12.))
+                        .gap(px(theme::chrome(12.)))
+                        .px(px(theme::chrome(16.)))
+                        .py(px(theme::chrome(12.)))
                         .border_1()
                         .border_color(t.rule)
                         .bg(t.page)
                         .child(blocks::icon("download", 18., t.accent))
                         .child(div().flex_1().min_w_0().child(line))
-                        .child(button("import-close", "close", Kind::Ghost, &t).on_click(
-                            cx.listener(|this, _: &ClickEvent, _, cx| {
-                                this.importing.note = None;
-                                cx.notify();
-                            }),
-                        )),
+                        .child(
+                            button("import-close", "close", Kind::Ghost, &t)
+                                .text_size(px(theme::chrome(16.)))
+                                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                                    this.importing.note = None;
+                                    cx.notify();
+                                })),
+                        ),
                 ),
         )
     }

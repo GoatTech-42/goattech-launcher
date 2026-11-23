@@ -1249,7 +1249,7 @@ impl Launcher {
                                     div()
                                         .id(format!("sync-key-{pick}"))
                                         .flex_none()
-                                        .size(px(18.))
+                                        .size(px(theme::chrome(18.)))
                                         .rounded(px(4.))
                                         .border_1()
                                         .border_color(if on { t.accent } else { t.muted })
@@ -1258,7 +1258,7 @@ impl Launcher {
                                         .items_center()
                                         .justify_center()
                                         .text_color(t.on_accent)
-                                        .text_size(px(12.))
+                                        .text_size(px(theme::chrome(12.)))
                                         .when(on, |d| d.child("\u{2713}"))
                                         .when(!busy, |d| {
                                             d.cursor_pointer().on_click(cx.listener(

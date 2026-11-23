@@ -97,8 +97,8 @@ impl Launcher {
             anchor.bottom(px(46.)).left_0()
         };
         let mut menu = anchor
-            .w(px(280.))
-            .p(px(6.))
+            .w(px(theme::chrome(280.)))
+            .p(px(theme::chrome(6.)))
             .border_2()
             .border_color(t.outline)
             .bg(t.surface)
@@ -119,9 +119,9 @@ impl Launcher {
                         .flex()
                         .items_center()
                         .justify_between()
-                        .gap(px(8.))
-                        .h(px(46.))
-                        .px(px(10.))
+                        .gap(px(theme::chrome(8.)))
+                        .h(px(theme::chrome(46.)))
+                        .px(px(theme::chrome(10.)))
                         .rounded(px(theme::RADIUS))
                         .cursor_pointer()
                         .hover(move |s| s.bg(t.plate_soft))
@@ -154,28 +154,30 @@ impl Launcher {
                 })),
             );
         }
-        menu = menu.child(div().my(px(6.)).h(px(1.)).bg(t.rule)).child(
-            keyboard(
-                div()
-                    .id("account-manage")
-                    .flex()
-                    .items_center()
-                    .h(px(32.))
-                    .px(px(10.))
-                    .rounded(px(theme::RADIUS))
-                    .text_size(px(theme::step_px(theme::LABEL)))
-                    .text_color(t.muted)
-                    .cursor_pointer()
-                    .hover(move |s| s.bg(t.plate_soft).text_color(t.ink))
-                    .child(tr("manage accounts")),
-                &t,
-            )
-            .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                this.account_menu = false;
-                this.go(Page::Settings);
-                cx.notify();
-            })),
-        );
+        menu = menu
+            .child(div().my(px(theme::chrome(6.))).h(px(1.)).bg(t.rule))
+            .child(
+                keyboard(
+                    div()
+                        .id("account-manage")
+                        .flex()
+                        .items_center()
+                        .h(px(theme::chrome(32.)))
+                        .px(px(theme::chrome(10.)))
+                        .rounded(px(theme::RADIUS))
+                        .text_size(px(theme::step_px(theme::LABEL)))
+                        .text_color(t.muted)
+                        .cursor_pointer()
+                        .hover(move |s| s.bg(t.plate_soft).text_color(t.ink))
+                        .child(tr("manage accounts")),
+                    &t,
+                )
+                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                    this.account_menu = false;
+                    this.go(Page::Settings);
+                    cx.notify();
+                })),
+            );
         Some(gpui::deferred(menu).with_priority(1))
     }
 

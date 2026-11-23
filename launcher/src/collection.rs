@@ -135,8 +135,8 @@ fn ping_row(t: &Theme) -> Div {
     div()
         .flex()
         .items_start()
-        .gap(px(16.))
-        .py(px(10.))
+        .gap(px(theme::chrome(16.)))
+        .py(px(theme::chrome(10.)))
         .border_b_1()
         .border_color(t.rule)
         .child(
@@ -145,7 +145,7 @@ fn ping_row(t: &Theme) -> Div {
                 .flex_col()
                 .flex_1()
                 .min_w_0()
-                .gap(px(2.))
+                .gap(px(theme::chrome(2.)))
                 .child(
                     text(theme::UI)
                         .text_color(t.ink)
@@ -161,11 +161,7 @@ fn ping_row(t: &Theme) -> Div {
 }
 
 /// The full wording for every kind, then the exact JSON, in mono, scrolling inside a plate.
-fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar) -> Div {
-    json_view_at_scale(view, t, scroll, 1.)
-}
-
-fn json_view_at_scale(view: &(String, String), t: &Theme, scroll: &Scrollbar, scale: f32) -> Div {
+fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar, scale: f32) -> Div {
     let detail = |name: &'static str, what: &'static str| {
         div()
             .flex()
@@ -261,11 +257,7 @@ impl Launcher {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let on = self.settings.basic_summaries == Some(true);
-        let sw = if focus.is_none() {
-            scaled_switch(id, on, &self.theme)
-        } else {
-            switch(id, on, &self.theme)
-        };
+        let sw = scaled_switch(id, on, &self.theme);
         let sw = match focus {
             Some(f) => sw.track_focus(f),
             None => sw,
@@ -292,8 +284,8 @@ impl Launcher {
         div()
             .flex()
             .items_start()
-            .gap(px(16.))
-            .py(px(10.))
+            .gap(px(theme::chrome(16.)))
+            .py(px(theme::chrome(10.)))
             .border_t_1()
             .border_color(t.rule)
             .border_b_1()
@@ -304,7 +296,7 @@ impl Launcher {
                     .flex_col()
                     .flex_1()
                     .min_w_0()
-                    .gap(px(2.))
+                    .gap(px(theme::chrome(2.)))
                     .child(
                         text(theme::UI)
                             .text_color(t.ink)
@@ -418,8 +410,8 @@ impl Launcher {
             div()
                 .flex()
                 .items_start()
-                .gap(px(16.))
-                .py(px(10.))
+                .gap(px(theme::chrome(16.)))
+                .py(px(theme::chrome(10.)))
                 .border_b_1()
                 .border_color(t.rule)
                 .child(
@@ -428,7 +420,7 @@ impl Launcher {
                         .flex_col()
                         .flex_1()
                         .min_w_0()
-                        .gap(px(2.))
+                        .gap(px(theme::chrome(2.)))
                         .child(text(theme::UI).text_color(t.ink).child(tr(name)))
                         .child(
                             text(theme::CAPTION)
@@ -437,7 +429,7 @@ impl Launcher {
                         ),
                 )
                 .child(
-                    switch(kind_id("ask", kind), on, &t)
+                    scaled_switch(kind_id("ask", kind), on, &t)
                         .track_focus(self.consent_keys.for_kind(kind))
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.collection.draft.set(kind, !on);
@@ -453,10 +445,10 @@ impl Launcher {
             .flex()
             .flex_col()
             .min_h_0()
-            .gap(px(12.))
-            .px(px(28.))
-            .pt(px(28.))
-            .pb(px(24.))
+            .gap(px(theme::chrome(12.)))
+            .px(px(theme::chrome(28.)))
+            .pt(px(theme::chrome(28.)))
+            .pb(px(theme::chrome(24.)))
             .overflow_y_scroll()
             .child(micro(tr("data collection")).text_color(t.muted))
             .child(
@@ -507,15 +499,15 @@ impl Launcher {
                     cx.notify();
                 })),
             )
-            .children(self.collection.view.as_ref().map(|v| json_view(v, &t, &self.collection.json_scroll)));
+            .children(self.collection.view.as_ref().map(|v| json_view(v, &t, &self.collection.json_scroll, theme::ui_scale_current())));
         let answers = div()
             .flex()
             .flex_none()
             .justify_end()
-            .gap(px(12.))
-            .px(px(28.))
-            .pt(px(16.))
-            .pb(px(28.))
+            .gap(px(theme::chrome(12.)))
+            .px(px(theme::chrome(28.)))
+            .pt(px(theme::chrome(16.)))
+            .pb(px(theme::chrome(28.)))
             .border_t_1()
             .border_color(t.rule)
             .children(horizon_telemetry::live_endpoint().is_some().then(|| {
@@ -526,7 +518,7 @@ impl Launcher {
                 )
             }))
             .child(
-                button("ask-none", "keep optional data off", Kind::Secondary, &t)
+                scaled_button("ask-none", "keep optional data off", Kind::Secondary, &t)
                     .track_focus(&self.consent_keys.keep_off)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.answer_consent(Choices::NONE);
@@ -537,7 +529,7 @@ impl Launcher {
                     })),
             )
             .child(
-                button("ask-save", "save choices", Kind::Primary, &t)
+                scaled_button("ask-save", "save choices", Kind::Primary, &t)
                     .track_focus(&self.consent_keys.save)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.answer_consent(this.collection.draft);
@@ -548,7 +540,7 @@ impl Launcher {
             .flex()
             .flex_col()
             .w_full()
-            .max_w(px(680.))
+            .max_w(px(theme::chrome(680.)))
             .max_h_full()
             .bg(t.page)
             .border_1()
@@ -557,8 +549,8 @@ impl Launcher {
             // A failed save says so here, in the always-visible foot of the question.
             .children(self.collection.note.clone().map(|n| {
                 div()
-                    .px(px(16.))
-                    .pb(px(4.))
+                    .px(px(theme::chrome(16.)))
+                    .pb(px(theme::chrome(4.)))
                     .child(text(theme::CAPTION).text_color(t.warn).child(n))
             }))
             .child(answers);
@@ -573,8 +565,8 @@ impl Launcher {
             .flex()
             .flex_col()
             .items_center()
-            .px(px(32.))
-            .py(px(24.))
+            .px(px(theme::chrome(32.)))
+            .py(px(theme::chrome(24.)))
             .bg(t.page.opacity(0.92))
             .on_scroll(|_, _, cx| cx.stop_propagation())
             .occlude()
@@ -732,7 +724,7 @@ impl Launcher {
                 scaled_button("data-details-top", if self.collection.view.is_some() { "hide details and example reports" } else { "view details and example reports" }, Kind::Ghost, &t)
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| { this.toggle_view(); cx.notify(); })),
             )
-            .children(self.collection.view.as_ref().map(|v| json_view_at_scale(v, &t, &self.collection.json_scroll, theme::ui_scale_current())))
+            .children(self.collection.view.as_ref().map(|v| json_view(v, &t, &self.collection.json_scroll, theme::ui_scale_current())))
             .child(list)
             .child(
                 text(theme::CAPTION)
