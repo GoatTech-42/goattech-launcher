@@ -1,66 +1,72 @@
-name: GoatTech Windows window qualification
-
-# Manual, fresh-profile window evidence only. No account, game, real profile,
-# telemetry, self-update, release, artifact/cache storage or self-hosted runner.
-# Standard windows-latest on this public repository is the established free route.
-# Paired exact sources pinned below; synthetic Home/Servers layout, no gameplay.
-# Images and synthetic window state leave the runner in PUBLIC run logs.
+name: GoatTech pinned route survey
+# Separate exact-tip and runner-instrumented jobs. No production source or running ref changes.
 on:
   workflow_dispatch:
     inputs:
-      state:
-        description: 'Optional synthetic state probe (requested state, not proof it opened)'
+      target:
+        description: 'Pinned source: P20 large survey, combined s=1 sanity, or P21 review'
         type: choice
-        default: survey
-        options: [survey, account, versions-popup, consent, screenshot-viewer, export, launch, skin]
+        options: [p20, combined, p21]
+        default: p20
+      route:
+        description: 'all or a single route listed in docs/qa/route-survey.md'
+        type: string
+        default: all
       actions:
-        description: 'Probe-only JSON input steps, calibrated at 1028x780: [{"n":"open","c":[x,y],"w":2}]. Empty captures fixture only.'
+        description: 'Optional calibrated 1028x780 outer-window actions, same format as overlayscap18'
         type: string
         default: '[]'
-
 permissions:
   contents: read
-
 concurrency:
-  group: goattech-windows-window-${{ github.ref }}
-  cancel-in-progress: true
-
+  group: goattech-route-survey-${{ github.ref }}-${{ inputs.target }}-${{ inputs.route }}
+  cancel-in-progress: false
 env:
-  HORIZON_TELEMETRY_URL: "off"
-  HORIZON_LAUNCHER_NO_SELF_UPDATE: "1"
-
+  HORIZON_TELEMETRY_URL: 'off'
+  HORIZON_LAUNCHER_NO_SELF_UPDATE: '1'
 jobs:
   capture:
-    name: page survey ${{ matrix.label }}
+    name: ${{ inputs.target }} ${{ matrix.kind }} routes
     if: github.repository == 'GoatTech-42/goattech-launcher'
     runs-on: windows-latest
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(inputs.state != 'survey' && inputs.state != '' && '[{"lang":"en","net":false,"label":"base-home","page":"home","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"branch-home","page":"home","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"}]' || '[{"lang":"en","net":false,"label":"base-home","page":"home","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-instances","page":"instances","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-mods","page":"mods","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-servers","page":"servers","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-versions","page":"versions","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-notes","page":"notes","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-settings","page":"settings","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-new-instance","page":"new-instance","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-edit-instance","page":"edit-instance","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-sign-in","page":"sign-in","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"base-getting-ready","page":"getting-ready","mode":"home","width":960,"height":600,"source":"c063a063921c25d9cc28f64ac1495178e5273ca2"},{"lang":"en","net":false,"label":"branch-home","page":"home","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-instances","page":"instances","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-mods","page":"mods","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-servers","page":"servers","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-versions","page":"versions","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-notes","page":"notes","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-settings","page":"settings","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-new-instance","page":"new-instance","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-edit-instance","page":"edit-instance","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-sign-in","page":"sign-in","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"},{"lang":"en","net":false,"label":"branch-getting-ready","page":"getting-ready","mode":"home","width":960,"height":600,"source":"8f2e6bc80392e55c755751c673a73c8552a926a3"}]') }}
-    # Uncached cold build on a 4-core runner can take a while; compute is free
-    # for this public repo, the capture step still has its own 3-min bound.
-    timeout-minutes: 90
+        kind: [exact, instrumented]
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-          ref: ${{ matrix.source }}
-      - name: Reject unsupported state and unpaired probe jobs
-        shell: pwsh
-        env:
-          PROBE_STATE: ${{ inputs.state }}
-        run: |
-          if ($env:PROBE_STATE -notin @('survey','account','versions-popup','consent','screenshot-viewer','export','launch','skin')) { throw 'Unsupported synthetic probe' }
+          ref: ${{ inputs.target == 'p21' && 'b47844135a09a1d0990847709590e1d34029ffaa'
+            || inputs.target == 'combined' && 'c5ef0ce75222bf4d223f21ece8b90bc609abc153'
+            || '43c56fa7583e89c453969a1f6e32ceef01fb5418' }}
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+          path: _capture
       - name: Rust toolchain
         shell: pwsh
         run: rustup toolchain install stable --profile minimal
+      - name: Verify and apply runner-only seam in separate job
+        if: matrix.kind == 'instrumented'
+        shell: pwsh
+        run: |-
+          $ErrorActionPreference = 'Stop'
+          $patch = '_capture/docs/qa/route-capture-only.patch'
+          if ((Get-FileHash $patch -Algorithm SHA256).Hash.ToLowerInvariant() -ne '28bcaf3fe1eef9ea5bae0b80c939e6661fe666f0d3a002c358f4d82c91cbe7c2') { throw 'Capture seam hash mismatch' }
+          git apply --check $patch
+          if ($LASTEXITCODE -ne 0) { throw 'Capture seam does not apply to pinned source' }
+          git apply $patch
+          if ($LASTEXITCODE -ne 0) { throw 'Capture seam apply failed' }
+          "INSTRUMENTED: source tip plus runner-only patch sha256 28bcaf3fe1eef9ea5bae0b80c939e6661fe666f0d3a002c358f4d82c91cbe7c2; never shipping source"
       - name: Build configured release binary
         working-directory: launcher
         shell: pwsh
         env:
           HORIZON_MSA_CLIENT_ID: ${{ secrets.HORIZON_MSA_CLIENT_ID }}
-          RUSTFLAGS: '-C target-feature=+crt-static'
+          RUSTFLAGS: -C target-feature=+crt-static
         run: |
           $ErrorActionPreference = 'Stop'
           if ([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($env:HORIZON_MSA_CLIENT_ID))).ToLowerInvariant() -ne 'aea41f3c67b6424b9a1329e43a4d1e49387ab169c5e7abb2267d5bb560a03c11') { throw 'Repository client ID missing or changed; review before building.' }
@@ -111,277 +117,37 @@ jobs:
           'runtime-client-id: absent'
           'embedded-client-id: exact match'
           'synthetic-sign-in-configured: true; owner: false; accounts: 0; offline: 0'
-      - name: Run, capture frames, qualify window state
+      - name: Capture isolated routes and export evidence
         shell: pwsh
-        # Step-level hard bound: a hung capture phase dies here in 3
-        # minutes instead of burning the 90-min job timeout. Runner-forced
-        # cancellation can bypass the script's finally cleanup (best-effort only).
-        timeout-minutes: 4
+        timeout-minutes: 18
         env:
-          HORIZON_LAUNCHER_HOME: ${{ runner.temp }}\launcher-home
-          HORIZON_HOME: ${{ runner.temp }}\game-home
-          LANG_CODE: ${{ matrix.lang }}
+          CAP_KIND: ${{ matrix.kind }}
+          CAP_TARGET: ${{ inputs.target }}
+          CAP_ONLY_ROUTE: ${{ inputs.route }}
+          PROBE_ACTIONS: ${{ inputs.actions }}
           HTTP_PROXY: http://127.0.0.1:9
           HTTPS_PROXY: http://127.0.0.1:9
           ALL_PROXY: http://127.0.0.1:9
-          CAP: ${{ runner.temp }}\captures
-          HORIZON_LAUNCHER_PAGE: ${{ matrix.page }}
-          CAP_MODE: ${{ matrix.mode }}
-          CAP_WIDTH: ${{ matrix.width }}
-          CAP_HEIGHT: ${{ matrix.height }}
-          PROBE_STATE: ${{ inputs.state }}
-          PROBE_ACTIONS: ${{ inputs.actions }}
         run: |
           $ErrorActionPreference = 'Stop'
-          New-Item -ItemType Directory -Force $env:CAP | Out-Null
-          $info = "$env:CAP\window-info.txt"
-          # C# as ONE single-quoted line: no here-string anywhere in this file.
-          $src = 'using System;using System.Runtime.InteropServices;public class WinCap{[DllImport("user32.dll",SetLastError=true)]public static extern bool SetWindowPos(IntPtr h,IntPtr after,int x,int y,int w,int height,uint flags);[DllImport("user32.dll")]public static extern IntPtr GetLastActivePopup(IntPtr h);[DllImport("user32.dll")]public static extern IntPtr GetForegroundWindow();[DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);[DllImport("user32.dll")]public static extern uint GetDpiForWindow(IntPtr h);[DllImport("user32.dll")]public static extern bool GetClientRect(IntPtr h,out RECT r);[DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr h,out RECT r);[DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr h);[DllImport("user32.dll")]public static extern bool IsIconic(IntPtr h);[DllImport("user32.dll")]public static extern bool PrintWindow(IntPtr h,IntPtr dc,uint flags);[DllImport("user32.dll")]public static extern bool MoveWindow(IntPtr h,int x,int y,int w,int h2,bool r);[DllImport("user32.dll")]public static extern bool SetCursorPos(int x,int y);[DllImport("user32.dll")]public static extern void mouse_event(uint f,uint dx,uint dy,uint d,UIntPtr e);[DllImport("user32.dll")]public static extern bool SetForegroundWindow(IntPtr h);public struct RECT{public int Left,Top,Right,Bottom;}}'
-          Add-Type -TypeDefinition $src -ReferencedAssemblies System.Drawing
-          Add-Type -AssemblyName System.Drawing
-          Add-Type -AssemblyName System.Windows.Forms
-          $bin = "$PWD\launcher\target\release\horizon-launcher.exe"
-          $binHash = (Get-FileHash $bin -Algorithm SHA256).Hash
-          $actual = (git rev-parse HEAD).Trim()
-          "workflow-commit: $env:GITHUB_SHA" | Out-File $info
-          "source-commit: $actual" | Out-File $info -Append
-          "rustc: $(rustc --version)" | Out-File $info -Append
-          "cargo: $(cargo --version)" | Out-File $info -Append
-          "os: $([System.Environment]::OSVersion.VersionString)" | Out-File $info -Append
-          "runner-image: $env:ImageOS $env:ImageVersion" | Out-File $info -Append
-          "binary-sha256: $binHash" | Out-File $info -Append
-          New-Item -ItemType Directory -Force $env:HORIZON_LAUNCHER_HOME | Out-Null
-          @{install_new_versions=$false;skip_opening=($env:CAP_MODE -ne 'opening');selected='v2026.10.15'} | ConvertTo-Json | Set-Content (Join-Path $env:HORIZON_LAUNCHER_HOME 'settings.json')
-          $fake = Join-Path $env:HORIZON_LAUNCHER_HOME 'versions/v2026.10.15'
-          New-Item -ItemType Directory -Force $fake | Out-Null
-          '' | Set-Content (Join-Path $fake '.installed')
-          '{"minecraft":{"version":"26.3"}}' | Set-Content (Join-Path $fake 'research-lock.json')
-          $binaryText = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($bin))
-          if ($binaryText.Contains('my.sculkhosting.com/ref/horizon') -or $binaryText.Contains('HORIZON15')) { throw 'Referral payload found in build' }
-          'sponsor-check: referral and promo strings absent; synthetic offline fixture; no runnable game/accounts' | Out-File $info -Append
-          if ($env:PROBE_STATE -and $env:PROBE_STATE -ne 'survey') {
-            # Synthetic, local-only fixtures. Never add Microsoft accounts or credentials.
-            $settings = @{install_new_versions=$false;skip_opening=$true;selected='v2026.10.15';owner_notice_seen=$true;ping_notice_seen=$true;basic_summaries=$false}
-            $settings | ConvertTo-Json | Set-Content (Join-Path $env:HORIZON_LAUNCHER_HOME 'settings.json')
-            $env:HORIZON_LAUNCHER_PAGE = switch ($env:PROBE_STATE) { 'skin' {'settings'} 'screenshot-viewer' {'screenshots'} default {'home'} }
-            if ($env:PROBE_STATE -ne 'consent') {
-              $telemetry = Join-Path $env:HORIZON_HOME 'telemetry'
-              New-Item -ItemType Directory -Force $telemetry | Out-Null
-              # Read the reviewed source's disclosure version, never bypass a new disclosure by guess.
-              $match = [regex]::Match((Get-Content 'crates/horizon-telemetry/src/lib.rs' -Raw), 'pub const CONSENT_VERSION: u32 = ([0-9]+);')
-              if (-not $match.Success) { throw 'Consent fixture schema unknown' }
-              @{version=[int]$match.Groups[1].Value;answered=1;choices=@{performance=$false;crashes=$false;bugs=$false;benchmarks=$false}} | ConvertTo-Json | Set-Content (Join-Path $telemetry 'consent.json')
-            }
-            @{accounts=@();offline=@('Capture_Player','Capture_Alt');offline_selected='Capture_Player'} | ConvertTo-Json | Set-Content (Join-Path $env:HORIZON_LAUNCHER_HOME 'accounts.json')
-            $shots = Join-Path $env:HORIZON_HOME 'screenshots'
-            New-Item -ItemType Directory -Force $shots | Out-Null
-            $fixture = New-Object System.Drawing.Bitmap 640,360
-            $paint = [System.Drawing.Graphics]::FromImage($fixture)
-            try { $paint.Clear([System.Drawing.Color]::SlateBlue); $fixture.Save((Join-Path $shots 'synthetic-capture-long-filename-2026-11-23.png'),[System.Drawing.Imaging.ImageFormat]::Png) }
-            finally { $paint.Dispose(); $fixture.Dispose() }
-            $env:HORIZON_LAUNCHER_TRASH = Join-Path $env:CAP 'synthetic-trash'
-            $env:HORIZON_LAUNCHER_CLIPBOARD = Join-Path $env:CAP 'synthetic-clipboard'
-            $env:HORIZON_LAUNCHER_DESKTOP = Join-Path $env:CAP 'synthetic-desktop'
-            "probe-request: $env:PROBE_STATE; fixtures local/synthetic; state unverified until pixel review" | Out-File $info -Append
+          $exact = @('home','instances','mods','modpacks','resourcepacks','shaders','datapacks','servers','versions','notes','settings','new-instance','edit-instance','sign-in','getting-ready','export','launch','skin','worlds','instance-mods','multiplayer','packs','screenshots')
+          $instrumented = @('export','launch','skin','console','native-log','instance-mods','packs','world-datapacks','internet','modpack-detail')
+          $routes = if ($env:CAP_KIND -eq 'exact') {$exact} else {$instrumented}
+          if ($env:CAP_ONLY_ROUTE -ne 'all') {
+            if ($env:CAP_ONLY_ROUTE -notin ($exact + $instrumented)) { throw 'Unsupported route' }
+            $routes = @($routes | Where-Object { $_ -eq $env:CAP_ONLY_ROUTE })
           }
-          $proc = Start-Process -FilePath $bin -PassThru -RedirectStandardOutput "$env:CAP\launcher.stdout" -RedirectStandardError "$env:CAP\launcher.stderr"
-          $checksPass = $false
-          try {
-            # Bounded wait for the process's main window (Process.MainWindowHandle:
-            # no EnumWindows callback, no delegate binding).
-            $hwnd = [IntPtr]::Zero
-            for ($i = 0; $i -lt 1200 -and $hwnd -eq [IntPtr]::Zero; $i++) {
-              Start-Sleep -Milliseconds 50
-              $proc.Refresh()
-              if ($proc.HasExited) { throw "FAIL: launcher exited before a window (code $($proc.ExitCode))" }
-              $h = $proc.MainWindowHandle
-              if ($h -ne [IntPtr]::Zero -and [WinCap]::IsWindowVisible($h) -and -not [WinCap]::IsIconic($h)) {
-                $r = New-Object WinCap+RECT
-                if ([WinCap]::GetWindowRect($h, [ref]$r) -and ($r.Right - $r.Left) -ge 200 -and ($r.Bottom - $r.Top) -ge 200) {
-                  $hwnd = $h
-                  "initial-window: $($r.Right - $r.Left)x$($r.Bottom - $r.Top) hwnd=$hwnd title='$($proc.MainWindowTitle)'" | Out-File $info -Append
-                }
-              }
-            }
-            if ($hwnd -eq [IntPtr]::Zero) { throw "FAIL: no visible owned main window >=200x200 within 60s" }
-            # Three capture attempts. Window state is re-validated and recorded per
-            # frame; each PrintWindow runs in a child job with a BEST-EFFORT 30s
-            # wait (see header: Stop-Job on a native hang may itself block).
-            $okCount = 0; $seenCount = 0
-            $savedSteps = @{}
-            function Size-Client($width,$height) {
-              $h=$proc.MainWindowHandle
-              $outer=New-Object WinCap+RECT; $client=New-Object WinCap+RECT
-              [WinCap]::GetWindowRect($h,[ref]$outer) | Out-Null
-              [WinCap]::GetClientRect($h,[ref]$client) | Out-Null
-              $dw=($outer.Right-$outer.Left)-$client.Right; $dh=($outer.Bottom-$outer.Top)-$client.Bottom
-              if ($width -ge 1920) {
-                $sized=[WinCap]::SetWindowPos($h,[IntPtr]::Zero,0,0,($width+$dw),($height+$dh),0x0544)
-                "resize-method: oversized-native NOSENDCHANGING result=$sized requested-client=${width}x${height}" | Out-File $info -Append
-              } else {
-                [WinCap]::MoveWindow($h,0,0,($width+$dw),($height+$dh),$true) | Out-Null
-              }
-            }
-            if ($env:CAP_MODE -eq 'opening') {
-              Size-Client ([int]$env:CAP_WIDTH) ([int]$env:CAP_HEIGHT)
-              $steps=@(@{n='opening-early'; ms=150},@{n='opening-held'; ms=250},@{n='opening-late'; ms=350})
-            } else {
-              $steps = @(
-                @{n='dialog'; w=8},
-                @{n='sign-in-prompt'; c=@(500,649); w=3},
-                @{n='account-dismissed'; k='{ESC}'; w=2},
-                @{n='page-minimum'; r=@(960,600); w=3},
-                @{n='page-1028x780'; r=@(1028,780); w=3},
-                @{n='page-1024x720'; r=@(1024,720); w=3},
-                @{n='large-1920x1080'; r=@(1920,1080); w=5},
-                @{n='large-2560x1440'; r=@(2560,1440); w=5}
-              )
-            }
-            if ($env:PROBE_STATE -and $env:PROBE_STATE -ne 'survey') {
-              Size-Client 1028 780
-              $inputSteps = @($env:PROBE_ACTIONS | ConvertFrom-Json -AsHashtable)
-              if ($inputSteps.Count -gt 16) { throw 'Probe permits at most 16 input steps' }
-              foreach ($st in $inputSteps) {
-                if ($st.n -notmatch '^[a-z0-9-]{1,40}$') { throw 'Invalid probe frame name' }
-                foreach ($key in $st.Keys) { if ($key -notin @('n','c','s','k','w')) { throw 'Unknown probe action' } }
-                if ($st.w -and ([int]$st.w -lt 1 -or [int]$st.w -gt 5)) { throw 'Probe wait outside 1..5s' }
-                if (-not $st.w) { $st.w = 2 }
-                if ($st.c -and ($st.c.Count -ne 2 -or $st.c[0] -lt 0 -or $st.c[0] -gt 1050 -or $st.c[1] -lt 0 -or $st.c[1] -gt 830)) { throw 'Click outside calibration window' }
-                if ($st.s -and ($st.s.Count -ne 3 -or $st.s[0] -lt 0 -or $st.s[0] -gt 1050 -or $st.s[1] -lt 0 -or $st.s[1] -gt 830 -or [Math]::Abs([int]$st.s[2]) -gt 2400)) { throw 'Invalid probe scroll' }
-                if ($st.k -and $st.k -notin @('{ESC}','{TAB}','+{TAB}','{ENTER}','{DOWN}','{UP}','{PGDN}','{PGUP}')) { throw 'Unsupported probe keys' }
-              }
-              $steps = @(@{n='probe-fixture';w=8}) + $inputSteps + @(@{n='probe-1028x780';w=2},@{n='probe-2560x1440';r=@(2560,1440);w=4})
-              'probe-input: outer-window pixel coordinates at 1028x780; each input has a retained post-action frame; no state assertion' | Out-File $info -Append
-            }
-            for ($f = 1; $f -le $steps.Count; $f++) {
-              $st = $steps[$f-1]
-              if ($st.r) { Size-Client $st.r[0] $st.r[1] }
-              if ($st.c) { $pr = New-Object WinCap+RECT; [WinCap]::GetWindowRect($proc.MainWindowHandle, [ref]$pr) | Out-Null; [WinCap]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::SetCursorPos($pr.Left + $st.c[0], $pr.Top + $st.c[1]) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::mouse_event(2,0,0,0,[UIntPtr]::Zero); Start-Sleep -Milliseconds 80; [WinCap]::mouse_event(4,0,0,0,[UIntPtr]::Zero) }
-              if ($st.d) { $pr = New-Object WinCap+RECT; [WinCap]::GetWindowRect($proc.MainWindowHandle, [ref]$pr) | Out-Null; [WinCap]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::SetCursorPos($pr.Left + $st.d[0], $pr.Top + $st.d[1]) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::mouse_event(2,0,0,0,[UIntPtr]::Zero); foreach ($k in 1..8) { Start-Sleep -Milliseconds 60; [WinCap]::SetCursorPos($pr.Left + $st.d[0] + [int]($st.d[2] * $k / 8), $pr.Top + $st.d[1]) | Out-Null }; Start-Sleep -Milliseconds 100; [WinCap]::mouse_event(4,0,0,0,[UIntPtr]::Zero) }
-              if ($st.k -and $env:HORIZON_LAUNCHER_PAGE -ne 'sign-in') {
-                [WinCap]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null
-                Start-Sleep -Milliseconds 150
-                if ([WinCap]::GetForegroundWindow() -ne $proc.MainWindowHandle) { throw 'Main window not foreground; no keyboard input' }
-                [System.Windows.Forms.SendKeys]::SendWait($st.k)
-              }
-              if ($st.s) { $pr = New-Object WinCap+RECT; [WinCap]::GetWindowRect($proc.MainWindowHandle, [ref]$pr) | Out-Null; [WinCap]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::SetCursorPos($pr.Left + $st.s[0], $pr.Top + $st.s[1]) | Out-Null; Start-Sleep -Milliseconds 300; $d = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int]$st.s[2]),0); [WinCap]::mouse_event(2048,0,0,$d,[UIntPtr]::Zero) }
-              if ($st.ms) { Start-Sleep -Milliseconds $st.ms } else { Start-Sleep -Seconds $st.w }
-              $proc.Refresh()
-              if ($proc.HasExited) { throw "FAIL: launcher died before frame $f (code $($proc.ExitCode))" }
-              $h = $proc.MainWindowHandle
-              if ($h -eq [IntPtr]::Zero) { "frame ${f}: SKIPPED main window handle lost" | Out-File $info -Append; continue }
-              $r = New-Object WinCap+RECT
-              $rectOk = [WinCap]::GetWindowRect($h, [ref]$r)
-              $w = if ($rectOk) { $r.Right - $r.Left } else { 0 }
-              $hgt = if ($rectOk) { $r.Bottom - $r.Top } else { 0 }
-              $vis = [WinCap]::IsWindowVisible($h); $iconic = [WinCap]::IsIconic($h)
-              $state = "visible=$vis iconic=$iconic geometry=${w}x${hgt}"
-              if (-not $rectOk -or -not $vis -or $iconic -or $w -lt 200 -or $hgt -lt 200) {
-                "frame ${f}: WINDOW-NOT-OK $state - capture skipped" | Out-File $info -Append; continue
-              }
-              # Geometry/pixel ceiling BEFORE any bitmap allocation: an absurd
-              # window must not allocate an unbounded bitmap.
-              if ($w -gt 3840 -or $hgt -gt 3840 -or [int64]$w * $hgt -gt 16777216) {
-                "frame ${f}: CAPTURE-SKIPPED-OVERSIZE $state (limits 3840px/16MP)" | Out-File $info -Append; continue
-              }
-              $seenCount++
-              $png = "$env:CAP\frame-$($f.ToString('00'))-$($st.n).png"
-              $client=New-Object WinCap+RECT
-              [WinCap]::GetClientRect($h,[ref]$client) | Out-Null
-              "viewport: frame=$f client=$($client.Right)x$($client.Bottom) dpi=$([WinCap]::GetDpiForWindow($h))" | Out-File $info -Append
-              $bmp=New-Object System.Drawing.Bitmap $w,$hgt
-              $g=[System.Drawing.Graphics]::FromImage($bmp); $dc=[IntPtr]::Zero
-              try {
-                $dc=$g.GetHdc(); $ok=[WinCap]::PrintWindow($h,$dc,2)
-                $g.ReleaseHdc($dc); $dc=[IntPtr]::Zero
-                if (-not $ok) { throw 'PrintWindow refused capture' }
-                $bmp.Save($png,[System.Drawing.Imaging.ImageFormat]::Png)
-                $okCount++
-                $savedSteps[$st.n] = $png
-              } finally {
-                if ($dc -ne [IntPtr]::Zero) { $g.ReleaseHdc($dc) }
-                $g.Dispose();$bmp.Dispose()
-              }
-            }
-            $proc.Refresh()
-            if ($proc.HasExited) { throw "FAIL: launcher exited during captures (code $($proc.ExitCode))" }
-            # Automation checks only. Window claim is what the per-frame lines show.
-            "AUTOMATION-CHECKS: process-alive=whole-phase initial-visible-owned-window>=200x200=yes frames-window-ok=$seenCount/$($steps.Count) captures-accepted=$okCount/$($steps.Count)" | Out-File $info -Append
-            if ($seenCount -eq 0) { "WINDOW-AFTER-INITIAL: unverified (every frame skipped)" | Out-File $info -Append }
-            "NOT-PROVEN: rendering/pixels/input/consent/game-launch/GPU/continuous-presence - frames require human inspection" | Out-File $info -Append
-            $required = @('account-dismissed','page-minimum','page-1028x780','page-1024x720','large-1920x1080','large-2560x1440')
-            if ($env:PROBE_STATE -and $env:PROBE_STATE -ne 'survey') { $required = @('probe-fixture','probe-1028x780','probe-2560x1440') }
-            foreach ($name in $required) {
-              if (-not $savedSteps.ContainsKey($name) -or -not (Test-Path -LiteralPath $savedSteps[$name]) -or (Get-Item -LiteralPath $savedSteps[$name]).Length -eq 0) {
-                throw "Required saved capture missing or empty: $name"
-              }
-            }
-            if ($okCount -ne $steps.Count) { throw "Saved capture count $okCount does not match requested step count $($steps.Count)" }
-            'NOT-PROVEN: unobscured requested page or dismissed consent/account screens until pixel review; Escape may be consumed by consent if the earlier click missed. Requested names are labels only; use measured client size and DPI. Foreground check/send has a race; pointer clicks are coordinate-based.' | Out-File $info -Append
-            $checksPass = $true
-          } finally {
-            # Best-effort cleanup: any leftover capture jobs, then the launcher's main
-            # process only - children are not tracked and no tree cleanup is claimed.
-            Get-Job | Stop-Job -ErrorAction SilentlyContinue | Out-Null
-            Get-Job | Remove-Job -Force -ErrorAction SilentlyContinue
-            if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+          if ($env:PROBE_ACTIONS -ne '[]' -and $env:CAP_ONLY_ROUTE -eq 'all') { throw 'Input requires a single calibrated route' }
+          if ($env:CAP_KIND -eq 'instrumented') { $env:PROBE_ACTIONS = '[]' }
+          $failed = @()
+          foreach ($route in $routes) {
+            $env:CAP_ROUTE = $route
+            $env:CAP = Join-Path $env:RUNNER_TEMP "route-$env:CAP_KIND-$route"
+            $env:HORIZON_LAUNCHER_HOME = Join-Path $env:RUNNER_TEMP "launcher-$env:CAP_KIND-$route"
+            $env:HORIZON_HOME = Join-Path $env:RUNNER_TEMP "game-$env:CAP_KIND-$route"
+            $env:PROBE_STATE = 'account'
+            $env:CAP_MODE = 'home'; $env:LANG_CODE = 'en'
+            try { & '_capture/docs/qa/route-driver.ps1' } catch { $failed += $route; Write-Warning "Route failed: $route $_" }
+            finally { & '_capture/docs/qa/route-export.ps1' }
           }
-          if (-not $checksPass) { exit 1 }
-      # Evidence transport with ZERO artifact storage: frames as base64 blocks in
-      # the raw run log, stats in the step summary. Runs even when the capture
-      # step failed or was killed - whatever frames exist get exported.
-      - name: Export evidence to log and summary (no artifact storage)
-        if: always()
-        shell: pwsh
-        timeout-minutes: 2
-        env:
-          HTTP_PROXY: http://127.0.0.1:9
-          HTTPS_PROXY: http://127.0.0.1:9
-          ALL_PROXY: http://127.0.0.1:9
-          CAP: ${{ runner.temp }}\captures
-          HORIZON_LAUNCHER_PAGE: ${{ matrix.page }}
-          CAP_MODE: ${{ matrix.mode }}
-          CAP_WIDTH: ${{ matrix.width }}
-          CAP_HEIGHT: ${{ matrix.height }}
-        run: |
-          $ErrorActionPreference = 'Continue'
-          # Export ceilings, checked BEFORE reading each file: no unbounded
-          # ReadAllBytes/base64 into the log. Per-file raw limit 1,500,000 bytes;
-          # total ENCODED base64 characters across all frames 6,000,000.
-          $maxPngBytes = 4000000
-          $maxEncodedTotal = 24000000
-          $encodedTotal = 0
-          $info = "$env:CAP\window-info.txt"
-          if (Test-Path $info) {
-            Get-Content $info | ForEach-Object { Write-Output $_ }
-            Get-Content $info | ForEach-Object { Add-Content $env:GITHUB_STEP_SUMMARY "| $_ |" }
-            Add-Content $env:GITHUB_STEP_SUMMARY "`nFrames are base64 blocks in this run's raw log between ###FRAME-BEGIN and ###FRAME-END markers. Decode: copy a block, then ``base64 -d > frame.png``."
-          } else {
-            Write-Output "NO-EVIDENCE: window-info.txt missing (capture step died before writing)"
-            Add-Content $env:GITHUB_STEP_SUMMARY "NO-EVIDENCE: capture step produced no window-info - see job log."
-          }
-          $frames = @(Get-ChildItem "$env:CAP\frame-*.png" -ErrorAction SilentlyContinue)
-          if ($frames.Count -eq 0) { Write-Output "###FRAMES-NONE found=0 expected<=3 - no frame files present" }
-          elseif ($frames.Count -lt 3) { Write-Output "###FRAMES-INCOMPLETE found=$($frames.Count) expected=3" }
-          foreach ($png in $frames) {
-            $len = $png.Length
-            $enc = 4 * [Math]::Ceiling($len / 3)
-            if ($len -gt $maxPngBytes) {
-              Write-Output "###FRAME-SKIP $($png.Name) reason=oversize bytes=$len limit=$maxPngBytes"
-              continue
-            }
-            if ($encodedTotal + $enc -gt $maxEncodedTotal) {
-              Write-Output "###FRAME-SKIP $($png.Name) reason=total-ceiling encoded-would-be=$($encodedTotal + $enc) limit=$maxEncodedTotal"
-              continue
-            }
-            $bytes = [IO.File]::ReadAllBytes($png.FullName)
-            $sha = (Get-FileHash $png.FullName -Algorithm SHA256).Hash
-            Write-Output "###FRAME-BEGIN $($png.Name) sha256=$sha bytes=$($bytes.Length)"
-            $b64 = [Convert]::ToBase64String($bytes)
-            for ($i = 0; $i -lt $b64.Length; $i += 76) {
-              Write-Output $b64.Substring($i, [Math]::Min(76, $b64.Length - $i))
-            }
-            Write-Output "###FRAME-END $($png.Name)"
-            $encodedTotal += $enc
-          }
-          Write-Output "###EXPORT-SUMMARY frames-present=$($frames.Count) encoded-chars=$encodedTotal ceiling=$maxEncodedTotal"
+          if ($failed.Count) { throw "Failed routes: $($failed -join ',')" }

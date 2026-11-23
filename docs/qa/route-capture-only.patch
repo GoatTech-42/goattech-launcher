@@ -1,0 +1,150 @@
+diff --git a/launcher/src/instance_mods.rs b/launcher/src/instance_mods.rs
+index e51c3f2ca..29b8d1a3d 100644
+--- a/launcher/src/instance_mods.rs
++++ b/launcher/src/instance_mods.rs
+@@ -66,6 +66,11 @@ pub(super) struct InstanceMods {
+ }
+ 
+ impl InstanceMods {
++    pub(super) fn capture_fixture(&mut self, home: PathBuf) {
++        self.home = Some(home); self.fresh = true; self.reading = true;
++        self.list = vec![ModRow { file: "mods/synthetic.jar".into(), name: "Synthetic installed mod".into(), version: "1.0 capture only".into(), on: true, entry: None, icon: None, native: None }];
++    }
++
+     fn invalidate(&mut self) {
+         self.fresh = false;
+     }
+diff --git a/launcher/src/internet.rs b/launcher/src/internet.rs
+index 4717776ff..21ead03fe 100644
+--- a/launcher/src/internet.rs
++++ b/launcher/src/internet.rs
+@@ -78,6 +78,11 @@ impl Internet {
+ }
+ 
+ impl Launcher {
++    pub(super) fn capture_internet(&mut self, cx: &mut Context<Self>) -> Div {
++        self.internet.state = Some(State::Missing);
++        self.internet_panel(25565, cx)
++    }
++
+     /// What the background sent, and the next look at Tailscale while the panel shows.
+     pub(super) fn internet_tick(&mut self, showing: bool) -> bool {
+         let mut changed = false;
+diff --git a/launcher/src/main.rs b/launcher/src/main.rs
+index 588e220db..eec7a9e40 100644
+--- a/launcher/src/main.rs
++++ b/launcher/src/main.rs
+@@ -3,6 +3,7 @@
+ 
+ #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+ 
++mod capture_routes;
+ mod agents_page;
+ mod art;
+ mod blocks;
+@@ -5852,7 +5853,7 @@ impl Render for Launcher {
+         self.github.note_focus(window);
+         self.args_focused = self.args_focus.is_focused(window);
+         self.proxy_focused = self.proxy_focus.is_focused(window);
+-        let content = match self.page {
++        let content = if let Some(capture) = self.capture_route(cx) { capture } else { match self.page {
+             Page::Play => self.play_page(cx),
+             Page::Instances => self.instances_page(cx),
+             Page::Versions => self.versions_page(cx),
+@@ -5860,7 +5861,7 @@ impl Render for Launcher {
+             Page::Servers => self.servers_page(cx),
+             Page::Notes => self.notes_page(cx),
+             Page::Settings => self.settings_page(cx),
+-        };
++        }};
+         self.sky.free_replaced(window);
+         self.ensure_stage_timer(cx);
+         for image in self.stage_replaced.drain(..) {
+diff --git a/launcher/src/native_log_page.rs b/launcher/src/native_log_page.rs
+index 14a4b9bf5..720a3a6e0 100644
+--- a/launcher/src/native_log_page.rs
++++ b/launcher/src/native_log_page.rs
+@@ -66,6 +66,11 @@ impl Default for NativeLog {
+ }
+ 
+ impl Log {
++    pub(super) fn capture_fixture() -> Self {
++        let full = (1..=40).map(|n| format!("[synthetic {n:02}] capture fixture only, no build was run\n")).collect::<String>();
++        Self { lines: 40, preview: full.lines().map(|s| SharedString::from(s.to_owned())).collect(), full }
++    }
++
+     fn read(path: &std::path::Path) -> Result<Self, Missing> {
+         match std::fs::read_to_string(path) {
+             Ok(full) => {
+diff --git a/tmp/routecap-source/launcher/src/capture_routes.rs b/launcher/src/capture_routes.rs
+new file mode 100644
+index 0000000..ff7bfcf
+--- /dev/null
++++ b/launcher/src/capture_routes.rs
+@@ -0,0 +1,66 @@
++//! Runner-only synthetic rendering seam. This file is never part of a shipping source tip.
++use super::*;
++impl Launcher {
++    pub(super) fn capture_route(&mut self, cx: &mut Context<Self>) -> Option<Div> {
++        let route = std::env::var("GOAT_CAPTURE_ROUTE").ok()?;
++        let home = backend::game_home();
++        let body = match route.as_str() {
++            "export" => {
++                if self.export.is_none() {
++                    self.toggle_export();
++                }
++                self.export_panel(cx)?
++            }
++            "launch" => {
++                if self.launch.is_none() {
++                    self.toggle_launch();
++                }
++                self.launch_panel(cx)?
++            }
++            "skin" => {
++                if self.skin.is_none() {
++                    self.open_skin("Capture_Player".into());
++                }
++                self.skin_panel(cx)?
++            }
++            "console" => {
++                if self.prepare_log.is_empty() {
++                    self.prepare_log.extend(
++                        (1..=40)
++                            .map(|n| format!("[synthetic {n:02}] no game was run; capture only")),
++                    );
++                }
++                self.console_section(cx)?.1
++            }
++            "native-log" => {
++                self.native_log.open = true;
++                self.native_log.stale = false;
++                self.native_log.loaded = Some(Ok(native_log_page::Log::capture_fixture()));
++                div().child(text(theme::TITLE).child("Synthetic native log overlay"))
++            }
++            "instance-mods" => {
++                self.instance_mods.capture_fixture(home);
++                self.instance_mods_tab(cx).1
++            }
++            "packs" => div().child(self.packs_section(cx)?.1),
++            "world-datapacks" => {
++                let world = horizon_launcher::worlds::list(&home).into_iter().next()?;
++                if !self.world_packs_open(&world) {
++                    self.toggle_world_packs(&world);
++                }
++                self.world_packs_panel(&world, cx)?
++            }
++            "internet" => self.capture_internet(cx),
++            "modpack-detail" => self.imported_packs(cx),
++            _ => panic!("unsupported runner-only capture route"),
++        };
++        Some(
++            div()
++                .flex()
++                .flex_col()
++                .gap(px(theme::chrome(20.)))
++                .child(text(theme::TITLE).child(format!("INSTRUMENTED synthetic state: {route}")))
++                .child(body),
++        )
++    }
++}
