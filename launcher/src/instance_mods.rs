@@ -340,7 +340,7 @@ impl Launcher {
         let actions = div()
             .flex()
             .items_center()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .children((updates > 0 && !busy).then(|| {
                 shell::spaced_action("instance-mods-update-all", Action::Raised, &t)
                     .child(shell::label(trf(
@@ -373,7 +373,12 @@ impl Launcher {
             .value(Field::InstanceModsFilter)
             .trim()
             .to_lowercase();
-        let field = self.field(Field::InstanceModsFilter, tr("filter installed"), 240., cx);
+        let field = self.scaled_field(
+            Field::InstanceModsFilter,
+            tr("filter installed"),
+            theme::chrome(240.),
+            cx,
+        );
         let m = &self.instance_mods;
         let rows: Vec<ModRow> = m
             .list
@@ -385,9 +390,9 @@ impl Launcher {
             .flex()
             .items_center()
             .justify_between()
-            .gap(px(16.))
-            .px(px(18.))
-            .py(px(14.))
+            .gap(px(theme::chrome(16.)))
+            .px(px(theme::chrome(18.)))
+            .py(px(theme::chrome(14.)))
             .child(
                 shell::text(night::UI, c(n.ink))
                     .font_weight(FontWeight::SEMIBOLD)
@@ -396,8 +401,8 @@ impl Launcher {
             .child(field);
         let empty = |s: &str| {
             shell::text(night::UI, c(n.muted))
-                .px(px(18.))
-                .py(px(16.))
+                .px(px(theme::chrome(18.)))
+                .py(px(theme::chrome(16.)))
                 .child(tr(s).to_string())
         };
         let rule = |row: AnyElement| {
@@ -455,7 +460,7 @@ impl Launcher {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(12.))
+                .gap(px(theme::chrome(12.)))
                 .children(self.mods_busy_plate())
                 .child(card),
         )
@@ -470,12 +475,12 @@ impl Launcher {
         } else {
             let switch_row = row.clone();
             div().child(
-                switch(format!("mod-switch-{}", row.file), row.on, &t).on_click(cx.listener(
-                    move |this, _: &ClickEvent, _, cx| {
+                scaled_switch(format!("mod-switch-{}", row.file), row.on, &t).on_click(
+                    cx.listener(move |this, _: &ClickEvent, _, cx| {
                         this.switch_mod(&switch_row);
                         cx.notify();
-                    },
-                )),
+                    }),
+                ),
             )
         };
         let source = if let Some(origin) = row.native.as_ref().and_then(|n| n.origin.as_ref()) {
@@ -502,8 +507,8 @@ impl Launcher {
                 .flex()
                 .flex_none()
                 .items_center()
-                .h(px(24.))
-                .px(px(10.))
+                .h(px(theme::chrome(24.)))
+                .px(px(theme::chrome(10.)))
                 .rounded(px(night::RADIUS_CONTROL))
                 .bg(alpha(n.warn, 0.16))
                 .cursor_pointer()
@@ -524,9 +529,9 @@ impl Launcher {
         div()
             .flex()
             .items_center()
-            .gap(px(14.))
-            .px(px(18.))
-            .py(px(12.))
+            .gap(px(theme::chrome(14.)))
+            .px(px(theme::chrome(18.)))
+            .py(px(theme::chrome(12.)))
             .child(icon)
             .child(
                 div()
@@ -534,12 +539,12 @@ impl Launcher {
                     .min_w_0()
                     .flex()
                     .flex_col()
-                    .gap(px(2.))
+                    .gap(px(theme::chrome(2.)))
                     .child(
                         div()
                             .flex()
                             .items_baseline()
-                            .gap(px(6.))
+                            .gap(px(theme::chrome(6.)))
                             .child(
                                 shell::text(night::UI, c(n.ink))
                                     .font_weight(FontWeight::SEMIBOLD)

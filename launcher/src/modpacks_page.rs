@@ -152,7 +152,7 @@ impl Launcher {
         self.load_packs();
         let busy = self.pack_busy;
         let pick = |id: &'static str, label: &'static str, folder: bool| {
-            let b = button(id, label, Kind::Secondary, &t);
+            let b = scaled_button(id, label, Kind::Secondary, &t);
             if busy {
                 disabled(b)
             } else {
@@ -166,7 +166,7 @@ impl Launcher {
             .flex()
             .flex_wrap()
             .items_center()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .child(pick("import-file", "import a pack file…", false))
             .child(pick("import-folder", "import an instance folder…", true))
             .child(text(theme::CAPTION).w_full().text_color(t.muted).child(tr(
@@ -175,7 +175,7 @@ impl Launcher {
         let mut page = div()
             .flex()
             .flex_col()
-            .gap(px(16.))
+            .gap(px(theme::chrome(16.)))
             .child(section_title("your modpacks", "archive", &t))
             .child(actions);
         if busy || !self.pack_log.is_empty() {
@@ -203,7 +203,7 @@ impl Launcher {
                 let right = if open {
                     micro(tr("open")).text_color(t.accent).into_any_element()
                 } else {
-                    button(format!("open-{slug}"), "open", Kind::Ghost, &t)
+                    scaled_button(format!("open-{slug}"), "open", Kind::Ghost, &t)
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.pack_open = Some(slug.clone());
                             this.mods.report_list.reset();
@@ -238,9 +238,9 @@ impl Launcher {
             let confirming = self.confirm_remove.as_deref() == Some(key.as_str());
             let right = div()
                 .flex()
-                .gap(px(8.))
+                .gap(px(theme::chrome(8.)))
                 .child(
-                    button(format!("play-pack-{id}"), "play", Kind::Primary, &t).on_click(
+                    scaled_button(format!("play-pack-{id}"), "play", Kind::Primary, &t).on_click(
                         cx.listener(move |this, _: &ClickEvent, _, cx| {
                             this.play_pack(play.clone());
                             cx.notify();
@@ -248,7 +248,7 @@ impl Launcher {
                     ),
                 )
                 .child(
-                    button(
+                    scaled_button(
                         format!("remove-pack-{id}"),
                         if confirming {
                             "remove for good"
@@ -303,8 +303,8 @@ impl Launcher {
         plate(t)
             .flex()
             .flex_col()
-            .gap(px(4.))
-            .p(px(16.))
+            .gap(px(theme::chrome(4.)))
+            .p(px(theme::chrome(16.)))
             .child(
                 micro(tr(if self.pack_busy { "working" } else { "done" }))
                     .text_color(if self.pack_busy { t.accent } else { t.muted }),
@@ -321,7 +321,7 @@ impl Launcher {
     fn pack_detail(&self, cx: &mut Context<Self>) -> Option<Div> {
         let t = self.theme;
         let p = self.open_pack()?;
-        let mut counts = div().flex().gap(px(12.));
+        let mut counts = div().flex().gap(px(theme::chrome(12.)));
         for (status, label) in FILTERS.iter().skip(1) {
             let status = status.expect("the first filter is All");
             let color = match status {
@@ -334,8 +334,8 @@ impl Launcher {
                     .flex()
                     .flex_col()
                     .flex_1()
-                    .gap(px(4.))
-                    .p(px(16.))
+                    .gap(px(theme::chrome(4.)))
+                    .p(px(theme::chrome(16.)))
                     .child(
                         text(theme::DISPLAY)
                             .text_color(color)
@@ -346,7 +346,11 @@ impl Launcher {
         }
         // Prepared, nothing preparing or running (`play_pack` checks the same).
         let can_play = self.can_start_selected();
-        let mut buttons = div().flex().flex_wrap().items_center().gap(px(8.));
+        let mut buttons = div()
+            .flex()
+            .flex_wrap()
+            .items_center()
+            .gap(px(theme::chrome(8.)));
         let play_label = if p.mods.is_empty() {
             tr("play").to_string()
         } else {
@@ -355,7 +359,7 @@ impl Launcher {
                 &[("count", &p.mods.len().to_string())],
             )
         };
-        let mut play = button("pack-play", play_label, Kind::Primary, &t);
+        let mut play = scaled_button("pack-play", play_label, Kind::Primary, &t);
         if !p.can_play() || !can_play || self.pack_busy {
             play = disabled(play);
         } else {
@@ -375,8 +379,8 @@ impl Launcher {
                 p.portable, p.indexed_resources
             )
         };
-        let mut port = button("pack-port", port_label, Kind::Secondary, &t);
-        let mut from = button("pack-from", "use jars from my instance…", Kind::Ghost, &t);
+        let mut port = scaled_button("pack-port", port_label, Kind::Secondary, &t);
+        let mut from = scaled_button("pack-from", "use jars from my instance…", Kind::Ghost, &t);
         if self.pack_busy || !p.can_port() {
             port = disabled(port);
             from = disabled(from);
@@ -397,7 +401,7 @@ impl Launcher {
         let confirming = self.confirm_remove.as_deref() == Some(p.slug.as_str());
         let slug = p.slug.clone();
         let work = p.work.clone();
-        let remove = button(
+        let remove = scaled_button(
             "pack-remove",
             if confirming {
                 "remove for good"
@@ -503,12 +507,12 @@ impl Launcher {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(24.))
+                .gap(px(theme::chrome(24.)))
                 .child(
                     div()
                         .flex()
                         .flex_col()
-                        .gap(px(4.))
+                        .gap(px(theme::chrome(4.)))
                         .child(
                             text(theme::TITLE)
                                 .text_color(t.ink)
@@ -521,7 +525,7 @@ impl Launcher {
                 .children(self.client_error.clone().map(|e| notice(e, &t)))
                 .children(notes.into_iter().map(|n| {
                     text(theme::CAPTION)
-                        .max_w(px(720.))
+                        .max_w(px(theme::chrome(720.)))
                         .text_color(t.muted)
                         .child(n)
                 }))
