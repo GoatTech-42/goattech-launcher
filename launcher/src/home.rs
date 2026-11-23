@@ -10,11 +10,19 @@ use theme::night;
 /// big, crisp at display resolution. The stage grows with the window: the 9 px it was fixed
 /// at in the default window (and any narrow one), up to 14 px on a maximized 27" monitor.
 /// Height sets the size, width keeps a narrow window from overflowing. Below 720 px tall the
-/// floor ramps down to 6.5, so Play stays above the fold at the 960x600 minimum window;
-/// heights windows already laid out well at (720 and up) never change.
+/// model shrinks proportionally with height, from 9 px/texel (396 pt tall) at 720 down to
+/// 6 px/texel (264 pt tall, an integer texel so the skin stays crisp) at the 960x600 minimum
+/// window, so Play and the helper line under it both stay above the fold; heights windows
+/// already laid out well at (720 and up) never change.
 fn stage_texel(viewport_w: f32, viewport_h: f32) -> f32 {
-    let floor = (viewport_h / 80.).clamp(6.5, 9.);
-    (viewport_h / 96.).min(viewport_w / 140.).clamp(floor, 14.)
+    if viewport_h < 720. {
+        // 1/40 slope: exactly 6.0 at 600 pt, approaching 9.0 as h nears 720, where the
+        // normal rule yields 9 at every width (its floor clamps the width cap back up),
+        // so the curve meets it without a jump at any window width. No width cap here:
+        // the value stays <= 9, the minimum the normal rule already allows anywhere.
+        return (9. - (720. - viewport_h) / 40.).clamp(6., 9.);
+    }
+    (viewport_h / 96.).min(viewport_w / 140.).clamp(9., 14.)
 }
 
 const NEXT_NEW_INSTANCE: &str = "next-new-instance";
@@ -143,13 +151,17 @@ impl Launcher {
         };
         // The concept Home: everything centered over the open sky - the instance's name, the
         // player stage, the split Play, its state as a word, then the fact chips.
+        // Below 720 pt tall the column tightens the way the stage's floor already does
+        // (stage_texel), so the helper line under Play stays inside the 960x600 minimum
+        // window instead of ending up below the fold; 720 and up is untouched.
+        let compact = self.viewport_h < 720.;
         let mut hero = div()
             .relative()
             .flex()
             .flex_none()
             .flex_col()
             .items_center()
-            .gap(px(8.))
+            .gap(px(if compact { 4. } else { 8. }))
             .w_full()
             .child(
                 shell::text(night::DISPLAY, c(n.ink))
@@ -223,7 +235,7 @@ impl Launcher {
                 shell::text(night::CAPTION, c(n.muted))
                     .bg(alpha(n.card, 0.6))
                     .px(px(10.))
-                    .py(px(4.))
+                    .py(px(if compact { 2. } else { 4. }))
                     .max_w(px(560.))
                     .child(
                         tr("its own runtime, mods and saves. nothing mixes with your other instances.")
@@ -720,14 +732,16 @@ impl Launcher {
             }
         }
         let (who, _) = self.who_plays();
+        // Same short-window tightening as the hero column: drop the stage's own padding.
+        let compact = self.viewport_h < 720.;
         let mut stage = div()
             .relative()
             .flex()
             .flex_none()
             .flex_col()
             .items_center()
-            .gap(px(4.))
-            .pt(px(8.))
+            .gap(px(if compact { 2. } else { 4. }))
+            .pt(px(if compact { 0. } else { 8. }))
             .child(
                 shell::text(night::CAPTION, c(n.ink))
                     .font_family(theme::PIXEL)
