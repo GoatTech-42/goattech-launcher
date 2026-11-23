@@ -9,6 +9,8 @@ Add-Type -AssemblyName System.Windows.Forms
 $bin = "$PWD\launcher\target\release\horizon-launcher.exe"
 $binHash = (Get-FileHash $bin -Algorithm SHA256).Hash
 $actual = (git rev-parse HEAD).Trim()
+if ($actual -ne 'f1fa45bba5e0835e6cabb1faf7be30a29591d5ed') { throw 'Unexpected capture source' }
+if ($env:CAP_KIND -ne 'exact') { throw 'This job permits exact source only' }
 "workflow-commit: $env:GITHUB_SHA" | Out-File $info
 "source-commit: $actual" | Out-File $info -Append
           "capture-kind: $env:CAP_KIND route=$env:CAP_ROUTE; instrumented frames are not exact-tip evidence" | Out-File $info -Append
@@ -50,6 +52,10 @@ if ($true) {
   $paint = [System.Drawing.Graphics]::FromImage($fixture)
   try { $paint.Clear([System.Drawing.Color]::SlateBlue); $fixture.Save((Join-Path $shots 'synthetic-capture-long-filename-2026-11-23.png'),[System.Drawing.Imaging.ImageFormat]::Png) }
   finally { $paint.Dispose(); $fixture.Dispose() }
+  $portrait = New-Object System.Drawing.Bitmap 240,640
+  $paint2 = [System.Drawing.Graphics]::FromImage($portrait)
+  try { $paint2.Clear([System.Drawing.Color]::DarkOrange); $portrait.Save((Join-Path $shots 'synthetic-portrait-second-image-with-a-deliberately-long-filename-for-viewer-layout-2026-11-23.png'),[System.Drawing.Imaging.ImageFormat]::Png) }
+  finally { $paint2.Dispose(); $portrait.Dispose() }
   $env:HORIZON_LAUNCHER_TRASH = Join-Path $env:CAP 'synthetic-trash'
   $env:HORIZON_LAUNCHER_CLIPBOARD = Join-Path $env:CAP 'synthetic-clipboard'
   $env:HORIZON_LAUNCHER_DESKTOP = Join-Path $env:CAP 'synthetic-desktop'
@@ -110,34 +116,17 @@ try {
   }
   if ($true) {
     Size-Client 1028 780
-    $inputSteps = @($env:PROBE_ACTIONS | ConvertFrom-Json -AsHashtable)
-    if ($inputSteps.Count -gt 16) { throw 'Probe permits at most 16 input steps' }
-    foreach ($st in $inputSteps) {
-      if ($st.n -notmatch '^[a-z0-9-]{1,40}$') { throw 'Invalid probe frame name' }
-      foreach ($key in $st.Keys) { if ($key -notin @('n','c','s','k','w')) { throw 'Unknown probe action' } }
-      if ($st.w -and ([int]$st.w -lt 1 -or [int]$st.w -gt 5)) { throw 'Probe wait outside 1..5s' }
-      if (-not $st.w) { $st.w = 2 }
-      if ($st.c -and ($st.c.Count -ne 2 -or $st.c[0] -lt 0 -or $st.c[0] -gt 1050 -or $st.c[1] -lt 0 -or $st.c[1] -gt 830)) { throw 'Click outside calibration window' }
-      if ($st.s -and ($st.s.Count -ne 3 -or $st.s[0] -lt 0 -or $st.s[0] -gt 1050 -or $st.s[1] -lt 0 -or $st.s[1] -gt 830 -or [Math]::Abs([int]$st.s[2]) -gt 2400)) { throw 'Invalid probe scroll' }
-      if ($st.k -and $st.k -notin @('{ESC}','{TAB}','+{TAB}','{ENTER}','{DOWN}','{UP}','{PGDN}','{PGUP}')) { throw 'Unsupported probe keys' }
-    }
+    # Calibration only: no pointer, keyboard, or drag input.
+    $inputSteps = @()
     $steps = @(@{n='probe-fixture';w=8}) + $inputSteps + @(@{n='probe-1028x780';w=2})
-              if ($env:CAP_TARGET -in @('main','p22')) { $steps += @{n='probe-960x600';r=@(960,600);w=3} }
-              if ($env:CAP_TARGET -ne 'combined') { $steps += @{n='probe-2560x1440';r=@(2560,1440);w=4} }
-              if ($env:CAP_KIND -eq 'exact' -and $env:CAP_ROUTE -notin @('new-instance','edit-instance','sign-in')) { $steps += @{n='scroll-lower';s=@(850,600,-900);w=2} }
-    'probe-input: outer-window pixel coordinates at 1028x780; each input has a retained post-action frame; no state assertion' | Out-File $info -Append
+              $steps += @{n='probe-960x600';r=@(960,600);w=3}
+              $steps += @{n='probe-2560x1440';r=@(2560,1440);w=4}
+              $steps += @{n='scroll-lower';s=@(850,600,-900);w=2}
+    'probe-input: calibration-only geometry and lower-scroll; no pointer click or keyboard input' | Out-File $info -Append
   }
   for ($f = 1; $f -le $steps.Count; $f++) {
     $st = $steps[$f-1]
     if ($st.r) { Size-Client $st.r[0] $st.r[1] }
-    if ($st.c) { $pr = New-Object WinCap+RECT; [WinCap]::GetWindowRect($proc.MainWindowHandle, [ref]$pr) | Out-Null; [WinCap]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::SetCursorPos($pr.Left + $st.c[0], $pr.Top + $st.c[1]) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::mouse_event(2,0,0,0,[UIntPtr]::Zero); Start-Sleep -Milliseconds 80; [WinCap]::mouse_event(4,0,0,0,[UIntPtr]::Zero) }
-    if ($st.d) { $pr = New-Object WinCap+RECT; [WinCap]::GetWindowRect($proc.MainWindowHandle, [ref]$pr) | Out-Null; [WinCap]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::SetCursorPos($pr.Left + $st.d[0], $pr.Top + $st.d[1]) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::mouse_event(2,0,0,0,[UIntPtr]::Zero); foreach ($k in 1..8) { Start-Sleep -Milliseconds 60; [WinCap]::SetCursorPos($pr.Left + $st.d[0] + [int]($st.d[2] * $k / 8), $pr.Top + $st.d[1]) | Out-Null }; Start-Sleep -Milliseconds 100; [WinCap]::mouse_event(4,0,0,0,[UIntPtr]::Zero) }
-    if ($st.k -and $env:HORIZON_LAUNCHER_PAGE -ne 'sign-in') {
-      [WinCap]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null
-      Start-Sleep -Milliseconds 150
-      if ([WinCap]::GetForegroundWindow() -ne $proc.MainWindowHandle) { throw 'Main window not foreground; no keyboard input' }
-      [System.Windows.Forms.SendKeys]::SendWait($st.k)
-    }
     if ($st.s) { $pr = New-Object WinCap+RECT; [WinCap]::GetWindowRect($proc.MainWindowHandle, [ref]$pr) | Out-Null; [WinCap]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null; Start-Sleep -Milliseconds 300; [WinCap]::SetCursorPos($pr.Left + $st.s[0], $pr.Top + $st.s[1]) | Out-Null; Start-Sleep -Milliseconds 300; $d = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int]$st.s[2]),0); [WinCap]::mouse_event(2048,0,0,$d,[UIntPtr]::Zero) }
     if ($st.ms) { Start-Sleep -Milliseconds $st.ms } else { Start-Sleep -Seconds $st.w }
     $proc.Refresh()
@@ -184,7 +173,7 @@ try {
   if ($seenCount -eq 0) { "WINDOW-AFTER-INITIAL: unverified (every frame skipped)" | Out-File $info -Append }
   "NOT-PROVEN: rendering/pixels/input/consent/game-launch/GPU/continuous-presence - frames require human inspection" | Out-File $info -Append
   $required = @('account-dismissed','page-minimum','page-1028x780','page-1024x720','large-1920x1080','large-2560x1440')
-  if ($true) { $required = @('probe-fixture','probe-1028x780'); if ($env:CAP_TARGET -ne 'combined') { $required += 'probe-2560x1440' } }
+  if ($true) { $required = @('probe-fixture','probe-1028x780','probe-960x600','probe-2560x1440','scroll-lower') }
   foreach ($name in $required) {
     if (-not $savedSteps.ContainsKey($name) -or -not (Test-Path -LiteralPath $savedSteps[$name]) -or (Get-Item -LiteralPath $savedSteps[$name]).Length -eq 0) {
       throw "Required saved capture missing or empty: $name"
