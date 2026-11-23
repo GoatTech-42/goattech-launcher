@@ -837,10 +837,10 @@ impl Launcher {
             .track_focus(&m.focus)
             .flex()
             .items_center()
-            .gap(px(10.))
+            .gap(px(theme::chrome(10.)))
             .w(px(320.))
             .h(px(theme::chrome(theme::FIELD + 4.)))
-            .px(px(12.))
+            .px(px(theme::chrome(12.)))
             .overflow_hidden()
             .border_2()
             .border_color(if focused { t.accent } else { t.outline })
@@ -939,7 +939,7 @@ impl Launcher {
             .id("mods-everything")
             .flex()
             .items_center()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .cursor_pointer()
             .child(switch("mods-everything-switch", everything, &t))
             .child(
@@ -967,13 +967,13 @@ impl Launcher {
         let controls = div()
             .flex()
             .flex_col()
-            .gap(px(12.))
+            .gap(px(theme::chrome(12.)))
             .child(
                 div()
                     .flex()
                     .flex_wrap()
                     .items_center()
-                    .gap(px(12.))
+                    .gap(px(theme::chrome(12.)))
                     .child(self.mods_field(cx))
                     .when(!registry && !java, |d| d.child(toggle)),
             )
@@ -981,12 +981,16 @@ impl Launcher {
             .children(filters)
             .children(self.mods_target_line(cx));
         // The kinds are inventory tabs on the panel that holds the open one.
-        let body = blocks::panel(&t).flex().flex_col().gap(px(24.)).p(px(20.));
+        let body = blocks::panel(&t)
+            .flex()
+            .flex_col()
+            .gap(px(theme::chrome(24.)))
+            .p(px(theme::chrome(20.)));
         let page = |body: Div| {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(32.))
+                .gap(px(theme::chrome(32.)))
                 .child(header)
                 .child(div().flex().flex_col().child(kinds).child(body))
         };
@@ -1064,7 +1068,11 @@ impl Launcher {
                 &[("instance", instance)],
             )));
         }
-        let mut chips = div().flex().flex_wrap().items_center().gap(px(6.));
+        let mut chips = div()
+            .flex()
+            .flex_wrap()
+            .items_center()
+            .gap(px(theme::chrome(6.)));
         for (i, (path, name)) in self.mods.worlds.iter().enumerate() {
             let on = self.mods.world.as_ref() == Some(path);
             let path = path.clone();
@@ -1085,7 +1093,7 @@ impl Launcher {
         div()
             .flex()
             .flex_col()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .child(caption(trf(
                 "installs into a world of {instance}; the game turns the pack on when the world opens.",
                 &[("instance", instance)],
@@ -1103,15 +1111,15 @@ impl Launcher {
             plate(&t)
                 .flex()
                 .flex_col()
-                .gap(px(10.))
-                .p(px(16.))
+                .gap(px(theme::chrome(10.)))
+                .p(px(theme::chrome(16.)))
                 .text_size(px(theme::step_px(theme::UI)))
                 .text_color(t.ink)
                 .child(tr(native_status::NOTICE).to_string())
                 .child(
                     div()
                         .flex()
-                        .gap(px(8.))
+                        .gap(px(theme::chrome(8.)))
                         .child(
                             button("native-notice-install", "install", Kind::Primary, &t).on_click(
                                 cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -1151,8 +1159,8 @@ impl Launcher {
                 plate(&t)
                     .flex()
                     .flex_col()
-                    .gap(px(8.))
-                    .p(px(16.))
+                    .gap(px(theme::chrome(8.)))
+                    .p(px(theme::chrome(16.)))
                     .child(micro(caption).text_color(t.accent))
                     .child(
                         text(theme::CAPTION)
@@ -1166,7 +1174,7 @@ impl Launcher {
         match &self.mods.message {
             Some(Ok(done)) => out.push(
                 plate(&t)
-                    .p(px(16.))
+                    .p(px(theme::chrome(16.)))
                     .text_size(px(theme::step_px(theme::UI)))
                     .text_color(t.ink)
                     .child(done.clone()),
@@ -1237,7 +1245,7 @@ impl Launcher {
             let e = entries[i];
             let key = (e.source, e.project.clone());
             let is_native = self.mods.java.is_none() && native_status::is_native_file(&e.file);
-            let mut right = div().flex().items_center().gap(px(8.));
+            let mut right = div().flex().items_center().gap(px(theme::chrome(8.)));
             if let Some(number) = self.mods.updates.get(&key) {
                 let mut update = button(
                     SharedString::from(format!("mods-update-{}", e.project)),
@@ -1305,7 +1313,7 @@ impl Launcher {
                         .id(SharedString::from(format!("mods-switch-{}", e.project)))
                         .flex()
                         .items_center()
-                        .gap(px(8.))
+                        .gap(px(theme::chrome(8.)))
                         .cursor_pointer()
                         // Its id sits under the row's own, so one name serves every row.
                         .child(switch("mods-switch-knob", on, &t))
@@ -1416,7 +1424,7 @@ impl Launcher {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(12.))
+                .gap(px(theme::chrome(12.)))
                 .child(
                     div()
                         .flex()
@@ -1494,7 +1502,11 @@ impl Launcher {
                 Some((tr("up to date"), t.success)),
             ),
         };
-        let mut detail = div().flex().flex_col().gap(px(4.)).child(status);
+        let mut detail = div()
+            .flex()
+            .flex_col()
+            .gap(px(theme::chrome(4.)))
+            .child(status);
         if let Some(done) = self.native_done.as_ref().filter(|_| mine && step.is_none()) {
             detail = detail.child(div().text_color(t.muted).child(done.clone()));
         }
@@ -1526,7 +1538,7 @@ impl Launcher {
         let mut right = div()
             .flex()
             .items_center()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .children(badge.map(|(label, color)| blocks::badge(label.to_string(), color, &t)));
         if let Some(newer) = update.filter(|_| idle) {
             right = right.child(
@@ -1591,7 +1603,7 @@ impl Launcher {
             div()
                 .flex()
                 .items_center()
-                .gap(px(8.))
+                .gap(px(theme::chrome(8.)))
                 .child(picker)
                 .child(said),
         );
@@ -1621,7 +1633,7 @@ impl Launcher {
             return div()
                 .flex()
                 .flex_col()
-                .gap(px(8.))
+                .gap(px(theme::chrome(8.)))
                 .child(notice(
                     tr("the mod registry can't be reached. check the connection and try again in a few minutes.")
                         .to_string(),
@@ -1630,7 +1642,7 @@ impl Launcher {
                 .child(
                     div()
                         .flex()
-                        .gap(px(8.))
+                        .gap(px(theme::chrome(8.)))
                         .child(
                             button("retry-mods", "try again", Kind::Secondary, &t).on_click(
                                 cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -1658,7 +1670,7 @@ impl Launcher {
                     d.child(
                         div()
                             .max_w(px(560.))
-                            .p(px(12.))
+                            .p(px(theme::chrome(12.)))
                             .bg(t.well)
                             .font_family(theme::MONO)
                             .text_size(px(12.))
@@ -1703,11 +1715,11 @@ impl Launcher {
                 Support::Partial(_) => t.warn,
                 Support::No(_) => t.muted,
             };
-            let mut right = div().flex().items_center().gap(px(8.)).child(blocks::badge(
-                support.label(),
-                color,
-                &t,
-            ));
+            let mut right = div()
+                .flex()
+                .items_center()
+                .gap(px(theme::chrome(8.)))
+                .child(blocks::badge(support.label(), color, &t));
             let page_url = p.page.clone();
             if !page_url.is_empty() {
                 right = right.child(
@@ -1784,7 +1796,7 @@ impl Launcher {
                 .id(SharedString::from(format!("mods-open-{}", p.id)))
                 .flex()
                 .items_center()
-                .gap(px(12.))
+                .gap(px(theme::chrome(12.)))
                 .cursor_pointer()
                 .child(icon)
                 .child(div().hover(|s| s.underline()).child(p.title.clone()))
@@ -1814,7 +1826,7 @@ impl Launcher {
                     cx.notify();
                 }));
             }
-            out = out.child(div().flex().pt(px(16.)).child(more));
+            out = out.child(div().flex().pt(px(theme::chrome(16.))).child(more));
         }
         out
     }

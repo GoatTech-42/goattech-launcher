@@ -429,7 +429,7 @@ impl Launcher {
                         .flex_1()
                         .min_w_0()
                         .flex_col()
-                        .gap(px(2.))
+                        .gap(px(theme::chrome(2.)))
                         .child(
                             shell::text(theme::night::CAPTION, shell::c(n.ink))
                                 .font_weight(FontWeight::SEMIBOLD)
@@ -462,8 +462,8 @@ impl Launcher {
                             .flex()
                             .items_center()
                             .justify_between()
-                            .gap(px(16.))
-                            .p(px(12.))
+                            .gap(px(theme::chrome(16.)))
+                            .p(px(theme::chrome(12.)))
                             .border_2()
                             .border_color(t.outline)
                             .child(text_col)
@@ -484,8 +484,8 @@ impl Launcher {
         let mut footer = div()
             .flex()
             .items_center()
-            .gap(px(12.))
-            .mt(px(10.))
+            .gap(px(theme::chrome(12.)))
+            .mt(px(theme::chrome(10.)))
             .child(find);
         if let Some(e) = &self.instances.others_error {
             footer = footer
@@ -494,7 +494,7 @@ impl Launcher {
         div()
             .flex()
             .flex_col()
-            .mt(px(26.))
+            .mt(px(theme::chrome(26.)))
             .child(
                 div()
                     .flex()
@@ -517,8 +517,8 @@ impl Launcher {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(10.))
-                    .mt(px(10.))
+                    .gap(px(theme::chrome(10.)))
+                    .mt(px(theme::chrome(10.)))
                     .children(rows),
             )
             .child(footer)
@@ -547,12 +547,12 @@ impl Launcher {
             div()
                 .flex()
                 .flex_col()
-                .mt(px(shell::compact_v(vh, 14., 26.)))
+                .mt(px(theme::chrome(shell::compact_v(vh, 14., 26.))))
                 .child(
                     div()
                         .flex()
                         .flex_col()
-                        .gap(px(4.))
+                        .gap(px(theme::chrome(4.)))
                         .child(
                             shell::text(theme::night::UI, shell::c(n.ink))
                                 .font_weight(FontWeight::SEMIBOLD)
@@ -570,8 +570,8 @@ impl Launcher {
                     div()
                         .flex()
                         .flex_wrap()
-                        .gap(px(16.))
-                        .mt(px(shell::compact_v(vh, 6., 10.)))
+                        .gap(px(theme::chrome(16.)))
+                        .mt(px(theme::chrome(shell::compact_v(vh, 6., 10.))))
                         .children(cards),
                 )
         };
@@ -674,10 +674,22 @@ impl Launcher {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(shell::compact_v(self.viewport_h, 8., 10.)))
-                    .pt(px(shell::compact_v(self.viewport_h, 12., 16.)))
-                    .px(px(16.))
-                    .pb(px(shell::compact_v(self.viewport_h, 12., 16.)))
+                    .gap(px(theme::chrome(shell::compact_v(
+                        self.viewport_h,
+                        8.,
+                        10.,
+                    ))))
+                    .pt(px(theme::chrome(shell::compact_v(
+                        self.viewport_h,
+                        12.,
+                        16.,
+                    ))))
+                    .px(px(theme::chrome(16.)))
+                    .pb(px(theme::chrome(shell::compact_v(
+                        self.viewport_h,
+                        12.,
+                        16.,
+                    ))))
                     .child(
                         div()
                             .flex()
@@ -687,7 +699,7 @@ impl Launcher {
                                 div()
                                     .flex()
                                     .items_center()
-                                    .gap(px(10.))
+                                    .gap(px(theme::chrome(10.)))
                                     .min_w_0()
                                     .child(div().relative().child(icon))
                                     .child(
@@ -698,12 +710,12 @@ impl Launcher {
                                     ),
                             )
                             .child(
-                                shell::action(
+                                shell::spaced_action(
                                     SharedString::from(format!("card-open-{id}")),
                                     shell::Action::Quiet,
                                     &t,
                                 )
-                                .h(px(30.))
+                                .h(px(theme::chrome(30.)))
                                 .child(shell::label(tr("open").to_string()))
                                 .on_click(cx.listener(
                                     move |this, _: &ClickEvent, _, cx| {
@@ -714,16 +726,22 @@ impl Launcher {
                                 )),
                             ),
                     )
-                    .child(div().flex().flex_wrap().gap(px(6.)).children(chips))
+                    .child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .gap(px(theme::chrome(6.)))
+                            .children(chips),
+                    )
                     .child(
                         shell::text(theme::night::CAPTION, shell::c(n.muted))
                             .font_family(theme::MONO)
-                            .text_size(px(13.))
-                            .line_height(px(17.))
+                            .text_size(px(theme::chrome(13.)))
+                            .line_height(px(theme::chrome(17.)))
                             .child(played_line(i)),
                     )
                     .child(
-                        shell::action(
+                        shell::spaced_action(
                             SharedString::from(format!("card-play-{id}")),
                             shell::Action::Raised,
                             &t,
@@ -1193,11 +1211,11 @@ impl Launcher {
             return div()
                 .flex()
                 .flex_col()
-                .gap(px(10.))
+                .gap(px(theme::chrome(10.)))
                 .child(text(theme::CAPTION).text_color(t.danger).child(e))
                 .into_any_element();
         }
-        let mut section = div().flex().flex_col().gap(px(10.));
+        let mut section = div().flex().flex_col().gap(px(theme::chrome(10.)));
         match (group, join_diff) {
             (Some(group), _) => {
                 let quoted = format!("\"{group}\"");
@@ -1206,7 +1224,7 @@ impl Launcher {
                     &[("group", &quoted)],
                 )));
                 if !key_union.is_empty() {
-                    let mut picker = div().flex().flex_col().gap(px(6.));
+                    let mut picker = div().flex().flex_col().gap(px(theme::chrome(6.)));
                     picker = picker.child(
                         text(theme::CAPTION)
                             .text_color(t.muted)
@@ -1226,7 +1244,7 @@ impl Launcher {
                             div()
                                 .flex()
                                 .items_center()
-                                .gap(px(8.))
+                                .gap(px(theme::chrome(8.)))
                                 .child(
                                     div()
                                         .id(format!("sync-key-{pick}"))
@@ -1266,21 +1284,23 @@ impl Launcher {
                     let yours = note.local.show();
                     let groups = note.shared.show();
                     let (key_keep, key_take, key_label) = (key.clone(), key.clone(), key.clone());
-                    let keep = shell::action(format!("sync-keep-{key}"), shell::Action::Quiet, &t)
-                        .child(shell::label(tr("keep mine").to_string()))
-                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                            this.sync_resolve_click(key_keep.clone(), true, cx);
-                        }));
-                    let take = shell::action(format!("sync-take-{key}"), shell::Action::Quiet, &t)
-                        .child(shell::label(tr("use the group's").to_string()))
-                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                            this.sync_resolve_click(key_take.clone(), false, cx);
-                        }));
+                    let keep =
+                        shell::spaced_action(format!("sync-keep-{key}"), shell::Action::Quiet, &t)
+                            .child(shell::label(tr("keep mine").to_string()))
+                            .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                                this.sync_resolve_click(key_keep.clone(), true, cx);
+                            }));
+                    let take =
+                        shell::spaced_action(format!("sync-take-{key}"), shell::Action::Quiet, &t)
+                            .child(shell::label(tr("use the group's").to_string()))
+                            .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                                this.sync_resolve_click(key_take.clone(), false, cx);
+                            }));
                     section = section.child(
                         div()
                             .flex()
                             .items_center()
-                            .gap(px(8.))
+                            .gap(px(theme::chrome(8.)))
                             .child(
                                 shell::text(theme::night::CAPTION, shell::c(n.ink))
                                     .child(key_label),
@@ -1293,16 +1313,16 @@ impl Launcher {
                             .child(if busy { disabled(take) } else { take }),
                     );
                 }
-                let now = shell::action("sync-now", shell::Action::Quiet, &t)
+                let now = shell::spaced_action("sync-now", shell::Action::Quiet, &t)
                     .child(shell::label(tr("sync now").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.sync_now_click(cx)));
-                let leave = shell::action("sync-leave", shell::Action::Quiet, &t)
+                let leave = shell::spaced_action("sync-leave", shell::Action::Quiet, &t)
                     .child(shell::label(tr("leave").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.sync_leave_click(cx)));
                 section = section.child(
                     div()
                         .flex()
-                        .gap(px(8.))
+                        .gap(px(theme::chrome(8.)))
                         .child(if busy { disabled(now) } else { now })
                         .child(if busy { disabled(leave) } else { leave }),
                 );
@@ -1317,17 +1337,17 @@ impl Launcher {
                     "the group {group} and this instance differ on: {keys}. whose values win? the side that loses is backed up first.",
                     &[("group", &quoted), ("keys", &list)],
                 )));
-                let theirs = shell::action("sync-diff-theirs", shell::Action::Main, &t)
+                let theirs = shell::spaced_action("sync-diff-theirs", shell::Action::Main, &t)
                     .child(shell::label(tr("use the group's").to_string()))
                     .on_click(
                         cx.listener(|this, _: &ClickEvent, _, cx| this.sync_take_click(false, cx)),
                     );
-                let mine = shell::action("sync-diff-mine", shell::Action::Quiet, &t)
+                let mine = shell::spaced_action("sync-diff-mine", shell::Action::Quiet, &t)
                     .child(shell::label(tr("keep mine").to_string()))
                     .on_click(
                         cx.listener(|this, _: &ClickEvent, _, cx| this.sync_take_click(true, cx)),
                     );
-                let back = shell::action("sync-diff-back", shell::Action::Quiet, &t)
+                let back = shell::spaced_action("sync-diff-back", shell::Action::Quiet, &t)
                     .child(shell::label(tr("back").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                         if let Some(d) = &mut this.instances.dialog {
@@ -1338,7 +1358,7 @@ impl Launcher {
                 section = section.child(
                     div()
                         .flex()
-                        .gap(px(8.))
+                        .gap(px(theme::chrome(8.)))
                         .child(if busy { disabled(theirs) } else { theirs })
                         .child(if busy { disabled(mine) } else { mine })
                         .child(if busy { disabled(back) } else { back }),
@@ -1348,13 +1368,13 @@ impl Launcher {
                 section = section.child(text(theme::CAPTION).text_color(t.muted).child(tr(
                     "keep its options.txt settings (keybinds, video, controls) the same across the instances of a group. a new group starts from this instance's settings.",
                 )));
-                let join = shell::action("sync-join", shell::Action::Main, &t)
+                let join = shell::spaced_action("sync-join", shell::Action::Main, &t)
                     .child(shell::label(tr("join").to_string()))
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.sync_join_click(cx)));
                 section = section.child(
                     div()
                         .flex()
-                        .gap(px(8.))
+                        .gap(px(theme::chrome(8.)))
                         .items_center()
                         .child(self.field(Field::InstanceSyncGroup, tr("group name"), 200., cx))
                         .child(if busy { disabled(join) } else { join }),
@@ -1596,7 +1616,7 @@ impl Launcher {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(8.))
+                .gap(px(theme::chrome(8.)))
                 .child(
                     shell::text(theme::night::CAPTION, shell::c(n.muted))
                         .font_weight(FontWeight::SEMIBOLD)
@@ -1610,8 +1630,8 @@ impl Launcher {
             .flex()
             .flex_col()
             .min_h_0()
-            .gap(px(20.))
-            .p(px(28.))
+            .gap(px(theme::chrome(20.)))
+            .p(px(theme::chrome(28.)))
             .overflow_y_scroll()
             .child(
                 shell::text(theme::night::TITLE, shell::c(n.ink)).child(
@@ -1839,7 +1859,7 @@ impl Launcher {
                     .into_any_element(),
             );
         }
-        let choose = shell::action("instance-picture", shell::Action::Quiet, &t)
+        let choose = shell::spaced_action("instance-picture", shell::Action::Quiet, &t)
             .child(shell::label(tr("choose image…").to_string()))
             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.choose_instance_picture(cx);
@@ -1855,7 +1875,7 @@ impl Launcher {
             div()
                 .flex()
                 .flex_col()
-                .gap(px(10.))
+                .gap(px(theme::chrome(10.)))
                 .children(rows)
                 .child(div().flex().child(choose))
                 .into_any_element(),
@@ -1867,13 +1887,13 @@ impl Launcher {
                 .as_ref()
                 .and_then(|i| self.instance_banner(i, 160.)),
         };
-        let choose_banner = shell::action("instance-banner", shell::Action::Quiet, &t)
+        let choose_banner = shell::spaced_action("instance-banner", shell::Action::Quiet, &t)
             .child(shell::label(tr("choose image…").to_string()))
             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                 this.choose_instance_banner(cx);
             }));
         let remove_banner = banner_now.is_some().then(|| {
-            shell::action("instance-banner-remove", shell::Action::Quiet, &t)
+            shell::spaced_action("instance-banner-remove", shell::Action::Quiet, &t)
                 .child(shell::label(tr("remove").to_string()))
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     if let Some(d) = &mut this.instances.dialog {
@@ -1887,7 +1907,7 @@ impl Launcher {
             div()
                 .flex()
                 .items_center()
-                .gap(px(10.))
+                .gap(px(theme::chrome(10.)))
                 .child(
                     div()
                         .id("instance-banner-preview")
@@ -1919,7 +1939,7 @@ impl Launcher {
             body = body.child(text(theme::CAPTION).text_color(t.danger).child(e));
         }
         let cancel_key = self.key_handle("instance-cancel", cx);
-        let cancel = shell::action("instance-cancel", shell::Action::Quiet, &t)
+        let cancel = shell::spaced_action("instance-cancel", shell::Action::Quiet, &t)
             .track_focus(&cancel_key)
             .child(shell::label(tr("cancel").to_string()));
         let label = match (editing, busy, copy) {
@@ -1928,14 +1948,14 @@ impl Launcher {
             _ => "create",
         };
         let save_key = self.key_handle("instance-save", cx);
-        let save = shell::action("instance-save", shell::Action::Main, &t)
+        let save = shell::spaced_action("instance-save", shell::Action::Main, &t)
             .track_focus(&save_key)
             .h(px(theme::chrome(theme::CONTROL + 6.)))
             .text_size(px(theme::step_px(theme::night::UI)))
             .child(shell::label(tr(label).to_string()));
         // A modpack becomes an instance by being imported, on the Mods page.
         let import = (!editing && !busy).then(|| {
-            shell::action("instance-import", shell::Action::Quiet, &t)
+            shell::spaced_action("instance-import", shell::Action::Quiet, &t)
                 .child(shell::label(tr("import a modpack…").to_string()))
                 .mr_auto()
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -1949,9 +1969,9 @@ impl Launcher {
             .flex()
             .flex_none()
             .justify_end()
-            .gap(px(8.))
-            .px(px(28.))
-            .py(px(16.))
+            .gap(px(theme::chrome(8.)))
+            .px(px(theme::chrome(28.)))
+            .py(px(theme::chrome(16.)))
             .border_t_1()
             .border_color(plate::alpha(n.stroke, n.rule_alpha))
             .items_center()
@@ -1995,8 +2015,8 @@ impl Launcher {
                 .flex()
                 .flex_col()
                 .items_center()
-                .px(px(32.))
-                .py(px(24.))
+                .px(px(theme::chrome(32.)))
+                .py(px(theme::chrome(24.)))
                 .bg(plate::alpha(n.page, 0.8))
                 .on_scroll(|_, _, cx| cx.stop_propagation())
                 .occlude()

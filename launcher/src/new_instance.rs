@@ -146,7 +146,7 @@ impl Launcher {
     pub(super) fn kind_tabs(&self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         let now = self.instances.dialog.as_ref().map(|d| d.java.kind);
-        div().flex().gap(px(4.)).children(
+        div().flex().gap(px(theme::chrome(4.))).children(
             [
                 (NewKind::Vanilla, "vanilla", "vanilla"),
                 (NewKind::Modded, "modded", "modded"),
@@ -177,9 +177,9 @@ impl Launcher {
                 .child(tr(s).to_string())
         };
         let toggle = |id: &'static str, label: &'static str, on: bool| {
-            shell::action(id, if on { Action::Raised } else { Action::Quiet }, &t)
+            shell::spaced_action(id, if on { Action::Raised } else { Action::Quiet }, &t)
                 .h(px(26.))
-                .px(px(10.))
+                .px(px(theme::chrome(10.)))
                 .child(shell::label(tr(label).to_string()))
         };
         let search = self
@@ -203,7 +203,7 @@ impl Launcher {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(8.))
+                    .gap(px(theme::chrome(8.)))
                     .child(
                         shell::text(night::UI, c(n.danger)).child(
                             tr("mojang's version list could not be fetched. check the connection and try again in a few minutes.")
@@ -213,7 +213,7 @@ impl Launcher {
                     .child(
                         div()
                             .flex()
-                            .gap(px(8.))
+                            .gap(px(theme::chrome(8.)))
                             .child(
                                 button("retry-mc-versions", "try again", Kind::Secondary, &t)
                                     .on_click(cx.listener(
@@ -243,7 +243,7 @@ impl Launcher {
                         d.child(
                             div()
                                 .max_w(px(560.))
-                                .p(px(12.))
+                                .p(px(theme::chrome(12.)))
                                 .bg(t.well)
                                 .font_family(theme::MONO)
                                 .text_size(px(12.))
@@ -270,7 +270,7 @@ impl Launcher {
                         shell::row(format!("mc-{}", v.id), selected, &t)
                             .flex_none()
                             .h(px(32.))
-                            .px(px(12.))
+                            .px(px(theme::chrome(12.)))
                             .child(
                                 shell::text(night::UI, c(n.ink))
                                     .relative()
@@ -297,7 +297,7 @@ impl Launcher {
                         .flex()
                         .flex_col()
                         .h(px(6. * 32. + 8.))
-                        .p(px(4.))
+                        .p(px(theme::chrome(4.)))
                         .overflow_y_scroll()
                         .rounded(px(night::RADIUS_CONTROL))
                         .border_1()
@@ -310,7 +310,7 @@ impl Launcher {
         let filters = div()
             .flex()
             .items_center()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .child(self.field(Field::InstanceVersion, tr("search versions"), 240., cx))
             .child(
                 toggle("mc-snapshots", "snapshots", choice.snapshots).on_click(cx.listener(
@@ -329,7 +329,7 @@ impl Launcher {
         let mut rows = div()
             .flex()
             .flex_col()
-            .gap(px(10.))
+            .gap(px(theme::chrome(10.)))
             .child(heading("minecraft version"))
             .child(filters)
             .child(list);
@@ -342,7 +342,7 @@ impl Launcher {
                     .find(|(l, _)| *l == loader)
                     .and_then(|(_, i)| i.clone());
                 let on = choice.loader == loader;
-                shell::action(
+                shell::spaced_action(
                     SharedString::from(format!("loader-{}", loader.id())),
                     Action::Raised,
                     &t,
@@ -351,7 +351,7 @@ impl Launcher {
                 .w(px(180.))
                 .justify_start()
                 .when(on, |d| d.border_2().border_color(c(n.accent_hi)))
-                .gap(px(10.))
+                .gap(px(theme::chrome(10.)))
                 .children(logo.map(|logo| instance_icons::centred(logo, 24., scale).relative()))
                 .child(
                     div()
@@ -375,7 +375,7 @@ impl Launcher {
                 div()
                     .flex()
                     .flex_wrap()
-                    .gap(px(10.))
+                    .gap(px(theme::chrome(10.)))
                     .child(card(Loader::Fabric))
                     .child(card(Loader::Quilt))
                     .child(card(Loader::Forge))

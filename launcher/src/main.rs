@@ -2879,7 +2879,7 @@ fn button(
         .items_center()
         .justify_center()
         .h(px(theme::control()))
-        .px(px(14.))
+        .px(px(theme::chrome(14.)))
         .font_family(theme::PIXEL)
         .text_size(px(16.))
         .font_weight(FontWeight::MEDIUM)
@@ -2906,7 +2906,7 @@ fn button(
             .relative()
             .flex()
             .items_center()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .pb(px(if kind == Kind::Ghost { 0. } else { 2. }))
             .child(label),
     );
@@ -3057,8 +3057,8 @@ fn segments<T: Copy + PartialEq + 'static>(
         .id(id)
         .flex()
         .flex_none()
-        .p(px(2.))
-        .gap(px(2.))
+        .p(px(theme::chrome(2.)))
+        .gap(px(theme::chrome(2.)))
         .border_2()
         .border_color(t.outline)
         .bg(t.well)
@@ -3070,8 +3070,8 @@ fn segments<T: Copy + PartialEq + 'static>(
                 .flex()
                 .items_center()
                 .h(px(theme::segment()))
-                .px(px(14.))
-                .pb(px(2.))
+                .px(px(theme::chrome(14.)))
+                .pb(px(theme::chrome(2.)))
                 .font_family(theme::PIXEL)
                 .text_size(px(14.))
                 .font_weight(FontWeight::MEDIUM)
@@ -3239,11 +3239,11 @@ fn slot_row(
     blocks::panel(t)
         .flex()
         .items_center()
-        .gap(px(16.))
+        .gap(px(theme::chrome(16.)))
         .min_h(px(theme::row()))
-        .mb(px(8.))
-        .px(px(16.))
-        .py(px(12.))
+        .mb(px(theme::chrome(8.)))
+        .px(px(theme::chrome(16.)))
+        .py(px(theme::chrome(12.)))
         .children(slot)
         .child(
             div()
@@ -3251,7 +3251,7 @@ fn slot_row(
                 .flex_col()
                 .flex_1()
                 .min_w_0()
-                .gap(px(2.))
+                .gap(px(theme::chrome(2.)))
                 .child(
                     blocks::pixel(16., FontWeight::MEDIUM)
                         .text_color(t.ink)
@@ -3278,7 +3278,7 @@ fn tab_action(
     t: &Theme,
 ) -> Stateful<Div> {
     let label: SharedString = label.into();
-    shell::action(id, shell::Action::Raised, t).child(shell::label(tr(&label).to_string()))
+    shell::spaced_action(id, shell::Action::Raised, t).child(shell::label(tr(&label).to_string()))
 }
 
 /// Floating text with no background

@@ -80,9 +80,9 @@ pub fn row(id: impl Into<SharedString>, selected_now: bool, t: &Theme) -> Statef
         .relative()
         .flex()
         .items_center()
-        .gap(px(12.))
+        .gap(px(theme::chrome(12.)))
         .h(px(theme::chrome(52.)))
-        .px(px(8.))
+        .px(px(theme::chrome(8.)))
         .cursor_pointer();
     let d = if selected_now {
         d.child(selected(2, t))
@@ -102,8 +102,8 @@ pub fn heading(label: impl Into<SharedString>, t: &Theme) -> Div {
         .items_center()
         .justify_between()
         .h(px(theme::chrome(32.)))
-        .px(px(8.))
-        .mt(px(8.))
+        .px(px(theme::chrome(8.)))
+        .mt(px(theme::chrome(8.)))
         .child(
             text(night::CAPTION, c(t.night.muted))
                 .font_weight(FontWeight::SEMIBOLD)
@@ -121,7 +121,7 @@ pub fn tab(id: impl Into<SharedString>, label: &str, active: bool, t: &Theme) ->
         .flex()
         .items_center()
         .h(px(theme::chrome(32.)))
-        .px(px(14.))
+        .px(px(theme::chrome(14.)))
         .cursor_pointer();
     let d = if active {
         d.child(selected(1, t))
@@ -160,9 +160,9 @@ pub fn nav_item(
         .relative()
         .flex()
         .items_center()
-        .gap(px(10.))
+        .gap(px(theme::chrome(10.)))
         .h(px(theme::chrome(34.)))
-        .px(px(10.))
+        .px(px(theme::chrome(10.)))
         .cursor_pointer();
     let d = if active {
         d.child(selected(1, t))
@@ -258,7 +258,7 @@ pub fn chip_tag(label: impl Into<SharedString>, t: &Theme) -> Div {
         .flex_none()
         .items_center()
         .h(px(theme::chrome(22.)))
-        .px(px(9.))
+        .px(px(theme::chrome(9.)))
         .rounded(px(11.))
         .bg(alpha(n.card_hi, n.card_hi_alpha))
         .child(text(night::CAPTION, c(n.muted)).child(label.into()))
@@ -316,10 +316,10 @@ pub fn chip(id: impl Into<SharedString>, t: &Theme) -> Stateful<Div> {
         .flex()
         .min_w_0()
         .items_center()
-        .gap(px(10.))
+        .gap(px(theme::chrome(10.)))
         .h(px(theme::chrome(40.)))
-        .pl(px(6.))
-        .pr(px(12.))
+        .pl(px(theme::chrome(6.)))
+        .pr(px(theme::chrome(12.)))
         .cursor_pointer()
         .child(
             cut(
@@ -412,6 +412,17 @@ pub fn action(id: impl Into<SharedString>, kind: Action, t: &Theme) -> Stateful<
             })),
     };
     keyboard(track_hover(d, id), t).active(|s| s.opacity(theme::PRESSED))
+}
+
+/// An action with scaled spacing. Home keeps the original `action` spacing.
+pub fn spaced_action(id: impl Into<SharedString>, kind: Action, t: &Theme) -> Stateful<Div> {
+    action(id, kind, t)
+        .gap(px(theme::chrome(10.)))
+        .px(px(theme::chrome(if matches!(kind, Action::Main) {
+            28.
+        } else {
+            16.
+        })))
 }
 
 /// A label for an [`action`], over its hover layer.
