@@ -105,13 +105,12 @@ try {
   $steps = @(
     @{n='initial-1028x780';w=8},
     @{n='pre-scroll-1028x780';w=2},
-    @{n='post-scroll-1028x780';s=$true;w=2},
-    @{n='resized-960x600';r=@(960,600);w=3},
-    @{n='resized-2560x1440';r=@(2560,1440);w=4},
-    @{n='returned-1028x780';r=@(1028,780);w=3},
-    @{n='pre-click-1028x780';w=2}
+    @{n='pre-click-1028x780';s=$true;w=2},
+    @{n='post-click-1028x780';c=$true;w=2},
+    @{n='opened-960x600';r=@(960,600);w=3},
+    @{n='opened-2560x1440';r=@(2560,1440);w=4}
   )
-  'probe-input: stage-one calibration only; fixed wheel delta=-900 at outer (850,600); no pointer click or keyboard input' | Out-File $info -Append
+  'probe-input: fixed 1028x780 scroll, saved original, exact approved target-region pixel hash, one fixed click; later sizes capture only' | Out-File $info -Append
   $expectedClient = @(1028,780)
   for ($f = 1; $f -le $steps.Count; $f++) {
     $st = $steps[$f-1]
@@ -137,6 +136,39 @@ try {
       "scroll-target: outer=(850,600) desktop=($sx,$sy) client=$($pc.Right)x$($pc.Bottom) delta=-900" | Out-File $info -Append
       $delta = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int]-900),0)
       [WinCap]::mouse_event(2048,0,0,$delta,[UIntPtr]::Zero)
+    }
+    if ($st.c) {
+      if (-not $savedSteps.ContainsKey('pre-click-1028x780')) { throw 'Missing original pre-click frame' }
+      $portrait = $env:CAP_ROUTE -eq 'screenshots'
+      $rx = 110; $ry = if ($portrait) {610} else {650}; $rw = 900; $rh = if ($portrait) {140} else {90}
+      $expectedHash = if ($portrait) {'8179a567ad297a924bb7b1fd5f09bda878152bc9ba0663f744fd1ba2c06b73da'} else {'7d0386e87c1ac59c1b225b1dd5c190c1fed985107172721c55e8748a2eabe2ae'}
+      $reference = [System.Drawing.Bitmap]::new($savedSteps['pre-click-1028x780'])
+      try {
+        $rgb = New-Object byte[] ($rw*$rh*3); $i = 0
+        for ($yy=$ry; $yy -lt $ry+$rh; $yy++) { for ($xx=$rx; $xx -lt $rx+$rw; $xx++) {
+          $pixel = $reference.GetPixel($xx,$yy); $rgb[$i++]=$pixel.R; $rgb[$i++]=$pixel.G; $rgb[$i++]=$pixel.B
+        } }
+        $pixelHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($rgb)).ToLowerInvariant()
+      } finally { $reference.Dispose() }
+      "pre-click-region: x=$rx y=$ry w=$rw h=$rh sha256=$pixelHash expected=$expectedHash" | Out-File $info -Append
+      if ($pixelHash -ne $expectedHash) { throw 'CALIBRATION-RETURN: target region differs from frontend-approved original; no click' }
+      $h = $proc.MainWindowHandle; $pr=New-Object WinCap+RECT; $pc=New-Object WinCap+RECT
+      if (-not [WinCap]::GetWindowRect($h,[ref]$pr) -or -not [WinCap]::GetClientRect($h,[ref]$pc)) { throw 'Cannot verify click geometry' }
+      if ($pc.Right -ne 1028 -or $pc.Bottom -ne 780 -or [WinCap]::GetDpiForWindow($h) -ne 96 -or $pr.Left -ne 0 -or $pr.Top -ne 0 -or -not [WinCap]::IsWindowVisible($h) -or [WinCap]::IsIconic($h)) { throw 'Click requires reviewed origin, client and DPI' }
+      $cx=if ($portrait) {210} else {785}; $cy=if ($portrait) {675} else {692}
+      $desktop=[System.Windows.Forms.SystemInformation]::VirtualScreen
+      if (-not $desktop.Contains([int]$cx,[int]$cy)) { throw 'Click outside desktop' }
+      [WinCap]::SetForegroundWindow($h) | Out-Null
+      Start-Sleep -Milliseconds 300
+      if ([WinCap]::GetForegroundWindow() -ne $h) { throw 'Click requires foreground owned window' }
+      if (-not [WinCap]::SetCursorPos($cx,$cy)) { throw 'Cannot position click pointer' }
+      Start-Sleep -Milliseconds 300
+      if ([WinCap]::GetForegroundWindow() -ne $h) { throw 'Foreground changed before click' }
+      $now=New-Object WinCap+RECT; $nowOuter=New-Object WinCap+RECT
+      if (-not [WinCap]::GetClientRect($h,[ref]$now) -or -not [WinCap]::GetWindowRect($h,[ref]$nowOuter) -or $now.Right -ne 1028 -or $now.Bottom -ne 780 -or [WinCap]::GetDpiForWindow($h) -ne 96 -or $nowOuter.Left -ne 0 -or $nowOuter.Top -ne 0) { throw 'Geometry changed before click' }
+      "fixed-click: route=$env:CAP_ROUTE outer=($cx,$cy) client=1028x780 dpi=96" | Out-File $info -Append
+      [WinCap]::mouse_event(2,0,0,0,[UIntPtr]::Zero)
+      [WinCap]::mouse_event(4,0,0,0,[UIntPtr]::Zero)
     }
     if ($st.ms) { Start-Sleep -Milliseconds $st.ms } else { Start-Sleep -Seconds $st.w }
     $proc.Refresh()
@@ -192,7 +224,7 @@ try {
     }
   }
   if ($okCount -ne $steps.Count) { throw "Saved capture count $okCount does not match requested step count $($steps.Count)" }
-  'NOT-PROVEN: unobscured requested page and scroll result until pixel review. No clicks or keyboard input. Foreground check/send has a race; original pre/post frames require review.' | Out-File $info -Append
+  'NOT-PROVEN: viewer or Data packs opened until pixel review. Foreground check/send and pixel-check/send have races. No keyboard input or click at resized client sizes.' | Out-File $info -Append
   $checksPass = $true
 } finally {
   # Best-effort cleanup: any leftover capture jobs, then the launcher's main
