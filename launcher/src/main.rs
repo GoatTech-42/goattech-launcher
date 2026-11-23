@@ -3035,10 +3035,10 @@ fn section_title(label: &'static str, icon: &'static str, t: &Theme) -> Div {
     div()
         .flex()
         .items_center()
-        .gap(px(10.))
-        .child(blocks::icon(icon, 20., t.accent))
+        .gap(px(theme::chrome(10.)))
+        .child(blocks::chrome_icon(icon, 20., t.accent))
         .child(
-            blocks::pixel(18., FontWeight::SEMIBOLD)
+            blocks::pixel(theme::chrome(18.), FontWeight::SEMIBOLD)
                 .text_color(t.ink)
                 .child(tr(label)),
         )
@@ -3073,7 +3073,7 @@ fn segments<T: Copy + PartialEq + 'static>(
                 .px(px(theme::chrome(14.)))
                 .pb(px(theme::chrome(2.)))
                 .font_family(theme::PIXEL)
-                .text_size(px(14.))
+                .text_size(px(theme::chrome(14.)))
                 .font_weight(FontWeight::MEDIUM)
                 .cursor_pointer()
                 .when(active, |d| {
@@ -3253,7 +3253,7 @@ fn slot_row(
                 .min_w_0()
                 .gap(px(theme::chrome(2.)))
                 .child(
-                    blocks::pixel(16., FontWeight::MEDIUM)
+                    blocks::pixel(theme::chrome(16.), FontWeight::MEDIUM)
                         .text_color(t.ink)
                         .child(name),
                 )

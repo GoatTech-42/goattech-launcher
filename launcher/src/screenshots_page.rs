@@ -285,7 +285,7 @@ impl Launcher {
                     .flex_1()
                     .min_w_0()
                     .child(
-                        blocks::pixel(17., FontWeight::MEDIUM)
+                        blocks::pixel(theme::chrome(17.), FontWeight::MEDIUM)
                             .text_color(t.ink)
                             .child(taken.format("%Y-%m-%d %H:%M:%S").to_string()),
                     )

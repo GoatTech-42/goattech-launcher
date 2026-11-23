@@ -1869,11 +1869,11 @@ fn source_switch(
         .flex()
         .items_center()
         .h(px(theme::segment()))
-        .px(px(14.))
-        .pb(px(2.))
+        .px(px(theme::chrome(14.)))
+        .pb(px(theme::chrome(2.)))
         .opacity(theme::DISABLED)
         .child(
-            blocks::pixel(14., FontWeight::MEDIUM)
+            blocks::pixel(theme::chrome(14.), FontWeight::MEDIUM)
                 .text_color(t.muted)
                 .child(tr("curseforge (coming soon)")),
         );
