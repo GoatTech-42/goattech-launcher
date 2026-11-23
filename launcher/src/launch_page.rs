@@ -335,7 +335,7 @@ impl Launcher {
                         .items_center()
                         .justify_between()
                         .child(
-                            blocks::pixel(16., FontWeight::MEDIUM)
+                            blocks::pixel(theme::chrome(16.), FontWeight::MEDIUM)
                                 .text_color(t.ink)
                                 .child(tr("maximum memory")),
                         )

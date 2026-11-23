@@ -241,7 +241,7 @@ impl Launcher {
                     .flex_1()
                     .min_w_0()
                     .child(
-                        blocks::pixel(15., FontWeight::MEDIUM)
+                        blocks::pixel(theme::chrome(15.), FontWeight::MEDIUM)
                             .text_color(t.ink)
                             .truncate()
                             .child(server.name.clone()),

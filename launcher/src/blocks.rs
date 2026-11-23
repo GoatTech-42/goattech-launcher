@@ -127,7 +127,7 @@ pub fn tabs<T: Copy + PartialEq + 'static>(
     div()
         .flex()
         .items_end()
-        .gap(px(4.))
+        .gap(px(theme::chrome(4.)))
         .children(options.iter().map(|&(value, label, icon_name)| {
             let open = current == value;
             let pick = on_pick.clone();
@@ -136,9 +136,9 @@ pub fn tabs<T: Copy + PartialEq + 'static>(
                 .relative()
                 .flex()
                 .items_center()
-                .gap(px(8.))
-                .h(px(if open { 42. } else { 38. }))
-                .px(px(14.))
+                .gap(px(theme::chrome(8.)))
+                .h(px(theme::chrome(if open { 42. } else { 38. })))
+                .px(px(theme::chrome(14.)))
                 .border_2()
                 .border_b_0()
                 .border_color(t.outline)
@@ -153,9 +153,13 @@ pub fn tabs<T: Copy + PartialEq + 'static>(
                         .h(px(theme::BEVEL))
                         .bg(if open { t.bevel } else { t.raised }),
                 )
-                .child(icon(icon_name, 18., if open { t.accent } else { t.muted }))
+                .child(chrome_icon(
+                    icon_name,
+                    18.,
+                    if open { t.accent } else { t.muted },
+                ))
                 .child(
-                    pixel(15., FontWeight::MEDIUM)
+                    pixel(theme::chrome(15.), FontWeight::MEDIUM)
                         .text_color(if open { t.ink } else { t.muted })
                         .child(crate::i18n::tr(label)),
                 )

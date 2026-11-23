@@ -308,7 +308,7 @@ impl Launcher {
                     .flex_1()
                     .min_w_0()
                     .child(
-                        blocks::pixel(14., FontWeight::MEDIUM)
+                        blocks::pixel(theme::chrome(14.), FontWeight::MEDIUM)
                             .text_color(if pack.enabled { t.ink } else { t.muted })
                             .truncate()
                             .child(pack.title.clone()),
