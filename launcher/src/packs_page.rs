@@ -109,7 +109,7 @@ impl Launcher {
         let actions = div()
             .flex()
             .items_center()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .child(
                 tab_action("packs-add", "add pack…", &t).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {
@@ -129,7 +129,7 @@ impl Launcher {
             .id("packs")
             .flex()
             .flex_col()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             // The drop outline sits just outside the rows, which line up with the other sections.
             .p(px(2.))
             .mx(px(-4.))
@@ -158,10 +158,10 @@ impl Launcher {
         let mut head = plate(&t)
             .flex()
             .flex_col()
-            .gap(px(4.))
-            .px(px(12.))
-            .py(px(8.))
-            .mt(px(4.))
+            .gap(px(theme::chrome(4.)))
+            .px(px(theme::chrome(12.)))
+            .py(px(theme::chrome(8.)))
+            .mt(px(theme::chrome(4.)))
             .child(micro(tr("resource packs")).text_color(t.muted));
         if resource.is_empty() {
             head = head.child(text(theme::CAPTION).text_color(t.muted).child(tr(
@@ -176,10 +176,10 @@ impl Launcher {
         let mut head = plate(&t)
             .flex()
             .flex_col()
-            .gap(px(4.))
-            .px(px(12.))
-            .py(px(8.))
-            .mt(px(8.))
+            .gap(px(theme::chrome(4.)))
+            .px(px(theme::chrome(12.)))
+            .py(px(theme::chrome(8.)))
+            .mt(px(theme::chrome(8.)))
             .child(micro(tr("shader packs")).text_color(t.muted));
         if shader.is_empty() {
             head = head.child(
@@ -228,39 +228,38 @@ impl Launcher {
             )),
         };
         let running = self.client.is_some();
-        let mut actions = div().flex().items_center().gap(px(6.));
+        let mut actions = div().flex().items_center().gap(px(theme::chrome(6.)));
         let key = (pack.kind, pack.file.clone());
         if self.game_packs.confirm_remove.as_ref() == Some(&key) {
             let gone = pack.clone();
-            actions = actions
-                .child(
-                    text(theme::CAPTION)
-                        .text_color(t.danger)
-                        .child(tr("move it to the trash?")),
-                )
-                .child(
-                    button(id("keep"), "keep", Kind::Ghost, &t).on_click(cx.listener(
-                        |this, _: &ClickEvent, _, cx| {
+            actions =
+                actions
+                    .child(
+                        text(theme::CAPTION)
+                            .text_color(t.danger)
+                            .child(tr("move it to the trash?")),
+                    )
+                    .child(scaled_button(id("keep"), "keep", Kind::Ghost, &t).on_click(
+                        cx.listener(|this, _: &ClickEvent, _, cx| {
                             this.game_packs.confirm_remove = None;
                             cx.notify();
-                        },
-                    )),
-                )
-                .child(
-                    button(id("trash"), "move to trash", Kind::Secondary, &t).on_click(
-                        cx.listener(move |this, _: &ClickEvent, _, cx| {
-                            let gone = gone.clone();
-                            this.pack_action(move |home| {
-                                packs::remove(home, &gone).map(|()| {
-                                    trf("{name} moved to the trash.", &[("name", &gone.title)])
-                                })
-                            });
-                            cx.notify();
                         }),
-                    ),
-                );
+                    ))
+                    .child(
+                        scaled_button(id("trash"), "move to trash", Kind::Secondary, &t).on_click(
+                            cx.listener(move |this, _: &ClickEvent, _, cx| {
+                                let gone = gone.clone();
+                                this.pack_action(move |home| {
+                                    packs::remove(home, &gone).map(|()| {
+                                        trf("{name} moved to the trash.", &[("name", &gone.title)])
+                                    })
+                                });
+                                cx.notify();
+                            }),
+                        ),
+                    );
         } else {
-            let toggle = switch(id("toggle"), pack.enabled, &t);
+            let toggle = scaled_switch(id("toggle"), pack.enabled, &t);
             let flip = pack.clone();
             let toggle = if running {
                 disabled(toggle)
@@ -278,7 +277,7 @@ impl Launcher {
                     cx.notify();
                 }))
             };
-            let remove = button(id("remove"), "remove", Kind::Ghost, &t);
+            let remove = scaled_button(id("remove"), "remove", Kind::Ghost, &t);
             let remove = if running {
                 disabled(remove)
             } else {
@@ -297,9 +296,9 @@ impl Launcher {
         plate(&t)
             .flex()
             .items_center()
-            .gap(px(14.))
-            .px(px(14.))
-            .py(px(8.))
+            .gap(px(theme::chrome(14.)))
+            .px(px(theme::chrome(14.)))
+            .py(px(theme::chrome(8.)))
             .child(picture)
             .child(
                 div()

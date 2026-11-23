@@ -117,13 +117,18 @@ impl Launcher {
         }
         let t = self.theme;
         let path = world.path.clone();
-        let mut panel = div().flex().flex_col().gap(px(6.)).ml(px(62.)).mb(px(6.));
+        let mut panel = div()
+            .flex()
+            .flex_col()
+            .gap(px(theme::chrome(6.)))
+            .ml(px(theme::chrome(62.)))
+            .mb(px(theme::chrome(6.)));
         let mut head = plate(&t)
             .flex()
             .flex_col()
-            .gap(px(6.))
-            .px(px(12.))
-            .py(px(8.))
+            .gap(px(theme::chrome(6.)))
+            .px(px(theme::chrome(12.)))
+            .py(px(theme::chrome(8.)))
             .child(
                 div()
                     .flex()
@@ -133,9 +138,9 @@ impl Launcher {
                     .child(
                         div()
                             .flex()
-                            .gap(px(6.))
+                            .gap(px(theme::chrome(6.)))
                             .child(
-                                button("world-packs-add", "add data pack…", Kind::Ghost, &t)
+                                scaled_button("world-packs-add", "add data pack…", Kind::Ghost, &t)
                                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                                         this.choose_world_packs(path.clone(), cx);
                                         cx.notify();
@@ -143,7 +148,7 @@ impl Launcher {
                             )
                             .child({
                                 let dir = world.path.join("datapacks");
-                                button("world-packs-folder", "open folder", Kind::Ghost, &t)
+                                scaled_button("world-packs-folder", "open folder", Kind::Ghost, &t)
                                     .on_click(move |_, _, cx| {
                                         let _ = std::fs::create_dir_all(&dir);
                                         cx.open_with_system(&dir);
@@ -167,7 +172,7 @@ impl Launcher {
         panel = panel.child(head).children(failed);
         for (i, pack) in self.world_packs.list.clone().into_iter().enumerate() {
             let confirming = self.world_packs.confirm_remove.as_ref() == Some(&pack.file);
-            let mut actions = div().flex().items_center().gap(px(6.));
+            let mut actions = div().flex().items_center().gap(px(theme::chrome(6.)));
             if confirming {
                 let (world, gone) = (world.path.clone(), pack.clone());
                 actions = actions
@@ -177,7 +182,7 @@ impl Launcher {
                             .child(tr("move it to the trash?")),
                     )
                     .child(
-                        button(
+                        scaled_button(
                             SharedString::from(format!("world-pack-keep-{i}")),
                             "keep",
                             Kind::Ghost,
@@ -191,7 +196,7 @@ impl Launcher {
                         )),
                     )
                     .child(
-                        button(
+                        scaled_button(
                             SharedString::from(format!("world-pack-trash-{i}")),
                             "move to trash",
                             Kind::Secondary,
@@ -219,7 +224,7 @@ impl Launcher {
                     );
                 }
                 actions = actions.child(
-                    button(
+                    scaled_button(
                         SharedString::from(format!("world-pack-remove-{i}")),
                         "remove",
                         Kind::Ghost,
@@ -237,10 +242,10 @@ impl Launcher {
                 plate(&t)
                     .flex()
                     .items_center()
-                    .gap(px(12.))
-                    .px(px(12.))
-                    .py(px(6.))
-                    .child(blocks::icon("package", 16., t.muted))
+                    .gap(px(theme::chrome(12.)))
+                    .px(px(theme::chrome(12.)))
+                    .py(px(theme::chrome(6.)))
+                    .child(blocks::icon("package", theme::chrome(16.), t.muted))
                     .child(
                         div()
                             .flex()

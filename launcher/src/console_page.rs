@@ -128,7 +128,7 @@ impl Launcher {
                     &[("count", &count.to_string())],
                 ),
             });
-        let mut section = div().flex().flex_col().gap(px(10.));
+        let mut section = div().flex().flex_col().gap(px(theme::chrome(10.)));
         let search = self.servers.value(Field::ConsoleSearch).trim().to_string();
         let lines: Vec<String> = self
             .prepare_log
@@ -145,9 +145,13 @@ impl Launcher {
             .id("console-follow")
             .flex()
             .items_center()
-            .gap(px(8.))
+            .gap(px(theme::chrome(8.)))
             .cursor_pointer()
-            .child(switch("console-follow-switch", self.console.follow, &t))
+            .child(scaled_switch(
+                "console-follow-switch",
+                self.console.follow,
+                &t,
+            ))
             .child(
                 text(theme::LABEL)
                     .text_color(t.ink_soft)
@@ -163,12 +167,17 @@ impl Launcher {
             .flex()
             .flex_wrap()
             .items_center()
-            .gap(px(10.))
-            .child(self.field(Field::ConsoleSearch, tr("search the log"), 260., cx))
+            .gap(px(theme::chrome(10.)))
+            .child(self.scaled_field(
+                Field::ConsoleSearch,
+                tr("search the log"),
+                theme::chrome(260.),
+                cx,
+            ))
             .child(follow)
             .child(div().flex_1())
             .child(
-                button("console-copy", "copy", Kind::Ghost, &t).on_click(cx.listener(
+                scaled_button("console-copy", "copy", Kind::Ghost, &t).on_click(cx.listener(
                     move |this, _: &ClickEvent, _, cx| {
                         copy_to_clipboard(cx, ClipboardItem::new_string(copied.clone()));
                         this.console.shared = None;
@@ -177,7 +186,7 @@ impl Launcher {
                 )),
             )
             .child({
-                let b = button("console-share", "share log…", Kind::Ghost, &t);
+                let b = scaled_button("console-share", "share log…", Kind::Ghost, &t);
                 match self.console.sharing {
                     true => disabled(b),
                     false => b.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -193,7 +202,7 @@ impl Launcher {
                     .or_else(|| self.selected_instance().map(|i| i.home.clone()))
                     .unwrap_or_else(backend::game_home)
                     .join("logs");
-                button("console-folder", "open logs folder", Kind::Ghost, &t).on_click(
+                scaled_button("console-folder", "open logs folder", Kind::Ghost, &t).on_click(
                     move |_, _, cx| {
                         let _ = std::fs::create_dir_all(&logs);
                         cx.open_with_system(&logs);
@@ -206,16 +215,16 @@ impl Launcher {
                 plate(&t)
                     .flex()
                     .items_center()
-                    .gap(px(12.))
-                    .px(px(14.))
-                    .py(px(10.))
+                    .gap(px(theme::chrome(12.)))
+                    .px(px(theme::chrome(14.)))
+                    .py(px(theme::chrome(10.)))
                     .child(div().flex_1().min_w_0().child(
                         text(theme::CAPTION).text_color(t.ink_soft).child(tr(
                             "upload this log to mclo.gs, a paste service for minecraft logs? anyone with the link can read it, until it is deleted or unread for 90 days. your home folder, user name and account names are taken out first.",
                         )),
                     ))
                     .child(
-                        button("console-share-no", "cancel", Kind::Ghost, &t).on_click(
+                        scaled_button("console-share-no", "cancel", Kind::Ghost, &t).on_click(
                             cx.listener(|this, _: &ClickEvent, _, cx| {
                                 this.console.confirm_share = false;
                                 cx.notify();
@@ -223,7 +232,7 @@ impl Launcher {
                         ),
                     )
                     .child(
-                        button("console-share-yes", "upload", Kind::Secondary, &t).on_click(
+                        scaled_button("console-share-yes", "upload", Kind::Secondary, &t).on_click(
                             cx.listener(|this, _: &ClickEvent, _, cx| {
                                 this.share_log(cx);
                                 cx.notify();
@@ -246,30 +255,28 @@ impl Launcher {
                     div()
                         .flex()
                         .items_center()
-                        .gap(px(10.))
+                        .gap(px(theme::chrome(10.)))
                         .child(
                             text(theme::CAPTION)
                                 .text_color(t.ink_soft)
                                 .child(trf("shared: {url}", &[("url", &url)])),
                         )
                         .child(
-                            button("console-link-copy", "copy link", Kind::Ghost, &t).on_click(
-                                move |_, _, cx| {
+                            scaled_button("console-link-copy", "copy link", Kind::Ghost, &t)
+                                .on_click(move |_, _, cx| {
                                     copy_to_clipboard(cx, ClipboardItem::new_string(url.clone()))
-                                },
-                            ),
+                                }),
                         )
                         .child(
-                            button("console-link-open", "open", Kind::Ghost, &t)
+                            scaled_button("console-link-open", "open", Kind::Ghost, &t)
                                 .on_click(move |_, _, cx| cx.open_url(&open_url)),
                         )
                         .child(
-                            button("console-unshare", "delete it", Kind::Ghost, &t).on_click(
-                                cx.listener(|this, _: &ClickEvent, _, cx| {
+                            scaled_button("console-unshare", "delete it", Kind::Ghost, &t)
+                                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                                     this.unshare_log(cx);
                                     cx.notify();
-                                }),
-                            ),
+                                })),
                         ),
                 );
             }
@@ -280,14 +287,14 @@ impl Launcher {
         let body = div()
             .id("console-lines")
             .track_scroll(&self.console.scroll)
-            .h(px(320.))
+            .h(px(theme::chrome(320.)))
             .overflow_y_scroll()
-            .p(px(10.))
+            .p(px(theme::chrome(10.)))
             .border_2()
             .border_color(t.outline)
             .bg(t.well)
             .font_family(theme::MONO)
-            .text_size(px(12.))
+            .text_size(px(theme::chrome(12.)))
             .children(lines.into_iter().skip(shown).map(|line| {
                 let color = if line.contains("/ERROR]") || line.contains("ERROR:") {
                     t.danger
