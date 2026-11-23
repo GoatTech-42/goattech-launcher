@@ -7,8 +7,15 @@ use crate::shell::{action, c, label, Action};
 use theme::night;
 
 /// Device pixels per model texel (at scale 1) on the Home stage: the figure is drawn this
-/// big, crisp at display resolution.
-const STAGE_TEXEL: f32 = 9.;
+/// big, crisp at display resolution. The stage grows with the window: the 9 px it was fixed
+/// at in the default window (and any narrow one), up to 14 px on a maximized 27" monitor.
+/// Height sets the size, width keeps a narrow window from overflowing. Below 720 px tall the
+/// floor ramps down to 6.5, so Play stays above the fold at the 960x600 minimum window;
+/// heights windows already laid out well at (720 and up) never change.
+fn stage_texel(viewport_w: f32, viewport_h: f32) -> f32 {
+    let floor = (viewport_h / 80.).clamp(6.5, 9.);
+    (viewport_h / 96.).min(viewport_w / 140.).clamp(floor, 14.)
+}
 
 const NEXT_NEW_INSTANCE: &str = "next-new-instance";
 
@@ -669,14 +676,11 @@ impl Launcher {
             pose
         };
         let (yaw, pitch) = (self.stage_yaw, self.stage_pitch);
-        // Rasterize at real display resolution (texel STAGE_TEXEL in device pixels): geometry edges
+        // Rasterize at real display resolution (texel stage_texel in device pixels): geometry edges
         // are sharp at any window scale while the skin texture stays nearest-blocky.
-        let dev_w = (player_model::W as f32 * STAGE_TEXEL * scale)
-            .round()
-            .max(1.) as usize;
-        let dev_h = (player_model::H as f32 * STAGE_TEXEL * scale)
-            .round()
-            .max(1.) as usize;
+        let texel = stage_texel(self.viewport_w, self.viewport_h);
+        let dev_w = (player_model::W as f32 * texel * scale).round().max(1.) as usize;
+        let dev_h = (player_model::H as f32 * texel * scale).round().max(1.) as usize;
         let skin = texture.and_then(|(path, slim)| {
             let stamp = crate::servers_page::file_stamp(&path);
             let png = self.stage_skin.get(&path, stamp, || {
@@ -733,8 +737,8 @@ impl Launcher {
             // The model is a keyboard stop: Enter or Space waves, Left and Right turn it.
             let model = div()
                 .id("stage-model")
-                .w(px(player_model::W as f32 * STAGE_TEXEL))
-                .h(px(player_model::H as f32 * STAGE_TEXEL))
+                .w(px(player_model::W as f32 * texel))
+                .h(px(player_model::H as f32 * texel))
                 .cursor(gpui::CursorStyle::PointingHand)
                 .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
                     let m = &ev.keystroke.modifiers;
