@@ -28,18 +28,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { lang: en, net: off, label: base-instances, page: instances, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
-          - { lang: en, net: off, label: base-mods, page: mods, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
-          - { lang: en, net: off, label: base-servers, page: servers, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
-          - { lang: en, net: off, label: base-versions, page: versions, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
-          - { lang: en, net: off, label: base-settings, page: settings, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
-          - { lang: en, net: off, label: base-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '0fa3442670f7cd39bdf2141e4c9c0434138fb5b0' }
-          - { lang: en, net: off, label: branch-instances, page: instances, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
-          - { lang: en, net: off, label: branch-mods, page: mods, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
-          - { lang: en, net: off, label: branch-servers, page: servers, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
-          - { lang: en, net: off, label: branch-versions, page: versions, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
-          - { lang: en, net: off, label: branch-settings, page: settings, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
-          - { lang: en, net: off, label: branch-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '073fb3831bb7e3840c48e22446923cc9f8923648' }
+          - { lang: en, net: off, label: base-instances, page: instances, mode: home, width: 960, height: 600, source: '63dd863386f466a580b43f0b5a7355fe1f102b1a' }
+          - { lang: en, net: off, label: base-mods, page: mods, mode: home, width: 960, height: 600, source: '63dd863386f466a580b43f0b5a7355fe1f102b1a' }
+          - { lang: en, net: off, label: base-servers, page: servers, mode: home, width: 960, height: 600, source: '63dd863386f466a580b43f0b5a7355fe1f102b1a' }
+          - { lang: en, net: off, label: base-versions, page: versions, mode: home, width: 960, height: 600, source: '63dd863386f466a580b43f0b5a7355fe1f102b1a' }
+          - { lang: en, net: off, label: base-settings, page: settings, mode: home, width: 960, height: 600, source: '63dd863386f466a580b43f0b5a7355fe1f102b1a' }
+          - { lang: en, net: off, label: base-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '63dd863386f466a580b43f0b5a7355fe1f102b1a' }
+          - { lang: en, net: off, label: branch-instances, page: instances, mode: home, width: 960, height: 600, source: 'd67d58d84f39e8bcbec60fdc444d6f6bb0488df3' }
+          - { lang: en, net: off, label: branch-mods, page: mods, mode: home, width: 960, height: 600, source: 'd67d58d84f39e8bcbec60fdc444d6f6bb0488df3' }
+          - { lang: en, net: off, label: branch-servers, page: servers, mode: home, width: 960, height: 600, source: 'd67d58d84f39e8bcbec60fdc444d6f6bb0488df3' }
+          - { lang: en, net: off, label: branch-versions, page: versions, mode: home, width: 960, height: 600, source: 'd67d58d84f39e8bcbec60fdc444d6f6bb0488df3' }
+          - { lang: en, net: off, label: branch-settings, page: settings, mode: home, width: 960, height: 600, source: 'd67d58d84f39e8bcbec60fdc444d6f6bb0488df3' }
+          - { lang: en, net: off, label: branch-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: 'd67d58d84f39e8bcbec60fdc444d6f6bb0488df3' }
     # Uncached cold build on a 4-core runner can take a while; compute is free
     # for this public repo, the capture step still has its own 3-min bound.
     timeout-minutes: 90
