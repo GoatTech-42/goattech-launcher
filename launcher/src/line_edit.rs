@@ -497,6 +497,13 @@ pub(super) fn mouse<T: 'static, E: InteractiveElement>(
     }))
 }
 
+/// Growth-only character budget: preserve the baseline, reserve scaled padding and caret growth.
+/// This remains an average-advance heuristic, including the original 1px caret deficit.
+pub(super) fn scaled_budget(width: f32, scale: f32, advance: f32, legacy: Option<usize>) -> usize {
+    let base = legacy.map_or(width - 24., |count| count as f32 * advance);
+    ((base - 25. * (scale - 1.)).max(0.) / (advance * scale)) as usize
+}
+
 /// What a field draws inside its box: the placeholder while empty and unfocused, else the text
 /// with its selection and caret. `mask` shows dots (a token); `whole` shows all selected.
 pub(super) fn content(
@@ -506,6 +513,38 @@ pub(super) fn content(
     whole: bool,
     mask: bool,
     placeholder: impl Into<SharedString>,
+) -> Div {
+    content_at_scale(edit, t, focused, whole, mask, placeholder, 1.)
+}
+
+/// The named Settings and Servers fields opt into scaled caret geometry.
+pub(super) fn scaled_content(
+    edit: &LineEdit,
+    t: &theme::Theme,
+    focused: bool,
+    whole: bool,
+    mask: bool,
+    placeholder: impl Into<SharedString>,
+) -> Div {
+    content_at_scale(
+        edit,
+        t,
+        focused,
+        whole,
+        mask,
+        placeholder,
+        theme::ui_scale_current(),
+    )
+}
+
+fn content_at_scale(
+    edit: &LineEdit,
+    t: &theme::Theme,
+    focused: bool,
+    whole: bool,
+    mask: bool,
+    placeholder: impl Into<SharedString>,
+    scale: f32,
 ) -> Div {
     if edit.text.is_empty() && !focused {
         return div().text_color(t.muted).child(placeholder.into());
@@ -519,7 +558,7 @@ pub(super) fn content(
         };
         div().flex_none().whitespace_nowrap().child(s)
     };
-    let caret = || div().flex_none().w(px(1.)).h(px(14.)).bg(t.ink);
+    let caret = || div().flex_none().w(px(scale)).h(px(14. * scale)).bg(t.ink);
     let area = edit.area.clone();
     div()
         .relative()
@@ -703,5 +742,34 @@ mod tests {
         e.key("home", None, false, false);
         assert_eq!(e.view(false).2.chars().count(), 38);
         assert_eq!(e.view(true).1.chars().count(), 38);
+    }
+}
+
+#[cfg(test)]
+mod scaled_budget_tests {
+    #[test]
+    fn named_fields_keep_legacy_budgets_and_pay_only_growth_costs() {
+        for (width, advance, legacy, want_at_one, want_at_large) in [
+            (324., 7.5, None, 40, 32),
+            (400., 7.5, None, 50, 41),
+            (100., 7.5, None, 10, 7),
+            (520., 7.5, None, 66, 54),
+            (220., 7.5, None, 26, 21),
+            (240., 7.5, None, 28, 23),
+            (260., 7.5, None, 31, 25),
+            (225., 7.5, None, 26, 21),
+            (300., 7.2, Some(38), 38, 31),
+            (300., 7.2, Some(44), 44, 36),
+            (520., 7.5 * 12. / 14., Some(66), 66, 54),
+        ] {
+            assert_eq!(
+                super::scaled_budget(width, 1., advance, legacy),
+                want_at_one
+            );
+            assert_eq!(
+                super::scaled_budget(width, 1.2, advance, legacy),
+                want_at_large
+            );
+        }
     }
 }
