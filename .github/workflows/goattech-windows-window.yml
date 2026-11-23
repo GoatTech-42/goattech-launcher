@@ -1,51 +1,38 @@
-name: GoatTech pinned route survey
+name: GoatTech populated native capture
 # CI-only harness branch. Never merge this harness or its runner seam into main.
-# main target pins merged source dc03648, with synthetic offline names only.
+# Pins merged main f1fa45b, with synthetic offline names only.
 # No repository secrets, real accounts, cache, release, or artifact upload.
-# Separate exact-tip and runner-instrumented jobs. No production source or running ref changes.
+# Exact shipping source only. No source seam, production changes or running-ref changes.
 on:
   workflow_dispatch:
     inputs:
-      target:
-        description: 'Pinned source: merged main dc03648, P22 Home, P20, combined s=1, or P21'
-        type: choice
-        options: [main, p22, p20, combined, p21]
-        default: main
       route:
         description: 'all or a single route listed in docs/qa/route-survey.md'
         type: string
         default: all
-      actions:
-        description: 'Optional calibrated 1028x780 outer-window actions, same format as overlayscap18'
-        type: string
-        default: '[]'
 permissions:
   contents: read
 concurrency:
-  group: goattech-route-survey-${{ github.ref }}-${{ inputs.target }}-${{ inputs.route }}
+  group: goattech-route-survey-${{ github.ref }}-${{ github.sha }}-${{ inputs.route }}
   cancel-in-progress: false
 env:
   HORIZON_TELEMETRY_URL: 'off'
   HORIZON_LAUNCHER_NO_SELF_UPDATE: '1'
 jobs:
   capture:
-    name: ${{ inputs.target }} ${{ matrix.kind }} routes
+    name: populated ${{ matrix.kind }} routes
     if: github.repository == 'GoatTech-42/goattech-launcher'
     runs-on: windows-latest
     timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
-        kind: [exact, instrumented]
+        kind: [exact]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-          ref: ${{ inputs.target == 'main' && 'dc036480276da81ee2806600a521e3e2c3a53b67'
-            || inputs.target == 'p22' && '9fbca9458a396462e66c9c476ea3fb95ce0ba5e8'
-            || inputs.target == 'p21' && 'b47844135a09a1d0990847709590e1d34029ffaa'
-            || inputs.target == 'combined' && 'c5ef0ce75222bf4d223f21ece8b90bc609abc153'
-            || '43c56fa7583e89c453969a1f6e32ceef01fb5418' }}
+          ref: f1fa45bba5e0835e6cabb1faf7be30a29591d5ed
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
@@ -54,18 +41,6 @@ jobs:
       - name: Rust toolchain
         shell: pwsh
         run: rustup toolchain install stable --profile minimal
-      - name: Verify and apply runner-only seam in separate job
-        if: matrix.kind == 'instrumented'
-        shell: pwsh
-        run: |-
-          $ErrorActionPreference = 'Stop'
-          $patch = '_capture/docs/qa/route-capture-only.patch'
-          if ((Get-FileHash $patch -Algorithm SHA256).Hash.ToLowerInvariant() -ne '28bcaf3fe1eef9ea5bae0b80c939e6661fe666f0d3a002c358f4d82c91cbe7c2') { throw 'Capture seam hash mismatch' }
-          git apply --check $patch
-          if ($LASTEXITCODE -ne 0) { throw 'Capture seam does not apply to pinned source' }
-          git apply $patch
-          if ($LASTEXITCODE -ne 0) { throw 'Capture seam apply failed' }
-          "INSTRUMENTED: source tip plus runner-only patch sha256 28bcaf3fe1eef9ea5bae0b80c939e6661fe666f0d3a002c358f4d82c91cbe7c2; never shipping source"
       - name: Build fake-ID capture binary (never release)
         working-directory: launcher
         shell: pwsh
@@ -127,23 +102,19 @@ jobs:
         timeout-minutes: 18
         env:
           CAP_KIND: ${{ matrix.kind }}
-          CAP_TARGET: ${{ inputs.target }}
+          CAP_TARGET: populated
           CAP_ONLY_ROUTE: ${{ inputs.route }}
-          PROBE_ACTIONS: ${{ inputs.actions }}
           HTTP_PROXY: http://127.0.0.1:9
           HTTPS_PROXY: http://127.0.0.1:9
           ALL_PROXY: http://127.0.0.1:9
         run: |
           $ErrorActionPreference = 'Stop'
-          $exact = @('home','instances','mods','modpacks','resourcepacks','shaders','datapacks','servers','versions','notes','settings','new-instance','edit-instance','sign-in','getting-ready','export','launch','skin','worlds','instance-mods','multiplayer','packs','screenshots')
-          $instrumented = @('export','launch','skin','console','native-log','instance-mods','packs','world-datapacks','internet','modpack-detail')
-          $routes = if ($env:CAP_KIND -eq 'exact') {$exact} else {$instrumented}
+          $exact = @('export','launch','skin','worlds','screenshots','instance-mods','servers')
+          $routes = $exact
           if ($env:CAP_ONLY_ROUTE -ne 'all') {
-            if ($env:CAP_ONLY_ROUTE -notin ($exact + $instrumented)) { throw 'Unsupported route' }
+            if ($env:CAP_ONLY_ROUTE -notin $exact) { throw 'Unsupported route' }
             $routes = @($routes | Where-Object { $_ -eq $env:CAP_ONLY_ROUTE })
           }
-          if ($env:PROBE_ACTIONS -ne '[]' -and $env:CAP_ONLY_ROUTE -eq 'all') { throw 'Input requires a single calibrated route' }
-          if ($env:CAP_KIND -eq 'instrumented') { $env:PROBE_ACTIONS = '[]' }
           $failed = @()
           foreach ($route in $routes) {
             $env:CAP_ROUTE = $route
