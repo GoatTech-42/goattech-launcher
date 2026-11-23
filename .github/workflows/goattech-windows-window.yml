@@ -28,10 +28,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { lang: en, net: off, label: home, mode: home, width: 1180, height: 760, source: '4834607eedb465713b1c0b0c7e1a0e21dd3ff312' }
-          - { lang: en, net: off, label: opening-wide, mode: opening, width: 2048, height: 1152, source: '4834607eedb465713b1c0b0c7e1a0e21dd3ff312' }
-          - { lang: en, net: off, label: opening-minimum, mode: opening, width: 960, height: 600, source: '4834607eedb465713b1c0b0c7e1a0e21dd3ff312' }
-          - { lang: en, net: off, label: opening-tall, mode: opening, width: 960, height: 1152, source: '4834607eedb465713b1c0b0c7e1a0e21dd3ff312' }
+          - { lang: en, net: off, label: home, mode: home, width: 1180, height: 760, source: 'a1ceb4b8a95347c1772bc051420a3c871ac8e95c' }
+          - { lang: en, net: off, label: opening-wide, mode: opening, width: 2048, height: 1152, source: 'a1ceb4b8a95347c1772bc051420a3c871ac8e95c' }
+          - { lang: en, net: off, label: opening-minimum, mode: opening, width: 960, height: 600, source: 'a1ceb4b8a95347c1772bc051420a3c871ac8e95c' }
+          - { lang: en, net: off, label: opening-tall, mode: opening, width: 960, height: 1152, source: 'a1ceb4b8a95347c1772bc051420a3c871ac8e95c' }
     # Uncached cold build on a 4-core runner can take a while; compute is free
     # for this public repo, the capture step still has its own 3-min bound.
     timeout-minutes: 90
@@ -232,6 +232,7 @@ jobs:
                 if ($dc -ne [IntPtr]::Zero) { $g.ReleaseHdc($dc) }
                 $g.Dispose();$bmp.Dispose()
               }
+            }
             $proc.Refresh()
             if ($proc.HasExited) { throw "FAIL: launcher exited during captures (code $($proc.ExitCode))" }
             # Automation checks only. Window claim is what the per-frame lines show.
