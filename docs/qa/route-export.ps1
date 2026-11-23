@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Continue'
 # Export ceilings, checked BEFORE reading each file: no unbounded
-# ReadAllBytes/base64 into the log. Per-file raw limit 1,500,000 bytes;
-# total ENCODED base64 characters across all frames 6,000,000.
+# ReadAllBytes/base64 into the log. Per-file raw limit 4,000,000 bytes;
+# total ENCODED base64 characters across all frames 24,000,000.
 $maxPngBytes = 4000000
 $maxEncodedTotal = 24000000
 $encodedTotal = 0
@@ -15,8 +15,8 @@ if (Test-Path $info) {
   Add-Content $env:GITHUB_STEP_SUMMARY "NO-EVIDENCE: capture step produced no window-info - see job log."
 }
 $frames = @(Get-ChildItem "$env:CAP\frame-*.png" -ErrorAction SilentlyContinue)
-if ($frames.Count -eq 0) { Write-Output "###FRAMES-NONE found=0 expected<=3 - no frame files present" }
-elseif ($frames.Count -lt 3) { Write-Output "###FRAMES-INCOMPLETE found=$($frames.Count) expected=3" }
+if ($frames.Count -eq 0) { Write-Output "###FRAMES-NONE found=0 expected=7 - no frame files present" }
+elseif ($frames.Count -ne 7) { Write-Output "###FRAMES-INCOMPLETE found=$($frames.Count) expected=7" }
 foreach ($png in $frames) {
   $len = $png.Length
   $enc = 4 * [Math]::Ceiling($len / 3)
