@@ -28,28 +28,28 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { lang: en, net: off, label: base-home, page: home, mode: home, width: 960, height: 600, source: 'd59efd7e0a7d46759c4b89b8c8e1a965a98c6241' }
-          - { lang: en, net: off, label: base-instances, page: instances, mode: home, width: 960, height: 600, source: 'd59efd7e0a7d46759c4b89b8c8e1a965a98c6241' }
-          - { lang: en, net: off, label: base-mods, page: mods, mode: home, width: 960, height: 600, source: 'd59efd7e0a7d46759c4b89b8c8e1a965a98c6241' }
-          - { lang: en, net: off, label: base-servers, page: servers, mode: home, width: 960, height: 600, source: 'd59efd7e0a7d46759c4b89b8c8e1a965a98c6241' }
-          - { lang: en, net: off, label: base-versions, page: versions, mode: home, width: 960, height: 600, source: 'd59efd7e0a7d46759c4b89b8c8e1a965a98c6241' }
-          - { lang: en, net: off, label: base-notes, page: notes, mode: home, width: 960, height: 600, source: 'd59efd7e0a7d46759c4b89b8c8e1a965a98c6241' }
-          - { lang: en, net: off, label: base-settings, page: settings, mode: home, width: 960, height: 600, source: 'd59efd7e0a7d46759c4b89b8c8e1a965a98c6241' }
-          - { lang: en, net: off, label: base-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: 'd59efd7e0a7d46759c4b89b8c8e1a965a98c6241' }
-          - { lang: en, net: off, label: base-edit-instance, page: edit-instance, mode: home, width: 960, height: 600, source: 'd59efd7e0a7d46759c4b89b8c8e1a965a98c6241' }
-          - { lang: en, net: off, label: base-sign-in, page: sign-in, mode: home, width: 960, height: 600, source: 'd59efd7e0a7d46759c4b89b8c8e1a965a98c6241' }
-          - { lang: en, net: off, label: base-getting-ready, page: getting-ready, mode: home, width: 960, height: 600, source: 'd59efd7e0a7d46759c4b89b8c8e1a965a98c6241' }
-          - { lang: en, net: off, label: branch-home, page: home, mode: home, width: 960, height: 600, source: '4d8970be97d6dea9daec41916c102cdd7d7f3db7' }
-          - { lang: en, net: off, label: branch-instances, page: instances, mode: home, width: 960, height: 600, source: '4d8970be97d6dea9daec41916c102cdd7d7f3db7' }
-          - { lang: en, net: off, label: branch-mods, page: mods, mode: home, width: 960, height: 600, source: '4d8970be97d6dea9daec41916c102cdd7d7f3db7' }
-          - { lang: en, net: off, label: branch-servers, page: servers, mode: home, width: 960, height: 600, source: '4d8970be97d6dea9daec41916c102cdd7d7f3db7' }
-          - { lang: en, net: off, label: branch-versions, page: versions, mode: home, width: 960, height: 600, source: '4d8970be97d6dea9daec41916c102cdd7d7f3db7' }
-          - { lang: en, net: off, label: branch-notes, page: notes, mode: home, width: 960, height: 600, source: '4d8970be97d6dea9daec41916c102cdd7d7f3db7' }
-          - { lang: en, net: off, label: branch-settings, page: settings, mode: home, width: 960, height: 600, source: '4d8970be97d6dea9daec41916c102cdd7d7f3db7' }
-          - { lang: en, net: off, label: branch-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '4d8970be97d6dea9daec41916c102cdd7d7f3db7' }
-          - { lang: en, net: off, label: branch-edit-instance, page: edit-instance, mode: home, width: 960, height: 600, source: '4d8970be97d6dea9daec41916c102cdd7d7f3db7' }
-          - { lang: en, net: off, label: branch-sign-in, page: sign-in, mode: home, width: 960, height: 600, source: '4d8970be97d6dea9daec41916c102cdd7d7f3db7' }
-          - { lang: en, net: off, label: branch-getting-ready, page: getting-ready, mode: home, width: 960, height: 600, source: '4d8970be97d6dea9daec41916c102cdd7d7f3db7' }
+          - { lang: en, net: off, label: base-home, page: home, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
+          - { lang: en, net: off, label: base-instances, page: instances, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
+          - { lang: en, net: off, label: base-mods, page: mods, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
+          - { lang: en, net: off, label: base-servers, page: servers, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
+          - { lang: en, net: off, label: base-versions, page: versions, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
+          - { lang: en, net: off, label: base-notes, page: notes, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
+          - { lang: en, net: off, label: base-settings, page: settings, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
+          - { lang: en, net: off, label: base-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
+          - { lang: en, net: off, label: base-edit-instance, page: edit-instance, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
+          - { lang: en, net: off, label: base-sign-in, page: sign-in, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
+          - { lang: en, net: off, label: base-getting-ready, page: getting-ready, mode: home, width: 960, height: 600, source: '6e6669a0ffc1b337c833141ededfafc9f7c009cd' }
+          - { lang: en, net: off, label: branch-home, page: home, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
+          - { lang: en, net: off, label: branch-instances, page: instances, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
+          - { lang: en, net: off, label: branch-mods, page: mods, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
+          - { lang: en, net: off, label: branch-servers, page: servers, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
+          - { lang: en, net: off, label: branch-versions, page: versions, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
+          - { lang: en, net: off, label: branch-notes, page: notes, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
+          - { lang: en, net: off, label: branch-settings, page: settings, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
+          - { lang: en, net: off, label: branch-new-instance, page: new-instance, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
+          - { lang: en, net: off, label: branch-edit-instance, page: edit-instance, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
+          - { lang: en, net: off, label: branch-sign-in, page: sign-in, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
+          - { lang: en, net: off, label: branch-getting-ready, page: getting-ready, mode: home, width: 960, height: 600, source: '2c6cccacc9e35c0b2359ca3d3ea42254e34dafec' }
     # Uncached cold build on a 4-core runner can take a while; compute is free
     # for this public repo, the capture step still has its own 3-min bound.
     timeout-minutes: 90
