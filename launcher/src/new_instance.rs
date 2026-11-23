@@ -335,6 +335,7 @@ impl Launcher {
             .child(list);
         if choice.kind == NewKind::Modded {
             let scale = self.scale;
+            let scaled_tiles = theme::ui_scale_current() > 1.;
             let logos = [Loader::Fabric, Loader::Quilt].map(|l| (l, self.loader_logo(l.id(), 24.)));
             let card = |loader: Loader| {
                 let logo = logos
@@ -349,6 +350,12 @@ impl Launcher {
                 )
                 .h(px(48.))
                 .w(px(180.))
+                // Preserve s=1; larger tiles contain wrapped subtitles and can grow taller.
+                .when(scaled_tiles, |d| {
+                    d.w(px(theme::chrome(180.)))
+                        .h_auto()
+                        .min_h(px(theme::chrome(48.)))
+                })
                 .justify_start()
                 .when(on, |d| d.border_2().border_color(c(n.accent_hi)))
                 .gap(px(theme::chrome(10.)))
@@ -358,9 +365,11 @@ impl Launcher {
                         .relative()
                         .flex()
                         .flex_col()
+                        .when(scaled_tiles, |d| d.flex_1().min_w_0())
                         .child(loader.name())
                         .child(
                             shell::text(night::CAPTION, c(n.muted))
+                                .when(scaled_tiles, |d| d.whitespace_normal())
                                 .child(tr("newest stable version").to_string()),
                         ),
                 )
