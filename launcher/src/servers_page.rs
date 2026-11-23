@@ -945,15 +945,49 @@ impl Launcher {
         width: f32,
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
+        self.field_with_scale(f, placeholder, width, false, cx)
+    }
+
+    pub(super) fn scaled_field(
+        &mut self,
+        f: Field,
+        placeholder: impl Into<SharedString>,
+        width: f32,
+        cx: &mut Context<Self>,
+    ) -> Stateful<Div> {
+        self.field_with_scale(f, placeholder, width, true, cx)
+    }
+
+    fn field_with_scale(
+        &mut self,
+        f: Field,
+        placeholder: impl Into<SharedString>,
+        width: f32,
+        scaled: bool,
+        cx: &mut Context<Self>,
+    ) -> Stateful<Div> {
         let t = self.theme;
         self.servers.rendered_fields.push(f);
         let handle = self.focus_handle(f, cx);
         let focused = self.servers.focused == Some(f);
         let selected = focused && self.servers.selected == Some(f);
         let invalid = self.servers.invalid.is_some_and(|(g, _)| g == f);
-        self.servers
-            .text(f)
-            .show(visible_chars(width, theme::ui_scale_current()));
+        let scale = theme::ui_scale_current();
+        let budget = if scaled {
+            if f == Field::Command {
+                line_edit::scaled_budget(
+                    width,
+                    scale,
+                    7.5 * theme::CAPTION.px / theme::UI.px,
+                    Some(visible_chars(width, 1.)),
+                )
+            } else {
+                line_edit::scaled_budget(width, scale, 7.5, None)
+            }
+        } else {
+            visible_chars(width, scale)
+        };
+        self.servers.text(f).show(budget);
         let field = div()
             .id(SharedString::from(format!("field-{f:?}")))
             .track_focus(&handle)
@@ -961,7 +995,7 @@ impl Launcher {
             .items_center()
             .w(px(width))
             .h(px(theme::field()))
-            .px(px(12.))
+            .px(px(if scaled { theme::chrome(12.) } else { 12. }))
             .overflow_hidden()
             .rounded(px(theme::RADIUS))
             .border_1()
@@ -975,14 +1009,25 @@ impl Launcher {
             .bg(t.surface)
             .text_size(px(theme::step_px(theme::UI)))
             .cursor_text()
-            .child(line_edit::content(
-                self.servers.text(f),
-                &t,
-                focused,
-                selected,
-                f == Field::Token,
-                placeholder.into(),
-            ))
+            .child(if scaled {
+                line_edit::scaled_content(
+                    self.servers.text(f),
+                    &t,
+                    focused,
+                    selected,
+                    f == Field::Token,
+                    placeholder.into(),
+                )
+            } else {
+                line_edit::content(
+                    self.servers.text(f),
+                    &t,
+                    focused,
+                    selected,
+                    f == Field::Token,
+                    placeholder.into(),
+                )
+            })
             .on_click(cx.listener(move |this, ev: &ClickEvent, window, cx| {
                 // A click puts the caret in: the suggestion is no longer selected.
                 if matches!(ev, ClickEvent::Mouse(_)) {
@@ -1806,7 +1851,7 @@ impl Launcher {
             .children(lines);
         let log = self.servers.console_scroll.wrap(log, &t);
         let input = if running {
-            self.field(
+            self.scaled_field(
                 Field::Command,
                 tr("type a command: say hello, time set day, gamemode creative alex…"),
                 520.,
@@ -1978,7 +2023,7 @@ impl Launcher {
             .flex()
             .items_center()
             .gap(px(theme::chrome(8.)))
-            .child(self.field(Field::AddPlayer, tr("a player's name"), 240., cx))
+            .child(self.scaled_field(Field::AddPlayer, tr("a player's name"), 240., cx))
             .child({
                 let b = scaled_button("player-add", "let in", Kind::Secondary, &t);
                 if idle {
@@ -2285,13 +2330,13 @@ impl Launcher {
         let motd = div()
             .flex()
             .gap(px(theme::chrome(8.)))
-            .child(self.field(Field::Motd, tr("a minecraft server"), 260., cx))
+            .child(self.scaled_field(Field::Motd, tr("a minecraft server"), 260., cx))
             .child(save("motd-save", Field::Motd, cx))
             .into_any_element();
         let port = div()
             .flex()
             .gap(px(theme::chrome(8.)))
-            .child(self.field(Field::Port, "25565", 100., cx))
+            .child(self.scaled_field(Field::Port, "25565", 100., cx))
             .child(save("port-save", Field::Port, cx))
             .into_any_element();
         let pvp = match (running, self.servers.pvp) {
@@ -2450,7 +2495,7 @@ impl Launcher {
             .gap(px(theme::chrome(12.)));
         if self.servers.confirm_delete {
             let matches = self.servers.value(Field::DeleteServer) == name && !name.is_empty();
-            let field = self.field(Field::DeleteServer, tr("server name"), 225., cx);
+            let field = self.scaled_field(Field::DeleteServer, tr("server name"), 225., cx);
             let confirm = scaled_button(
                 "server-delete-confirm",
                 "move to trash",
@@ -2873,7 +2918,7 @@ impl Launcher {
             pick(|c, v| c.new_world = v == "new"),
         );
         let world_detail = if new_world {
-            self.field(
+            self.scaled_field(
                 Field::Seed,
                 tr("seed (optional: leave empty for a random world)"),
                 400.,
@@ -3042,7 +3087,7 @@ impl Launcher {
             ))
             .child(row(
                 "name",
-                self.field(Field::Name, "my server", 400., cx)
+                self.scaled_field(Field::Name, "my server", 400., cx)
                     .into_any_element(),
             ))
             .child(row(
@@ -3072,7 +3117,7 @@ impl Launcher {
                     .gap(px(theme::chrome(10.)))
                     .child(div().flex().child(who))
                     .when(friends_only, |d| {
-                        d.child(self.field(
+                        d.child(self.scaled_field(
                             Field::Players,
                             tr("players allowed in, separated by commas (you first)"),
                             480.,

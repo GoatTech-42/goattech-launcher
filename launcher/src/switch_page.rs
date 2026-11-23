@@ -293,7 +293,7 @@ impl Launcher {
             .flex()
             .items_center()
             .gap(px(theme::chrome(8.)))
-            .child(self.field(Field::OfflineName, tr("a name, 3 to 16 letters"), 220., cx))
+            .child(self.scaled_field(Field::OfflineName, tr("a name, 3 to 16 letters"), 220., cx))
             .child(
                 scaled_button("offline-add", "add", Kind::Secondary, &t).on_click(cx.listener(
                     |this, _: &ClickEvent, _, cx| {

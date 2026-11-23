@@ -4774,8 +4774,14 @@ impl Launcher {
 
     /// Settings' Game arguments row: the extra arguments the game starts with, kept in
     /// `settings.json` and appended to the launcher's own (quotes group a word with spaces).
-    fn game_args_row(&self, n: usize, cx: &mut Context<Self>) -> Div {
+    fn game_args_row(&mut self, n: usize, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
+        self.args_input.show(line_edit::scaled_budget(
+            300.,
+            theme::ui_scale_current(),
+            7.2,
+            Some(38),
+        ));
         let focused = self.args_focused;
         let field = div()
             .id("game-args")
@@ -4783,16 +4789,16 @@ impl Launcher {
             .flex()
             .items_center()
             .w(px(300.))
-            .h(px(30.))
-            .px(px(12.))
+            .h(px(theme::chrome(30.)))
+            .px(px(theme::chrome(12.)))
             .overflow_hidden()
             .border_2()
             .border_color(if focused { t.accent } else { t.outline })
             .bg(t.well)
             .font_family(theme::MONO)
-            .text_size(px(12.))
+            .text_size(px(theme::chrome(12.)))
             .cursor_text()
-            .child(line_edit::content(
+            .child(line_edit::scaled_content(
                 &self.args_input,
                 &t,
                 focused,
@@ -4833,8 +4839,14 @@ impl Launcher {
 
     /// Settings' Proxy row: the HTTP proxy every download and sign-in goes through, kept in
     /// `settings.json` and read back by `proxy.rs` on each request.
-    fn proxy_row(&self, n: usize, cx: &mut Context<Self>) -> Div {
+    fn proxy_row(&mut self, n: usize, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
+        self.proxy_input.show(line_edit::scaled_budget(
+            300.,
+            theme::ui_scale_current(),
+            7.2,
+            Some(44),
+        ));
         let focused = self.proxy_focused;
         let field = div()
             .id("proxy")
@@ -4842,16 +4854,16 @@ impl Launcher {
             .flex()
             .items_center()
             .w(px(300.))
-            .h(px(30.))
-            .px(px(12.))
+            .h(px(theme::chrome(30.)))
+            .px(px(theme::chrome(12.)))
             .overflow_hidden()
             .border_2()
             .border_color(if focused { t.accent } else { t.outline })
             .bg(t.well)
             .font_family(theme::MONO)
-            .text_size(px(12.))
+            .text_size(px(theme::chrome(12.)))
             .cursor_text()
-            .child(line_edit::content(
+            .child(line_edit::scaled_content(
                 &self.proxy_input,
                 &t,
                 focused,
