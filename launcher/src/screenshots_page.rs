@@ -148,28 +148,31 @@ impl Launcher {
         );
         let grid = div().flex().flex_wrap().gap(px(10.)).children(
             list.into_iter().take(shown).enumerate().map(|(i, shot)| {
-                div()
-                    .id(SharedString::from(format!("screenshot-{i}")))
-                    .flex_none()
-                    .w(px(THUMB_W))
-                    .h(px(THUMB_H))
-                    .overflow_hidden()
-                    .border_2()
-                    .border_color(t.outline)
-                    .bg(t.well)
-                    .cursor_pointer()
-                    .hover(|s| s.border_color(t.accent))
-                    .child(
-                        gpui::img(shot.path.clone())
-                            .size_full()
-                            .object_fit(gpui::ObjectFit::Cover),
-                    )
-                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                        this.screenshots.viewing = Some(i);
-                        this.screenshots.confirm_delete = false;
-                        this.screenshots.note = None;
-                        cx.notify();
-                    }))
+                keyboard(
+                    div()
+                        .id(SharedString::from(format!("screenshot-{i}")))
+                        .flex_none()
+                        .w(px(THUMB_W))
+                        .h(px(THUMB_H))
+                        .overflow_hidden()
+                        .border_2()
+                        .border_color(t.outline)
+                        .bg(t.well)
+                        .cursor_pointer()
+                        .hover(|s| s.border_color(t.accent))
+                        .child(
+                            gpui::img(shot.path.clone())
+                                .size_full()
+                                .object_fit(gpui::ObjectFit::Cover),
+                        ),
+                    &t,
+                )
+                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                    this.screenshots.viewing = Some(i);
+                    this.screenshots.confirm_delete = false;
+                    this.screenshots.note = None;
+                    cx.notify();
+                }))
             }),
         );
         let mut section = div().flex().flex_col().gap(px(8.));
