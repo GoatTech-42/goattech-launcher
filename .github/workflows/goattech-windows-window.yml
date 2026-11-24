@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-          ref: 0711632ad68071277c6d96da85ce3de68f4c61f9
+          ref: 64628d935a4626a5ef055993332fc6fc9fca9939
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
@@ -49,7 +49,7 @@ jobs:
           foreach ($mode in @('mono')) {
             foreach ($size in @(@(960,600),@(1028,780),@(1920,1080))) {
               if (Test-Path (Join-Path $env:RUNNER_TEMP 'client-capture-stop')) { throw 'Prior owned-process survivor; stop further captures' }
-              $env:CAP_EXPECTED_SOURCE='0711632ad68071277c6d96da85ce3de68f4c61f9'
+              $env:CAP_EXPECTED_SOURCE='64628d935a4626a5ef055993332fc6fc9fca9939'
               $env:CAP_KIND='instrumented'
               $env:CAP_ROUTE=$mode
               $env:CAP_WIDTH=[string]$size[0]; $env:CAP_HEIGHT=[string]$size[1]
