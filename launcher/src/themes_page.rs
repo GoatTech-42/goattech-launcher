@@ -13,6 +13,11 @@ const SWATCH: f32 = 26.;
 const STRIP: f32 = 120.;
 
 impl Launcher {
+    /// All theme controls save the same settings snapshot, so share its latest error.
+    pub(super) fn save_theme_settings(&mut self) {
+        self.theme_save_error = self.settings.save().err().map(|e| e.to_string());
+    }
+
     /// The theme Settings ask for, under the window's own light or dark.
     pub(super) fn settings_theme(&self, window: &Window) -> Theme {
         Theme::for_appearance(
@@ -60,7 +65,7 @@ impl Launcher {
                 })
                 .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
                     this.settings.accent = accent;
-                    let _ = this.settings.save();
+                    this.save_theme_settings();
                     this.theme = this.settings_theme(window);
                     cx.notify();
                 })),
@@ -168,7 +173,7 @@ impl Launcher {
     fn finish_hue(&mut self) {
         if self.hue_dragging {
             self.hue_dragging = false;
-            let _ = self.settings.save();
+            self.save_theme_settings();
         }
     }
 
@@ -215,7 +220,8 @@ impl Launcher {
         match themes::keep_background(&backend::data_dir(), path) {
             Ok(name) => {
                 self.settings.background = Some(name);
-                self.background_error = self.settings.save().err().map(|e| e.to_string());
+                self.save_theme_settings();
+                self.background_error = None;
             }
             Err(e) => self.background_error = Some(e),
         }
@@ -241,7 +247,7 @@ impl Launcher {
                 scaled_button("background-reset", "landscape", Kind::Ghost, &t).on_click(
                     cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.settings.background = None;
-                        this.background_error = this.settings.save().err().map(|e| e.to_string());
+                        this.save_theme_settings();
                         cx.notify();
                     }),
                 ),

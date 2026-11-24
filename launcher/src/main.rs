@@ -266,6 +266,8 @@ struct Launcher {
     skin: Option<skin_page::SkinPanel>,
     /// Why the last picture for Home's background was refused.
     background_error: Option<String>,
+    /// The latest appearance, accent or Home-background settings save failed.
+    theme_save_error: Option<String>,
     /// Settings' Java runtimes row: (downloaded by the launcher, installed on this computer),
     /// counted on a thread; None until the count answers and again each time Settings opens.
     java_runtimes: Option<(usize, usize)>,
@@ -819,6 +821,7 @@ impl Launcher {
             stage_skin: home::StageSkin::default(),
             stage_frame: home::StageFrame::default(),
             background_error: None,
+            theme_save_error: None,
             java_runtimes: None,
             java_runtimes_busy: false,
             args_input: line_edit::LineEdit::new(settings.game_args.clone(), 1024, 38),
@@ -4507,7 +4510,7 @@ impl Launcher {
                 move |choice, window, cx| {
                     let _ = this.update(cx, |this, cx| {
                         this.settings.appearance = choice;
-                        let _ = this.settings.save();
+                        this.save_theme_settings();
                         titlebar::apply_appearance(window, choice);
                         this.theme = this.settings_theme(window);
                         cx.notify();
@@ -4571,6 +4574,7 @@ impl Launcher {
                     ))
                     .child(self.accent_row(cx))
                     .child(self.home_background_row(cx))
+                    .children(self.theme_save_error.clone().map(|e| notice(e, &t)))
                     .child(self.language_row(cx))
                     .child(self.while_playing_row(n + 3, cx))
                     .child(index_row(
