@@ -215,8 +215,7 @@ impl Launcher {
         match themes::keep_background(&backend::data_dir(), path) {
             Ok(name) => {
                 self.settings.background = Some(name);
-                let _ = self.settings.save();
-                self.background_error = None;
+                self.background_error = self.settings.save().err().map(|e| e.to_string());
             }
             Err(e) => self.background_error = Some(e),
         }
@@ -242,7 +241,7 @@ impl Launcher {
                 scaled_button("background-reset", "landscape", Kind::Ghost, &t).on_click(
                     cx.listener(|this, _: &ClickEvent, _, cx| {
                         this.settings.background = None;
-                        let _ = this.settings.save();
+                        this.background_error = this.settings.save().err().map(|e| e.to_string());
                         cx.notify();
                     }),
                 ),
