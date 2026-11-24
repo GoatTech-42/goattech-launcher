@@ -11,12 +11,18 @@ type Preview = Option<Arc<RenderImage>>;
 
 #[derive(Default)]
 pub(super) struct SkinPanel {
+    /// A reopened panel is a different destination context, even for the same name.
+    identity: Arc<()>,
     /// The offline name it is for.
     pub(super) name: String,
     /// The two previews, baked at the window's scale (skin, cape), or None without one.
     seen: Option<(f32, Preview, Preview)>,
     /// What the last choice did, or why not.
     note: Option<Result<String, String>>,
+}
+
+fn look_picker_applies(panel: Option<&SkinPanel>, identity: &Arc<()>) -> bool {
+    panel.is_some_and(|panel| Arc::ptr_eq(&panel.identity, identity))
 }
 
 /// Points per skin texel in the preview.
@@ -58,6 +64,9 @@ impl Launcher {
     }
 
     fn choose_look_file(&mut self, cape: bool, cx: &mut Context<Self>) {
+        let Some(identity) = self.skin.as_ref().map(|panel| panel.identity.clone()) else {
+            return;
+        };
         let paths = cx.prompt_for_paths(PathPromptOptions {
             files: true,
             directories: false,
@@ -72,6 +81,9 @@ impl Launcher {
                 return;
             };
             let _ = this.update(cx, |this, cx| {
+                if !look_picker_applies(this.skin.as_ref(), &identity) {
+                    return;
+                }
                 this.take_look_file(path, cape);
                 cx.notify();
             });
@@ -239,5 +251,48 @@ impl Launcher {
                         ))),
                 ),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn picker_callback_checks_original_panel_before_applying_the_file() {
+        let source = include_str!("skin_page.rs");
+        let picker = source
+            .split("fn choose_look_file(")
+            .nth(1)
+            .unwrap()
+            .split("pub(super) fn take_look_file(")
+            .next()
+            .unwrap();
+        assert!(picker.contains("self.skin.as_ref().map(|panel| panel.identity.clone())"));
+        let callback = picker.split("this.update(cx, |this, cx| {").nth(1).unwrap();
+        let guard = callback
+            .find("if !look_picker_applies(this.skin.as_ref(), &identity)")
+            .unwrap();
+        let apply = callback.find("this.take_look_file(path, cape)").unwrap();
+        assert!(guard < apply);
+        assert!(callback[guard..apply].contains("return;"));
+    }
+
+    #[test]
+    fn look_picker_result_requires_the_original_panel() {
+        let original = SkinPanel {
+            name: "first".into(),
+            ..SkinPanel::default()
+        };
+        let identity = original.identity.clone();
+        assert!(look_picker_applies(Some(&original), &identity));
+        assert!(!look_picker_applies(None, &identity));
+        for name in ["first", "second"] {
+            let replacement = SkinPanel {
+                name: name.into(),
+                ..SkinPanel::default()
+            };
+            assert!(!look_picker_applies(Some(&replacement), &identity));
+        }
     }
 }
