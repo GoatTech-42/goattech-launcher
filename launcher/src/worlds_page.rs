@@ -4,9 +4,12 @@
 use super::*;
 use horizon_launcher::worlds::{self, World};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 #[derive(Default)]
 pub(super) struct Worlds {
+    /// Switching away and back creates a different state, even for the same game folder.
+    identity: Arc<()>,
     /// The game folder the list is of, and the list as last read: kept on screen while it is
     /// read again, so the page doesn't jump.
     home: Option<PathBuf>,
@@ -21,6 +24,26 @@ pub(super) struct Worlds {
 }
 
 impl Worlds {
+    fn finish_read(&mut self, identity: &Arc<()>, list: Vec<World>) {
+        if self.reading && Arc::ptr_eq(&self.identity, identity) {
+            self.list = list;
+            self.fresh = true;
+            self.reading = false;
+        }
+    }
+
+    fn finish_action(
+        &mut self,
+        identity: &Arc<()>,
+        done: Result<(String, Option<PathBuf>), String>,
+    ) {
+        if self.busy.is_some() && Arc::ptr_eq(&self.identity, identity) {
+            self.busy = None;
+            self.done = Some(done);
+            self.stale();
+        }
+    }
+
     /// Read again on the next frame: the game may have saved, or an action changed the list.
     pub(super) fn stale(&mut self) {
         self.fresh = false;
@@ -58,6 +81,7 @@ impl Launcher {
         if self.worlds.fresh || self.worlds.reading {
             return;
         }
+        let identity = self.worlds.identity.clone();
         self.worlds.reading = true;
         let read = home.clone();
         let task = cx
@@ -66,12 +90,7 @@ impl Launcher {
         cx.spawn(async move |this, cx| {
             let list = task.await;
             let _ = this.update(cx, |this, cx| {
-                // Another instance may have been picked meanwhile.
-                if this.worlds.home.as_ref() == Some(&home) {
-                    this.worlds.list = list;
-                    this.worlds.fresh = true;
-                    this.worlds.reading = false;
-                }
+                this.worlds.finish_read(&identity, list);
                 cx.notify();
             });
         })
@@ -85,6 +104,7 @@ impl Launcher {
         if self.worlds.busy.is_some() {
             return;
         }
+        let identity = self.worlds.identity.clone();
         self.worlds.busy = Some(world.folder.clone());
         self.worlds.confirm_delete = None;
         self.worlds.done = None;
@@ -109,9 +129,7 @@ impl Launcher {
         cx.spawn(async move |this, cx| {
             let done = task.await;
             let _ = this.update(cx, |this, cx| {
-                this.worlds.busy = None;
-                this.worlds.done = Some(done);
-                this.worlds.stale();
+                this.worlds.finish_action(&identity, done);
                 cx.notify();
             });
         })
@@ -336,5 +354,57 @@ impl Launcher {
                     ),
             )
             .child(actions)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn active(home: &str) -> Worlds {
+        Worlds {
+            home: Some(home.into()),
+            reading: true,
+            fresh: true,
+            busy: Some("world".into()),
+            ..Worlds::default()
+        }
+    }
+
+    #[test]
+    fn matching_world_completions_update_the_active_state_once() {
+        let mut state = active("first");
+        let identity = state.identity.clone();
+        state.finish_read(&identity, Vec::new());
+        assert!(!state.reading);
+        assert!(state.fresh);
+        let result = ("backed up".into(), Some(PathBuf::from("backup.zip")));
+        state.finish_action(&identity, Ok(result.clone()));
+        assert!(state.busy.is_none());
+        assert!(!state.fresh);
+        assert_eq!(state.done, Some(Ok(result)));
+        state.finish_action(&identity, Err("duplicate".into()));
+        assert!(matches!(state.done, Some(Ok(_))));
+    }
+
+    #[test]
+    fn stale_world_completions_cannot_touch_different_or_reopened_state() {
+        let old = active("first");
+        for home in ["second", "first"] {
+            let mut current = active(home);
+            current.fresh = false;
+            current.finish_read(&old.identity, Vec::new());
+            assert!(current.reading);
+            assert!(!current.fresh);
+            current.finish_action(
+                &old.identity,
+                Ok(("old backup".into(), Some("old.zip".into()))),
+            );
+            assert_eq!(current.busy.as_deref(), Some("world"));
+            assert!(current.done.is_none());
+            current.finish_action(&old.identity, Err("old error".into()));
+            assert_eq!(current.busy.as_deref(), Some("world"));
+            assert!(current.done.is_none());
+        }
     }
 }
