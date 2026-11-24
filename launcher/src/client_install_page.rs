@@ -28,11 +28,22 @@ fn next_target(ids: &[String], current: Option<&str>) -> Option<String> {
     }
 }
 
-/// The target the install will really use: the chosen id only while it is still an eligible
-/// instance, else none (a new instance). Render and install both go through this.
-fn valid_target(eligible: &[(String, String)], chosen: Option<&str>) -> Option<(String, String)> {
-    let id = chosen?;
-    eligible.iter().find(|(i, _)| i == id).cloned()
+/// An explicit new-instance choice is distinct from an unavailable existing target.
+#[derive(Debug, PartialEq, Eq)]
+enum ClientTarget {
+    New,
+    Existing(String, String),
+    Unavailable,
+}
+
+fn valid_target(eligible: &[(String, String)], chosen: Option<&str>) -> ClientTarget {
+    match chosen {
+        None => ClientTarget::New,
+        Some(id) => match eligible.iter().find(|(i, _)| i == id) {
+            Some((id, name)) => ClientTarget::Existing(id.clone(), name.clone()),
+            None => ClientTarget::Unavailable,
+        },
+    }
 }
 
 /// Declarations from the inspected bytes, not verified compatibility or a security review.
@@ -157,13 +168,20 @@ impl Launcher {
         let Some((path, _, hash)) = self.instances.client.chosen.clone() else {
             return;
         };
-        self.instances.client.busy = true;
-        self.instances.client.report = None;
-        let target = valid_target(
+        let target = match valid_target(
             &self.client_targets(),
             self.instances.client.target.as_deref(),
-        )
-        .map(|(id, _)| id);
+        ) {
+            ClientTarget::New => None,
+            ClientTarget::Existing(id, _) => Some(id),
+            ClientTarget::Unavailable => {
+                self.instances.client.report = Some("The chosen instance is no longer available for this client. Use the into button to choose a target again.".into());
+                cx.notify();
+                return;
+            }
+        };
+        self.instances.client.busy = true;
+        self.instances.client.report = None;
         let task = cx.background_executor().spawn(async move {
             let versions = horizon_launcher::minecraft_versions::load()?;
             client_jar::install_reviewed(
@@ -260,17 +278,22 @@ impl Launcher {
             }
             let ids = self.client_targets();
             let chosen = valid_target(&ids, self.instances.client.target.as_deref());
-            let target_name = chosen.map(|(_, name)| name);
+            let target_name = match &chosen {
+                ClientTarget::Existing(_, name) => Some(name.clone()),
+                _ => None,
+            };
+            let unavailable = chosen == ClientTarget::Unavailable;
             let mut pick = button(
                 "client-jar-target",
                 &match &target_name {
                     Some(name) => format!("into: {name}"),
+                    None if unavailable => "into: unavailable, choose again".to_string(),
                     None => "into: a new instance".to_string(),
                 },
                 Kind::Secondary,
                 &t,
             );
-            if !busy && !ids.is_empty() {
+            if !busy && (!ids.is_empty() || unavailable) {
                 pick = pick.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     let ids: Vec<String> = this
                         .client_targets()
@@ -287,6 +310,8 @@ impl Launcher {
                 "install-client-jar",
                 if busy {
                     "installing..."
+                } else if unavailable {
+                    "choose an available target"
                 } else if target_name.is_some() {
                     "install in this instance"
                 } else {
@@ -295,7 +320,9 @@ impl Launcher {
                 Kind::Secondary,
                 &t,
             );
-            if !busy {
+            if unavailable {
+                install = disabled(install);
+            } else if !busy {
                 install = install.on_click(
                     cx.listener(|this, _: &ClickEvent, _, cx| this.install_chosen_client(cx)),
                 );
@@ -400,15 +427,18 @@ mod tests {
     }
 
     #[test]
-    fn a_removed_or_ineligible_target_is_not_handed_to_the_installer() {
+    fn client_target_resolution_never_turns_unavailable_into_new() {
         let eligible = vec![("a".to_string(), "Alpha".to_string())];
+        assert_eq!(valid_target(&eligible, None), ClientTarget::New);
         assert_eq!(
             valid_target(&eligible, Some("a")),
-            Some(("a".to_string(), "Alpha".to_string()))
+            ClientTarget::Existing("a".into(), "Alpha".into())
         );
-        assert_eq!(valid_target(&eligible, Some("gone")), None);
-        assert_eq!(valid_target(&[], Some("a")), None);
-        assert_eq!(valid_target(&eligible, None), None);
+        assert_eq!(
+            valid_target(&eligible, Some("gone")),
+            ClientTarget::Unavailable
+        );
+        assert_eq!(valid_target(&[], Some("a")), ClientTarget::Unavailable);
     }
 
     #[test]
