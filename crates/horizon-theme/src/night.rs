@@ -121,7 +121,7 @@ pub const NIGHT_MONO: Night = Night {
     accent: 0xffffff,
     accent_hi: 0xffffff,
     on_accent: 0x000000,
-    success: 0x737373,
+    success: 0x848484,
     warn: 0xa3a3a3,
     danger: 0xffffff,
     dark: true,
@@ -252,8 +252,14 @@ mod tests {
     /// The focus ring is `accent_hi`, so it is held to text contrast too.
     #[test]
     fn night_text_meets_wcag_aa_over_the_sky() {
-        for p in [NIGHT, DAWN] {
-            let look = if p.dark { "night" } else { "dawn" };
+        for p in [NIGHT, NIGHT_MONO, DAWN] {
+            let look = if p.mono {
+                "mono"
+            } else if p.dark {
+                "night"
+            } else {
+                "dawn"
+            };
             let texts = [
                 ("ink", p.ink),
                 ("ink_soft", p.ink_soft),
