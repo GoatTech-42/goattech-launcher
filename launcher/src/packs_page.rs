@@ -20,6 +20,15 @@ pub(super) struct Packs {
 }
 
 impl Packs {
+    /// A picker result belongs to its original folder, not a newly selected instance.
+    fn finish_add(&mut self, home: &std::path::Path, result: Result<String, String>) {
+        if self.home.as_deref() == Some(home) {
+            self.note = Some(result);
+            self.confirm_remove = None;
+            self.stale();
+        }
+    }
+
     pub(super) fn stale(&mut self) {
         self.fresh = false;
     }
@@ -60,21 +69,33 @@ impl Launcher {
         self.game_packs.stale();
     }
 
-    /// Copies dropped or picked files into the instance's pack folders.
+    /// Copies dropped files into the displayed instance's pack folders.
     fn add_packs(&mut self, files: Vec<PathBuf>) {
-        self.pack_action(|home| {
+        let Some(home) = self.game_packs.home.clone() else {
+            return;
+        };
+        self.add_packs_to(home, files);
+    }
+
+    /// Picked files retain the destination chosen before the picker opened.
+    fn add_packs_to(&mut self, home: PathBuf, files: Vec<PathBuf>) {
+        let result = (|| {
             let mut added = Vec::new();
             for file in &files {
-                added.push(packs::add(home, file)?.title);
+                added.push(packs::add(&home, file)?.title);
             }
             Ok(trf(
                 "added {names}: turn it on below.",
                 &[("names", &added.join(", "))],
             ))
-        });
+        })();
+        self.game_packs.finish_add(&home, result);
     }
 
     fn choose_packs(&mut self, cx: &mut Context<Self>) {
+        let Some(home) = self.game_packs.home.clone() else {
+            return;
+        };
         let paths = cx.prompt_for_paths(PathPromptOptions {
             files: true,
             directories: false,
@@ -84,7 +105,7 @@ impl Launcher {
         cx.spawn(async move |this, cx| {
             if let Ok(Ok(Some(paths))) = paths.await {
                 let _ = this.update(cx, |this, cx| {
-                    this.add_packs(paths);
+                    this.add_packs_to(home, paths);
                     cx.notify();
                 });
             }
@@ -320,5 +341,41 @@ impl Launcher {
                     ),
             )
             .child(actions)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_result_refreshes_only_its_original_pack_folder() {
+        let mut current = Packs {
+            home: Some("first".into()),
+            fresh: true,
+            confirm_remove: Some((PackKind::Resource, "keep.zip".into())),
+            ..Packs::default()
+        };
+        current.finish_add(std::path::Path::new("first"), Ok("added".into()));
+        assert_eq!(current.note, Some(Ok("added".into())));
+        assert!(!current.fresh);
+        assert!(current.confirm_remove.is_none());
+    }
+
+    #[test]
+    fn delayed_picker_result_does_not_change_another_instances_pack_state() {
+        let mut current = Packs {
+            home: Some("second".into()),
+            fresh: true,
+            note: Some(Ok("current note".into())),
+            confirm_remove: Some((PackKind::Resource, "keep.zip".into())),
+            ..Packs::default()
+        };
+        for result in [Ok("old success".into()), Err("old error".into())] {
+            current.finish_add(std::path::Path::new("first"), result);
+            assert_eq!(current.note, Some(Ok("current note".into())));
+            assert!(current.fresh);
+            assert!(current.confirm_remove.is_some());
+        }
     }
 }
