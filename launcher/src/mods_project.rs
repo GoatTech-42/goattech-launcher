@@ -370,6 +370,15 @@ impl Launcher {
         blocks::slot(path.map(gpui::ImageSource::from), &p.title, side, &t).into_any_element()
     }
 
+    // SCRATCH ONLY: actual filter component with local synthetic tags, never a fetch.
+    pub(super) fn seed_font_tags(&mut self) {
+        let key = (self.mods.source, self.mods.kind);
+        self.mods.browse.tags_asked.insert(key);
+        self.mods.browse.tags.insert(key, Tags::default());
+        self.mods.browse.show_filters = true;
+        self.mods.browse.filters.loader = Some("fabric".into());
+    }
+
     /// The values the filters can take for the current kind and source, asked for once.
     fn mods_tags(&mut self) -> Option<&Tags> {
         let key = (self.mods.source, self.mods.kind);

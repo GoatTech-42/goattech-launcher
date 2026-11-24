@@ -900,6 +900,11 @@ impl Launcher {
         }
     }
 
+    pub(super) fn seed_font_capture(&mut self) {
+        self.mods.source = SourceId::Modrinth;
+        self.seed_font_tags();
+    }
+
     pub(super) fn mods_page(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
         self.mods_load();
