@@ -12,8 +12,22 @@ use std::path::PathBuf;
 pub(super) struct Importing {
     /// Shared instances being made.
     busy: usize,
+    /// Pack results survive instance switches without replacing unrelated import results.
+    pack_notes: std::collections::VecDeque<Result<String, String>>,
     /// What the last drop did, or why not.
     note: Option<Result<String, String>>,
+}
+
+impl Importing {
+    pub(super) fn pack_note(&mut self, result: Result<String, String>) {
+        self.pack_notes.push_back(result);
+    }
+
+    fn dismiss_note(&mut self) {
+        if self.pack_notes.pop_front().is_none() {
+            self.note = None;
+        }
+    }
 }
 
 impl Launcher {
@@ -120,7 +134,14 @@ impl Launcher {
     /// What the last drop did, in a corner over the page until closed.
     pub(super) fn import_note(&self, cx: &mut Context<Self>) -> Option<Div> {
         let t = self.theme;
-        let line = match (&self.importing.note, self.importing.busy) {
+        let pack_note = self.importing.pack_notes.front();
+        let note = pack_note.or(self.importing.note.as_ref());
+        let busy = if pack_note.is_some() {
+            0
+        } else {
+            self.importing.busy
+        };
+        let line = match (note, busy) {
             (_, n) if n > 0 => text(theme::LABEL)
                 .text_color(t.ink_soft)
                 .child(tr("making the instance from the shared file…")),
@@ -153,11 +174,38 @@ impl Launcher {
                             button("import-close", "close", Kind::Ghost, &t)
                                 .text_size(px(theme::chrome(16.)))
                                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                                    this.importing.note = None;
+                                    this.importing.dismiss_note();
                                     cx.notify();
                                 })),
                         ),
                 ),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pack_results_queue_without_replacing_an_instance_import_result() {
+        let mut state = Importing {
+            busy: 1,
+            note: Some(Ok("instance imported".into())),
+            ..Importing::default()
+        };
+        state.pack_note(Err("first destination failed".into()));
+        state.pack_note(Ok("second destination added".into()));
+        assert_eq!(state.pack_notes.len(), 2);
+        state.dismiss_note();
+        assert_eq!(
+            state.pack_notes.front(),
+            Some(&Ok("second destination added".into()))
+        );
+        state.dismiss_note();
+        assert_eq!(state.note, Some(Ok("instance imported".into())));
+        assert_eq!(state.busy, 1);
+        state.dismiss_note();
+        assert!(state.note.is_none());
     }
 }

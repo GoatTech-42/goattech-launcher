@@ -34,6 +34,38 @@ impl Packs {
     }
 }
 
+/// Stop at the first failure, but report the packs already copied to the original folder.
+fn add_pack_files(
+    home: &std::path::Path,
+    files: &[PathBuf],
+    mut add: impl FnMut(&std::path::Path, &std::path::Path) -> Result<String, String>,
+) -> Result<String, String> {
+    let mut added = Vec::new();
+    for file in files {
+        match add(home, file) {
+            Ok(title) => added.push(title),
+            Err(error) => {
+                return Err(format!(
+                    "Pack import into {} stopped at {}: {}. Added before it stopped: {}.",
+                    home.display(),
+                    file.display(),
+                    error,
+                    if added.is_empty() {
+                        "none".into()
+                    } else {
+                        added.join(", ")
+                    },
+                ));
+            }
+        }
+    }
+    Ok(format!(
+        "Added {} to {}. Turn them on in that instance's Packs tab.",
+        added.join(", "),
+        home.display(),
+    ))
+}
+
 impl Launcher {
     fn load_packs_list(&mut self, home: PathBuf) {
         if self.game_packs.home.as_ref() != Some(&home) {
@@ -79,16 +111,13 @@ impl Launcher {
 
     /// Picked files retain the destination chosen before the picker opened.
     fn add_packs_to(&mut self, home: PathBuf, files: Vec<PathBuf>) {
-        let result = (|| {
-            let mut added = Vec::new();
-            for file in &files {
-                added.push(packs::add(&home, file)?.title);
-            }
-            Ok(trf(
-                "added {names}: turn it on below.",
-                &[("names", &added.join(", "))],
-            ))
-        })();
+        if files.is_empty() {
+            return;
+        }
+        let result = add_pack_files(&home, &files, |home, file| {
+            packs::add(home, file).map(|pack| pack.title)
+        });
+        self.importing.pack_note(result.clone());
         self.game_packs.finish_add(&home, result);
     }
 
@@ -347,6 +376,32 @@ impl Launcher {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pack_report_keeps_original_destination_and_partial_success() {
+        let home = std::path::Path::new("original-instance");
+        let files = vec!["good.zip".into(), "bad.zip".into(), "unreached.zip".into()];
+        let mut calls = 0;
+        let result = add_pack_files(home, &files, |target, _| {
+            assert_eq!(target, home);
+            calls += 1;
+            if calls == 1 {
+                Ok("Good pack".into())
+            } else {
+                Err("invalid pack".into())
+            }
+        })
+        .unwrap_err();
+        assert_eq!(calls, 2);
+        for detail in ["original-instance", "bad.zip", "Good pack", "invalid pack"] {
+            assert!(result.contains(detail));
+        }
+        let success = add_pack_files(home, &files[..1], |_, _| Ok("Good pack".into())).unwrap();
+        assert!(success.contains("original-instance"));
+        assert!(success.contains("Good pack"));
+        let failure = add_pack_files(home, &files[..1], |_, _| Err("invalid".into())).unwrap_err();
+        assert!(failure.contains("none"));
+    }
 
     #[test]
     fn add_result_refreshes_only_its_original_pack_folder() {
