@@ -183,7 +183,7 @@ const NIGHT_ART_MONO: Colors = Colors {
     cloud: [0x15151a, 0x24242a, 0x34343b],
     lit: [0x2e2e36, 0x4c4c55, 0x9a9aa2],
     shade: 0x121218,
-    star: 0xf4f4f6,
+    star: 0xf4f4f4,
 };
 
 const DAWN_ART: Colors = Colors {
@@ -630,6 +630,22 @@ fn sun(art: &Colors) -> Vec<[u8; 4]> {
 mod tests {
     use super::*;
     use horizon_theme::night::{DAWN, NIGHT, UNCARDED_STOPS};
+
+    #[test]
+    fn mono_stars_stay_neutral_at_every_brightness_step() {
+        let night = &horizon_theme::night::NIGHT_MONO;
+        let star = art(night).star;
+        for level in STAR_LEVELS {
+            for background in night.sky {
+                let pixel = horizon_theme::night::over(star, level, background);
+                let red = pixel >> 16 & 0xff;
+                let green = pixel >> 8 & 0xff;
+                let blue = pixel & 0xff;
+                assert_eq!(red, green, "mono star has red/green tint: #{pixel:06x}");
+                assert_eq!(green, blue, "mono star has green/blue tint: #{pixel:06x}");
+            }
+        }
+    }
 
     /// The sky's upper bands, behind text without a plate, hold the night tokens' text colours.
     fn uncarded_bands(n: &Night, h: f32) -> Vec<u32> {
