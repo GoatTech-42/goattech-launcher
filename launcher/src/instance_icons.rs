@@ -193,6 +193,10 @@ impl Launcher {
     /// Asks for an image file and makes it the dialog's picture, read and scaled off the UI
     /// thread.
     pub(super) fn choose_instance_picture(&mut self, cx: &mut Context<Self>) {
+        let seq = self.instances.dialog_seq;
+        if !self.instances.picture_applies(seq) {
+            return;
+        }
         let paths = cx.prompt_for_paths(PathPromptOptions {
             files: true,
             directories: false,
@@ -220,6 +224,9 @@ impl Launcher {
                 })
                 .await;
             let _ = this.update(cx, |this, cx| {
+                if !this.instances.picture_applies(seq) {
+                    return;
+                }
                 if let Some(d) = &mut this.instances.dialog {
                     match made {
                         Ok(chosen) => {
@@ -238,6 +245,10 @@ impl Launcher {
     /// Asks for an image file and makes it the dialog's banner, read and scaled off the UI
     /// thread. Same caps as a picture; the wide preview is the card strip's shape.
     pub(super) fn choose_instance_banner(&mut self, cx: &mut Context<Self>) {
+        let seq = self.instances.dialog_seq;
+        if !self.instances.picture_applies(seq) {
+            return;
+        }
         let paths = cx.prompt_for_paths(PathPromptOptions {
             files: true,
             directories: false,
@@ -265,6 +276,9 @@ impl Launcher {
                 })
                 .await;
             let _ = this.update(cx, |this, cx| {
+                if !this.instances.picture_applies(seq) {
+                    return;
+                }
                 if let Some(d) = &mut this.instances.dialog {
                     match made {
                         Ok(chosen) => {

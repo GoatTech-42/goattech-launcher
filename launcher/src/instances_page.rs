@@ -138,6 +138,17 @@ pub(super) struct Instances {
     others_error: Option<String>,
 }
 
+impl Instances {
+    /// A late image decode must not change a reopened or saving dialog.
+    pub(super) fn picture_applies(&self, seq: u64) -> bool {
+        self.dialog_seq == seq
+            && self
+                .dialog
+                .as_ref()
+                .is_some_and(|d| !d.busy && !d.sync_busy)
+    }
+}
+
 /// What a dialog join found (`Launcher::sync_join_click`).
 enum SyncJoin {
     /// Joined: the report's lines and the section's fresh state (group, conflicts).
@@ -2290,6 +2301,30 @@ mod tests {
             sync_validation: None,
             sync_req: 0,
             java: Default::default(),
+        }
+    }
+
+    #[test]
+    fn picture_completion_requires_the_original_open_idle_dialog() {
+        let mut state = Instances {
+            dialog_seq: 7,
+            dialog: Some(dialog("first")),
+            ..Instances::default()
+        };
+        assert!(state.picture_applies(7));
+        assert!(!state.picture_applies(6));
+        state.dialog.as_mut().unwrap().busy = true;
+        assert!(!state.picture_applies(7));
+        state.dialog.as_mut().unwrap().busy = false;
+        state.dialog.as_mut().unwrap().sync_busy = true;
+        assert!(!state.picture_applies(7));
+        state.dialog = None;
+        assert!(!state.picture_applies(7));
+        for id in ["first", "second"] {
+            state.dialog = Some(dialog(id));
+            state.dialog_seq = 8;
+            assert!(!state.picture_applies(7));
+            assert!(state.picture_applies(8));
         }
     }
 
