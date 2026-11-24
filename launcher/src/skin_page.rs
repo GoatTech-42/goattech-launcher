@@ -259,6 +259,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn picker_callback_checks_original_panel_before_applying_the_file() {
+        let source = include_str!("skin_page.rs");
+        let picker = source
+            .split("fn choose_look_file(")
+            .nth(1)
+            .unwrap()
+            .split("pub(super) fn take_look_file(")
+            .next()
+            .unwrap();
+        assert!(picker.contains("self.skin.as_ref().map(|panel| panel.identity.clone())"));
+        let callback = picker.split("this.update(cx, |this, cx| {").nth(1).unwrap();
+        let guard = callback
+            .find("if !look_picker_applies(this.skin.as_ref(), &identity)")
+            .unwrap();
+        let apply = callback.find("this.take_look_file(path, cape)").unwrap();
+        assert!(guard < apply);
+        assert!(callback[guard..apply].contains("return;"));
+    }
+
+    #[test]
     fn look_picker_result_requires_the_original_panel() {
         let original = SkinPanel {
             name: "first".into(),
