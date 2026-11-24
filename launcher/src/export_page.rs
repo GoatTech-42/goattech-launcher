@@ -4,8 +4,11 @@
 use super::*;
 use horizon_launcher::export::{self, Format};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 pub(super) struct ExportPanel {
+    /// A reopened panel, even for the same instance, must not inherit an old export result.
+    identity: Arc<()>,
     /// The instance it is for: picking another closes it.
     instance: String,
     format: Format,
@@ -14,6 +17,15 @@ pub(super) struct ExportPanel {
     busy: bool,
     /// The file written, or why not.
     done: Option<Result<(String, PathBuf), String>>,
+}
+
+impl ExportPanel {
+    fn finish(&mut self, identity: &Arc<()>, done: Result<(String, PathBuf), String>) {
+        if self.busy && Arc::ptr_eq(&self.identity, identity) {
+            self.busy = false;
+            self.done = Some(done);
+        }
+    }
 }
 
 impl Launcher {
@@ -29,6 +41,7 @@ impl Launcher {
             .map(|w| (w.folder, w.name, false))
             .collect();
         self.export = Some(ExportPanel {
+            identity: Arc::new(()),
             instance: i.id.clone(),
             format: Format::Mrpack,
             worlds,
@@ -44,6 +57,7 @@ impl Launcher {
         let Some(panel) = self.export.as_mut().filter(|p| !p.busy) else {
             return;
         };
+        let identity = panel.identity.clone();
         panel.busy = true;
         panel.done = None;
         let format = panel.format;
@@ -85,8 +99,7 @@ impl Launcher {
             let done = task.await;
             let _ = this.update(cx, |this, cx| {
                 if let Some(panel) = &mut this.export {
-                    panel.busy = false;
-                    panel.done = Some(done);
+                    panel.finish(&identity, done);
                 }
                 cx.notify();
             });
@@ -221,5 +234,50 @@ impl Launcher {
                 )
                 .children(result),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn panel(instance: &str) -> ExportPanel {
+        ExportPanel {
+            identity: Arc::new(()),
+            instance: instance.into(),
+            format: Format::Mrpack,
+            worlds: Vec::new(),
+            busy: true,
+            done: None,
+        }
+    }
+
+    #[test]
+    fn export_completion_updates_its_own_panel_once() {
+        let mut current = panel("first");
+        let identity = current.identity.clone();
+        let result = ("exported".into(), PathBuf::from("first.mrpack"));
+        current.finish(&identity, Ok(result.clone()));
+        assert!(!current.busy);
+        assert_eq!(current.done, Some(Ok(result)));
+        current.finish(&identity, Err("duplicate completion".into()));
+        assert!(matches!(current.done, Some(Ok(_))));
+    }
+
+    #[test]
+    fn stale_export_cannot_touch_a_replaced_or_reopened_panel() {
+        let original = panel("first");
+        for instance in ["second", "first"] {
+            let mut current = panel(instance);
+            current.finish(
+                &original.identity,
+                Ok(("old result".into(), "old.zip".into())),
+            );
+            assert!(current.busy);
+            assert!(current.done.is_none());
+            current.finish(&original.identity, Err("old failure".into()));
+            assert!(current.busy);
+            assert!(current.done.is_none());
+        }
     }
 }
