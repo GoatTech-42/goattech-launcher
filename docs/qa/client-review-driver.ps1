@@ -7,7 +7,7 @@ Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 $bin = "$PWD\launcher\target\release\horizon-launcher.exe"
 $actual = (git rev-parse HEAD).Trim()
-if ($actual -ne 'cd5d9ce4b7c2e4f0e9ce0c4e28490c0fc91b6e1e') { throw 'Unexpected instrumented source' }
+if ($actual -ne '3d561da51094d0c07d25df7373fc3f06512928a1') { throw 'Unexpected instrumented source' }
 "source-commit: $actual; shipping-source: 235b8a9b7d920e36704b508b4136808976e91287; instrumented fixture, NOT exact shipping-tip evidence" | Out-File $info
 "workflow-commit: $env:GITHUB_SHA" | Out-File $info -Append
 "rustc: $env:CAP_RUSTC_VERSION" | Out-File $info -Append
