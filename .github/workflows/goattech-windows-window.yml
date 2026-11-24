@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-          ref: PIN_EXACT_SCRATCH_SOURCE_BEFORE_DISPATCH
+          ref: a47cd22e50b243f577bfa21c559d87da22b0d61c
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
@@ -49,7 +49,7 @@ jobs:
           foreach ($mode in @('packs-en','packs-fr')) {
             foreach ($size in @(@(960,600),@(1028,780),@(1920,1080))) {
               if (Test-Path (Join-Path $env:RUNNER_TEMP 'client-capture-stop')) { throw 'Prior owned-process survivor; stop further captures' }
-              $env:CAP_EXPECTED_SOURCE='PIN_EXACT_SCRATCH_SOURCE_BEFORE_DISPATCH'
+              $env:CAP_EXPECTED_SOURCE='a47cd22e50b243f577bfa21c559d87da22b0d61c'
               $env:CAP_KIND='instrumented'
               $env:CAP_ROUTE=$mode
               $env:CAP_WIDTH=[string]$size[0]; $env:CAP_HEIGHT=[string]$size[1]
