@@ -186,6 +186,11 @@ try {
     if ($worker.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $png)) { throw 'Capture worker failed' }
     $v=Verify-Window
   }
+  $scrollReceipt=Join-Path $env:CAP 'scroll-state.txt'
+  if (-not (Test-Path -LiteralPath $scrollReceipt)) { throw 'Missing scroll geometry receipt' }
+  Get-Content -LiteralPath $scrollReceipt -TotalCount 40 | Add-Content $info
+  $states=@(Get-Content -LiteralPath $scrollReceipt -TotalCount 80)
+  if (-not ($states -match 'offset=-[1-9]')) { throw 'No negative scroll offset observed' }
   Verify-TestConsent
   'AUTOMATION-CHECKS: 4 originals saved; instrumented fixture; pixels/scroll behavior still require review' | Add-Content $info
   'LIMITS: non-atomic foreground/cursor/input checks; descendants can be missed between snapshots; no zero-network or shipping-tip claim' | Add-Content $info

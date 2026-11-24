@@ -366,6 +366,26 @@ impl Launcher {
                 "SYNTHETIC P40: real panel, shell-width spacer. Scroll only; no control clicks.",
             ))
             .children(panel);
+        let handle = self.content_scroll.handle.clone();
+        let receipt = gpui::canvas(move |_, _, _| {
+            use std::io::Write;
+            thread_local! {
+                static LAST: std::cell::RefCell<Option<(f32, f32, f32)>> = const { std::cell::RefCell::new(None) };
+            }
+            let state = (f32::from(handle.bounds().size.height), f32::from(handle.max_offset().y), f32::from(handle.offset().y));
+            LAST.with(|last| {
+                if *last.borrow() == Some(state) { return; }
+                *last.borrow_mut() = Some(state);
+                if let Ok(cap) = std::env::var("CAP") {
+                    let path = std::path::PathBuf::from(cap).join("scroll-state.txt");
+                    if std::fs::metadata(&path).map(|m| m.len() < 16384).unwrap_or(true) {
+                        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+                            let _ = writeln!(file, "scroll-state: viewport={} max={} offset={}", state.0, state.1, state.2);
+                        }
+                    }
+                }
+            });
+        }, |_, _, _, _| {}).h(px(0.)).flex_none();
         Some(
             div()
                 .size_full()
@@ -374,12 +394,31 @@ impl Launcher {
                 .font_family(theme::FONT)
                 .child(
                     div()
-                        .id("datapack-capture-root")
                         .flex()
                         .size_full()
-                        .overflow_y_scroll()
                         .child(div().flex_none().w(px(theme::sidebar())))
-                        .child(div().flex_1().min_w_0().child(body)),
+                        .child(
+                            div()
+                                .flex()
+                                .flex_col()
+                                .flex_1()
+                                .min_w_0()
+                                .h_full()
+                                .child(receipt)
+                                .child(
+                                    self.content_scroll
+                                        .wrap(
+                                            div()
+                                                .id("datapack-capture-root")
+                                                .flex_1()
+                                                .min_h_0()
+                                                .overflow_y_scroll()
+                                                .child(body),
+                                            &t,
+                                        )
+                                        .flex_1(),
+                                ),
+                        ),
                 ),
         )
     }
