@@ -20,6 +20,16 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+/// Footer actions rendered by the instance dialog, in keyboard order.
+fn instance_footer_controls(editing: bool, busy: bool) -> Vec<&'static str> {
+    let mut order = Vec::new();
+    if !editing && !busy {
+        order.push("instance-import");
+    }
+    order.extend(["instance-cancel", "instance-save"]);
+    order
+}
+
 /// Textures offered as icons, when the player's prepared files hold them: block faces and items
 /// that read well at sidebar size.
 const TEXTURES: [&str; 24] = [
@@ -1954,8 +1964,11 @@ impl Launcher {
             .text_size(px(theme::step_px(theme::night::UI)))
             .child(shell::label(tr(label).to_string()));
         // A modpack becomes an instance by being imported, on the Mods page.
-        let import = (!editing && !busy).then(|| {
+        let footer_controls = instance_footer_controls(editing, busy);
+        let import_key = self.key_handle("instance-import", cx);
+        let import = footer_controls.contains(&"instance-import").then(|| {
             shell::spaced_action("instance-import", shell::Action::Quiet, &t)
+                .track_focus(&import_key)
                 .child(shell::label(tr("import a modpack…").to_string()))
                 .mr_auto()
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
@@ -2022,12 +2035,17 @@ impl Launcher {
                 .occlude()
                 .child(card),
         );
-        // The dialog's keyboard set: its rendered fields (name, group, and - when they
-        // show - memory, Java home and JVM arguments, sync group), then Cancel, Save.
-        self.modal_keys(
-            &[("instance-cancel", cancel_key), ("instance-save", save_key)],
-            cx,
-        );
+        // Rendered fields first, then the visible footer actions.
+        let keys = [
+            ("instance-import", import_key),
+            ("instance-cancel", cancel_key),
+            ("instance-save", save_key),
+        ];
+        let order: Vec<_> = keys
+            .into_iter()
+            .filter(|(id, _)| footer_controls.contains(id))
+            .collect();
+        self.modal_keys(&order, cx);
         out
     }
 
@@ -2272,6 +2290,20 @@ mod tests {
             sync_validation: None,
             sync_req: 0,
             java: Default::default(),
+        }
+    }
+
+    #[test]
+    fn instance_footer_keyboard_order_includes_import_only_when_rendered() {
+        assert_eq!(
+            instance_footer_controls(false, false),
+            ["instance-import", "instance-cancel", "instance-save"]
+        );
+        for (editing, busy) in [(true, false), (false, true), (true, true)] {
+            assert_eq!(
+                instance_footer_controls(editing, busy),
+                ["instance-cancel", "instance-save"]
+            );
         }
     }
 
