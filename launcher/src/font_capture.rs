@@ -61,13 +61,15 @@ impl Launcher {
             body = body.child(self.home_stage(cx));
         }
         Some(
-            div()
-                .id("font-capture-root")
-                .size_full()
-                .bg(t.page)
-                .text_color(t.ink)
-                .overflow_y_scroll()
-                .child(body),
+            div().size_full().child(
+                div()
+                    .id("font-capture-root")
+                    .size_full()
+                    .bg(t.page)
+                    .text_color(t.ink)
+                    .overflow_y_scroll()
+                    .child(body),
+            ),
         )
     }
 }

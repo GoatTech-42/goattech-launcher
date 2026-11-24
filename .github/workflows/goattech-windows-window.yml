@@ -12,6 +12,7 @@ env:
   HORIZON_LAUNCHER_NO_SELF_UPDATE: '1'
 jobs:
   capture:
+    if: github.repository == 'GoatTech-42/goattech-launcher'
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
