@@ -11,6 +11,29 @@ const FIRST: usize = 8;
 const THUMB_W: f32 = 196.;
 const THUMB_H: f32 = THUMB_W * 9. / 16.;
 
+/// Only enabled controls take part in the viewer's explicit keyboard loop.
+fn viewer_control_order(index: usize, count: usize, confirm_delete: bool) -> Vec<&'static str> {
+    let mut order = Vec::new();
+    if index > 0 {
+        order.push("screenshot-newer");
+    }
+    if index + 1 < count {
+        order.push("screenshot-older");
+    }
+    order.push("screenshot-close");
+    if confirm_delete {
+        order.extend(["screenshot-keep", "screenshot-trash"]);
+    } else {
+        order.extend([
+            "screenshot-copy",
+            "screenshot-open",
+            "screenshot-show",
+            "screenshot-delete",
+        ]);
+    }
+    order
+}
+
 #[derive(Default)]
 pub(super) struct Screenshots {
     home: Option<PathBuf>,
@@ -381,25 +404,61 @@ impl Launcher {
                 )
                 .child(bottom),
         );
-        // The viewer's keyboard set, top bar first (Newer, Older, Close), then the
-        // actions showing now: the confirm pair while it asks, the four actions else.
-        let mut order: Vec<(&'static str, FocusHandle)> = [
-            ("screenshot-newer", keys["screenshot-newer"].clone()),
-            ("screenshot-older", keys["screenshot-older"].clone()),
-            ("screenshot-close", keys["screenshot-close"].clone()),
-        ]
-        .into_iter()
-        .collect();
-        if self.screenshots.confirm_delete {
-            order.push(("screenshot-keep", keys["screenshot-keep"].clone()));
-            order.push(("screenshot-trash", keys["screenshot-trash"].clone()));
-        } else {
-            order.push(("screenshot-copy", keys["screenshot-copy"].clone()));
-            order.push(("screenshot-open", keys["screenshot-open"].clone()));
-            order.push(("screenshot-show", keys["screenshot-show"].clone()));
-            order.push(("screenshot-delete", keys["screenshot-delete"].clone()));
-        }
+        let order: Vec<_> = viewer_control_order(i, count, self.screenshots.confirm_delete)
+            .into_iter()
+            .map(|id| (id, keys[id].clone()))
+            .collect();
         self.modal_keys(&order, cx);
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::viewer_control_order;
+
+    #[test]
+    fn viewer_keyboard_order_skips_disabled_navigation() {
+        let actions = [
+            "screenshot-close",
+            "screenshot-copy",
+            "screenshot-open",
+            "screenshot-show",
+            "screenshot-delete",
+        ];
+        assert_eq!(viewer_control_order(0, 1, false), actions);
+        assert_eq!(
+            viewer_control_order(0, 3, false),
+            [vec!["screenshot-older"], actions.to_vec()].concat()
+        );
+        assert_eq!(
+            viewer_control_order(1, 3, false),
+            [
+                vec!["screenshot-newer", "screenshot-older"],
+                actions.to_vec()
+            ]
+            .concat()
+        );
+        assert_eq!(
+            viewer_control_order(2, 3, false),
+            [vec!["screenshot-newer"], actions.to_vec()].concat()
+        );
+    }
+
+    #[test]
+    fn viewer_confirmation_replaces_file_actions_without_dead_navigation() {
+        assert_eq!(
+            viewer_control_order(0, 1, true),
+            ["screenshot-close", "screenshot-keep", "screenshot-trash"]
+        );
+        assert_eq!(
+            viewer_control_order(1, 2, true),
+            [
+                "screenshot-newer",
+                "screenshot-close",
+                "screenshot-keep",
+                "screenshot-trash"
+            ]
+        );
     }
 }
