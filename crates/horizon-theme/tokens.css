@@ -58,7 +58,7 @@
   --block-outline: 2px;
   --block-bevel: 2px;
   --block-lip: 4px;
-  --text-micro: 11px;
+  --text-micro: 12px;
   --text-micro-line: 1.5;
   --text-micro-tracking: 0.04em;
   --text-micro-weight: 400;
@@ -185,7 +185,7 @@
     --night-side: #0a0820;
     --night-ink: #f4f2ff;
     --night-ink-soft: #cfc9ea;
-    --night-muted: #a59fc6;
+    --night-muted: #b5b0d4;
     --night-accent: #7656fa;
     --night-accent-hi: #a08cff;
     --night-on-accent: #ffffff;
@@ -237,7 +237,7 @@
   --night-side: #0a0820;
   --night-ink: #f4f2ff;
   --night-ink-soft: #cfc9ea;
-  --night-muted: #a59fc6;
+  --night-muted: #b5b0d4;
   --night-accent: #7656fa;
   --night-accent-hi: #a08cff;
   --night-on-accent: #ffffff;
