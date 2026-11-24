@@ -936,6 +936,11 @@ impl Launcher {
             viewport_h: window.viewport_size().height.into(),
         };
         this.reload_instances();
+        if Self::datapack_capture_mode().is_some() {
+            this.opening = None;
+            this.seed_datapack_capture();
+            return this;
+        }
         if this.bench.is_some() {
             this.perf.keep_local_log(false);
         }
@@ -1211,6 +1216,9 @@ impl Launcher {
     }
 
     fn drain(&mut self, cx: &mut Context<Self>) {
+        if Self::datapack_capture_mode().is_some() {
+            return;
+        }
         let mut changed = false;
         self.perf.tick();
         match self.bench.as_mut().map(|b| b.tick(&self.perf)) {
@@ -5829,6 +5837,9 @@ impl Render for Launcher {
         self.viewport_w = size.width.into();
         self.viewport_h = size.height.into();
         theme::set_ui_scale(self.viewport_w, self.viewport_h);
+        if let Some(view) = self.datapack_capture_view(cx) {
+            return view;
+        }
         if specimen::wanted() {
             return div()
                 .flex()

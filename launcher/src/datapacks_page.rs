@@ -304,3 +304,83 @@ mod tests {
         }
     }
 }
+
+// SCRATCH ONLY: local synthetic data; real data-pack panel, not the full Home shell.
+impl Launcher {
+    pub(super) fn datapack_capture_mode() -> Option<String> {
+        std::env::var("HORIZON_DATAPACK_CAPTURE")
+            .ok()
+            .filter(|s| matches!(s.as_str(), "packs-en" | "packs-fr"))
+    }
+
+    fn capture_world() -> World {
+        World {
+            folder: "synthetic-world-p40".into(),
+            path: std::env::temp_dir().join("synthetic-world-p40-not-on-disk"),
+            name: "Synthetic data pack world".into(),
+            mode: "Survival",
+            last_played: std::time::UNIX_EPOCH,
+            version: Some("fixture".into()),
+            size: 0,
+            icon: None,
+        }
+    }
+
+    pub(super) fn seed_datapack_capture(&mut self) {
+        let world = Self::capture_world();
+        let list: Vec<DataPack> = (0..14).map(|i| {
+            let file = format!("{i:02}-synthetic-long-filename-landscape-generation-and-village-trading-compatibility-pack.zip");
+            DataPack {
+                path: world.path.join("datapacks").join(&file), file,
+                description: format!("PACK {i:02} - Synthetic long description for landscape generation, village trading and compatibility. Last pack is PACK 13."),
+                enabled: i % 2 == 0,
+            }
+        }).collect();
+        let confirm_remove = Some(list[0].file.clone());
+        self.world_packs = WorldPacks {
+            open: Some(world.path),
+            list,
+            confirm_remove,
+            note: None,
+        };
+    }
+
+    pub(super) fn datapack_capture_view(&mut self, cx: &mut Context<Self>) -> Option<Div> {
+        let mode = Self::datapack_capture_mode()?;
+        i18n::set(if mode == "packs-fr" {
+            i18n::Language::French
+        } else {
+            i18n::Language::English
+        });
+        let t = self.theme;
+        let panel = self.world_packs_panel(&Self::capture_world(), cx);
+        let body = div()
+            .flex()
+            .flex_col()
+            .w_full()
+            .min_w_0()
+            .px(px(theme::page_gutter()))
+            .pt(px(24.))
+            .pb(px(theme::chrome(48.)))
+            .child(text(theme::LABEL).child(
+                "SYNTHETIC P40: real panel, shell-width spacer. Scroll only; no control clicks.",
+            ))
+            .children(panel);
+        Some(
+            div()
+                .size_full()
+                .bg(t.page)
+                .text_color(t.ink)
+                .font_family(theme::FONT)
+                .child(
+                    div()
+                        .id("datapack-capture-root")
+                        .flex()
+                        .size_full()
+                        .overflow_y_scroll()
+                        .child(div().flex_none().w(px(theme::sidebar())))
+                        .child(div().flex_1().min_w_0().child(body)),
+                ),
+        )
+    }
+}
