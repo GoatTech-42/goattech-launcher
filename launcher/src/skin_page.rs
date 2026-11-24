@@ -21,6 +21,12 @@ pub(super) struct SkinPanel {
     note: Option<Result<String, String>>,
 }
 
+impl SkinPanel {
+    fn record_setting_result(&mut self, result: Result<(), String>) {
+        self.note = result.err().map(Err);
+    }
+}
+
 fn look_picker_applies(panel: Option<&SkinPanel>, identity: &Arc<()>) -> bool {
     panel.is_some_and(|panel| Arc::ptr_eq(&panel.identity, identity))
 }
@@ -61,6 +67,14 @@ impl Launcher {
             p.seen = None;
         }
         Ok(())
+    }
+
+    /// Keep a failed model/removal save visible instead of silently ignoring it.
+    fn save_look_reported(&mut self, change: impl FnOnce(&mut skins::Look)) {
+        let result = self.save_look(change);
+        if let Some(panel) = &mut self.skin {
+            panel.record_setting_result(result);
+        }
     }
 
     fn choose_look_file(&mut self, cape: bool, cx: &mut Context<Self>) {
@@ -179,7 +193,7 @@ impl Launcher {
             &t,
             move |m, _, cx| {
                 let _ = weak.update(cx, |this, cx| {
-                    let _ = this.save_look(|l| l.model = m);
+                    this.save_look_reported(|l| l.model = m);
                     cx.notify();
                 });
             },
@@ -195,7 +209,7 @@ impl Launcher {
         let drop = |id: &'static str, label: &'static str, cape: bool, cx: &mut Context<Self>| {
             scaled_button(id, label, Kind::Ghost, &t).on_click(cx.listener(
                 move |this, _: &ClickEvent, _, cx| {
-                    let _ = this.save_look(|l| match cape {
+                    this.save_look_reported(|l| match cape {
                         false => l.skin = false,
                         true => l.cape = false,
                     });
@@ -257,6 +271,29 @@ impl Launcher {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn skin_setting_failure_remains_an_error_note() {
+        let mut panel = SkinPanel::default();
+        panel.record_setting_result(Err("settings write denied".into()));
+        assert_eq!(panel.note, Some(Err("settings write denied".into())));
+        panel.record_setting_result(Ok(()));
+        assert_eq!(panel.note, None);
+    }
+
+    #[test]
+    fn model_and_remove_controls_use_the_reporting_save_path() {
+        let source = include_str!("skin_page.rs");
+        let controls = source
+            .split("pub(super) fn skin_panel(")
+            .nth(1)
+            .unwrap()
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap();
+        assert!(!controls.contains("let _ = this.save_look"));
+        assert_eq!(controls.matches("this.save_look_reported(").count(), 2);
+    }
 
     #[test]
     fn picker_callback_checks_original_panel_before_applying_the_file() {
