@@ -1,10 +1,9 @@
 $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force $env:CAP | Out-Null
 $info = "$env:CAP\window-info.txt"
-$src = 'using System;using System.Runtime.InteropServices;public class WinCap{[DllImport("user32.dll",SetLastError=true)]public static extern bool SetWindowPos(IntPtr h,IntPtr after,int x,int y,int w,int height,uint flags);[DllImport("user32.dll")]public static extern IntPtr GetLastActivePopup(IntPtr h);[DllImport("user32.dll")]public static extern IntPtr GetForegroundWindow();[DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);[DllImport("user32.dll")]public static extern uint GetDpiForWindow(IntPtr h);[DllImport("user32.dll")]public static extern bool GetClientRect(IntPtr h,out RECT r);[DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr h,out RECT r);[DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr h);[DllImport("user32.dll")]public static extern bool IsIconic(IntPtr h);[DllImport("user32.dll")]public static extern bool MoveWindow(IntPtr h,int x,int y,int w,int h2,bool r);[DllImport("user32.dll")]public static extern bool SetCursorPos(int x,int y);[DllImport("user32.dll")]public static extern void mouse_event(uint f,uint dx,uint dy,uint d,UIntPtr e);[DllImport("user32.dll")]public static extern bool SetForegroundWindow(IntPtr h);[DllImport("user32.dll")]public static extern bool GetCursorPos(out POINT p);[DllImport("user32.dll")]public static extern IntPtr WindowFromPoint(POINT p);[DllImport("user32.dll")]public static extern IntPtr GetAncestor(IntPtr h,uint flags);public struct POINT{public int X,Y;}public struct RECT{public int Left,Top,Right,Bottom;}}'
+$src = 'using System;using System.Runtime.InteropServices;public class WinCap{[DllImport("user32.dll",SetLastError=true)]public static extern bool SetWindowPos(IntPtr h,IntPtr after,int x,int y,int w,int height,uint flags);[DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);[DllImport("user32.dll")]public static extern uint GetDpiForWindow(IntPtr h);[DllImport("user32.dll")]public static extern bool GetClientRect(IntPtr h,out RECT r);[DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr h,out RECT r);[DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr h);[DllImport("user32.dll")]public static extern bool IsIconic(IntPtr h);[DllImport("user32.dll")]public static extern bool MoveWindow(IntPtr h,int x,int y,int w,int h2,bool r);public struct RECT{public int Left,Top,Right,Bottom;}}'
 if (-not ('WinCap' -as [type])) { Add-Type -TypeDefinition $src -ReferencedAssemblies System.Drawing }
 Add-Type -AssemblyName System.Drawing
-Add-Type -AssemblyName System.Windows.Forms
 $bin = "$PWD\launcher\target\release\horizon-launcher.exe"
 $actual = (git rev-parse HEAD).Trim()
 if ($actual -ne $env:CAP_EXPECTED_SOURCE) { throw 'Unexpected instrumented source' }
@@ -167,6 +166,9 @@ try {
     if ($worker.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $png)) { throw 'Capture worker failed' }
     $v=Verify-Window
   }
+  $brightness=Join-Path $env:CAP 'brightness-state.txt'
+  if (-not (Test-Path -LiteralPath $brightness)) { throw 'Missing frozen brightness receipt' }
+  Get-Content -LiteralPath $brightness -TotalCount 1 | Add-Content $info
   Verify-TestConsent
   'AUTOMATION-CHECKS: 2 originals saved; instrumented fixture; star pixels still require review' | Add-Content $info
   'LIMITS: no input injected; descendants can be missed between snapshots; no zero-network or shipping-tip claim' | Add-Content $info

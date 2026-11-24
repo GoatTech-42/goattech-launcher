@@ -287,6 +287,12 @@ pub struct Sky {
 }
 
 impl Sky {
+    // SCRATCH ONLY: pin the real star clock, report its actual group levels.
+    pub(crate) fn capture_frozen_levels(&mut self) -> [f32; 4] {
+        self.clock = Clock::default();
+        std::array::from_fn(|g| STAR_LEVELS[step(0., STAR_PERIODS[g], g)])
+    }
+
     /// The sky for a window of `w` by `h` logical pixels, and how long until it next changes
     /// (`None`: it stands still until something else redraws the window).
     pub fn render(
