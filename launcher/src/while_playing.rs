@@ -9,6 +9,8 @@ pub(super) struct Aside {
     window: AnyWindowHandle,
     /// What the window did when the game started, to undo when it closes.
     stepped: Option<WhilePlaying>,
+    /// The last picker save failed; its local value was restored.
+    save_error: Option<String>,
 }
 
 impl Aside {
@@ -16,6 +18,7 @@ impl Aside {
         Aside {
             window,
             stepped: None,
+            save_error: None,
         }
     }
 }
@@ -66,8 +69,12 @@ impl Launcher {
             let this = cx.entity().downgrade();
             move |choice, _, cx| {
                 let _ = this.update(cx, |this, cx| {
+                    let previous = this.settings.while_playing;
                     this.settings.while_playing = choice;
-                    let _ = this.settings.save();
+                    this.aside.save_error = this.settings.save().err().map(|e| e.to_string());
+                    if this.aside.save_error.is_some() {
+                        this.settings.while_playing = previous;
+                    }
                     cx.notify();
                 });
             }
@@ -84,7 +91,19 @@ impl Launcher {
         index_row(
             n,
             tr("while playing"),
-            Some(div().child(tr(said)).into_any_element()),
+            Some(
+                div()
+                    .flex()
+                    .flex_col()
+                    .child(tr(said))
+                    .children(
+                        self.aside
+                            .save_error
+                            .clone()
+                            .map(|e| div().text_color(t.danger).child(e)),
+                    )
+                    .into_any_element(),
+            ),
             Some(picker.into_any_element()),
             &t,
         )
