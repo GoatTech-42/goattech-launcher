@@ -48,6 +48,7 @@ mod shell;
 mod shortcut_page;
 mod skin_page;
 mod sky;
+mod sky_capture;
 mod specimen;
 mod switch_page;
 mod theme;
@@ -936,6 +937,10 @@ impl Launcher {
             viewport_h: window.viewport_size().height.into(),
         };
         this.reload_instances();
+        if sky_capture::wanted() {
+            this.opening = None;
+            return this;
+        }
         if this.bench.is_some() {
             this.perf.keep_local_log(false);
         }
@@ -1211,6 +1216,9 @@ impl Launcher {
     }
 
     fn drain(&mut self, cx: &mut Context<Self>) {
+        if sky_capture::wanted() {
+            return;
+        }
         let mut changed = false;
         self.perf.tick();
         match self.bench.as_mut().map(|b| b.tick(&self.perf)) {
@@ -5829,6 +5837,9 @@ impl Render for Launcher {
         self.viewport_w = size.width.into();
         self.viewport_h = size.height.into();
         theme::set_ui_scale(self.viewport_w, self.viewport_h);
+        if sky_capture::wanted() {
+            return self.mono_sky_capture(window);
+        }
         if specimen::wanted() {
             return div()
                 .flex()
