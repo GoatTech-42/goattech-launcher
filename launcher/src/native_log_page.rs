@@ -108,6 +108,19 @@ impl NativeLog {
     }
 }
 
+/// The log panel's explicit keyboard loop must skip disabled file actions.
+fn log_control_order(can_copy: bool, file_gone: bool) -> Vec<&'static str> {
+    let mut order = vec!["native-log-close"];
+    if can_copy {
+        order.push("native-log-copy");
+    }
+    if !file_gone {
+        order.extend(["native-log-file", "native-log-reveal"]);
+    }
+    order.push("native-log-refresh");
+    order
+}
+
 impl Launcher {
     /// The top bar's build log button opens the panel; it shows only while a log exists.
     pub(crate) fn native_log_open(&mut self) {
@@ -347,16 +360,19 @@ impl Launcher {
                 .child(body.flex_1().min_h_0().min_w_0()),
         );
         // The panel's keyboard set, top bar first: Close, then the log's actions.
-        self.modal_keys(
-            &[
-                ("native-log-close", close_key),
-                ("native-log-copy", copy_key),
-                ("native-log-file", file_key),
-                ("native-log-reveal", reveal_key),
-                ("native-log-refresh", refresh_key),
-            ],
-            cx,
-        );
+        let keys = [
+            ("native-log-close", close_key),
+            ("native-log-copy", copy_key),
+            ("native-log-file", file_key),
+            ("native-log-reveal", reveal_key),
+            ("native-log-refresh", refresh_key),
+        ];
+        let enabled = log_control_order(matches!(loaded, Some(Ok(_))), gone);
+        let order: Vec<_> = keys
+            .into_iter()
+            .filter(|(id, _)| enabled.contains(id))
+            .collect();
+        self.modal_keys(&order, cx);
         out
     }
 }
@@ -364,6 +380,40 @@ impl Launcher {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn keyboard_loop_skips_disabled_log_actions() {
+        assert_eq!(
+            log_control_order(true, false),
+            [
+                "native-log-close",
+                "native-log-copy",
+                "native-log-file",
+                "native-log-reveal",
+                "native-log-refresh"
+            ]
+        );
+        // A pending read permits the file actions but cannot copy unread contents.
+        assert_eq!(
+            log_control_order(false, false),
+            [
+                "native-log-close",
+                "native-log-file",
+                "native-log-reveal",
+                "native-log-refresh"
+            ]
+        );
+        // A missing log or reset error leaves only Close and Refresh enabled.
+        assert_eq!(
+            log_control_order(false, true),
+            ["native-log-close", "native-log-refresh"]
+        );
+        // A reset error can coexist with the previous loaded snapshot.
+        assert_eq!(
+            log_control_order(true, true),
+            ["native-log-close", "native-log-copy", "native-log-refresh"]
+        );
+    }
 
     #[test]
     fn snapshot_keeps_complete_diagnostics_and_only_renders_the_tail() {
