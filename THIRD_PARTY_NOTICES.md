@@ -19,6 +19,11 @@ are in that folder (`LICENSE.MIT`, `LICENSE.APACHE`).
 `crates/horizon-theme/fonts/PixelifySans-*.ttf` is [Pixelify Sans](https://github.com/eifetx/Pixelify-Sans)
 by The Pixelify Sans Project Authors, licensed under the SIL Open Font License 1.1
 (`crates/horizon-theme/fonts/OFL-PixelifySans.txt`).
+The bundled launcher weights and the copies in `site/assets/fonts/` are modified:
+the GSUB `liga` feature has no lookup references, preventing incorrect fi/fl/ffi/ffl
+substitutions. Glyph outlines, character mapping and other font features are unchanged.
+The supplied license declares no Reserved Font Names after its copyright statement.
+Both font copies retain the original copyright and OFL notice.
 
 ## Pixelarticons
 
