@@ -521,7 +521,7 @@ impl Launcher {
                 }
             }
         }
-        let mut find = button("find-other-launchers", "find", Kind::Secondary, &t);
+        let mut find = button("find-other-launchers", "search", Kind::Secondary, &t);
         if busy {
             find = find.opacity(0.5);
         } else {
@@ -546,8 +546,9 @@ impl Launcher {
             .child(
                 div()
                     .flex()
-                    .items_baseline()
-                    .justify_between()
+                    .flex_col()
+                    .items_start()
+                    .gap(px(theme::chrome(4.)))
                     .child(
                         shell::text(theme::night::CAPTION, shell::c(n.muted))
                             .child(tr("from other launchers").to_string()),
