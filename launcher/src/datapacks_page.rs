@@ -134,10 +134,13 @@ impl Launcher {
                     .flex()
                     .items_center()
                     .justify_between()
+                    .flex_wrap()
+                    .gap(px(theme::chrome(6.)))
                     .child(micro(tr("data packs")).text_color(t.muted))
                     .child(
                         div()
                             .flex()
+                            .flex_wrap()
                             .gap(px(theme::chrome(6.)))
                             .child(
                                 scaled_button("world-packs-add", "add data pack…", Kind::Ghost, &t)
@@ -172,7 +175,11 @@ impl Launcher {
         panel = panel.child(head).children(failed);
         for (i, pack) in self.world_packs.list.clone().into_iter().enumerate() {
             let confirming = self.world_packs.confirm_remove.as_ref() == Some(&pack.file);
-            let mut actions = div().flex().items_center().gap(px(theme::chrome(6.)));
+            let mut actions = div()
+                .flex()
+                .flex_wrap()
+                .items_center()
+                .gap(px(theme::chrome(6.)));
             if confirming {
                 let (world, gone) = (world.path.clone(), pack.clone());
                 actions = actions
@@ -241,6 +248,7 @@ impl Launcher {
             panel = panel.child(
                 plate(&t)
                     .flex()
+                    .flex_wrap()
                     .items_center()
                     .gap(px(theme::chrome(12.)))
                     .px(px(theme::chrome(12.)))
@@ -265,9 +273,34 @@ impl Launcher {
                                     .child(pack.description.clone()),
                             ),
                     )
-                    .child(actions),
+                    .child(actions.w_full()),
             );
         }
         Some(panel)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn data_pack_actions_wrap_and_confirmation_gets_its_own_row() {
+        let source = include_str!("datapacks_page.rs");
+        let panel = source
+            .split("pub(super) fn world_packs_panel(")
+            .nth(1)
+            .unwrap()
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap();
+        assert!(panel.matches(".flex_wrap()").count() >= 4);
+        assert!(panel.contains(".child(actions.w_full())"));
+        for id in [
+            "world-packs-add",
+            "world-packs-folder",
+            "world-pack-keep-",
+            "world-pack-trash-",
+        ] {
+            assert!(panel.contains(id));
+        }
     }
 }
