@@ -1,41 +1,38 @@
-$ErrorActionPreference = 'Continue'
-# Export ceilings, checked BEFORE reading each file: no unbounded
-# ReadAllBytes/base64 into the log. Per-file raw limit 4,000,000 bytes;
-# total ENCODED base64 characters across all frames 24,000,000.
-$maxPngBytes = 4000000
-$maxEncodedTotal = 24000000
-$encodedTotal = 0
-$info = "$env:CAP\window-info.txt"
-if (Test-Path $info) {
-  Get-Content $info | ForEach-Object { Write-Output $_ }
-  Get-Content $info | ForEach-Object { Add-Content $env:GITHUB_STEP_SUMMARY "| $_ |" }
-  Add-Content $env:GITHUB_STEP_SUMMARY "`nFrames are base64 blocks in this run's raw log between ###FRAME-BEGIN and ###FRAME-END markers. Decode: copy a block, then ``base64 -d > frame.png``."
-} else {
-  Write-Output "NO-EVIDENCE: window-info.txt missing (capture step died before writing)"
-  Add-Content $env:GITHUB_STEP_SUMMARY "NO-EVIDENCE: capture step produced no window-info - see job log."
+$ErrorActionPreference='Stop'
+# Shared run-wide base64 budget is script scope, initialized once by workflow.
+if ($null -eq $script:ClientEncodedTotal) { throw 'Missing shared export budget' }
+$maxPngBytes=4000000;$maxEncodedTotal=24000000
+$info=Join-Path $env:CAP 'window-info.txt'
+if (Test-Path -LiteralPath $info) {
+  $fi=Get-Item -LiteralPath $info
+  if ($fi.Length -gt 65536) { Write-Output 'INFO-SKIP: exceeds 65536 bytes' }
+  else {
+    $lines=@(Get-Content -LiteralPath $info -TotalCount 121)
+    if ($lines.Count -gt 120) { Write-Output 'INFO-TRUNCATED: 120-line ceiling' }
+    foreach ($line in ($lines | Select-Object -First 120)) {
+      $safe=($line -replace '[^\x20-\x7E]','?')
+      if ($safe.Length -gt 500) {$safe=$safe.Substring(0,500)}
+      Write-Output $safe
+      # Summary is plain fenced text, strips markup to avoid untrusted rendering.
+      $summary=$safe -replace '[`<>|]','_'
+      if ($script:ClientSummaryLines -lt 720) { Add-Content $env:GITHUB_STEP_SUMMARY $summary; $script:ClientSummaryLines++ }
+    }
+  }
+} else { Write-Output 'NO-EVIDENCE: bounded info file absent' }
+$expected=@('frame-01-top.png','frame-02-scroll-down-1.png','frame-03-scroll-down-2.png','frame-04-scroll-up.png')
+$found=0
+foreach ($name in $expected) {
+  $path=Join-Path $env:CAP $name
+  if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { Write-Output "FRAME-MISSING: $name";continue }
+  $png=Get-Item -LiteralPath $path; $enc=4*[Math]::Ceiling($png.Length/3)
+  if ($png.Length -eq 0 -or $png.Length -gt $maxPngBytes -or $script:ClientEncodedTotal+$enc -gt $maxEncodedTotal) { Write-Output "FRAME-SKIP: $name size-or-shared-budget";continue }
+  $bytes=[IO.File]::ReadAllBytes($path);$sha=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+  if ($bytes.Length -ne $png.Length) { throw 'Frame changed during read' }
+  Write-Output "###FRAME-BEGIN instrumented-$env:CAP_ROUTE-$name sha256=$sha bytes=$($bytes.Length)"
+  $b64=[Convert]::ToBase64String($bytes)
+  for ($i=0;$i -lt $b64.Length;$i+=76) {Write-Output $b64.Substring($i,[Math]::Min(76,$b64.Length-$i))}
+  Write-Output "###FRAME-END instrumented-$env:CAP_ROUTE-$name"
+  $script:ClientEncodedTotal+=$enc;$found++
 }
-$frames = @(Get-ChildItem "$env:CAP\frame-*.png" -ErrorAction SilentlyContinue)
-if ($frames.Count -eq 0) { Write-Output "###FRAMES-NONE found=0 expected=4 - no frame files present" }
-elseif ($frames.Count -ne 4) { Write-Output "###FRAMES-INCOMPLETE found=$($frames.Count) expected=4" }
-foreach ($png in $frames) {
-  $len = $png.Length
-  $enc = 4 * [Math]::Ceiling($len / 3)
-  if ($len -gt $maxPngBytes) {
-    Write-Output "###FRAME-SKIP $env:CAP_KIND-$env:CAP_ROUTE-$($png.Name) reason=oversize bytes=$len limit=$maxPngBytes"
-    continue
-  }
-  if ($encodedTotal + $enc -gt $maxEncodedTotal) {
-    Write-Output "###FRAME-SKIP $env:CAP_KIND-$env:CAP_ROUTE-$($png.Name) reason=total-ceiling encoded-would-be=$($encodedTotal + $enc) limit=$maxEncodedTotal"
-    continue
-  }
-  $bytes = [IO.File]::ReadAllBytes($png.FullName)
-  $sha = (Get-FileHash $png.FullName -Algorithm SHA256).Hash
-  Write-Output "###FRAME-BEGIN $env:CAP_KIND-$env:CAP_ROUTE-$($png.Name) sha256=$sha bytes=$($bytes.Length)"
-  $b64 = [Convert]::ToBase64String($bytes)
-  for ($i = 0; $i -lt $b64.Length; $i += 76) {
-    Write-Output $b64.Substring($i, [Math]::Min(76, $b64.Length - $i))
-  }
-  Write-Output "###FRAME-END $env:CAP_KIND-$env:CAP_ROUTE-$($png.Name)"
-  $encodedTotal += $enc
-}
-Write-Output "###EXPORT-SUMMARY frames-present=$($frames.Count) encoded-chars=$encodedTotal ceiling=$maxEncodedTotal"
+Write-Output "###EXPORT-SUMMARY frames=$found expected=4 shared-encoded=$script:ClientEncodedTotal ceiling=$maxEncodedTotal"
+if ($found -ne 4) { throw 'Incomplete bounded frame export' }

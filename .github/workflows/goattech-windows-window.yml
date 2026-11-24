@@ -41,15 +41,19 @@ jobs:
         timeout-minutes: 15
         run: |
           $ErrorActionPreference='Stop'
+          $env:CAP_RUSTC_VERSION=(& rustc --version)
+          $env:CAP_CARGO_VERSION=(& cargo --version)
           $failed=@()
+          $script:ClientEncodedTotal=0; $script:ClientSummaryLines=0
           foreach ($mode in @('long','missing')) {
             foreach ($size in @(@(960,600),@(1028,780),@(1920,1080))) {
+              if (Test-Path (Join-Path $env:RUNNER_TEMP 'client-capture-stop')) { throw 'Prior owned-process survivor; stop further captures' }
               $env:CAP_KIND='instrumented'
               $env:CAP_ROUTE=$mode
               $env:CAP_WIDTH=[string]$size[0]; $env:CAP_HEIGHT=[string]$size[1]
               $env:CAP=Join-Path $env:RUNNER_TEMP "captures-$mode-$($size[0])x$($size[1])"
-              try { & '_capture/docs/qa/client-review-driver.ps1' } catch { $failed+="$mode-$size"; Write-Warning $_ }
-              finally { $env:CAP_ROUTE="$mode-$($size[0])x$($size[1])"; & '_capture/docs/qa/client-review-export.ps1' }
+              try { & '_capture/docs/qa/client-review-driver.ps1' } catch { $failed+="$mode-$($size[0])"; Write-Warning "Route failed; bounded receipts in export" }
+              finally { $env:CAP_ROUTE="$mode-$($size[0])x$($size[1])"; . '_capture/docs/qa/client-review-export.ps1' }
             }
           }
           if ($failed.Count) { throw "Failed captures: $($failed -join ',')" }
