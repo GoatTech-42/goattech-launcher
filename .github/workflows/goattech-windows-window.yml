@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-          ref: baceb20b8da1171fa1f85afa623d83747bfc48a2
+          ref: d832eb743329964c17dd866ee7304afe5de7fd66
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
@@ -49,7 +49,7 @@ jobs:
           foreach ($mode in @('mods-en','labels-fr','flynn')) {
             foreach ($size in @(@(960,600),@(1028,780),@(1920,1080))) {
               if (Test-Path (Join-Path $env:RUNNER_TEMP 'client-capture-stop')) { throw 'Prior owned-process survivor; stop further captures' }
-              $env:CAP_EXPECTED_SOURCE='baceb20b8da1171fa1f85afa623d83747bfc48a2'
+              $env:CAP_EXPECTED_SOURCE='d832eb743329964c17dd866ee7304afe5de7fd66'
               $env:CAP_KIND='instrumented'
               $env:CAP_ROUTE=$mode
               $env:CAP_WIDTH=[string]$size[0]; $env:CAP_HEIGHT=[string]$size[1]
