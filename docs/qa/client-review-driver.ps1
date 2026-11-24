@@ -26,6 +26,31 @@ $env:XDG_CONFIG_HOME = Join-Path $root 'xdg-config'
 $env:HORIZON_LAUNCHER_DESKTOP = Join-Path $root 'desktop'
 foreach ($path in @($env:HORIZON_LAUNCHER_HOME,$env:HORIZON_HOME,$env:HOME,$env:APPDATA,$env:LOCALAPPDATA,$env:XDG_DATA_HOME,$env:XDG_CONFIG_HOME,$env:HORIZON_LAUNCHER_DESKTOP)) { New-Item -ItemType Directory -Force $path | Out-Null }
 @{install_new_versions=$false;skip_opening=$true;owner_notice_seen=$true;ping_notice_seen=$true;basic_summaries=$false} | ConvertTo-Json | Set-Content (Join-Path $env:HORIZON_LAUNCHER_HOME 'settings.json')
+# Test profile only: record the same all-off consent choices as Keep optional data off.
+# Telemetry endpoint=off does NOT answer the first-run question. Derive the schema
+# version from the exact pinned source and fail closed if that contract changes.
+$consentSource=Get-Content -LiteralPath (Join-Path $PWD 'crates/horizon-telemetry/src/lib.rs') -Raw
+$versionMatch=[regex]::Match($consentSource,'pub const CONSENT_VERSION: u32 = ([0-9]+);')
+if (-not $versionMatch.Success) { throw 'Cannot establish consent schema version' }
+$consentVersion=[int]$versionMatch.Groups[1].Value
+$consentDir=Join-Path $env:HORIZON_HOME 'telemetry'
+New-Item -ItemType Directory -Force $consentDir | Out-Null
+$consentPath=Join-Path $consentDir 'consent.json'
+if (Test-Path -LiteralPath $consentPath) { throw 'Expected unanswered fresh test profile' }
+@{version=$consentVersion;answered=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds();choices=@{performance=$false;crashes=$false;bugs=$false;benchmarks=$false}} | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $consentPath
+$consentHash=(Get-FileHash -LiteralPath $consentPath -Algorithm SHA256).Hash
+function Verify-TestConsent {
+  $saved=Get-Content -LiteralPath $consentPath -Raw | ConvertFrom-Json
+  if ($saved.version -ne $consentVersion -or $saved.answered -le 0 -or
+      $saved.choices.performance -cne $false -or $saved.choices.crashes -cne $false -or
+      $saved.choices.bugs -cne $false -or $saved.choices.benchmarks -cne $false -or
+      -not [string]::IsNullOrEmpty($saved.install_id) -or
+      (Get-FileHash -LiteralPath $consentPath -Algorithm SHA256).Hash -ne $consentHash) {
+    throw 'Test-profile all-off consent missing or changed'
+  }
+}
+Verify-TestConsent
+"test-consent: preseeded Keep optional data off equivalent; schema=$consentVersion; all four optional categories=false; install_id absent; basic_summaries=false; test profile only" | Add-Content $info
 $env:HORIZON_CAPTURE_CLIENT_REVIEW=$env:CAP_ROUTE
 Remove-Item Env:HORIZON_LAUNCHER_DESKTOP_ENTRY -ErrorAction SilentlyContinue
 
@@ -120,6 +145,7 @@ try {
   $f=0
   foreach ($step in $steps) {
     $f++; Descendants
+    Verify-TestConsent
     if ($step.Delta) {
       $v=Verify-Window
       if ($v.Client.Right -ne [int]$env:CAP_WIDTH -or $v.Client.Bottom -ne [int]$env:CAP_HEIGHT) { throw 'Scroll client mismatch' }
@@ -160,6 +186,7 @@ try {
     if ($worker.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $png)) { throw 'Capture worker failed' }
     $v=Verify-Window
   }
+  Verify-TestConsent
   'AUTOMATION-CHECKS: 4 originals saved; instrumented fixture; pixels/scroll behavior still require review' | Add-Content $info
   'LIMITS: non-atomic foreground/cursor/input checks; descendants can be missed between snapshots; no zero-network or shipping-tip claim' | Add-Content $info
 } catch {
