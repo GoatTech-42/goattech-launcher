@@ -35,6 +35,41 @@ fn valid_target(eligible: &[(String, String)], chosen: Option<&str>) -> Option<(
     eligible.iter().find(|(i, _)| i == id).cloned()
 }
 
+/// Declarations from the inspected bytes, not verified compatibility or a security review.
+fn client_review_lines(info: &ClientJar) -> Vec<String> {
+    let declaration = |value: &Option<String>| {
+        value
+            .as_deref()
+            .filter(|v| !v.trim().is_empty())
+            .unwrap_or("not declared")
+            .to_string()
+    };
+    let mut lines = vec![
+        "JAR metadata declarations, not a safety or compatibility guarantee.".into(),
+        format!("Minecraft: {}", declaration(&info.minecraft_wants)),
+        format!("Java: {}", declaration(&info.java_wants)),
+        format!("Fabric Loader: {}", declaration(&info.loader_wants)),
+        format!(
+            "Side: {}. License: {}",
+            info.side.label(),
+            declaration(&info.license)
+        ),
+    ];
+    if info.mod_wants.is_empty() {
+        lines.push("Other required mods: none declared.".into());
+    } else {
+        lines.push(format!(
+            "Other required mods: {}",
+            info.mod_wants
+                .iter()
+                .map(|(id, range)| format!("{id} {range}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+    lines
+}
+
 impl ClientInstall {
     fn begin_pick(&mut self) {
         self.busy = true;
@@ -219,6 +254,10 @@ impl Launcher {
                     path.file_name().unwrap_or_default().to_string_lossy()
                 ),
             ));
+            for line in client_review_lines(info) {
+                section = section
+                    .child(shell::text(theme::night::CAPTION, shell::c(n.muted)).child(line));
+            }
             let ids = self.client_targets();
             let chosen = valid_target(&ids, self.instances.client.target.as_deref());
             let target_name = chosen.map(|(_, name)| name);
@@ -304,6 +343,61 @@ impl Launcher {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn jar() -> ClientJar {
+        ClientJar {
+            mod_id: "fixture".into(),
+            name: "Fixture".into(),
+            version: "1".into(),
+            license: None,
+            side: client_jar::Side::Client,
+            entrypoints: false,
+            loader_wants: None,
+            minecraft_wants: None,
+            java_wants: None,
+            mod_wants: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn client_review_labels_missing_declarations_without_implying_compatibility() {
+        let lines = client_review_lines(&jar());
+        for field in [
+            "Minecraft: not declared",
+            "Java: not declared",
+            "Fabric Loader: not declared",
+            "License: not declared",
+        ] {
+            assert!(lines.iter().any(|line| line.contains(field)));
+        }
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("not a safety or compatibility guarantee")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("Other required mods: none declared")));
+    }
+
+    #[test]
+    fn client_review_preserves_declared_ranges_and_dependency_names() {
+        let mut info = jar();
+        info.minecraft_wants = Some("~1.21".into());
+        info.java_wants = Some(">=21".into());
+        info.loader_wants = Some(">=0.16".into());
+        info.license = Some("MIT".into());
+        info.mod_wants = vec![("fabric-api".into(), ">=0.100".into())];
+        let lines = client_review_lines(&info).join("\n");
+        for detail in [
+            "~1.21",
+            ">=21",
+            ">=0.16",
+            "MIT",
+            "fabric-api >=0.100",
+            "client",
+        ] {
+            assert!(lines.contains(detail));
+        }
+    }
 
     #[test]
     fn a_removed_or_ineligible_target_is_not_handed_to_the_installer() {
