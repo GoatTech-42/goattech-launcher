@@ -936,6 +936,12 @@ impl Launcher {
             viewport_h: window.viewport_size().height.into(),
         };
         this.reload_instances();
+        this.seed_client_review_capture();
+        // CAPTURE-ONLY SCRATCH: skip keychain/prepared reuse, profile/auth/release/link
+        // startup jobs and telemetry. Fixture mode was captured once above.
+        if this.client_review_capture() {
+            return this;
+        }
         if this.bench.is_some() {
             this.perf.keep_local_log(false);
         }

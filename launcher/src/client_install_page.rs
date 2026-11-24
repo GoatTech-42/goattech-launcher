@@ -6,6 +6,7 @@ use std::path::PathBuf;
 #[derive(Default)]
 pub(super) struct ClientInstall {
     pub(super) busy: bool,
+    capture_only: bool,
     pub(super) chosen: Option<(PathBuf, ClientJar, String)>,
     pub(super) report: Option<String>,
     /// The existing instance (its id) the JAR goes into; none: a new instance.
@@ -81,6 +82,27 @@ fn client_review_lines(info: &ClientJar) -> Vec<String> {
     lines
 }
 
+// CAPTURE-ONLY SCRATCH: never merge this fixture into the application branch.
+fn capture_fixture() -> Option<ClientJar> {
+    let mode = std::env::var("HORIZON_CAPTURE_CLIENT_REVIEW").ok()?;
+    if !matches!(mode.as_str(), "long" | "missing") {
+        return None;
+    }
+    let long = mode == "long";
+    Some(ClientJar {
+        mod_id: "synthetic-review-fixture".into(),
+        name: "Synthetic review fixture, not an installable client".into(),
+        version: "0.0.0-capture-only".into(),
+        license: long.then(|| "Synthetic license declaration with a deliberately long explanatory identifier, not a real client license or permission to distribute software".into()),
+        side: client_jar::Side::Client,
+        entrypoints: false,
+        minecraft_wants: long.then(|| ">=1.20.1 <1.21; >=1.21.1 <1.22; >=1.22.1 <1.23".into()),
+        java_wants: long.then(|| ">=17 <18; >=21 <22; >=25 <26".into()),
+        loader_wants: long.then(|| ">=0.16.0 <0.17.0; >=0.17.0 <0.18.0".into()),
+        mod_wants: if long { (1..=20).map(|i| (format!("synthetic-dependency-with-long-identifier-{i:02}"), ">=1.0.0 <2.0.0; >=3.0.0 <4.0.0".into())).collect() } else { Vec::new() },
+    })
+}
+
 impl ClientInstall {
     fn begin_pick(&mut self) {
         self.busy = true;
@@ -116,7 +138,29 @@ impl ClientInstall {
 }
 
 impl Launcher {
+    pub(super) fn seed_client_review_capture(&mut self) {
+        if let Some(info) = capture_fixture() {
+            self.instances.client.capture_only = true;
+            self.page = Page::Instances;
+            self.instances.client.chosen = Some((
+                PathBuf::from("synthetic-review-fixture-NOT-A-REAL-FILE.jar"),
+                info,
+                "capture-only-no-file-no-install".into(),
+            ));
+            self.instances.client.report = Some(
+                "CAPTURE FIXTURE: choose/install disabled; no file or client is executed.".into(),
+            );
+        }
+    }
+
+    pub(super) fn client_review_capture(&self) -> bool {
+        self.instances.client.capture_only
+    }
+
     fn choose_client_jar(&mut self, cx: &mut Context<Self>) {
+        if self.client_review_capture() {
+            return;
+        }
         if self.instances.client.busy {
             return;
         }
@@ -162,6 +206,9 @@ impl Launcher {
     }
 
     pub(super) fn install_chosen_client(&mut self, cx: &mut Context<Self>) {
+        if self.client_review_capture() {
+            return;
+        }
         if self.instances.client.busy {
             return;
         }
