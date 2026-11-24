@@ -122,6 +122,8 @@ pub(super) struct Instances {
     /// dialog it was started from is still the open one - a close and a reopen, even of
     /// the same instance, is a new generation and drops the late answer.
     pub(super) dialog_seq: u64,
+    picture_request: Arc<()>,
+    banner_request: Arc<()>,
     /// The instance whose Delete is waiting for its confirmation, and why the last one failed.
     pub(super) confirm_delete: Option<String>,
     delete_error: Option<String>,
@@ -139,6 +141,31 @@ pub(super) struct Instances {
 }
 
 impl Instances {
+    /// Starting a newer picker or making a direct choice supersedes the old decode.
+    pub(super) fn begin_picture_request(&mut self, banner: bool) -> Arc<()> {
+        let slot = if banner {
+            &mut self.banner_request
+        } else {
+            &mut self.picture_request
+        };
+        *slot = Arc::new(());
+        slot.clone()
+    }
+
+    pub(super) fn picture_request_applies(
+        &self,
+        seq: u64,
+        banner: bool,
+        request: &Arc<()>,
+    ) -> bool {
+        let current = if banner {
+            &self.banner_request
+        } else {
+            &self.picture_request
+        };
+        self.picture_applies(seq) && Arc::ptr_eq(current, request)
+    }
+
     /// A late image decode must not change a reopened or saving dialog.
     pub(super) fn picture_applies(&self, seq: u64) -> bool {
         self.dialog_seq == seq
@@ -1837,6 +1864,7 @@ impl Launcher {
                     None => blocks::icon("close", 14., t.muted).into_any_element(),
                 })
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                    this.instances.begin_picture_request(false);
                     if let Some(d) = &mut this.instances.dialog {
                         d.icon = None;
                         d.picture = Some(None);
@@ -1855,6 +1883,7 @@ impl Launcher {
                     .bg(t.well)
                     .child(gpui::img(image).size(px(28.)))
                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        this.instances.begin_picture_request(false);
                         if let Some(d) = &mut this.instances.dialog {
                             d.icon = Some(Icon::Texture(name.into()));
                             d.picture = Some(None);
@@ -1871,6 +1900,7 @@ impl Launcher {
                 tile(format!("instance-icon-{hex}"), chosen)
                     .child(div().size(px(28.)).bg(gpui::rgb(rgb)))
                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        this.instances.begin_picture_request(false);
                         if let Some(d) = &mut this.instances.dialog {
                             d.icon = Some(Icon::Colour(hex.into()));
                             d.picture = Some(None);
@@ -1917,6 +1947,7 @@ impl Launcher {
             shell::spaced_action("instance-banner-remove", shell::Action::Quiet, &t)
                 .child(shell::label(tr("remove").to_string()))
                 .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                    this.instances.begin_picture_request(true);
                     if let Some(d) = &mut this.instances.dialog {
                         d.banner = Some(None);
                     }
@@ -2301,6 +2332,41 @@ mod tests {
             sync_validation: None,
             sync_req: 0,
             java: Default::default(),
+        }
+    }
+
+    #[test]
+    fn latest_image_request_wins_without_cancelling_the_other_image_kind() {
+        let mut state = Instances {
+            dialog_seq: 7,
+            dialog: Some(dialog("first")),
+            ..Instances::default()
+        };
+        let old_picture = state.begin_picture_request(false);
+        let banner = state.begin_picture_request(true);
+        assert!(state.picture_request_applies(7, false, &old_picture));
+        let picture = state.begin_picture_request(false);
+        assert!(!state.picture_request_applies(7, false, &old_picture));
+        assert!(state.picture_request_applies(7, false, &picture));
+        assert!(state.picture_request_applies(7, true, &banner));
+        state.begin_picture_request(true);
+        assert!(!state.picture_request_applies(7, true, &banner));
+        assert!(state.picture_request_applies(7, false, &picture));
+        state.dialog_seq = 8;
+        assert!(!state.picture_request_applies(7, false, &picture));
+    }
+
+    #[test]
+    fn direct_icon_or_banner_change_invalidates_a_pending_picker() {
+        let mut state = Instances {
+            dialog_seq: 7,
+            dialog: Some(dialog("first")),
+            ..Instances::default()
+        };
+        for banner in [false, true] {
+            let old = state.begin_picture_request(banner);
+            state.begin_picture_request(banner);
+            assert!(!state.picture_request_applies(7, banner, &old));
         }
     }
 

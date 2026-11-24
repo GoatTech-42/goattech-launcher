@@ -197,6 +197,7 @@ impl Launcher {
         if !self.instances.picture_applies(seq) {
             return;
         }
+        let request = self.instances.begin_picture_request(false);
         let paths = cx.prompt_for_paths(PathPromptOptions {
             files: true,
             directories: false,
@@ -224,7 +225,7 @@ impl Launcher {
                 })
                 .await;
             let _ = this.update(cx, |this, cx| {
-                if !this.instances.picture_applies(seq) {
+                if !this.instances.picture_request_applies(seq, false, &request) {
                     return;
                 }
                 if let Some(d) = &mut this.instances.dialog {
@@ -249,6 +250,7 @@ impl Launcher {
         if !self.instances.picture_applies(seq) {
             return;
         }
+        let request = self.instances.begin_picture_request(true);
         let paths = cx.prompt_for_paths(PathPromptOptions {
             files: true,
             directories: false,
@@ -276,7 +278,7 @@ impl Launcher {
                 })
                 .await;
             let _ = this.update(cx, |this, cx| {
-                if !this.instances.picture_applies(seq) {
+                if !this.instances.picture_request_applies(seq, true, &request) {
                     return;
                 }
                 if let Some(d) = &mut this.instances.dialog {
