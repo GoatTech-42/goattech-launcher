@@ -81,18 +81,39 @@ function Target($pattern,$label,$scroll=$false) {
 function ClickLine($line,$why) { $word=$line.words[0];$last=$line.words[-1];ClickAt ([int](($word.x+$last.x+$last.w)/2)) ([int]($word.y+$word.h/2)) $why }
 function Instances {ClickAt 44 114 'Instances sidebar';Start-Sleep -Seconds 1;for($i=0;$i -lt 4;$i++){Scroll $false}}
 function Search {Instances;$line=Target '^search$' 'locate-search' $true;ClickLine $line 'Search other launchers';Start-Sleep -Seconds 3;for($i=0;$i -lt 4;$i++){Scroll $false}}
-function ImportRow($name,$noMods) {
- $line=Target $name ('row-'+$name.Replace(' ','-')) $true
- # Import is the sole right-side action aligned with this fixture row.
- $s=Snap 'before-import';$rowY=$line.words[0].y
- $buttons=@(foreach($ocrLine in $s.lines){
-  $right=@($ocrLine.words|Where-Object {$_.x -gt 650 -and $_.y -ge $rowY-10 -and $_.y -le $rowY+110})
-  $txt=($right.text -join ' ')
-  if ($txt -match '^import( without mods)?$') {@{text=$txt;words=$right}}
+function FindImportButton($lines,$name,$noMods) {
+ # A title is anchored to the launcher suffix; explanatory text is never a row anchor.
+ $titlePattern='^'+[regex]::Escape($name)+'\s*-\s*Prism Launcher$'
+ $titles=@($lines | Where-Object {$_.text -match $titlePattern -and $_.words[0].x -gt 85 -and $_.words[0].y -lt 550})
+ if ($titles.Count -eq 0) {return $null}
+ if ($titles.Count -ne 1) {throw 'Ambiguous fixture row title'}
+ $top=($titles[0].words | ForEach-Object {[double]$_.y} | Measure-Object -Minimum).Minimum
+ $next=@($lines | Where-Object {$_.text -match '^qa .+ - Prism Launcher$' -and $_.words[0].y -gt $top+8} | ForEach-Object {$_.words[0].y} | Sort-Object | Select-Object -First 1)
+ # Retained 960x600 frames: minimum adjacent title pitch 74px; buttons end within 42px.
+ # A 55px cap cannot reach the next observed row even if its title is missed by OCR.
+ $bottom=$top+55
+ if ($next.Count -eq 1) {$bottom=[Math]::Min($bottom,$next[0]-8)}
+ $buttons=@(foreach($line in $lines) {
+  $right=@($line.words | Where-Object {$_.x -gt 650 -and $_.x+$_.w -lt 950 -and $_.y -ge $top-3 -and $_.y+$_.h -lt [Math]::Min($bottom,590)})
+  $label=($right.text -join ' ')
+  # Pixel-font OCR can read the final t as E; accept only this observed substitution.
+  if ($label -match '^import( withou[tE] mods)?$') {@{text=$label;words=$right}}
  })
+ if ($buttons.Count -eq 0) {return $null}
  Check ('unique-import-button-'+$name) ($buttons.Count -eq 1)
- Check ('honest-import-label-'+$name) (($buttons[0].text.ToLower() -match 'without mods') -eq $noMods)
- ClickLine $buttons[0] ('Import '+$name)
+ Check ('honest-import-label-'+$name) (($buttons[0].text -match ' mods$') -eq $noMods)
+ return $buttons[0]
+}
+function ImportRow($name,$noMods) {
+ $button=$null
+ for ($i=0;$i -lt 6;$i++) {
+  $s=Snap ('button-'+$name.Replace(' ','-'))
+  $button=FindImportButton $s.lines $name $noMods
+  if ($null -ne $button) {break}
+  Scroll $true
+ }
+ if ($null -eq $button) {throw 'Fixture row button not fully visible'}
+ ClickLine $button ('Import '+$name)
  Start-Sleep -Seconds 20
  Snap ('after-'+$name.Replace(' ','-'))|Out-Null
 }
@@ -150,7 +171,7 @@ try {
  Search;Snap 'discovered-rows'|Out-Null
  ImportRow 'qa fabric import' $false;$fabric=VerifyImported 'qa-fabric' 'qa fabric import' $false
  Search;ImportRow 'qa no loader import' $true;$plain=VerifyImported 'qa-no-loader' 'qa no loader import' $true
- Search;$line=Target 'qa vanished import' 'vanished-current-row' $true;Rename-Item -LiteralPath $vanished -NewName 'minecraft-held'
+ Search;$line=Target '^qa vanished import\s*-\s*Prism Launcher$' 'vanished-current-row' $true;Rename-Item -LiteralPath $vanished -NewName 'minecraft-held'
  ImportRow 'qa vanished import' $true
  $failure=Target 'could not copy|not find|cannot find|os error' 'visible-missing-source-error' $true
  Check 'missing-source-visible-error' ($null -ne $failure)
