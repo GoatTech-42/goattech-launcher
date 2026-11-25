@@ -843,10 +843,6 @@
   "after an eligible game session ends normally: how long the game took to show its title and load its first world, and a 95th-percentile frame time, each as a coarse range, with the measured horizon game release and your os (linux, macos or windows). no account, install id or session id. sending is not enabled for a public release yet. when enabled, one send is attempted while the launcher is still open, only if this switch is on; failed reports are dropped, not saved or retried. reports go only to GoatTech's own collector and add to daily counts of metric ranges per release and os, not unique-player counts. daily counts use a 7-day utc-day cleanup schedule; service or database failures can delay deletion. turn this option off any time; a request already in flight cannot be recalled.": "Uygun bir oyun oturumu normal şekilde bittiğinde: oyunun başlığını göstermesi ve ilk dünyasını yüklemesi ne kadar sürdü, ayrıca bir 95. yüzdelik kare süresi; her biri yaklaşık aralık olarak, ölçülen Horizon oyun sürümü ve işletim sisteminizle (Linux, macOS veya Windows) birlikte. Hesap, kurulum veya oturum kimliği yok. Herkese açık sürüm için gönderim henüz etkin değil. Etkinleştirildiğinde, yalnızca bu anahtar açıksa ve başlatıcı hâlâ açıkken tek bir gönderim denemesi yapılır; başarısız raporlar atılır, saklanmaz veya yeniden gönderilmez. Raporlar yalnızca GoatTech'in kendi toplayıcısına gider ve sürüm ile işletim sistemi başına metrik aralığı günlük sayımlarına eklenir; benzersiz oyuncu sayımı değildir. Günlük sayımlar UTC günü bazında 7 günlük temizlik programı kullanır; hizmet veya veritabanı kesintileri silmeyi geciktirebilir. Bu seçeneği istediğiniz zaman kapatabilirsiniz; yolda olan bir istek geri çağrılamaz.",
   "on for this install.": "on for this install.",
   "off for this install.": "off for this install.",
-  "basic performance summaries are on by default only on a genuinely new install; existing installs stay off unless you turn them on.": "Temel performans özetleri yalnızca gerçekten yeni bir kurulumda varsayılan olarak açıktır; mevcut kurulumlar siz açmadıkça kapalı kalır.",
-  "every other switch is off unless you turn it on.": "Diğer tüm anahtarlar siz açmadıkça kapalıdır.",
-  "the player-count ping is separate from these switches.": "Oyuncu sayımı pinglemesi bu anahtarlardan ayrıdır.",
-  "the details below describe each path and its source-defined retention; production basic-summary sending is not enabled yet.": "Aşağıdaki ayrıntılar her yolu ve kaynak kodunda tanımlı saklama süresini açıklar; temel özetlerin üretimde gönderimi henüz etkin değil.",
   "couldn't check for updates. check the connection and try again in a few minutes.": "Güncellemeler denetlenemedi. Bağlantıyı kontrol edin ve birkaç dakika sonra yeniden deneyin.",
   "mojang's version list could not be fetched. check the connection and try again in a few minutes.": "Mojang'ın sürüm listesi alınamadı. Bağlantıyı kontrol edin ve birkaç dakika sonra yeniden deneyin.",
   "the mod registry can't be reached. check the connection and try again in a few minutes.": "Mod kayıt defterine ulaşılamıyor. Bağlantıyı kontrol edin ve birkaç dakika sonra yeniden deneyin.",
@@ -911,5 +907,16 @@
   "try again": "Yeniden dene",
   "details": "Ayrıntılar",
   "hide details": "Ayrıntıları gizle",
-  "from other launchers": "Diğer başlatıcılardan"
+  "from other launchers": "Diğer başlatıcılardan",
+  "basic starts on for new installs; old installs stay off until you turn it on.": "basic starts on for new installs; old installs stay off until you turn it on.",
+  "other switches start off. public-release basic sending is not enabled yet.": "other switches start off. public-release basic sending is not enabled yet.",
+  "startup, world and frame-time ranges; os and game release. no account or id.": "startup, world and frame-time ranges; os and game release. no account or id.",
+  "the player-count ping is separate from these switches. retention below describes the code's rules, not a verified live service. cleanup failures can delay deletion.": "the player-count ping is separate from these switches. retention below describes the code's rules, not a verified live service. cleanup failures can delay deletion.",
+  "view or delete your saved reports.": "view or delete your saved reports.",
+  "benchmarks you run, shared with community results.": "benchmarks you run, shared with community results.",
+  "crash and graphics details. no log, world, server or user name.": "crash and graphics details. no log, world, server or user name.",
+  "off in this configuration. separate from the switches above.": "off in this configuration. separate from the switches above.",
+  "on by default while playing. only configuration turns it off.": "on by default while playing. only configuration turns it off.",
+  "reports you send, with a log only if you add one.": "reports you send, with a log only if you add one.",
+  "session performance, hardware and game settings.": "session performance, hardware and game settings."
 }

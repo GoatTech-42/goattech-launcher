@@ -843,10 +843,6 @@
   "after an eligible game session ends normally: how long the game took to show its title and load its first world, and a 95th-percentile frame time, each as a coarse range, with the measured horizon game release and your os (linux, macos or windows). no account, install id or session id. sending is not enabled for a public release yet. when enabled, one send is attempted while the launcher is still open, only if this switch is on; failed reports are dropped, not saved or retried. reports go only to GoatTech's own collector and add to daily counts of metric ranges per release and os, not unique-player counts. daily counts use a 7-day utc-day cleanup schedule; service or database failures can delay deletion. turn this option off any time; a request already in flight cannot be recalled.": "当符合条件的游戏会话正常结束时：游戏显示标题和加载第一个世界所花的时间，以及95百分位帧时间，各为大致范围，并附带所测Horizon游戏版本和您的操作系统（Linux、macOS或Windows）。不含账户、安装或会话标识。面向公开发布的传输尚未启用。启用后，仅在此开关开启时，启动器仍处于打开状态下进行一次发送尝试；失败的报告会被丢弃，不保存也不重发。报告仅发送至GoatTech自有收集器，计入按版本和操作系统的指标范围每日计数，而非独立玩家计数。每日计数采用按UTC日计算的7天清理计划；服务或数据库中断可能延迟删除。您可随时关闭此选项；已在发送中的请求无法撤回。",
   "on for this install.": "on for this install.",
   "off for this install.": "off for this install.",
-  "basic performance summaries are on by default only on a genuinely new install; existing installs stay off unless you turn them on.": "基本性能摘要仅在真正全新安装时默认开启；现有安装保持关闭，除非您开启。",
-  "every other switch is off unless you turn it on.": "其他所有开关除非您开启否则均保持关闭。",
-  "the player-count ping is separate from these switches.": "玩家计数ping与这些开关相互独立。",
-  "the details below describe each path and its source-defined retention; production basic-summary sending is not enabled yet.": "以下详情说明每条路径及其源代码定义的保留方式；基本摘要的生产环境发送尚未启用。",
   "couldn't check for updates. check the connection and try again in a few minutes.": "无法检查更新。 请检查网络连接，几分钟后再试。",
   "mojang's version list could not be fetched. check the connection and try again in a few minutes.": "无法获取 Mojang 的版本列表。 请检查网络连接，几分钟后再试。",
   "the mod registry can't be reached. check the connection and try again in a few minutes.": "无法连接到模组注册表。 请检查网络连接，几分钟后再试。",
@@ -911,5 +907,16 @@
   "try again": "重试",
   "details": "详情",
   "hide details": "隐藏详情",
-  "from other launchers": "来自其他启动器"
+  "from other launchers": "来自其他启动器",
+  "basic starts on for new installs; old installs stay off until you turn it on.": "basic starts on for new installs; old installs stay off until you turn it on.",
+  "other switches start off. public-release basic sending is not enabled yet.": "other switches start off. public-release basic sending is not enabled yet.",
+  "startup, world and frame-time ranges; os and game release. no account or id.": "startup, world and frame-time ranges; os and game release. no account or id.",
+  "the player-count ping is separate from these switches. retention below describes the code's rules, not a verified live service. cleanup failures can delay deletion.": "the player-count ping is separate from these switches. retention below describes the code's rules, not a verified live service. cleanup failures can delay deletion.",
+  "view or delete your saved reports.": "view or delete your saved reports.",
+  "benchmarks you run, shared with community results.": "benchmarks you run, shared with community results.",
+  "crash and graphics details. no log, world, server or user name.": "crash and graphics details. no log, world, server or user name.",
+  "off in this configuration. separate from the switches above.": "off in this configuration. separate from the switches above.",
+  "on by default while playing. only configuration turns it off.": "on by default while playing. only configuration turns it off.",
+  "reports you send, with a log only if you add one.": "reports you send, with a log only if you add one.",
+  "session performance, hardware and game settings.": "session performance, hardware and game settings."
 }

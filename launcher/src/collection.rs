@@ -582,7 +582,14 @@ impl Launcher {
         let basic = index_row(
             0,
             tr(telemetry::BASIC_NAME),
-            Some(div().child(tr(telemetry::BASIC_SHORT)).into_any_element()),
+            Some(
+                div()
+                    .text_color(t.ink_soft)
+                    .child(tr(
+                        "startup, world and frame-time ranges; os and game release. no account or id.",
+                    ))
+                    .into_any_element(),
+            ),
             Some(self.basic_switch("data-basic", None, cx).into_any_element()),
             &t,
         );
@@ -606,7 +613,17 @@ impl Launcher {
                 tr(name),
                 Some(
                     div()
-                        .child(tr(telemetry::short_what(kind)))
+                        .text_color(t.ink_soft)
+                        .child(tr(match kind {
+                            DataKind::Perf => "session performance, hardware and game settings.",
+                            DataKind::Crash => {
+                                "crash and graphics details. no log, world, server or user name."
+                            }
+                            DataKind::Bug => "reports you send, with a log only if you add one.",
+                            DataKind::Benchmark => {
+                                "benchmarks you run, shared with community results."
+                            }
+                        }))
                         .into_any_element(),
                 ),
                 Some(toggle.into_any_element()),
@@ -616,7 +633,16 @@ impl Launcher {
         list = list.child(index_row(
             telemetry::SWITCHES.len() + 1,
             tr(telemetry::PING_NAME),
-            Some(div().child(tr(telemetry::ping_short())).into_any_element()),
+            Some(
+                div()
+                    .text_color(t.ink_soft)
+                    .child(tr(if horizon_telemetry::live_endpoint().is_some() {
+                        "on by default while playing. only configuration turns it off."
+                    } else {
+                        "off in this configuration. separate from the switches above."
+                    }))
+                    .into_any_element(),
+            ),
             Some(ping_state(&t).into_any_element()),
             &t,
         ));
@@ -686,7 +712,11 @@ impl Launcher {
             Some(
                 div()
                     .font_family(theme::MONO)
-                    .child(format!("{id}  ·  {server}"))
+                    .child(if self.collection.view.is_some() {
+                        format!("{id}  ·  {server}")
+                    } else {
+                        tr("view or delete your saved reports.").to_string()
+                    })
                     .into_any_element(),
             ),
             Some(actions.into_any_element()),
@@ -707,24 +737,44 @@ impl Launcher {
                     .flex_col()
                     .gap(px(theme::chrome(6.)))
                     .max_w(px(600.))
-                    .child(text(theme::UI).text_color(t.muted).child(tr(
-                        "basic performance summaries are on by default only on a genuinely new install; existing installs stay off unless you turn them on.",
-                    )))
-                    .child(text(theme::UI).text_color(t.muted).child(tr(
-                        "every other switch is off unless you turn it on.",
-                    )))
-                    .child(text(theme::UI).text_color(t.muted).child(tr(
-                        "the player-count ping is separate from these switches.",
-                    )))
-                    .child(text(theme::UI).text_color(t.muted).child(tr(
-                        "the details below describe each path and its source-defined retention; production basic-summary sending is not enabled yet.",
+                    .child(
+                        text(theme::UI)
+                            .text_color(t.ink_soft)
+                            .child(tr("basic starts on for new installs; old installs stay off until you turn it on.")),
+                    )
+                    .child(text(theme::UI).text_color(t.ink_soft).child(tr(
+                        "other switches start off. public-release basic sending is not enabled yet.",
                     ))),
             )
             .child(
-                scaled_button("data-details-top", if self.collection.view.is_some() { "hide details and example reports" } else { "view details and example reports" }, Kind::Ghost, &t)
-                    .on_click(cx.listener(|this, _: &ClickEvent, _, cx| { this.toggle_view(); cx.notify(); })),
+                scaled_button(
+                    "data-details-top",
+                    if self.collection.view.is_some() {
+                        "hide details and example reports"
+                    } else {
+                        "view details and example reports"
+                    },
+                    Kind::Ghost,
+                    &t,
+                )
+                .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                    this.toggle_view();
+                    cx.notify();
+                })),
             )
-            .children(self.collection.view.as_ref().map(|v| json_view(v, &t, &self.collection.json_scroll, theme::ui_scale_current())))
+            .children(self.collection.view.as_ref().map(|_| {
+                text(theme::UI).text_color(t.ink_soft).child(tr(
+                    "the player-count ping is separate from these switches. retention below describes the code's rules, not a verified live service. cleanup failures can delay deletion.",
+                ))
+            }))
+            .children(self.collection.view.as_ref().map(|v| {
+                json_view(
+                    v,
+                    &t,
+                    &self.collection.json_scroll,
+                    theme::ui_scale_current(),
+                )
+            }))
             .child(list)
             .child(
                 text(theme::CAPTION)

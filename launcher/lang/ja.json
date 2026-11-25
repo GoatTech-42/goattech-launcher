@@ -843,10 +843,6 @@
   "after an eligible game session ends normally: how long the game took to show its title and load its first world, and a 95th-percentile frame time, each as a coarse range, with the measured horizon game release and your os (linux, macos or windows). no account, install id or session id. sending is not enabled for a public release yet. when enabled, one send is attempted while the launcher is still open, only if this switch is on; failed reports are dropped, not saved or retried. reports go only to GoatTech's own collector and add to daily counts of metric ranges per release and os, not unique-player counts. daily counts use a 7-day utc-day cleanup schedule; service or database failures can delay deletion. turn this option off any time; a request already in flight cannot be recalled.": "対象となるゲームセッションが正常に終了した後：ゲームがタイトルを表示するまでと最初のワールドを読み込むまでの時間、および95パーセンタイルのフレーム時間。それぞれおおまかな範囲として、測定されたHorizonゲームのリリースとお使いのOS（Linux、macOS、Windows）とともに送信されます。アカウント、インストールID、セッションIDは含みません。公開リリース向けの送信はまだ有効になっていません。有効になった場合、このスイッチがオンのときに限り、ランチャーが開いている間に1回の送信が試みられます。失敗したレポートは破棄され、保存も再試行もされません。レポートはGoatTech独自のコレクターにのみ送られ、リリースとOSごとのメトリクス範囲の日次カウントに加算されます。ユニークプレイヤーのカウントではありません。日次カウントはUTC日基準の7日間クリーンアップスケジュールを使います。サービスやデータベースの障害で削除が遅れることがあります。このオプションはいつでもオフにできます。すでに送信中のリクエストは取り消せません。",
   "on for this install.": "on for this install.",
   "off for this install.": "off for this install.",
-  "basic performance summaries are on by default only on a genuinely new install; existing installs stay off unless you turn them on.": "基本的なパフォーマンスサマリーのデフォルト有効化は、 本当に新規のインストールの場合のみです。既存のインストールでは、オンにしない限りオフのままです。",
-  "every other switch is off unless you turn it on.": "他のスイッチもすべて、オンにしない限りオフです。",
-  "the player-count ping is separate from these switches.": "プレイヤー数ピングはこれらのスイッチとは独立しています。",
-  "the details below describe each path and its source-defined retention; production basic-summary sending is not enabled yet.": "以下の詳細は各経路とそのソース定義の保持方針を説明します。製品版での基本サマリー送信はまだ有効になっていません。",
   "couldn't check for updates. check the connection and try again in a few minutes.": "更新を確認できませんでした。接続を確認して、数分後にもう一度お試しください。",
   "mojang's version list could not be fetched. check the connection and try again in a few minutes.": "Mojangのバージョン一覧を取得できませんでした。接続を確認して、数分後にもう一度お試しください。",
   "the mod registry can't be reached. check the connection and try again in a few minutes.": "Modのレジストリに接続できません。接続を確認して、数分後にもう一度お試しください。",
@@ -911,5 +907,16 @@
   "try again": "再試行",
   "details": "詳細",
   "hide details": "詳細を隠す",
-  "from other launchers": "他のランチャーから"
+  "from other launchers": "他のランチャーから",
+  "basic starts on for new installs; old installs stay off until you turn it on.": "basic starts on for new installs; old installs stay off until you turn it on.",
+  "other switches start off. public-release basic sending is not enabled yet.": "other switches start off. public-release basic sending is not enabled yet.",
+  "startup, world and frame-time ranges; os and game release. no account or id.": "startup, world and frame-time ranges; os and game release. no account or id.",
+  "the player-count ping is separate from these switches. retention below describes the code's rules, not a verified live service. cleanup failures can delay deletion.": "the player-count ping is separate from these switches. retention below describes the code's rules, not a verified live service. cleanup failures can delay deletion.",
+  "view or delete your saved reports.": "view or delete your saved reports.",
+  "benchmarks you run, shared with community results.": "benchmarks you run, shared with community results.",
+  "crash and graphics details. no log, world, server or user name.": "crash and graphics details. no log, world, server or user name.",
+  "off in this configuration. separate from the switches above.": "off in this configuration. separate from the switches above.",
+  "on by default while playing. only configuration turns it off.": "on by default while playing. only configuration turns it off.",
+  "reports you send, with a log only if you add one.": "reports you send, with a log only if you add one.",
+  "session performance, hardware and game settings.": "session performance, hardware and game settings."
 }

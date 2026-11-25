@@ -843,10 +843,6 @@
   "after an eligible game session ends normally: how long the game took to show its title and load its first world, and a 95th-percentile frame time, each as a coarse range, with the measured horizon game release and your os (linux, macos or windows). no account, install id or session id. sending is not enabled for a public release yet. when enabled, one send is attempted while the launcher is still open, only if this switch is on; failed reports are dropped, not saved or retried. reports go only to GoatTech's own collector and add to daily counts of metric ranges per release and os, not unique-player counts. daily counts use a 7-day utc-day cleanup schedule; service or database failures can delay deletion. turn this option off any time; a request already in flight cannot be recalled.": "Nachdem eine geeignete Spielsitzung normal endet: wie lange das Spiel brauchte, um seinen Titel zu zeigen und seine erste Welt zu laden, sowie eine 95.-Perzentil-Framezeit, jeweils als grober Bereich, mit dem gemessenen Horizon-Spielrelease und Ihrem Betriebssystem (Linux, macOS oder Windows). Kein Konto, keine Installations-ID, keine Sitzungs-ID. Das Senden ist für eine öffentliche Veröffentlichung noch nicht aktiviert. Wenn aktiviert, wird ein Sendeversuch unternommen, während der Launcher noch geöffnet ist, nur wenn dieser Schalter eingeschaltet ist; fehlgeschlagene Meldungen werden verworfen, nicht gespeichert oder wiederholt. Meldungen gehen nur an GoatTechs eigenen Kollektor und erhöhen tägliche Zähler von Metrikbereichen pro Release und Betriebssystem, keine Einzelspielerzählungen. Tageszähler verwenden einen 7-Tage-UTC-Tag-Bereinigungsplan; Dienst- oder Datenbankfehler können das Löschen verzögern. Sie können diese Option jederzeit ausschalten; eine bereits laufende Anfrage kann nicht zurückgerufen werden.",
   "on for this install.": "on for this install.",
   "off for this install.": "off for this install.",
-  "basic performance summaries are on by default only on a genuinely new install; existing installs stay off unless you turn them on.": "Leistungs-Basiszusammenfassungen sind standardmäßig nur bei einer wirklich neuen Installation aktiviert; bestehende Installationen bleiben aus, bis Sie sie einschalten.",
-  "every other switch is off unless you turn it on.": "Jeder andere Schalter ist aus, bis Sie ihn einschalten.",
-  "the player-count ping is separate from these switches.": "Der Spielerzähl-Ping ist von diesen Schaltern getrennt.",
-  "the details below describe each path and its source-defined retention; production basic-summary sending is not enabled yet.": "Die Details unten beschreiben jeden Pfad und seine quelldefinierte Aufbewahrung; das produktive Senden von Basiszusammenfassungen ist noch nicht aktiviert.",
   "couldn't check for updates. check the connection and try again in a few minutes.": "Updates konnten nicht geprüft werden. Prüfe die Verbindung und versuche es in ein paar Minuten erneut.",
   "mojang's version list could not be fetched. check the connection and try again in a few minutes.": "Die Versionsliste von Mojang konnte nicht abgerufen werden. Prüfe die Verbindung und versuche es in ein paar Minuten erneut.",
   "the mod registry can't be reached. check the connection and try again in a few minutes.": "Das Mod-Verzeichnis ist nicht erreichbar. Prüfe die Verbindung und versuche es in ein paar Minuten erneut.",
@@ -911,5 +907,16 @@
   "try again": "Erneut versuchen",
   "details": "Details",
   "hide details": "Details ausblenden",
-  "from other launchers": "Von anderen Launchern"
+  "from other launchers": "Von anderen Launchern",
+  "basic starts on for new installs; old installs stay off until you turn it on.": "basic starts on for new installs; old installs stay off until you turn it on.",
+  "other switches start off. public-release basic sending is not enabled yet.": "other switches start off. public-release basic sending is not enabled yet.",
+  "startup, world and frame-time ranges; os and game release. no account or id.": "startup, world and frame-time ranges; os and game release. no account or id.",
+  "the player-count ping is separate from these switches. retention below describes the code's rules, not a verified live service. cleanup failures can delay deletion.": "the player-count ping is separate from these switches. retention below describes the code's rules, not a verified live service. cleanup failures can delay deletion.",
+  "view or delete your saved reports.": "view or delete your saved reports.",
+  "benchmarks you run, shared with community results.": "benchmarks you run, shared with community results.",
+  "crash and graphics details. no log, world, server or user name.": "crash and graphics details. no log, world, server or user name.",
+  "off in this configuration. separate from the switches above.": "off in this configuration. separate from the switches above.",
+  "on by default while playing. only configuration turns it off.": "on by default while playing. only configuration turns it off.",
+  "reports you send, with a log only if you add one.": "reports you send, with a log only if you add one.",
+  "session performance, hardware and game settings.": "session performance, hardware and game settings."
 }
