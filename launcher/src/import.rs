@@ -181,10 +181,20 @@ pub fn import_into(
     let home = instance.home.clone();
     let filled = fill(&mut zip, index.as_ref(), &home, progress, MAX_IMPORT);
     if let Err(e) = filled {
-        let _ = fs::remove_dir_all(&home);
-        return Err(e);
+        return Err(cleanup_failed_import(&home, e));
     }
     Ok(instance)
+}
+
+/// Keep the extraction error, and identify partial files when cleanup fails too.
+fn cleanup_failed_import(home: &Path, mut error: String) -> String {
+    if let Err(cleanup) = fs::remove_dir_all(home) {
+        error.push_str(&format!(
+            "; could not remove partial import {}: {cleanup}",
+            home.display()
+        ));
+    }
+    error
 }
 
 /// Where an archive entry goes in a Java Edition instance's folder: the folders and files a
@@ -288,8 +298,7 @@ pub fn import_java_instance_with(
         &java_target,
         MAX_IMPORT,
     ) {
-        let _ = fs::remove_dir_all(&home);
-        return Err(e);
+        return Err(cleanup_failed_import(&home, e));
     }
     Ok(instance)
 }
