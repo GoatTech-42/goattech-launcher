@@ -276,8 +276,9 @@ pub fn import_java_instance_with(
     let deps = index["dependencies"]
         .as_object()
         .ok_or_else(|| format!("Its {INDEX} has no dependencies."))?;
-    let minecraft = deps["minecraft"]
-        .as_str()
+    let minecraft = deps
+        .get("minecraft")
+        .and_then(serde_json::Value::as_str)
         .ok_or_else(|| format!("Its {INDEX} names no Minecraft version."))?;
     let loader = pack_loader(deps)?.ok_or_else(|| {
         format!(
