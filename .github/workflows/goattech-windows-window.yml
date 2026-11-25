@@ -3,7 +3,7 @@ name: GoatTech Windows window qualification
 on:
   workflow_dispatch:
   push:
-    branches: [tmp-main062-defaultcap]
+    branches: [tmp-maina448-defaultcap]
 permissions:
   contents: write
 concurrency:
@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-          ref: 62d8b4dd49e79da44d73241e5c418f2b90de6743
+          ref: a44822c55e2c1f326011adede445e1d0743f0214
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
@@ -51,7 +51,7 @@ jobs:
           foreach ($mode in @('home','settings','settings-expanded')) {
             foreach ($size in ,@(960,600)) {
               if (Test-Path (Join-Path $env:RUNNER_TEMP 'client-capture-stop')) { throw 'Prior owned-process survivor; stop further captures' }
-              $env:CAP_EXPECTED_SOURCE='62d8b4dd49e79da44d73241e5c418f2b90de6743'
+              $env:CAP_EXPECTED_SOURCE='a44822c55e2c1f326011adede445e1d0743f0214'
               $env:CAP_KIND='exact-source-test-profile'
               $env:CAP_ROUTE=$mode
               $env:CAP_WIDTH=[string]$size[0]; $env:CAP_HEIGHT=[string]$size[1]
@@ -82,10 +82,10 @@ jobs:
               $manifest+=@{file=$dest;bytes=$item.Length;sha256=(Get-FileHash $input -Algorithm SHA256).Hash}
             }
           }
-          @{source='62d8b4dd49e79da44d73241e5c418f2b90de6743';harness=$env:GITHUB_SHA;run=$env:GITHUB_RUN_ID;profile='isolated all optional data off; fake build ID; no personal credentials';frames=$manifest} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $out 'receipt.json')
-          git -C $out init -b tmp-main062-defaultcap-output
+          @{source='a44822c55e2c1f326011adede445e1d0743f0214';harness=$env:GITHUB_SHA;run=$env:GITHUB_RUN_ID;profile='isolated all optional data off; fake build ID; no personal credentials';frames=$manifest} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $out 'receipt.json')
+          git -C $out init -b tmp-maina448-defaultcap-output
           git -C $out add -- '*.png' receipt.json
           git -C $out -c user.name=GoatTech-42 -c user.email=156948079+GoatTech-42@users.noreply.github.com commit -m 'Temporary exact-source desktop capture evidence'
           $header=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:OUTPUT_TOKEN"))
-          git -C $out -c "http.extraheader=AUTHORIZATION: basic $header" push https://github.com/GoatTech-42/goattech-launcher.git HEAD:refs/heads/tmp-main062-defaultcap-output
+          git -C $out -c "http.extraheader=AUTHORIZATION: basic $header" push https://github.com/GoatTech-42/goattech-launcher.git HEAD:refs/heads/tmp-maina448-defaultcap-output
           if ($LASTEXITCODE -ne 0) {throw 'Temporary evidence push failed'}
