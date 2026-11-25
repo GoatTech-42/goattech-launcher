@@ -1044,3 +1044,24 @@ fn failed_creation_reports_leftover_cleanup_without_losing_the_cause() {
     assert!(!partial.exists());
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn failed_temp_reservation_preserves_preexisting_bytes() {
+    let root = scratch("store-temp-owner");
+    let data = root.join("data");
+    fs::create_dir_all(&data).unwrap();
+    let path = data.join(FILE);
+    let original = b"{\"instances\":{}}";
+    fs::write(&path, original).unwrap();
+    let tmp = data.join(format!("{FILE}.tmp-{}", std::process::id()));
+    fs::write(&tmp, b"not owned by this save").unwrap();
+    let store = Store::default();
+    assert!(store.save(&data).is_err());
+    assert_eq!(fs::read(&tmp).unwrap(), b"not owned by this save");
+    assert_eq!(fs::read(&path).unwrap(), original);
+    fs::remove_file(&tmp).unwrap();
+    store.save(&data).unwrap();
+    assert!(Store::load_strict(&data).unwrap().instances.is_empty());
+    assert!(!tmp.exists());
+    fs::remove_dir_all(root).unwrap();
+}

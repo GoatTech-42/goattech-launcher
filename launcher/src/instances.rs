@@ -329,16 +329,16 @@ impl Store {
         let text = serde_json::to_string_pretty(self).unwrap();
         let path = data.join(FILE);
         let tmp = path.with_file_name(format!("{FILE}.tmp-{}", std::process::id()));
-        let written = (|| {
-            let mut f = fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&tmp)
-                .map_err(|e| format!("{}: {e}", tmp.display()))?;
-            f.write_all(text.as_bytes())
-                .and_then(|()| f.sync_all())
-                .map_err(|e| format!("{}: {e}", tmp.display()))
-        })();
+        let mut f = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&tmp)
+            .map_err(|e| format!("{}: {e}", tmp.display()))?;
+        let written = f
+            .write_all(text.as_bytes())
+            .and_then(|()| f.sync_all())
+            .map_err(|e| format!("{}: {e}", tmp.display()));
+        drop(f);
         if let Err(e) = written {
             let _ = fs::remove_file(&tmp);
             return Err(e);
