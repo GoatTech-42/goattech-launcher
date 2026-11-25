@@ -170,7 +170,7 @@ enum DataCmd {
         #[arg(required = true)]
         kinds: Vec<String>,
     },
-    /// Print the queued reports exactly as they would leave, or one example of each kind when nothing is waiting
+    /// print queued reports as they would be sent, or performance, crash and bug examples if none are waiting
     Show,
     /// Delete everything sent from here, and what waits, and take a new install ID
     Delete,

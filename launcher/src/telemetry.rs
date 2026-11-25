@@ -253,8 +253,8 @@ pub fn answer(choices: Choices) -> Result<Consent, String> {
     Ok(consent)
 }
 
-/// The exact JSON the next upload would send, under a line saying what it is. With nothing
-/// waiting, one example of each kind, made on this machine.
+/// Preview queued reports, or performance, crash and bug examples if none are waiting.
+/// The examples use this machine's details.
 pub fn preview() -> (String, String) {
     let home = home();
     let waiting = outbox::retain_allowed(&home).len();
