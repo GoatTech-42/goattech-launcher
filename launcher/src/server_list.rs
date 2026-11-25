@@ -104,11 +104,11 @@ impl List {
                 match root.get(&key("servers")) {
                     Some(Tag::List(list)) => list
                         .iter()
-                        .filter_map(|t| match t {
+                        .map(|t| match t {
                             Tag::Compound(c) => Some(c.clone()),
                             _ => None,
                         })
-                        .collect(),
+                        .collect::<Option<Vec<_>>>()?,
                     Some(_) => return None,
                     None => Vec::new(),
                 }
