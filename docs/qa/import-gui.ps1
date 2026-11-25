@@ -18,6 +18,8 @@ public class ImportNative {
 [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
 [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
 [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);
+[DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h,ref POINT p);
+public struct POINT {public int X,Y;}
 [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr h,out RECT r);
 [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out RECT r);
 [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
@@ -49,8 +51,12 @@ function Foreground {
 }
 function Snap($label) {
  Foreground;$script:seq++;$name=('{0:D2}-{1}.png' -f $script:seq,$label);$path=Join-Path $evidence $name
- $screen=[Windows.Forms.SystemInformation]::VirtualScreen;$bmp=[Drawing.Bitmap]::new($screen.Width,$screen.Height);$g=[Drawing.Graphics]::FromImage($bmp)
- try {$g.CopyFromScreen($screen.Left,$screen.Top,0,0,$screen.Size);$bmp.Save($path,[Drawing.Imaging.ImageFormat]::Png)} finally {$g.Dispose();$bmp.Dispose()}
+ # OCR must never merge the launcher's clipped bottom line with another process behind it.
+ $v=OwnedWindow;$client=New-Object ImportNative+RECT;$origin=New-Object ImportNative+POINT
+ if (-not [ImportNative]::GetClientRect($v.h,[ref]$client) -or -not [ImportNative]::ClientToScreen($v.h,[ref]$origin)) {throw 'Client capture bounds unavailable'}
+ $captureX=$origin.X;$captureY=$origin.Y
+ $bmp=[Drawing.Bitmap]::new($client.R,$client.B);$g=[Drawing.Graphics]::FromImage($bmp)
+ try {$g.CopyFromScreen($captureX,$captureY,0,0,$bmp.Size);$bmp.Save($path,[Drawing.Imaging.ImageFormat]::Png)} finally {$g.Dispose();$bmp.Dispose()}
  $file=Await ([Windows.Storage.StorageFile]::GetFileFromPathAsync($path)) ([Windows.Storage.StorageFile])
  $stream=Await ($file.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
  try {
@@ -58,8 +64,8 @@ function Snap($label) {
   $soft=Await ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
   try {$result=Await ($script:ocr.RecognizeAsync($soft)) ([Windows.Media.Ocr.OcrResult])} finally {$soft.Dispose()}
  } finally {$stream.Dispose()}
- $lines=@($result.Lines | ForEach-Object { @{text=$_.Text;words=@($_.Words | ForEach-Object {@{text=$_.Text;x=$_.BoundingRect.X;y=$_.BoundingRect.Y;w=$_.BoundingRect.Width;h=$_.BoundingRect.Height}})} })
- Json $lines (Join-Path $evidence ($name+'.ocr.json'));$frames.Add(@{file=$name;sha256=(Get-FileHash $path -Algorithm SHA256).Hash;bytes=(Get-Item $path).Length})
+ $lines=@($result.Lines | ForEach-Object { @{text=$_.Text;words=@($_.Words | ForEach-Object {@{text=$_.Text;x=($_.BoundingRect.X+$captureX);y=($_.BoundingRect.Y+$captureY);w=$_.BoundingRect.Width;h=$_.BoundingRect.Height}})} })
+ Json $lines (Join-Path $evidence ($name+'.ocr.json'));$frames.Add(@{capture_x=$captureX;capture_y=$captureY;capture_width=$client.R;capture_height=$client.B;file=$name;sha256=(Get-FileHash $path -Algorithm SHA256).Hash;bytes=(Get-Item $path).Length})
  return @{lines=$lines;file=$name}
 }
 function ClickAt($x,$y,$why) {
