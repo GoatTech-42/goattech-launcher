@@ -4050,14 +4050,14 @@ fn multiplayer(action: MultiplayerCmd, as_json: bool) -> Result<(), String> {
             instance,
         } => {
             let home = home(instance)?;
-            let mut list = server_list::List::load(&home);
+            let mut list = server_list::List::load_for_edit(&home)?;
             list.add(name.as_deref().unwrap_or(""), &address)?;
             list.save(&home)?;
             println!("Added {}.", address.trim());
         }
         MultiplayerCmd::Remove { server, instance } => {
             let home = home(instance)?;
-            let mut list = server_list::List::load(&home);
+            let mut list = server_list::List::load_for_edit(&home)?;
             let (i, _) = server_list::find(&list, &server)?;
             let gone = list.remove(i)?;
             list.save(&home)?;

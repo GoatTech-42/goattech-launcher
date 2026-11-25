@@ -77,6 +77,16 @@ impl List {
         })
     }
 
+    /// The list for a manual edit: never replace a file that could not be read.
+    pub fn load_for_edit(home: &Path) -> Result<List, String> {
+        Self::read(home).ok_or_else(|| {
+            format!(
+                "{} can't be read; the server list was not changed.",
+                home.join(FILE).display()
+            )
+        })
+    }
+
     /// The list in `home`, empty when there is none; none when the file is there but can't be read.
     fn read(home: &Path) -> Option<List> {
         let bytes = match fs::read(home.join(FILE)) {
