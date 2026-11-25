@@ -263,7 +263,12 @@ fn install_in(
             .then_some(name)
         });
     if let Some(tag) = made {
-        return Ok(tag);
+        if same_program(&versions.join(&tag), &sha256) {
+            return Ok(tag);
+        }
+        return Err(format!(
+            "cannot reuse {tag}: its full program digest differs or cannot be read; nothing was replaced."
+        ));
     }
     let tag = format!("{PREFIX}{date}-{short}");
     let dir = versions.join(&tag);
@@ -286,6 +291,14 @@ fn install_in(
     Ok(tag)
 }
 
+/// A short tag is only a lookup hint, never proof that two programs are the same.
+fn same_program(dir: &Path, digest: &str) -> bool {
+    fs::read(dir.join(RECORD))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .is_some_and(|record| record["sha256"].as_str() == Some(digest))
+}
+
 /// Puts `program`, its record and the installed mark into the copied folder `partial`, then
 /// moves it into place as version `dir` in one step: no other call ever sees it half made, and a
 /// version already there (the same program, imported meanwhile) stays.
@@ -304,7 +317,19 @@ fn finish(
     fs::write(partial.join(RECORD), record.to_string())?;
     fs::write(partial.join(".installed"), "")?;
     retried(|| match fs::rename(partial, dir) {
-        Err(_) if dir.join(".installed").exists() => Ok(()),
+        Err(_) if dir.join(".installed").exists() => {
+            let matches = record["sha256"]
+                .as_str()
+                .is_some_and(|digest| same_program(dir, digest));
+            if matches {
+                Ok(())
+            } else {
+                Err(std::io::Error::other(format!(
+                    "cannot reuse {}: its full program digest differs or cannot be read; nothing was replaced.",
+                    dir.display()
+                )))
+            }
+        }
         Err(e) => {
             // No mark: not a version, but what a removal left while its game still ran.
             let _ = fs::remove_dir_all(dir);
@@ -574,5 +599,39 @@ mod tests {
         ] {
             assert!(asked(b).is_err(), "{b}");
         }
+    }
+    #[test]
+    fn a_short_digest_collision_never_reuses_or_replaces_another_program() {
+        let versions = dir("digest-collision");
+        let first = b"p81-controlled-program-13443";
+        let second = b"p81-controlled-program-25049";
+        let first_hash = format!("{:x}", Sha256::digest(first));
+        let second_hash = format!("{:x}", Sha256::digest(second));
+        assert_ne!(first_hash, second_hash);
+        assert_eq!(&first_hash[..7], &second_hash[..7]);
+        let tag = format!("imported-2026-11-01-{}", &first_hash[..7]);
+        let kept = versions.join(&tag);
+        fs::create_dir_all(&kept).unwrap();
+        fs::write(kept.join(CLIENT), first).unwrap();
+        fs::write(kept.join(".installed"), "").unwrap();
+        let record = serde_json::json!({"sha256": first_hash});
+        fs::write(kept.join(RECORD), record.to_string()).unwrap();
+        assert!(install_in(&versions, "unused", second, "fixture", "2026-11-02").is_err());
+        assert_eq!(
+            install_in(&versions, "unused", first, "fixture", "2026-11-02").unwrap(),
+            tag
+        );
+        let partial = versions.join("partial");
+        fs::create_dir_all(&partial).unwrap();
+        let incoming = serde_json::json!({"sha256": second_hash});
+        assert!(finish(&partial, &kept, second, &incoming).is_err());
+        assert_eq!(fs::read(kept.join(CLIENT)).unwrap(), first);
+        assert_eq!(
+            fs::read_to_string(kept.join(RECORD)).unwrap(),
+            record.to_string()
+        );
+        fs::remove_file(kept.join(RECORD)).unwrap();
+        assert!(install_in(&versions, "unused", first, "fixture", "2026-11-02").is_err());
+        fs::remove_dir_all(versions).unwrap();
     }
 }
