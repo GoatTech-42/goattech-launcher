@@ -144,17 +144,23 @@ pub fn cape_front(cape: &image::RgbaImage) -> Vec<[u8; 4]> {
     out
 }
 
-/// Keeps `file` as `name`'s skin (or cape), checked first.
-pub fn keep(dir: &Path, name: &str, file: &Path, cape: bool) -> Result<(), String> {
+/// Reads and checks a picked skin or cape without changing the kept files.
+pub(crate) fn checked_file(file: &Path, cape: bool) -> Result<Vec<u8>, String> {
     let bytes = std::fs::read(file).map_err(|e| format!("{}: {e}", file.display()))?;
     match cape {
         false => read_skin(&bytes).map(|_| ())?,
         true => read_cape(&bytes).map(|_| ())?,
     }
+    Ok(bytes)
+}
+
+/// Keeps `file` as `name`'s skin (or cape), checked first, without truncating the old file.
+pub fn keep(dir: &Path, name: &str, file: &Path, cape: bool) -> Result<(), String> {
+    let bytes = checked_file(file, cape)?;
     std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let (skin, cape_file) = files(dir, name);
     let to = if cape { cape_file } else { skin };
-    std::fs::write(&to, bytes).map_err(|e| format!("{}: {e}", to.display()))
+    crate::account::write_whole(&to, &bytes).map_err(|e| format!("{}: {e}", to.display()))
 }
 
 /// Drops a forgotten name's files (`Accounts::remove_offline`); missing files are fine.

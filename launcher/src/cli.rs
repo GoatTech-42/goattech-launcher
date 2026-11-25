@@ -2337,7 +2337,7 @@ fn account_command(action: AccountCmd, as_json: bool) -> Result<(), String> {
             no_skin,
             no_cape,
         } => {
-            use crate::skins::{self, Model};
+            use crate::skins::Model;
             let name = accounts
                 .offline
                 .iter()
@@ -2353,12 +2353,10 @@ fn account_command(action: AccountCmd, as_json: bool) -> Result<(), String> {
                 Some(m) => return Err(format!("{m}: say classic or slim")),
             };
             let mut look = accounts.look(&name);
-            if let Some(file) = &file {
-                skins::keep(&skins::dir(), &name, file, false)?;
+            if file.is_some() {
                 look.skin = true;
             }
-            if let Some(file) = &cape {
-                skins::keep(&skins::dir(), &name, file, true)?;
+            if cape.is_some() {
                 look.cape = true;
             }
             if let Some(m) = model {
@@ -2366,10 +2364,7 @@ fn account_command(action: AccountCmd, as_json: bool) -> Result<(), String> {
             }
             look.skin &= !no_skin;
             look.cape &= !no_cape;
-            accounts
-                .looks
-                .insert(name.to_ascii_lowercase(), look.clone());
-            accounts.save()?;
+            accounts.keep_look(&name, file.as_deref(), cape.as_deref(), look.clone())?;
             if as_json {
                 json(serde_json::json!({
                     "name": name, "skin": look.skin, "cape": look.cape, "model": look.model.name(),

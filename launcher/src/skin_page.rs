@@ -109,20 +109,31 @@ impl Launcher {
         let Some(name) = self.skin.as_ref().map(|p| p.name.clone()) else {
             return;
         };
+        let mut accounts = Accounts::load();
         // The name may have been forgotten while the file dialog was open.
-        if !Accounts::load()
+        if !accounts
             .offline
             .iter()
             .any(|n| n.eq_ignore_ascii_case(&name))
         {
             return;
         }
-        let done = skins::keep(&skins::dir(), &name, &path, cape).and_then(|()| {
-            self.save_look(|l| match cape {
-                false => l.skin = true,
-                true => l.cape = true,
-            })
-        });
+        let mut look = accounts.look(&name);
+        match cape {
+            false => look.skin = true,
+            true => look.cape = true,
+        }
+        let (skin_file, cape_file) = match cape {
+            false => (Some(path.as_path()), None),
+            true => (None, Some(path.as_path())),
+        };
+        let done = accounts.keep_look(&name, skin_file, cape_file, look);
+        if done.is_ok() {
+            self.accounts = accounts;
+            if let Some(panel) = &mut self.skin {
+                panel.seen = None;
+            }
+        }
         if let Some(p) = &mut self.skin {
             let said = match cape {
                 false => trf("{name}'s skin is kept.", &[("name", &name)]),

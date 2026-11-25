@@ -2036,6 +2036,73 @@ impl Accounts {
         Ok(())
     }
 
+    /// Keeps a checked appearance and its account metadata. Failed saves restore prior files;
+    /// this is error recovery, not a crash-safe transaction across files.
+    pub fn keep_look(
+        &mut self,
+        name: &str,
+        skin: Option<&Path>,
+        cape: Option<&Path>,
+        look: crate::skins::Look,
+    ) -> Result<(), String> {
+        self.keep_look_in(name, skin, cape, look, &crate::skins::dir(), &Self::path())
+    }
+
+    fn keep_look_in(
+        &mut self,
+        name: &str,
+        skin: Option<&Path>,
+        cape: Option<&Path>,
+        look: crate::skins::Look,
+        dir: &Path,
+        path: &Path,
+    ) -> Result<(), String> {
+        if !self.offline.iter().any(|n| n.eq_ignore_ascii_case(name)) {
+            return Err(format!("No offline name {name}."));
+        }
+        let (skin_file, cape_file) = crate::skins::files(dir, name);
+        let mut replacements = Vec::new();
+        // Read and validate every input and backup before replacing either appearance file.
+        for (source, target, is_cape) in [(skin, skin_file, false), (cape, cape_file, true)] {
+            if let Some(source) = source {
+                let bytes = crate::skins::checked_file(source, is_cape)?;
+                let before = match std::fs::read(&target) {
+                    Ok(bytes) => Some(bytes),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                    Err(e) => return Err(format!("{}: {e}", target.display())),
+                };
+                replacements.push((target, bytes, before));
+            }
+        }
+        let mut next = self.clone();
+        next.looks.insert(name.to_ascii_lowercase(), look);
+        if !replacements.is_empty() {
+            std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        }
+        let mut replaced = 0;
+        let done = (|| {
+            for (target, bytes, _) in &replacements {
+                write_whole(target, bytes).map_err(|e| format!("{}: {e}", target.display()))?;
+                replaced += 1;
+            }
+            next.save_to(path)
+        })();
+        if let Err(mut error) = done {
+            for (target, _, before) in replacements[..replaced].iter().rev() {
+                let restored = match before {
+                    Some(bytes) => write_whole(target, bytes),
+                    None => std::fs::remove_file(target),
+                };
+                if let Err(e) = restored {
+                    error.push_str(&format!("; could not restore {}: {e}", target.display()));
+                }
+            }
+            return Err(error);
+        }
+        *self = next;
+        Ok(())
+    }
+
     /// An offline name's look (the default: no skin of its own).
     pub fn look(&self, name: &str) -> crate::skins::Look {
         self.looks
