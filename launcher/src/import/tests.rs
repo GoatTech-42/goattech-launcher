@@ -512,3 +512,31 @@ fn an_export_and_its_import_leave_the_original_instance_folder_untouched() {
     assert!(!i.home.join("launcher_profiles.json").exists());
     fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn failed_archive_creation_keeps_the_last_cause_and_bounds_name_retries() {
+    let mut tried = Vec::new();
+    let error = create_named("Pack", |name| {
+        tried.push(name.to_string());
+        Err::<(), _>(format!("cannot write {name}: metadata denied"))
+    })
+    .unwrap_err();
+    assert_eq!(tried.len(), 19);
+    assert_eq!(tried[0], "Pack");
+    assert_eq!(tried[1], "Pack (2)");
+    assert_eq!(tried[18], "Pack (19)");
+    assert!(error.contains("Could not make an instance called Pack"));
+    assert!(error.contains("cannot write Pack (19): metadata denied"));
+    let mut tried = Vec::new();
+    let made = create_named("Pack", |name| {
+        tried.push(name.to_string());
+        if name == "Pack (2)" {
+            Ok(name.to_string())
+        } else {
+            Err("name taken".into())
+        }
+    })
+    .unwrap();
+    assert_eq!(made, "Pack (2)");
+    assert_eq!(tried, ["Pack", "Pack (2)"]);
+}

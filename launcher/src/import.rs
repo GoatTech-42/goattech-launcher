@@ -171,13 +171,7 @@ pub fn import_into(
         .filter(|n| !n.is_empty())
         .map(str::to_string)
         .unwrap_or(stem);
-    let instance = (1..20)
-        .map(|n| match n {
-            1 => base.clone(),
-            n => format!("{base} ({n})"),
-        })
-        .find_map(|name| create(&name).ok())
-        .ok_or_else(|| format!("Could not make an instance called {base}."))?;
+    let instance = create_named(&base, create)?;
     let home = instance.home.clone();
     let filled = fill(&mut zip, index.as_ref(), &home, progress, MAX_IMPORT);
     if let Err(e) = filled {
@@ -185,6 +179,27 @@ pub fn import_into(
         return Err(e);
     }
     Ok(instance)
+}
+
+/// Try the usual collision suffixes, retaining the cause when no creation succeeds.
+fn create_named<T>(
+    base: &str,
+    mut create: impl FnMut(&str) -> Result<T, String>,
+) -> Result<T, String> {
+    let mut last_error = String::new();
+    for n in 1..20 {
+        let name = match n {
+            1 => base.to_string(),
+            n => format!("{base} ({n})"),
+        };
+        match create(&name) {
+            Ok(instance) => return Ok(instance),
+            Err(error) => last_error = error,
+        }
+    }
+    Err(format!(
+        "Could not make an instance called {base}: {last_error}"
+    ))
 }
 
 /// Where an archive entry goes in a Java Edition instance's folder: the folders and files a
@@ -272,13 +287,7 @@ pub fn import_java_instance_with(
         .filter(|n| !n.is_empty())
         .map(str::to_string)
         .unwrap_or(stem);
-    let instance = (1..20)
-        .map(|n| match n {
-            1 => base.clone(),
-            n => format!("{base} ({n})"),
-        })
-        .find_map(|name| create(&name, &version, loader.clone()).ok())
-        .ok_or_else(|| format!("Could not make an instance called {base}."))?;
+    let instance = create_named(&base, |name| create(name, &version, loader.clone()))?;
     let home = instance.home.clone();
     if let Err(e) = fill_with(
         &mut zip,
