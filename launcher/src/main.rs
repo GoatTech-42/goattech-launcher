@@ -270,6 +270,8 @@ struct Launcher {
     background_error: Option<String>,
     /// The latest appearance, accent or Home-background settings save failed.
     theme_save_error: Option<String>,
+    /// The last automatic-install picker save failed; the prior local choice was restored.
+    auto_install_save_error: Option<String>,
     /// Settings' Java runtimes row: (downloaded by the launcher, installed on this computer),
     /// counted on a thread; None until the count answers and again each time Settings opens.
     java_runtimes: Option<(usize, usize)>,
@@ -825,6 +827,7 @@ impl Launcher {
             stage_frame: home::StageFrame::default(),
             background_error: None,
             theme_save_error: None,
+            auto_install_save_error: None,
             java_runtimes: None,
             java_runtimes_busy: false,
             args_input: line_edit::LineEdit::new(settings.game_args.clone(), 1024, 38),
@@ -4336,9 +4339,12 @@ impl Launcher {
         };
         let toggle = scaled_switch("auto-install", self.settings.auto_install(), &t).on_click(
             cx.listener(|this, _: &ClickEvent, _, cx| {
+                let previous = this.settings.install_new_versions;
                 this.settings.install_new_versions = Some(!this.settings.auto_install());
-                let _ = this.settings.save();
-                if this.settings.auto_install() {
+                this.auto_install_save_error = this.settings.save().err().map(|e| e.to_string());
+                if this.auto_install_save_error.is_some() {
+                    this.settings.install_new_versions = previous;
+                } else if this.settings.auto_install() {
                     this.install_update();
                 }
                 cx.notify();
@@ -4547,9 +4553,10 @@ impl Launcher {
                     .child(index_row(
                         n + 1,
                         tr("install new versions automatically"),
-                        Some(plain(
-                            "your selected version only changes if you were playing the newest one.",
-                        )),
+                        Some(div().flex().flex_col()
+                            .child(tr("your selected version only changes if you were playing the newest one."))
+                            .children(self.auto_install_save_error.clone().map(|e| div().text_color(t.danger).child(e)))
+                            .into_any_element()),
                         Some(toggle.into_any_element()),
                         &t,
                     ))
