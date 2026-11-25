@@ -5049,8 +5049,9 @@ impl Launcher {
                         .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                             let mut accounts = Accounts::load();
                             accounts.selected = None;
-                            if accounts.save().is_ok() {
-                                this.accounts = accounts;
+                            match accounts.save() {
+                                Ok(()) => this.accounts = accounts,
+                                Err(e) => this.sign_in_state = Some(SignInState::Done(Err(e))),
                             }
                             cx.notify();
                         })),
