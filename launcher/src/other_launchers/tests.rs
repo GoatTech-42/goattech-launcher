@@ -1135,3 +1135,27 @@ fn root_copy_preserves_distinct_non_utf8_file_and_folder_names() {
     }
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn only_regular_jar_files_count_as_mods() {
+    let root = scratch("jar-kinds");
+    let game = root.join("source");
+    fs::create_dir_all(game.join("mods/folder.jar")).unwrap();
+    let found = Found {
+        launcher: "Prism Launcher",
+        name: "jar kinds".into(),
+        minecraft: None,
+        loader: None,
+        notes: None,
+        game: game.clone(),
+        icon: None,
+        shared: false,
+    };
+    assert_eq!(mod_jars(&found), 0);
+    fs::write(game.join("mods/actual.jar"), b"fixture jar").unwrap();
+    fs::write(game.join("mods/readme.txt"), b"not a mod").unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(game.join("mods/actual.jar"), game.join("mods/link.jar")).unwrap();
+    assert_eq!(mod_jars(&found), 1);
+    fs::remove_dir_all(root).unwrap();
+}

@@ -664,7 +664,7 @@ fn mod_jars(found: &Found) -> usize {
         .into_iter()
         .flatten()
         .flatten()
-        .filter(|e| e.file_type().is_ok_and(|t| !t.is_symlink()))
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_file()))
         .filter(|e| e.path().extension().is_some_and(|x| x == "jar"))
         .count()
 }
