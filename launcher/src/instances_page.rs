@@ -287,14 +287,22 @@ impl Launcher {
         }
     }
 
-    pub(super) fn select_instance(&mut self, instance: &Instance) {
+    pub(super) fn select_instance(&mut self, instance: &Instance) -> bool {
         // A native build's warning names the mods of the instance it was opened for.
         self.native_confirm = None;
         self.native_update = None;
         // Every pick is recorded, the game's own home included: None means "never picked",
         // so collapsing that pick to None would lose it (and mislead the first-pick ask).
+        let previous = self.settings.instance.clone();
         self.settings.instance = Some(instance.id.clone());
-        let _ = self.settings.save();
+        match self.settings.save() {
+            Ok(()) => true,
+            Err(e) => {
+                self.settings.instance = previous;
+                self.client_error = Some(e.to_string());
+                false
+            }
+        }
     }
 
     /// A texture from the selected version's prepared files, its first frame, drawn as pixels.
@@ -804,13 +812,14 @@ impl Launcher {
                         .child(shell::label(tr("play").to_string()))
                         .on_click(cx.listener(
                             move |this, _: &ClickEvent, _, cx| {
-                                this.select_instance(&play);
-                                match play_press(ready, this.owner, false) {
-                                    PlayPress::Nothing => {}
-                                    PlayPress::Play => this.play(),
-                                    PlayPress::PrepareThenPlay => {
-                                        this.play_when_prepared = this.selected().cloned();
-                                        this.prepare(backend::MinecraftFrom::Install);
+                                if this.select_instance(&play) {
+                                    match play_press(ready, this.owner, false) {
+                                        PlayPress::Nothing => {}
+                                        PlayPress::Play => this.play(),
+                                        PlayPress::PrepareThenPlay => {
+                                            this.play_when_prepared = this.selected().cloned();
+                                            this.prepare(backend::MinecraftFrom::Install);
+                                        }
                                     }
                                 }
                                 this.go(Page::Play);
@@ -1592,9 +1601,11 @@ impl Launcher {
                 match result {
                     Ok(instance) => {
                         this.instances.dialog = None;
-                        this.select_instance(&instance);
+                        let selected = this.select_instance(&instance);
                         this.reload_instances();
-                        if matches!(instance.kind, InstanceKind::Default | InstanceKind::Own) {
+                        if !selected
+                            || matches!(instance.kind, InstanceKind::Default | InstanceKind::Own)
+                        {
                             this.go(Page::Play);
                         }
                     }
