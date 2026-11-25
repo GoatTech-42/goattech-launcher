@@ -274,6 +274,8 @@ struct Launcher {
     auto_install_save_error: Option<String>,
     /// The last automatic-prune toggle save failed; the prior local choice was restored.
     auto_prune_save_error: Option<String>,
+    /// The last reduce-motion save failed; the prior local choice was restored.
+    reduce_motion_save_error: Option<String>,
     /// Settings' Java runtimes row: (downloaded by the launcher, installed on this computer),
     /// counted on a thread; None until the count answers and again each time Settings opens.
     java_runtimes: Option<(usize, usize)>,
@@ -831,6 +833,7 @@ impl Launcher {
             theme_save_error: None,
             auto_install_save_error: None,
             auto_prune_save_error: None,
+            reduce_motion_save_error: None,
             java_runtimes: None,
             java_runtimes_busy: false,
             args_input: line_edit::LineEdit::new(settings.game_args.clone(), 1024, 38),
@@ -4373,10 +4376,15 @@ impl Launcher {
         );
         let reduce = scaled_switch("reduce-motion", self.settings.reduce_motion(), &t).on_click(
             cx.listener(|this, _: &ClickEvent, _, cx| {
+                let previous = this.settings.reduce_motion;
                 let on = !this.settings.reduce_motion();
                 this.settings.reduce_motion = Some(on);
-                let _ = this.settings.save();
-                set_reduce_motion(on);
+                this.reduce_motion_save_error = this.settings.save().err().map(|e| e.to_string());
+                if this.reduce_motion_save_error.is_some() {
+                    this.settings.reduce_motion = previous;
+                } else {
+                    set_reduce_motion(on);
+                }
                 cx.notify();
             }),
         );
@@ -4607,7 +4615,10 @@ impl Launcher {
                     .child(index_row(
                         n + 3,
                         tr("reduce motion"),
-                        Some(plain("page changes, switches and moving bars hold still.")),
+                        Some(div().flex().flex_col()
+                            .child(tr("page changes, switches and moving bars hold still."))
+                            .children(self.reduce_motion_save_error.clone().map(|e| div().text_color(t.danger).child(e)))
+                            .into_any_element()),
                         Some(reduce.into_any_element()),
                         &t,
                     ))
