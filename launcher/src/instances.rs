@@ -832,11 +832,11 @@ pub(crate) fn create_in(
         }),
     };
     if let Err(e) = made {
-        let _ = fs::remove_dir_all(&dir);
-        return Err(format!(
+        let error = format!(
             "Could not make {}: {e}. If this keeps happening, check free disk space and that the game folder can be written to.",
             dir.display()
-        ));
+        );
+        return Err(cleanup_failed_creation(&dir, error));
     }
     // This call reserved the folder: when its choices cannot be stored, it goes
     // again, or the instance would be listed that the player was told did not get made.
@@ -856,10 +856,22 @@ pub(crate) fn create_in(
         store.save(data)
     };
     if let Err(e) = stored() {
-        let _ = fs::remove_dir_all(&dir);
-        return Err(e);
+        return Err(cleanup_failed_creation(&dir, e));
     }
     find_in(&list_in(game_home, data), &slug)
+}
+
+/// Keep the creation error and identify leftovers when its owned-folder cleanup fails.
+fn cleanup_failed_creation(dir: &Path, mut error: String) -> String {
+    if let Err(cleanup) = fs::remove_dir_all(dir) {
+        if cleanup.kind() != std::io::ErrorKind::NotFound {
+            error.push_str(&format!(
+                "; could not remove partial instance {}: {cleanup}",
+                dir.display()
+            ));
+        }
+    }
+    error
 }
 
 /// Reserve before copying: another creator must never share this call's cleanup target.
