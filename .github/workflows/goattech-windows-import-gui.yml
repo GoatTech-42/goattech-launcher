@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: c4c7384ae61d4795205791209f6196618e04c462
+          ref: cdbc87ee2a6d65e81555603be30b7690afb52c5f
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -49,7 +49,7 @@ jobs:
             New-Item -ItemType Directory -Force $diag | Out-Null
             $text=($_.Exception.GetType().FullName+': '+$_.Exception.Message+'; '+$_.InvocationInfo.PositionMessage)
             if ($text.Length -gt 3000) {$text=$text.Substring(0,3000)}
-            @{stage='gui';error=$text;source='c4c7384ae61d4795205791209f6196618e04c462'}|ConvertTo-Json|Set-Content (Join-Path $diag 'gui-error.json')
+            @{stage='gui';error=$text;source='cdbc87ee2a6d65e81555603be30b7690afb52c5f'}|ConvertTo-Json|Set-Content (Join-Path $diag 'gui-error.json')
             Add-Content $env:GITHUB_STEP_SUMMARY ('GUI diagnostic: '+($text -replace '[`<>]','_'))
             throw 'GUI failed; bounded diagnostic retained'
           }
@@ -62,7 +62,7 @@ jobs:
           $ErrorActionPreference='Stop'
           try {
           $out=Join-Path $env:RUNNER_TEMP 'import-gui-evidence'
-          if (-not (Test-Path $out)) {New-Item -ItemType Directory $out | Out-Null;@{status='did not reach GUI script';source='c4c7384ae61d4795205791209f6196618e04c462'}|ConvertTo-Json|Set-Content (Join-Path $out 'receipt.json')}
+          if (-not (Test-Path $out)) {New-Item -ItemType Directory $out | Out-Null;@{status='did not reach GUI script';source='cdbc87ee2a6d65e81555603be30b7690afb52c5f'}|ConvertTo-Json|Set-Content (Join-Path $out 'receipt.json')}
           # Output holds only fixture-derived evidence, never raw process logs or credentials.
           Get-ChildItem $out -File | Where-Object {$_.Extension -notin @('.png','.json')} | Remove-Item
           $files=@(Get-ChildItem $out -File)
@@ -90,7 +90,7 @@ jobs:
             New-Item -ItemType Directory -Force $diag | Out-Null
             $text=($_.Exception.GetType().FullName+': '+$_.Exception.Message+'; '+$_.InvocationInfo.PositionMessage)
             if ($text.Length -gt 3000) {$text=$text.Substring(0,3000)}
-            @{stage='evidence-push';error=$text;source='c4c7384ae61d4795205791209f6196618e04c462'}|ConvertTo-Json|Set-Content (Join-Path $diag 'push-error.json')
+            @{stage='evidence-push';error=$text;source='cdbc87ee2a6d65e81555603be30b7690afb52c5f'}|ConvertTo-Json|Set-Content (Join-Path $diag 'push-error.json')
             Add-Content $env:GITHUB_STEP_SUMMARY ('Evidence diagnostic: '+($text -replace '[`<>]','_'))
             throw 'Evidence push failed; bounded diagnostic retained'
           }

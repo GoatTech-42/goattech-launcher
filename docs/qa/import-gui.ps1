@@ -1,5 +1,5 @@
 $ErrorActionPreference='Stop'
-$source='c4c7384ae61d4795205791209f6196618e04c462'
+$source='cdbc87ee2a6d65e81555603be30b7690afb52c5f'
 if ((git rev-parse HEAD).Trim() -ne $source) {throw 'Unexpected source'}
 $evidence=Join-Path $env:RUNNER_TEMP 'import-gui-evidence';New-Item -ItemType Directory $evidence | Out-Null
 $root=Join-Path $env:RUNNER_TEMP 'import-gui-profile';if (Test-Path $root) {throw 'Profile already exists'}
@@ -118,7 +118,7 @@ function ImportRow($name,$noMods) {
  Snap ('after-'+$name.Replace(' ','-'))|Out-Null
 }
 function VisibleCopyError($lines) {
- # Match only the visible prefix. The long path/suffix can be clipped by the window.
+ # Import gate prefix; ErrorLayout separately requires the complete visible tail.
  $v=OwnedWindow
  return @($lines | Where-Object {
   $words=@($_.words)
@@ -128,6 +128,56 @@ function VisibleCopyError($lines) {
    $_.y -le $v.r.T+30 -or $_.y+$_.h -ge $v.r.B
   }).Count -eq 0
  })
+}
+function ResizeLauncher($width,$height) {
+ $v=OwnedWindow;$client=New-Object ImportNative+RECT
+ [ImportNative]::GetClientRect($v.h,[ref]$client)|Out-Null
+ $dw=($v.r.R-$v.r.L)-$client.R;$dh=($v.r.B-$v.r.T)-$client.B
+ [ImportNative]::SetWindowPos($v.h,[IntPtr](-1),0,0,($width+$dw),($height+$dh),0x0040)|Out-Null
+ Start-Sleep -Seconds 3
+ $v=OwnedWindow;[ImportNative]::GetClientRect($v.h,[ref]$client)|Out-Null
+ Check ("client-size-$width-$height") ($client.R -eq $width -and $client.B -eq $height)
+ $screen=[Windows.Forms.SystemInformation]::VirtualScreen
+ Check ("window-in-screen-$width-$height") ($v.r.L -ge $screen.Left -and $v.r.T -ge $screen.Top -and $v.r.R -le $screen.Right -and $v.r.B -le $screen.Bottom)
+}
+function ErrorLayout($label) {
+ # Require the complete OS-error tail, not only the prefix used by the import gate.
+ $seenPrefix=$false;$seenTail=$false;$searchBottom=$null
+ for($attempt=0;$attempt -lt 5;$attempt++) {
+  $s=Snap $label;$v=OwnedWindow
+  $prefix=@(VisibleCopyError $s.lines)
+  if($prefix.Count -eq 1) {
+   $seenPrefix=$true;$top=$prefix[0].words[0].y
+   $search=@($s.lines|Where-Object {$_.text -match '^search$' -and $_.words[0].x -gt 85 -and $_.words[0].y -lt $top})
+   Check ($label+'-search-above-error') ($search.Count -eq 1)
+   $searchBottom=($search[0].words|ForEach-Object {$_.y+$_.h}|Measure-Object -Maximum).Maximum
+   Check ($label+'-error-below-search') ($top -gt $searchBottom)
+  }
+  if($seenPrefix) {
+   $textLines=@($s.lines|Where-Object {$_.words[0].x -gt $v.r.L+85 -and $_.words[0].x -lt $v.r.R-5 -and $_.words[0].y -gt $v.r.T+60 -and $_.words[0].y -lt $v.r.B-5})
+   $start=if($prefix.Count -eq 1){$prefix[0].words[0].y}else{60}
+   $frameWords=@($textLines|Where-Object {$_.words[0].y -ge $start}|ForEach-Object {$_.words})
+   Check ($label+'-frame-'+$attempt+'-horizontal-bounds') (@($frameWords|Where-Object {$_.x -le $v.r.L+85 -or $_.x+$_.w -ge $v.r.R-5}).Count -eq 0)
+   $tail=@($textLines|Where-Object {$_.text -match '(?i)os error\s*3\s*\)'})
+   if($tail.Count -eq 1) {
+    $seenTail=$true
+    $bottom=($tail[0].words|ForEach-Object {$_.y+$_.h}|Measure-Object -Maximum).Maximum
+    $start=if($prefix.Count -eq 1){$prefix[0].words[0].y}else{60}
+    $errorWords=@($textLines|Where-Object {$_.words[0].y -ge $start -and $_.words[0].y -le $bottom}|ForEach-Object {$_.words})
+    Check ($label+'-all-visible-error-words-in-bounds') (@($errorWords|Where-Object {$_.x -le $v.r.L+85 -or $_.x+$_.w -ge $v.r.R-5 -or $_.y+$_.h -ge $v.r.B-5}).Count -eq 0)
+    break
+   }
+  }
+  Scroll $true
+ }
+ Check ($label+'-prefix-seen') $seenPrefix
+ Check ($label+'-full-os-error-tail-seen') $seenTail
+}
+function NoErrorLayout($label) {
+ $s=Snap $label
+ Check ($label+'-no-error-prefix') (@(VisibleCopyError $s.lines).Count -eq 0)
+ $line=Target '^search$' ($label+'-search') $true
+ Check ($label+'-search-available') ($null -ne $line)
 }
 function Store {return Get-Content (Join-Path $env:HORIZON_LAUNCHER_HOME 'instances.json') -Raw|ConvertFrom-Json}
 function Entry($name) {return @((Store).instances.PSObject.Properties | Where-Object {$_.Value.name -eq $name})}
@@ -171,6 +221,8 @@ $vanished=Join-Path $prism 'instances/qa-vanished/minecraft';$held=Join-Path $pr
 try {
  foreach ($f in (Get-Content (Join-Path $packet 'source-manifest.json') -Raw|ConvertFrom-Json)) {Check ('packet-'+$f.path) ((Get-FileHash (Join-Path $packet $f.path) -Algorithm SHA256).Hash.ToLower() -eq $f.sha256)}
  Copy-Item -LiteralPath (Join-Path $packet 'PrismLauncher') -Destination $prism -Recurse
+ $longId=('W'*100);Rename-Item -LiteralPath (Join-Path $prism 'instances/qa-vanished') -NewName $longId
+ $vanished=Join-Path $prism ('instances/'+$longId+'/minecraft');$held=Join-Path $prism ('instances/'+$longId+'/minecraft-held')
  $before=HashTree $prism;Json $before (Join-Path $evidence 'source-before.json')
  $env:HORIZON_LAUNCHER_HOME=Join-Path $root 'launcher';$env:HORIZON_HOME=Join-Path $root 'game'
  foreach($p in @($env:HORIZON_LAUNCHER_HOME,$env:HORIZON_HOME)){New-Item -ItemType Directory -Force $p|Out-Null}
@@ -179,8 +231,11 @@ try {
  New-Item -ItemType Directory (Join-Path $env:HORIZON_HOME 'telemetry')|Out-Null
  @{version=[int]$m.Groups[1].Value;answered=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds();choices=@{performance=$false;crashes=$false;bugs=$false;benchmarks=$false}}|ConvertTo-Json -Depth 4|Set-Content (Join-Path $env:HORIZON_HOME 'telemetry/consent.json')
  $env:HORIZON_LAUNCHER_PAGE='instances';$env:HORIZON_LAUNCHER_MOTION='off'
- StartLauncher;Snap 'initial-instances'|Out-Null
- Search;Snap 'discovered-rows'|Out-Null
+ $display=Get-Command Set-DisplayResolution -ErrorAction SilentlyContinue
+ Check 'display-resize-command-available' ($null -ne $display)
+ Set-DisplayResolution -Width 1440 -Height 900 -Force | Out-Null
+ StartLauncher;ResizeLauncher 960 600;Snap 'initial-instances'|Out-Null
+ Search;Snap 'discovered-rows'|Out-Null;NoErrorLayout 'no-error-960'
  ImportRow 'qa fabric import' $false;$fabric=VerifyImported 'qa-fabric' 'qa fabric import' $false
  Search;ImportRow 'qa no loader import' $true;$plain=VerifyImported 'qa-no-loader' 'qa no loader import' $true
  Search;$line=Target '^qa vanished import\s*-\s*Prism Launcher$' 'vanished-current-row' $true;Rename-Item -LiteralPath $vanished -NewName 'minecraft-held'
@@ -188,9 +243,25 @@ try {
  $failureFrame=Snap 'visible-missing-source-error'
  $failure=@(VisibleCopyError $failureFrame.lines)
  Check 'missing-source-visible-error' ($failure.Count -eq 1)
+ ErrorLayout 'long-unbroken-error-960'
+ ResizeLauncher 1200 800;ErrorLayout 'long-unbroken-error-1200'
+ ResizeLauncher 960 600
  Check 'vanished-no-metadata' ((Entry 'qa vanished import').Count -eq 0)
  Check 'vanished-no-folder' (-not (Test-Path (Join-Path $env:HORIZON_HOME 'instances/qa-vanished-import')))
  Rename-Item -LiteralPath $held -NewName 'minecraft'
+ Rename-Item -LiteralPath (Join-Path $prism ('instances/'+$longId)) -NewName 'qa-vanished'
+ $vanished=Join-Path $prism 'instances/qa-vanished/minecraft';$held=Join-Path $prism 'instances/qa-vanished/minecraft-held'
+ Search;$line=Target '^qa vanished import\s*-\s*Prism Launcher$' 'standard-vanished-row' $true
+ Rename-Item -LiteralPath $vanished -NewName 'minecraft-held'
+ ImportRow 'qa vanished import' $true;ErrorLayout 'standard-error-960'
+ Check 'standard-vanished-no-metadata' ((Entry 'qa vanished import').Count -eq 0)
+ Check 'standard-vanished-no-folder' (-not (Test-Path (Join-Path $env:HORIZON_HOME 'instances/qa-vanished-import')))
+ Rename-Item -LiteralPath $held -NewName 'minecraft'
+ Rename-Item -LiteralPath (Join-Path $prism 'instances/qa-vanished') -NewName $longId
+ $vanished=Join-Path $prism ('instances/'+$longId+'/minecraft');$held=Join-Path $prism ('instances/'+$longId+'/minecraft-held')
+ Search;NoErrorLayout 'cleared-error-960'
+ ResizeLauncher 1200 800;NoErrorLayout 'no-error-1200'
+ ResizeLauncher 960 600
  $storeBefore=Get-Content (Join-Path $env:HORIZON_LAUNCHER_HOME 'instances.json') -Raw;Json (Store) (Join-Path $evidence 'instances-before-restart.json')
  CloseLauncher;StartLauncher;Snap 'reopened-instances'|Out-Null
  $null=VerifyImported 'qa-fabric' 'qa fabric import' $false;$null=VerifyImported 'qa-no-loader' 'qa no loader import' $true
