@@ -434,3 +434,48 @@ fn a_save_that_fails_says_so_and_leaves_the_players_list_as_it_was() {
     assert!(e.starts_with("Could not save the server list"), "{e}");
     assert_eq!(fs::read(&blocked).unwrap(), b"x");
 }
+
+#[test]
+fn editing_refuses_an_unreadable_list_without_replacing_it_or_its_backup() {
+    let home = scratch("edit-unreadable");
+    let current = home.join(FILE);
+    let backup = home.join("servers.dat_old");
+    fs::write(&current, b"not nbt").unwrap();
+    fs::write(&backup, b"previous list").unwrap();
+    let add = || -> Result<(), String> {
+        let mut list = List::load_for_edit(&home)?;
+        list.add("New", "new.example")?;
+        list.save(&home)
+    };
+    let error = add().unwrap_err();
+    assert!(error.contains("can't be read"), "{error}");
+    assert_eq!(fs::read(&current).unwrap(), b"not nbt");
+    assert_eq!(fs::read(&backup).unwrap(), b"previous list");
+    assert!(!home.join("servers.dat_new").exists());
+
+    fs::remove_file(&current).unwrap();
+    fs::create_dir(&current).unwrap();
+    assert!(add().is_err(), "an unreadable path is not an empty list");
+    assert!(current.is_dir());
+    assert_eq!(fs::read(&backup).unwrap(), b"previous list");
+    assert!(!home.join("servers.dat_new").exists());
+    fs::remove_dir_all(home).unwrap();
+}
+
+#[test]
+fn editing_a_readable_or_missing_list_keeps_existing_servers() {
+    let home = scratch("edit-readable");
+    let mut list = List::load_for_edit(&home).unwrap();
+    list.add("First", "first.example").unwrap();
+    list.save(&home).unwrap();
+    let mut list = List::load_for_edit(&home).unwrap();
+    list.add("Second", "second.example").unwrap();
+    list.save(&home).unwrap();
+    let ips: Vec<_> = List::load(&home)
+        .servers()
+        .into_iter()
+        .map(|s| s.ip)
+        .collect();
+    assert_eq!(ips, ["first.example", "second.example"]);
+    fs::remove_dir_all(home).unwrap();
+}

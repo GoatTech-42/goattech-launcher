@@ -63,8 +63,9 @@ impl Launcher {
         let Some(home) = self.multiplayer.home.clone() else {
             return;
         };
-        let mut list = server_list::List::load(&home);
-        self.multiplayer.error = edit(&mut list).and_then(|()| list.save(&home)).err();
+        self.multiplayer.error = server_list::List::load_for_edit(&home)
+            .and_then(|mut list| edit(&mut list).and_then(|()| list.save(&home)))
+            .err();
         self.multiplayer.confirm_remove = None;
         self.multiplayer.stale();
     }
