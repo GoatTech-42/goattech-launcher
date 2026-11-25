@@ -914,7 +914,7 @@
   "the player-count ping is separate from these switches. retention below describes the code's rules, not a verified live service. cleanup failures can delay deletion.": "the player-count ping is separate from these switches. retention below describes the code's rules, not a verified live service. cleanup failures can delay deletion.",
   "view or delete your saved reports.": "view or delete your saved reports.",
   "benchmarks you run, shared with community results.": "benchmarks you run, shared with community results.",
-  "crash and graphics details. no log, world, server or user name.": "crash and graphics details. no log, world, server or user name.",
+  "crash and graphics details. no log, world, server or user name in paths.": "crash and graphics details. no log, world, server or user name in paths.",
   "off in this configuration. separate from the switches above.": "off in this configuration. separate from the switches above.",
   "on by default while playing. only configuration turns it off.": "on by default while playing. only configuration turns it off.",
   "reports you send, with a log only if you add one.": "reports you send, with a log only if you add one.",

@@ -617,7 +617,7 @@ impl Launcher {
                         .child(tr(match kind {
                             DataKind::Perf => "session performance, hardware and game settings.",
                             DataKind::Crash => {
-                                "crash and graphics details. no log, world, server or user name."
+                                "crash and graphics details. no log, world, server or user name in paths."
                             }
                             DataKind::Bug => "reports you send, with a log only if you add one.",
                             DataKind::Benchmark => {
