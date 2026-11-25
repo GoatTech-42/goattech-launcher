@@ -614,3 +614,26 @@ fn loader_metadata_failure_cleans_up_the_new_java_instance_or_reports_it() {
     assert!(made.home.exists());
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn java_pack_without_minecraft_is_an_error_before_any_service_or_creation() {
+    let root = scratch("missing-minecraft");
+    let pack = root.join("missing.mrpack");
+    zip_file(
+        &pack,
+        &[(
+            "modrinth.index.json",
+            br#"{"dependencies":{"fabric-loader":"0.16"},"files":[]}"#,
+        )],
+    );
+    let error = import_java_instance_with(
+        &pack,
+        &|_, _| {},
+        &|_| panic!("must not resolve a missing Minecraft version"),
+        &|_, _, _| panic!("must not choose a loader for a malformed index"),
+        &|_, _, _| panic!("must not create an instance for a malformed index"),
+    )
+    .unwrap_err();
+    assert!(error.contains("names no Minecraft version"), "{error}");
+    fs::remove_dir_all(root).unwrap();
+}
