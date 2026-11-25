@@ -417,17 +417,27 @@ pub(crate) fn list_in(game_home: &Path, data: &Path) -> Vec<Instance> {
         game_home.to_path_buf(),
         game_home.to_path_buf(),
     )];
-    let mut own: Vec<_> = fs::read_dir(game_home.join(OWN))
-        .into_iter()
-        .flatten()
-        .flatten()
-        .filter(|e| e.path().is_dir())
-        .filter_map(|e| e.file_name().into_string().ok())
-        .collect();
+    let mut own = Vec::new();
+    let mut complete = false;
+    if let Ok(entries) = fs::read_dir(game_home.join(OWN)) {
+        complete = true;
+        for entry in entries {
+            match entry.and_then(|e| fs::metadata(e.path()).map(|m| (e, m))) {
+                Ok((entry, meta)) if meta.is_dir() => {
+                    if let Ok(name) = entry.file_name().into_string() {
+                        own.push(name);
+                    }
+                }
+                Ok(_) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(_) => complete = false,
+            }
+        }
+    }
     own.sort();
     // An own instance whose folder is gone (deleted outside the launcher) is forgotten, so a new
     // one of that name starts clean. Only when the folder of instances itself can be read.
-    if game_home.join(OWN).is_dir() {
+    if complete {
         let stale = store
             .instances
             .keys()
