@@ -512,3 +512,25 @@ fn an_export_and_its_import_leave_the_original_instance_folder_untouched() {
     assert!(!i.home.join("launcher_profiles.json").exists());
     fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn failed_archive_cleanup_names_the_partial_destination() {
+    let dir = scratch("cleanup-error");
+    let home = dir.join("partial");
+    // A non-directory destination makes real directory cleanup fail on every platform.
+    fs::write(&home, b"leftover").unwrap();
+    let error = cleanup_failed_import(&home, "archive extraction failed".into());
+    assert!(error.contains("archive extraction failed"));
+    assert!(error.contains("could not remove partial import"));
+    assert!(error.contains(home.to_string_lossy().as_ref()));
+    assert_eq!(fs::read(&home).unwrap(), b"leftover");
+    fs::remove_file(&home).unwrap();
+    fs::create_dir(&home).unwrap();
+    fs::write(home.join("partial.txt"), b"part").unwrap();
+    assert_eq!(
+        cleanup_failed_import(&home, "archive extraction failed".into()),
+        "archive extraction failed"
+    );
+    assert!(!home.exists());
+    fs::remove_dir_all(dir).unwrap();
+}
