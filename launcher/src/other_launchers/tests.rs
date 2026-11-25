@@ -1084,3 +1084,54 @@ fn own_folder_import_leaves_root_credentials_and_sessions_behind() {
     }
     fs::remove_dir_all(root).unwrap();
 }
+
+#[cfg(unix)]
+#[test]
+fn root_copy_preserves_distinct_non_utf8_file_and_folder_names() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+    let root = scratch("raw-names");
+    let game = root.join("source");
+    fs::create_dir_all(&game).unwrap();
+    let names: Vec<_> = [
+        b"file-\xff".as_slice(),
+        b"file-\xfe",
+        b"dir-\xff",
+        b"dir-\xfe",
+    ]
+    .iter()
+    .map(|bytes| OsString::from_vec(bytes.to_vec()))
+    .collect();
+    for (i, name) in names.iter().enumerate() {
+        let path = game.join(name);
+        if i < 2 {
+            fs::write(path, [i as u8]).unwrap();
+        } else {
+            fs::create_dir_all(&path).unwrap();
+            fs::write(path.join("kept"), [i as u8]).unwrap();
+        }
+    }
+    let found = Found {
+        launcher: "Prism Launcher",
+        name: "raw names".into(),
+        minecraft: None,
+        loader: None,
+        notes: None,
+        game: game.clone(),
+        icon: None,
+        shared: false,
+    };
+    let to = root.join("copy");
+    copy_game_skipping(&found, &to, false).unwrap();
+    assert_eq!(fs::read_dir(&to).unwrap().count(), 4);
+    for (i, name) in names.iter().enumerate() {
+        let relative = if i < 2 {
+            PathBuf::from(name)
+        } else {
+            PathBuf::from(name).join("kept")
+        };
+        assert_eq!(fs::read(to.join(&relative)).unwrap(), [i as u8]);
+        assert_eq!(fs::read(game.join(&relative)).unwrap(), [i as u8]);
+    }
+    fs::remove_dir_all(root).unwrap();
+}
