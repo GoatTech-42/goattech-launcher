@@ -1065,3 +1065,23 @@ fn failed_temp_reservation_preserves_preexisting_bytes() {
     assert!(!tmp.exists());
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn a_failed_store_rename_does_not_block_the_next_save() {
+    let root = scratch("store-rename-retry");
+    let data = root.join("data");
+    let path = data.join(FILE);
+    fs::create_dir_all(&path).unwrap();
+    fs::write(path.join("keep"), b"obstruction").unwrap();
+    let store = Store::default();
+    let error = store.save(&data).unwrap_err();
+    assert!(error.contains(path.to_string_lossy().as_ref()));
+    assert_eq!(fs::read(path.join("keep")).unwrap(), b"obstruction");
+    let tmp = data.join(format!("{FILE}.tmp-{}", std::process::id()));
+    assert!(!tmp.exists(), "owned temp must not block the next save");
+    fs::remove_dir_all(&path).unwrap();
+    store.save(&data).unwrap();
+    assert!(Store::load_strict(&data).unwrap().instances.is_empty());
+    assert!(!tmp.exists());
+    fs::remove_dir_all(root).unwrap();
+}
