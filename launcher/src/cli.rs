@@ -1922,7 +1922,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             if let Some(key) = key {
                 let value = value.ok_or("settings KEY VALUE: the value is missing")?;
                 set_setting(&mut settings, &key, &value)?;
-                let _ = settings.save();
+                settings.save().map_err(|e| e.to_string())?;
                 crate::proxy::announce(settings.proxy.clone());
             }
             let all = settings_json(&settings);
