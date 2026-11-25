@@ -89,8 +89,13 @@ impl Launcher {
                             )
                         })
                         .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            let previous = this.settings.language;
                             this.settings.language = choice;
-                            let _ = this.settings.save();
+                            this.language_save_error =
+                                this.settings.save().err().map(|e| e.to_string());
+                            if this.language_save_error.is_some() {
+                                this.settings.language = previous;
+                            }
                             i18n::set(this.settings.language());
                             this.language_menu = false;
                             cx.notify();
@@ -109,7 +114,23 @@ impl Launcher {
                 ))
                 .into_any_element()
         });
-        index_row(0, tr("language"), said, Some(wrap.into_any_element()), &t)
+        let detail = if said.is_some() || self.language_save_error.is_some() {
+            Some(
+                div()
+                    .flex()
+                    .flex_col()
+                    .children(said)
+                    .children(
+                        self.language_save_error
+                            .clone()
+                            .map(|e| div().text_color(t.danger).child(e)),
+                    )
+                    .into_any_element(),
+            )
+        } else {
+            None
+        };
+        index_row(0, tr("language"), detail, Some(wrap.into_any_element()), &t)
     }
 }
 

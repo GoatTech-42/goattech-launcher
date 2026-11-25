@@ -254,6 +254,8 @@ struct Launcher {
     hue_dragging: bool,
     /// Settings > Language's dropdown (`language_page.rs`).
     language_menu: bool,
+    /// The last language picker save failed; the previous local choice was restored.
+    language_save_error: Option<String>,
     /// The top bar's quick switch of who plays (`switch_page.rs`).
     account_menu: bool,
     /// Which opener owns the open account menu: the top bar's pill (true) or the rail's chip
@@ -801,6 +803,7 @@ impl Launcher {
             hue_area: std::rc::Rc::new(std::cell::Cell::new(None)),
             hue_dragging: false,
             language_menu: false,
+            language_save_error: None,
             account_menu: false,
             account_menu_top: false,
             menu_closed_at: None,
