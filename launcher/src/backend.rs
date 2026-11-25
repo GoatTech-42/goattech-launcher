@@ -2732,7 +2732,8 @@ pub fn install_tag(tag: &str, as_update: bool, progress: impl Fn(f32)) -> Result
     let mut settings = Settings::load();
     if !as_update || select_after_update(settings.selected.as_deref(), &before) {
         settings.selected = Some(release.tag.clone());
-        let _ = settings.save();
+        // Cleanup reloads settings; don't prune when the new selection wasn't saved.
+        settings.save().map_err(|e| e.to_string())?;
     }
     if as_update && release.nightly.is_some() {
         crate::nightly::after_update(&release.tag);
