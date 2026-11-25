@@ -536,3 +536,46 @@ fn editing_rejects_a_root_tag_that_is_not_a_compound() {
     }
     fs::remove_dir_all(home).unwrap();
 }
+
+#[test]
+fn editing_rejects_a_servers_list_with_non_compound_entries() {
+    let home = scratch("edit-wrong-entry");
+    let current = home.join(FILE);
+    let backup = home.join("servers.dat_old");
+    fs::write(&backup, b"previous list").unwrap();
+    for item in [Tag::Int(7), s("not a server"), Tag::List(Vec::new())] {
+        let root = NamedTag {
+            name: "".into(),
+            tag: Tag::compound([("servers", Tag::List(vec![item]))]),
+        };
+        let bytes = nbt::write_named(&root, Limits::default()).unwrap();
+        fs::write(&current, &bytes).unwrap();
+        let add = || -> Result<(), String> {
+            let mut list = List::load_for_edit(&home)?;
+            list.add("New", "new.example")?;
+            list.save(&home)
+        };
+        assert!(
+            add().is_err(),
+            "invalid entries must not be silently dropped"
+        );
+        assert_eq!(fs::read(&current).unwrap(), bytes);
+        assert_eq!(fs::read(&backup).unwrap(), b"previous list");
+        assert!(!home.join("servers.dat_new").exists());
+        assert!(List::load(&home).servers().is_empty());
+    }
+    let root = NamedTag {
+        name: "".into(),
+        tag: Tag::compound([("servers", Tag::List(Vec::new()))]),
+    };
+    fs::write(
+        &current,
+        nbt::write_named(&root, Limits::default()).unwrap(),
+    )
+    .unwrap();
+    let mut list = List::load_for_edit(&home).unwrap();
+    list.add("New", "new.example").unwrap();
+    list.save(&home).unwrap();
+    assert_eq!(List::load(&home).servers()[0].ip, "new.example");
+    fs::remove_dir_all(home).unwrap();
+}
