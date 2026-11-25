@@ -234,8 +234,11 @@ impl Launcher {
                             .remove_offline(&forget, &horizon_launcher::skins::dir())
                             .and_then(|()| accounts.save());
                         match done {
-                            Ok(()) => this.accounts = accounts,
-                            Err(e) => this.sign_in_state = Some(SignInState::Done(Err(e))),
+                            Ok(()) => {
+                                this.accounts = accounts;
+                                this.offline_forget_error = None;
+                            }
+                            Err(e) => this.offline_forget_error = Some(e),
                         }
                         cx.notify();
                     }),
@@ -258,6 +261,7 @@ impl Launcher {
                 &t,
             ));
         }
+        rows = rows.children(self.offline_forget_error.clone().map(|e| notice(e, &t)));
         rows = rows.children(self.skin_panel(cx));
         // The name the game made up can't be forgotten — it's what an offline player is —
         // only rolled for a new one.
