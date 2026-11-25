@@ -469,6 +469,7 @@
   "account checks": "vérification des comptes",
   "settings, packs and horizon mods go in; logs, screenshots, backups and your account never do. worlds go without their per-player files.": "Les réglages, packs et mods Horizon sont inclus ; les journaux, captures d'écran, sauvegardes et votre compte ne le sont jamais. Les mondes sont inclus sans leurs fichiers par joueur.",
   "block and item icons come from your prepared game files: prepare a version to see them.": "Les icônes de blocs et d'objets proviennent de vos fichiers de jeu préparés : préparez une version pour les voir.",
+  "page changes, switches and moving bars hold still.": "les transitions de page, les interrupteurs et les barres animées restent immobiles.",
   "packs": "packs",
   "Unsigned": "Non signé",
   "data packs": "Packs de données",
