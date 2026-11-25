@@ -562,3 +562,55 @@ fn failed_archive_creation_keeps_the_last_cause_and_bounds_name_retries() {
     assert_eq!(made, "Pack (2)");
     assert_eq!(tried, ["Pack", "Pack (2)"]);
 }
+
+#[test]
+fn loader_metadata_failure_cleans_up_the_new_java_instance_or_reports_it() {
+    for refuse_cleanup in [false, true] {
+        let root = scratch(if refuse_cleanup {
+            "loader-cleanup-denied"
+        } else {
+            "loader-cleanup"
+        });
+        let made = java_maker(&root)(
+            "New pack",
+            "1.21.1",
+            crate::loaders::Loader {
+                kind: crate::loaders::Kind::Fabric,
+                version: "0.16.9".into(),
+            },
+        )
+        .unwrap();
+        let error = finish_created_instance(&made, Err("loader metadata denied".into()), &|id| {
+            assert_eq!(id, made.id);
+            if refuse_cleanup {
+                Err("Trash denied".into())
+            } else {
+                fs::remove_dir_all(&made.home).map_err(|e| e.to_string())
+            }
+        })
+        .unwrap_err();
+        assert!(error.contains("loader metadata denied"));
+        assert_eq!(made.home.exists(), refuse_cleanup);
+        if refuse_cleanup {
+            assert!(error.contains("Trash denied"));
+            assert!(error.contains(&made.id));
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+    let root = scratch("loader-finish-ok");
+    let made = java_maker(&root)(
+        "Kept pack",
+        "1.21.1",
+        crate::loaders::Loader {
+            kind: crate::loaders::Kind::Fabric,
+            version: "0.16.9".into(),
+        },
+    )
+    .unwrap();
+    let finished =
+        finish_created_instance(&made, Ok(made.clone()), &|_| panic!("success rolled back"))
+            .unwrap();
+    assert_eq!(finished, made);
+    assert!(made.home.exists());
+    fs::remove_dir_all(root).unwrap();
+}

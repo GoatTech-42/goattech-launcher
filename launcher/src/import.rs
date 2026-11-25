@@ -327,11 +327,29 @@ pub fn import_java_instance(file: &Path, progress: &dyn Fn(&str, f32)) -> Result
         &|name, version, loader| {
             let made = instances::create_java(name, version)?;
             let loader = Some(loader);
-            instances::edit(&made.id, move |m| {
+            let saved = instances::edit(&made.id, move |m| {
                 m.java.get_or_insert_with(Default::default).loader = loader.clone()
-            })
+            });
+            finish_created_instance(&made, saved, &|id| instances::delete(id).map(|_| ()))
         },
     )
+}
+
+/// A loader-save failure must not leave a newly published instance looking ready.
+fn finish_created_instance(
+    made: &Instance,
+    result: Result<Instance, String>,
+    rollback: &dyn Fn(&str) -> Result<(), String>,
+) -> Result<Instance, String> {
+    result.map_err(|mut error| {
+        if let Err(cleanup) = rollback(&made.id) {
+            error.push_str(&format!(
+                "; could not remove partial instance {}: {cleanup}",
+                made.id
+            ));
+        }
+        error
+    })
 }
 
 fn fill(
