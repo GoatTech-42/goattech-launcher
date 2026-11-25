@@ -870,8 +870,24 @@ fn copy_bytes(home: &Path, bytes: &[u8], dest: &str) -> Result<(), String> {
         fs::hard_link(&temp, &target).map_err(|e| e.to_string())
     })();
     let cleanup = fs::remove_file(&temp);
+    jar_install_result(result, cleanup, &temp)
+}
+
+/// Preserve the primary failure and identify the stage if cleanup also failed.
+fn jar_install_result(
+    result: Result<(), String>,
+    cleanup: std::io::Result<()>,
+    temp: &Path,
+) -> Result<(), String> {
     match (result, cleanup) {
-        (Err(e), _) => Err(e),
+        (Err(mut error), Err(cleanup)) => {
+            error.push_str(&format!(
+                "; staging cleanup failed at {}: {cleanup}",
+                temp.display()
+            ));
+            Err(error)
+        }
+        (Err(e), Ok(())) => Err(e),
         (Ok(()), Err(e)) => Err(format!(
             "JAR was installed, but staging cleanup failed: {e}"
         )),

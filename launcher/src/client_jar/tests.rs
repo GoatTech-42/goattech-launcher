@@ -1025,3 +1025,29 @@ fn reviewed_jar_change_refuses_before_any_instance_write() {
     assert!(!home.join("instances").exists());
     fs::remove_dir_all(home.parent().unwrap()).unwrap();
 }
+
+#[test]
+fn failed_jar_publication_reports_its_leftover_stage() {
+    let (root, _) = scratch("cleanup-outcome");
+    let stage = root.join("client.jar.horizon-part");
+    fs::create_dir_all(&stage).unwrap();
+    fs::write(stage.join("leftover"), b"keep").unwrap();
+    let error = jar_install_result(
+        Err("publish denied".into()),
+        fs::remove_file(&stage),
+        &stage,
+    )
+    .unwrap_err();
+    assert!(error.contains("publish denied"));
+    assert!(error.contains("staging cleanup failed"));
+    assert!(error.contains(stage.to_string_lossy().as_ref()));
+    assert_eq!(fs::read(stage.join("leftover")).unwrap(), b"keep");
+    assert!(jar_install_result(Ok(()), Ok(()), &stage).is_ok());
+    assert_eq!(
+        jar_install_result(Err("publish denied".into()), Ok(()), &stage).unwrap_err(),
+        "publish denied"
+    );
+    let saved = jar_install_result(Ok(()), fs::remove_file(&stage), &stage).unwrap_err();
+    assert!(saved.contains("JAR was installed"));
+    fs::remove_dir_all(root).unwrap();
+}
