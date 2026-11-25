@@ -6,9 +6,6 @@ use gpui::{
 };
 use std::{cell::Cell, rc::Rc};
 
-/// Space reserved beside scroll content for the track and its padding.
-pub const GUTTER: f32 = 16.;
-
 #[derive(Clone, Default)]
 pub(crate) struct Scrollbar {
     pub handle: ScrollHandle,
@@ -49,10 +46,9 @@ impl Geometry {
 }
 
 impl Scrollbar {
-    /// Wrap the scroll container, reserving a narrow gutter so the bar never covers controls.
+    /// Wrap scrolling content with a thin thumb in a five-pixel control-free edge strip.
     pub fn wrap(&self, content: Stateful<Div>, theme: &Theme) -> Div {
         let state = self.clone();
-        let track_color = theme.well;
         let thumb_color = theme.muted;
         div()
             .relative()
@@ -63,7 +59,7 @@ impl Scrollbar {
             .child(
                 content
                     .track_scroll(&self.handle)
-                    .mr(px(GUTTER))
+                    .mr(px(5.))
                     // Nested scroll areas must not also move the page behind them.
                     .on_scroll(|_, _, cx| cx.stop_propagation()),
             )
@@ -86,11 +82,10 @@ impl Scrollbar {
                             return;
                         };
                         let hitbox = hitbox.unwrap();
-                        window.paint_quad(fill(bounds, track_color));
                         window.paint_quad(fill(
                             Bounds::new(
-                                point(bounds.left() + px(3.), bounds.top() + px(g.top)),
-                                size(bounds.size.width - px(6.), px(g.thumb)),
+                                point(bounds.right() - px(3.), bounds.top() + px(g.top)),
+                                size(px(3.), px(g.thumb)),
                             ),
                             thumb_color,
                         ));
@@ -152,10 +147,10 @@ impl Scrollbar {
                     },
                 )
                 .absolute()
-                .right(px(2.))
+                .right_0()
                 .top_0()
                 .bottom_0()
-                .w(px(12.)),
+                .w(px(5.)),
             )
     }
 }
