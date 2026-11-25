@@ -78,6 +78,7 @@ pub mod icons {
         "package",
         "play",
         "plus",
+        "puzzle",
         "reload",
         "search",
         "server",

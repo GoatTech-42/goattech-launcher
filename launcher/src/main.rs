@@ -115,7 +115,7 @@ impl Page {
     const ALL: [(Page, &'static str, &'static str); 7] = [
         (Page::Play, "play", "play"),
         (Page::Instances, "instances", "box"),
-        (Page::Mods, "mods", "package"),
+        (Page::Mods, "mods", "puzzle"),
         (Page::Servers, "servers", "server"),
         (Page::Versions, "versions", "archive"),
         (Page::Notes, "patch notes", "notes"),
