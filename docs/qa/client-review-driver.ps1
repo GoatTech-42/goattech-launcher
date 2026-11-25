@@ -153,11 +153,11 @@ try {
     if ($width -lt 200 -or $height -lt 200 -or $width -gt 3840 -or $height -gt 3840 -or [int64]$width*$height -gt 16777216) { throw 'Capture size ceiling' }
     "viewport: frame=$f outer=${width}x${height} client=$($v.Client.Right)x$($v.Client.Bottom) dpi=96 pid=$($proc.Id) birth=$($owned[[string]$proc.Id].Birth)" | Add-Content $info
     $png=Join-Path $env:CAP ("frame-{0:D2}-{1}.png" -f $f,$step.Name)
-    # PrintWindow runs only in its own recorded worker, never in this controller.
+    # Full-desktop capture runs in its recorded no-new-console worker.
     # Timeout cannot guarantee a hung native worker exits gracefully. Any survivor stops the run.
     $workerArgs=@('-NoProfile','-File',"$PSScriptRoot\client-review-worker.ps1",'-WindowHandle',[string]$v.Handle,'-LauncherPid',[string]$proc.Id,'-LauncherBirth',[string]$owned[[string]$proc.Id].Birth,'-Width',[string]$width,'-Height',[string]$height,'-Output',$png)
     $quotedArgs=($workerArgs | ForEach-Object { '"' + ([string]$_).Replace('"','\"') + '"' }) -join ' '
-    $worker=Start-Process -FilePath (Join-Path $PSHOME 'pwsh.exe') -ArgumentList $quotedArgs -PassThru -RedirectStandardOutput "$env:CAP\worker-$f.stdout" -RedirectStandardError "$env:CAP\worker-$f.stderr"
+    $worker=Start-Process -NoNewWindow -FilePath (Join-Path $PSHOME 'pwsh.exe') -ArgumentList $quotedArgs -PassThru -RedirectStandardOutput "$env:CAP\worker-$f.stdout" -RedirectStandardError "$env:CAP\worker-$f.stderr"
     Track $worker 'capture-worker'
     $end=[DateTime]::UtcNow.AddSeconds(30)
     while ($null -ne (Same $owned[[string]$worker.Id]) -and [DateTime]::UtcNow -lt $end) { Descendants; Start-Sleep -Milliseconds 200 }

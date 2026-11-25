@@ -1,9 +1,11 @@
 name: GoatTech Windows window qualification
-# Scratch-only instrumented capture, NEVER merge. Manual dispatch only.
+# Temporary exact-source desktop capture. Never merge.
 on:
   workflow_dispatch:
+  push:
+    branches: [tmp-main049-desktopcap-clean]
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: client-review-${{ github.ref }}
   cancel-in-progress: false
@@ -59,3 +61,31 @@ jobs:
             }
           }
           if ($failed.Count) { throw "Failed captures: $($failed -join ',')" }
+      - name: Publish bounded test-profile frames to temporary output branch
+        shell: pwsh
+        env:
+          OUTPUT_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          $out=Join-Path $env:RUNNER_TEMP 'capture-output-only'
+          New-Item -ItemType Directory $out | Out-Null
+          $manifest=@()
+          foreach ($mode in @('home','settings')) {
+            foreach ($frame in @('frame-01-top.png','frame-02-repeat.png')) {
+              $input=Join-Path $env:RUNNER_TEMP "captures-$mode-960x600/$frame"
+              $dest="$mode-$frame"
+              $item=Get-Item -LiteralPath $input
+              if ($item.Length -gt 4194304 -or $item.Length -lt 100) {throw 'PNG byte ceiling'}
+              $bytes=[IO.File]::ReadAllBytes($input)
+              if ([Convert]::ToHexString($bytes[0..7]) -ne '89504E470D0A1A0A') {throw 'Invalid PNG'}
+              Copy-Item -LiteralPath $input -Destination (Join-Path $out $dest)
+              $manifest+=@{file=$dest;bytes=$item.Length;sha256=(Get-FileHash $input -Algorithm SHA256).Hash}
+            }
+          }
+          @{source='049bcb6af2aa5ee3b12cace497471ed851312f43';harness=$env:GITHUB_SHA;run=$env:GITHUB_RUN_ID;profile='isolated all optional data off; fake build ID; no personal credentials';frames=$manifest} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $out 'receipt.json')
+          git -C $out init -b tmp-main049-desktopcap-output
+          git -C $out add -- '*.png' receipt.json
+          git -C $out -c user.name=GoatTech-42 -c user.email=156948079+GoatTech-42@users.noreply.github.com commit -m 'Temporary exact-source desktop capture evidence'
+          $header=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:OUTPUT_TOKEN"))
+          git -C $out -c "http.extraheader=AUTHORIZATION: basic $header" push https://github.com/GoatTech-42/goattech-launcher.git HEAD:refs/heads/tmp-main049-desktopcap-output
+          if ($LASTEXITCODE -ne 0) {throw 'Temporary evidence push failed'}
