@@ -374,6 +374,8 @@ struct Launcher {
     client_vars: horizon_launcher::launch::Vars,
     /// Settings' Game arguments field: the line, whether it has focus, and its focus handle.
     args_input: line_edit::LineEdit,
+    /// The last game-arguments save failed; typed input stays available to edit or retry.
+    game_args_save_error: Option<String>,
     args_focused: bool,
     args_focus: FocusHandle,
     /// Settings' Proxy field, the same way (`proxy`).
@@ -844,6 +846,7 @@ impl Launcher {
             opening_save_error: None,
             java_runtimes: None,
             java_runtimes_busy: false,
+            game_args_save_error: None,
             args_input: line_edit::LineEdit::new(settings.game_args.clone(), 1024, 38),
             args_focused: false,
             args_focus: cx.focus_handle(),
@@ -4888,8 +4891,13 @@ impl Launcher {
                     line_edit::Key::Pass => return,
                     line_edit::Key::Escape => window.blur(cx),
                     line_edit::Key::Edited => {
+                        let previous = this.settings.game_args.clone();
                         this.settings.game_args = this.args_input.text().to_string();
-                        let _ = this.settings.save();
+                        this.game_args_save_error =
+                            this.settings.save().err().map(|e| e.to_string());
+                        if this.game_args_save_error.is_some() {
+                            this.settings.game_args = previous;
+                        }
                     }
                     _ => {}
                 }
@@ -4902,7 +4910,11 @@ impl Launcher {
             tr("game arguments"),
             Some(
                 div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(theme::chrome(6.)))
                     .child(tr("extra options for the game, passed on unchanged. put quotes around anything with spaces. they apply the next time the game starts."))
+                    .children(self.game_args_save_error.clone().map(|e| div().text_color(t.danger).child(e)))
                     .into_any_element(),
             ),
             Some(field.into_any_element()),
