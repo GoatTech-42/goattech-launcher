@@ -618,7 +618,7 @@ pub fn select(query: &str) -> Result<Instance, String> {
     // Every pick is recorded, the game's own home ("horizon") included: None means "never
     // picked", so collapsing that pick to None would lose it (and mislead the first-pick ask).
     settings.instance = Some(instance.id.clone());
-    let _ = settings.save();
+    settings.save().map_err(|e| e.to_string())?;
     Ok(instance)
 }
 
