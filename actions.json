@@ -1,0 +1,121 @@
+[
+    {
+        "y":  114,
+        "at":  "2026-11-25T19:57:55.4436504Z",
+        "reason":  "Instances sidebar",
+        "action":  "click",
+        "x":  44
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  true,
+        "action":  "scroll"
+    },
+    {
+        "y":  534,
+        "at":  "2026-11-25T19:58:04.5508438Z",
+        "reason":  "Search other launchers",
+        "action":  "click",
+        "x":  162
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  true,
+        "action":  "scroll"
+    },
+    {
+        "y":  280,
+        "at":  "2026-11-25T19:58:16.6309567Z",
+        "reason":  "Import qa fabric import",
+        "action":  "click",
+        "x":  873
+    },
+    {
+        "y":  114,
+        "at":  "2026-11-25T19:58:38.6538798Z",
+        "reason":  "Instances sidebar",
+        "action":  "click",
+        "x":  44
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  true,
+        "action":  "scroll"
+    },
+    {
+        "down":  true,
+        "action":  "scroll"
+    },
+    {
+        "y":  534,
+        "at":  "2026-11-25T19:58:49.2455446Z",
+        "reason":  "Search other launchers",
+        "action":  "click",
+        "x":  162
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  true,
+        "action":  "scroll"
+    }
+]
