@@ -1,0 +1,176 @@
+$ErrorActionPreference='Stop'
+$source='1cf14202456e931d4ba1d9479da24d4bf9174dfb'
+if ((git rev-parse HEAD).Trim() -ne $source) {throw 'Unexpected source'}
+$evidence=Join-Path $env:RUNNER_TEMP 'import-gui-evidence';New-Item -ItemType Directory $evidence | Out-Null
+$root=Join-Path $env:RUNNER_TEMP 'import-gui-profile';if (Test-Path $root) {throw 'Profile already exists'}
+$roaming=[Environment]::GetFolderPath('ApplicationData');$prism=Join-Path $roaming 'PrismLauncher'
+if (Test-Path $prism) {throw 'Existing Prism folder; do not overwrite'}
+$packet=Join-Path $PSScriptRoot 'import-fixture'
+$checks=[Collections.Generic.List[object]]::new();$actions=[Collections.Generic.List[object]]::new();$frames=[Collections.Generic.List[object]]::new();$script:seq=0;$script:proc=$null;$script:birth=0
+function Check($name,$ok) { $checks.Add(@{name=$name;pass=[bool]$ok});if (-not $ok) {throw "Check failed: $name"} }
+function HashTree($base) {return @(Get-ChildItem -LiteralPath $base -Recurse -File | Sort-Object FullName | ForEach-Object {@{path=$_.FullName.Substring($base.Length+1).Replace('\','/');bytes=$_.Length;sha256=(Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()}})}
+function Json($o,$path) {ConvertTo-Json -InputObject $o -Depth 12 | Set-Content -LiteralPath $path}
+Add-Type -AssemblyName System.Drawing,System.Windows.Forms,System.Runtime.WindowsRuntime
+Add-Type -TypeDefinition @'
+using System;using System.Runtime.InteropServices;
+public class ImportNative {
+[DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h,IntPtr a,int x,int y,int w,int z,uint f);
+[DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+[DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);
+[DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr h,out RECT r);
+[DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out RECT r);
+[DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
+[DllImport("user32.dll")] public static extern void mouse_event(uint f,uint x,uint y,uint d,UIntPtr e);
+public struct RECT {public int L,T,R,B;}
+}
+'@
+[Windows.Storage.StorageFile,Windows.Storage,ContentType=WindowsRuntime] | Out-Null
+[Windows.Graphics.Imaging.BitmapDecoder,Windows.Foundation,ContentType=WindowsRuntime] | Out-Null
+[Windows.Media.Ocr.OcrEngine,Windows.Foundation,ContentType=WindowsRuntime] | Out-Null
+[Windows.Globalization.Language,Windows.Globalization,ContentType=WindowsRuntime] | Out-Null
+$script:ocr=[Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage([Windows.Globalization.Language]::new('en-US'))
+if ($null -eq $script:ocr) {throw 'Windows OCR unavailable'}
+$script:asTask=([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {$_.Name -eq 'AsTask' -and $_.IsGenericMethod -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1'})[0]
+function Await($op,[Type]$t) { $task=$script:asTask.MakeGenericMethod($t).Invoke($null,@($op));if (-not $task.Wait(10000)) {throw 'WinRT timeout'};return $task.Result }
+function OwnedWindow {
+ $p=Get-Process -Id $script:proc.Id
+ if ($p.StartTime.ToUniversalTime().Ticks -ne $script:birth) {throw 'Launcher birth changed'}
+ $p.Refresh();$h=$p.MainWindowHandle;[uint32]$owner=0;[ImportNative]::GetWindowThreadProcessId($h,[ref]$owner)|Out-Null
+ if ($h -eq [IntPtr]::Zero -or $owner -ne $p.Id) {throw 'No owned launcher window'}
+ $r=New-Object ImportNative+RECT;[ImportNative]::GetWindowRect($h,[ref]$r)|Out-Null
+ return @{h=$h;r=$r}
+}
+function Foreground {
+ $v=OwnedWindow
+ [ImportNative]::SetWindowPos($v.h,[IntPtr](-1),0,0,0,0,0x0043)|Out-Null;[ImportNative]::SetForegroundWindow($v.h)|Out-Null
+ Start-Sleep -Milliseconds 400
+ if ([ImportNative]::GetForegroundWindow() -ne $v.h) {throw 'Launcher not foreground'}
+}
+function Snap($label) {
+ Foreground;$script:seq++;$name=('{0:D2}-{1}.png' -f $script:seq,$label);$path=Join-Path $evidence $name
+ $screen=[Windows.Forms.SystemInformation]::VirtualScreen;$bmp=[Drawing.Bitmap]::new($screen.Width,$screen.Height);$g=[Drawing.Graphics]::FromImage($bmp)
+ try {$g.CopyFromScreen($screen.Left,$screen.Top,0,0,$screen.Size);$bmp.Save($path,[Drawing.Imaging.ImageFormat]::Png)} finally {$g.Dispose();$bmp.Dispose()}
+ $file=Await ([Windows.Storage.StorageFile]::GetFileFromPathAsync($path)) ([Windows.Storage.StorageFile])
+ $stream=Await ($file.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
+ try {
+  $decoder=Await ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
+  $soft=Await ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
+  try {$result=Await ($script:ocr.RecognizeAsync($soft)) ([Windows.Media.Ocr.OcrResult])} finally {$soft.Dispose()}
+ } finally {$stream.Dispose()}
+ $lines=@($result.Lines | ForEach-Object { @{text=$_.Text;words=@($_.Words | ForEach-Object {@{text=$_.Text;x=$_.BoundingRect.X;y=$_.BoundingRect.Y;w=$_.BoundingRect.Width;h=$_.BoundingRect.Height}})} })
+ Json $lines (Join-Path $evidence ($name+'.ocr.json'));$frames.Add(@{file=$name;sha256=(Get-FileHash $path -Algorithm SHA256).Hash;bytes=(Get-Item $path).Length})
+ return @{lines=$lines;file=$name}
+}
+function ClickAt($x,$y,$why) {
+ Foreground;$v=OwnedWindow
+ if ($x -lt $v.r.L -or $x -ge $v.r.R -or $y -lt $v.r.T -or $y -ge $v.r.B) {throw 'Click outside owned launcher'}
+ $actions.Add(@{action='click';x=$x;y=$y;reason=$why;at=[DateTime]::UtcNow.ToString('o')})
+ [ImportNative]::SetCursorPos($x,$y)|Out-Null;[ImportNative]::mouse_event(2,0,0,0,[UIntPtr]::Zero);[ImportNative]::mouse_event(4,0,0,0,[UIntPtr]::Zero);Start-Sleep -Milliseconds 900
+}
+function Scroll($down) {Foreground;$actions.Add(@{action='scroll';down=$down});[ImportNative]::SetCursorPos(800,420)|Out-Null;$delta=if ($down) {[uint32]::MaxValue-599} else {[uint32]600};[ImportNative]::mouse_event(0x800,0,0,$delta,[UIntPtr]::Zero);Start-Sleep -Milliseconds 700}
+function Target($pattern,$label,$scroll=$false) {
+ for ($i=0;$i -lt $(if ($scroll) {6}else{1});$i++) {
+  $s=Snap $label;$matches=@($s.lines | Where-Object {$_.text -match $pattern -and $_.words[0].x -gt 85 -and $_.words[-1].x -lt 950 -and $_.words[0].y -lt 590})
+  if ($matches.Count -eq 1) {return $matches[0]}
+  if ($matches.Count -gt 1) {throw "Ambiguous OCR target: $label"}
+  if ($scroll) {Scroll $true}
+ }
+ throw "OCR target missing: $label"
+}
+function ClickLine($line,$why) { $word=$line.words[0];$last=$line.words[-1];ClickAt ([int](($word.x+$last.x+$last.w)/2)) ([int]($word.y+$word.h/2)) $why }
+function Instances {ClickAt 44 114 'Instances sidebar';Start-Sleep -Seconds 1;for($i=0;$i -lt 4;$i++){Scroll $false}}
+function Search {Instances;$line=Target '^search$' 'locate-search' $true;ClickLine $line 'Search other launchers';Start-Sleep -Seconds 3;for($i=0;$i -lt 4;$i++){Scroll $false}}
+function ImportRow($name,$noMods) {
+ $line=Target $name ('row-'+$name.Replace(' ','-')) $true
+ # Import is the sole right-side action aligned with this fixture row.
+ $s=Snap 'before-import';$rowY=$line.words[0].y
+ $buttons=@(foreach($ocrLine in $s.lines){
+  $right=@($ocrLine.words|Where-Object {$_.x -gt 650 -and $_.y -ge $rowY-10 -and $_.y -le $rowY+110})
+  $txt=($right.text -join ' ')
+  if ($txt -match '^import( without mods)?$') {@{text=$txt;words=$right}}
+ })
+ Check ('unique-import-button-'+$name) ($buttons.Count -eq 1)
+ Check ('honest-import-label-'+$name) (($buttons[0].text.ToLower() -match 'without mods') -eq $noMods)
+ ClickLine $buttons[0] ('Import '+$name)
+ Start-Sleep -Seconds 20
+ Snap ('after-'+$name.Replace(' ','-'))|Out-Null
+}
+function Store {return Get-Content (Join-Path $env:HORIZON_LAUNCHER_HOME 'instances.json') -Raw|ConvertFrom-Json}
+function Entry($name) {return @((Store).instances.PSObject.Properties | Where-Object {$_.Value.name -eq $name})}
+function VerifyImported($id,$name,$noMods) {
+ $entry=Entry $name;Check ('saved-single-'+$id) ($entry.Count -eq 1);$dest=Join-Path (Join-Path $env:HORIZON_HOME 'instances') $entry[0].Name
+ Check ('destination-folder-'+$id) (Test-Path -LiteralPath $dest -PathType Container)
+ $src=Join-Path $prism "instances/$id/minecraft"
+ foreach ($f in (HashTree $src)) {
+  $skip=$f.path -eq 'accounts.json' -or $f.path -eq 'msa_token.json' -or $f.path -eq 'logs/latest.log' -or ($noMods -and $f.path.StartsWith('mods/'))
+  $target=Join-Path $dest $f.path
+  if ($skip) {Check ('excluded-'+$id+'-'+$f.path) (-not (Test-Path -LiteralPath $target))}
+  else {Check ('copy-'+$id+'-'+$f.path) ((Test-Path -LiteralPath $target -PathType Leaf) -and (Get-FileHash $target -Algorithm SHA256).Hash.ToLower() -eq $f.sha256)}
+ }
+ Check ('icon-'+$id) ((Get-FileHash (Join-Path $dest 'icon.png') -Algorithm SHA256).Hash -eq (Get-FileHash (Join-Path $prism "instances/$id/icon.png") -Algorithm SHA256).Hash)
+ Check ('version-'+$id) ($entry[0].Value.java.minecraft -eq '1.21.1')
+ Check ('notes-'+$id) ($entry[0].Value.notes -eq "qa fixture note`nsecond line")
+ if ($noMods) {Check ('loader-absent-'+$id) ($null -eq $entry[0].Value.java.loader)} else {Check ('loader-'+$id) ($entry[0].Value.java.loader.kind -eq 'fabric' -and $entry[0].Value.java.loader.version -eq '0.16.9')}
+ Json (HashTree $dest) (Join-Path $evidence ($id+'-destination.json'));return $dest
+}
+function StartLauncher {
+ $bin=Join-Path $PWD 'launcher/target/release/horizon-launcher.exe'
+ $script:proc=Start-Process -FilePath $bin -PassThru -RedirectStandardOutput (Join-Path $evidence ('launcher-'+$script:seq+'.stdout')) -RedirectStandardError (Join-Path $evidence ('launcher-'+$script:seq+'.stderr'))
+ $script:birth=$script:proc.StartTime.ToUniversalTime().Ticks
+ $ready=$false;for($i=0;$i -lt 120;$i++){try {$v=OwnedWindow;$ready=$true;break}catch{Start-Sleep -Milliseconds 500}}
+ Check 'owned-window-ready' $ready
+ $v=OwnedWindow;$client=New-Object ImportNative+RECT;[ImportNative]::GetClientRect($v.h,[ref]$client)|Out-Null
+ $dw=($v.r.R-$v.r.L)-$client.R;$dh=($v.r.B-$v.r.T)-$client.B
+ [ImportNative]::SetWindowPos($v.h,[IntPtr](-1),0,0,(960+$dw),(600+$dh),0x0040)|Out-Null
+ Start-Sleep -Seconds 8
+}
+function CloseLauncher {
+ $p=Get-Process -Id $script:proc.Id -ErrorAction SilentlyContinue
+ if ($null -eq $p) {return}
+ if ($p.StartTime.ToUniversalTime().Ticks -ne $script:birth) {throw 'Close birth mismatch'}
+ $p.CloseMainWindow()|Out-Null
+ if (-not $p.WaitForExit(12000)) {throw 'Launcher did not close normally'}
+ $script:proc=$null
+}
+$vanished=Join-Path $prism 'instances/qa-vanished/minecraft';$held=Join-Path $prism 'instances/qa-vanished/minecraft-held'
+try {
+ foreach ($f in (Get-Content (Join-Path $packet 'source-manifest.json') -Raw|ConvertFrom-Json)) {Check ('packet-'+$f.path) ((Get-FileHash (Join-Path $packet $f.path) -Algorithm SHA256).Hash.ToLower() -eq $f.sha256)}
+ Copy-Item -LiteralPath (Join-Path $packet 'PrismLauncher') -Destination $prism -Recurse
+ $before=HashTree $prism;Json $before (Join-Path $evidence 'source-before.json')
+ $env:HORIZON_LAUNCHER_HOME=Join-Path $root 'launcher';$env:HORIZON_HOME=Join-Path $root 'game'
+ foreach($p in @($env:HORIZON_LAUNCHER_HOME,$env:HORIZON_HOME)){New-Item -ItemType Directory -Force $p|Out-Null}
+ @{install_new_versions=$false;skip_opening=$true;owner_notice_seen=$true;ping_notice_seen=$true;basic_summaries=$false}|ConvertTo-Json|Set-Content (Join-Path $env:HORIZON_LAUNCHER_HOME 'settings.json')
+ $consentSource=Get-Content 'crates/horizon-telemetry/src/lib.rs' -Raw;$m=[regex]::Match($consentSource,'pub const CONSENT_VERSION: u32 = ([0-9]+);');if(-not $m.Success){throw 'Consent schema unknown'}
+ New-Item -ItemType Directory (Join-Path $env:HORIZON_HOME 'telemetry')|Out-Null
+ @{version=[int]$m.Groups[1].Value;answered=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds();choices=@{performance=$false;crashes=$false;bugs=$false;benchmarks=$false}}|ConvertTo-Json -Depth 4|Set-Content (Join-Path $env:HORIZON_HOME 'telemetry/consent.json')
+ $env:HORIZON_LAUNCHER_PAGE='instances';$env:HORIZON_LAUNCHER_MOTION='off'
+ StartLauncher;Snap 'initial-instances'|Out-Null
+ Search;Snap 'discovered-rows'|Out-Null
+ ImportRow 'qa fabric import' $false;$fabric=VerifyImported 'qa-fabric' 'qa fabric import' $false
+ Search;ImportRow 'qa no loader import' $true;$plain=VerifyImported 'qa-no-loader' 'qa no loader import' $true
+ Search;$line=Target 'qa vanished import' 'vanished-current-row' $true;Rename-Item -LiteralPath $vanished -NewName 'minecraft-held'
+ ImportRow 'qa vanished import' $true
+ $failure=Target 'could not copy|not find|cannot find|os error' 'visible-missing-source-error' $true
+ Check 'missing-source-visible-error' ($null -ne $failure)
+ Check 'vanished-no-metadata' ((Entry 'qa vanished import').Count -eq 0)
+ Check 'vanished-no-folder' (-not (Test-Path (Join-Path $env:HORIZON_HOME 'instances/qa-vanished-import')))
+ Rename-Item -LiteralPath $held -NewName 'minecraft'
+ $storeBefore=Get-Content (Join-Path $env:HORIZON_LAUNCHER_HOME 'instances.json') -Raw;Json (Store) (Join-Path $evidence 'instances-before-restart.json')
+ CloseLauncher;StartLauncher;Snap 'reopened-instances'|Out-Null
+ $null=VerifyImported 'qa-fabric' 'qa fabric import' $false;$null=VerifyImported 'qa-no-loader' 'qa no loader import' $true
+ Json (Store) (Join-Path $evidence 'instances-after-restart.json')
+ CloseLauncher
+ $after=HashTree $prism;Json $after (Join-Path $evidence 'source-after.json')
+ Check 'source-complete-tree-unchanged' ((ConvertTo-Json -InputObject $before -Compress) -ceq (ConvertTo-Json -InputObject $after -Compress))
+} catch {
+ if (Test-Path $prism) {Json (HashTree $prism) (Join-Path $evidence 'source-at-failure.json')}
+ $checks.Add(@{name='run-exception';pass=$false;detail=$_.Exception.Message})
+ try {Snap 'failure-state'|Out-Null}catch{}
+} finally {
+ if ((Test-Path -LiteralPath $held) -and -not (Test-Path -LiteralPath $vanished)) {Rename-Item -LiteralPath $held -NewName 'minecraft'}
+ try {CloseLauncher}catch{$checks.Add(@{name='close-cleanup';pass=$false;detail=$_.Exception.Message})}
+ Json $actions (Join-Path $evidence 'actions.json');Json $checks (Join-Path $evidence 'checks.json')
+ Json @{source=$source;harness=$env:GITHUB_SHA;run=$env:GITHUB_RUN_ID;binary_sha256=(Get-FileHash 'launcher/target/release/horizon-launcher.exe' -Algorithm SHA256).Hash;roaming=$roaming;prism=$prism;launcher_home=$env:HORIZON_LAUNCHER_HOME;game_home=$env:HORIZON_HOME;os=$env:ImageOS;image_version=$env:ImageVersion;frames=$frames;checks=$checks;limits='synthetic Prism slice only; no Play/sign-in/junction/race/mod compatibility claim'} (Join-Path $evidence 'receipt.json')
+}
+if (@($checks|Where-Object {-not $_.pass}).Count) {throw 'GUI qualification incomplete; retained evidence includes failure'}
