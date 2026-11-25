@@ -35,3 +35,6 @@
 
 # Release-only compiled original exporter bundle.
 /exporters/
+
+# Synthetic marker jars for byte-qualified import tests, not executable game mods.
+!docs/qa/import-fixture/PrismLauncher/instances/*/minecraft/mods/qa.jar

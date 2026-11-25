@@ -126,6 +126,7 @@ function StartLauncher {
  Start-Sleep -Seconds 8
 }
 function CloseLauncher {
+ if ($null -eq $script:proc) {return}
  $p=Get-Process -Id $script:proc.Id -ErrorAction SilentlyContinue
  if ($null -eq $p) {return}
  if ($p.StartTime.ToUniversalTime().Ticks -ne $script:birth) {throw 'Close birth mismatch'}

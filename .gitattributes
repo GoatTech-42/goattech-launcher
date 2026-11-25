@@ -15,3 +15,6 @@ crates/horizon-client-render/src/gfx/native_render/generated.rs linguist-generat
 # Git for Windows' core.autocrlf.
 packaging/goattech/upstream-notices/** -text
 packaging/goattech/covered-source/** -text
+
+# Hash-qualified synthetic import fixtures must survive Windows checkout byte for byte.
+docs/qa/import-fixture/** -text

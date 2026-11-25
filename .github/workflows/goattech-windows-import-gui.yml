@@ -68,7 +68,11 @@ jobs:
           $files=@(Get-ChildItem $out -File)
           if ($files.Count -gt 200 -or ($files | Measure-Object Length -Sum).Sum -gt 40000000) {throw 'Evidence budget exceeded'}
           git -C $out init -b tmp-importgui-1cf1420-output
-          git -C $out add -- '*.png' '*.json'
+          if ($files.Count -eq 0) {throw 'No evidence files to stage'}
+          foreach ($file in $files) {
+            git -C $out add -- $file.Name
+            if ($LASTEXITCODE -ne 0) {throw 'Evidence staging failed'}
+          }
           git -C $out -c user.name=GoatTech-42 -c user.email=156948079+GoatTech-42@users.noreply.github.com commit -m 'Temporary synthetic GUI import evidence'
           $header=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:OUTPUT_TOKEN"))
           git -C $out -c "http.extraheader=AUTHORIZATION: basic $header" push https://github.com/GoatTech-42/goattech-launcher.git HEAD:refs/heads/tmp-importgui-1cf1420-output
