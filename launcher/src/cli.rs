@@ -1938,7 +1938,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
             let mut settings = backend::Settings::load();
             if let Some(line) = args {
                 settings.game_args = line;
-                let _ = settings.save();
+                settings.save().map_err(|e| e.to_string())?;
             }
             let line = settings.game_args;
             if as_json {
