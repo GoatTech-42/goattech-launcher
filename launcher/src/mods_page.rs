@@ -1581,10 +1581,16 @@ impl Launcher {
                 let this = cx.entity().downgrade();
                 move |choice, _, cx| {
                     let _ = this.update(cx, |this, cx| {
+                        let previous = (this.settings.native_profile, this.settings.native_release);
                         this.settings.native_profile = Some(choice);
                         this.settings.native_release = false;
-                        this.native_done = None;
-                        let _ = this.settings.save();
+                        this.native_profile_save_error =
+                            this.settings.save().err().map(|e| e.to_string());
+                        if this.native_profile_save_error.is_some() {
+                            (this.settings.native_profile, this.settings.native_release) = previous;
+                        } else {
+                            this.native_done = None;
+                        }
                         cx.notify();
                     });
                 }
@@ -1607,6 +1613,9 @@ impl Launcher {
                 .child(picker)
                 .child(said),
         );
+        if let Some(e) = self.native_profile_save_error.clone() {
+            detail = detail.child(div().text_color(t.danger).child(e));
+        }
         if let Some(list) = mismatch {
             detail = detail.child(self.native_mismatch_panel(list, cx));
         }
