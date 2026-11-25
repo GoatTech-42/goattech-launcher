@@ -109,7 +109,8 @@ impl List {
                         _ => None,
                     })
                     .collect(),
-                _ => Vec::new(),
+                Some(_) => return None,
+                None => Vec::new(),
             },
         };
         Some(List { entries })

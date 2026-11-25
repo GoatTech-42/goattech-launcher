@@ -479,3 +479,33 @@ fn editing_a_readable_or_missing_list_keeps_existing_servers() {
     assert_eq!(ips, ["first.example", "second.example"]);
     fs::remove_dir_all(home).unwrap();
 }
+
+#[test]
+fn editing_rejects_a_servers_tag_that_is_not_a_list() {
+    let home = scratch("edit-wrong-tag");
+    let current = home.join(FILE);
+    let backup = home.join("servers.dat_old");
+    fs::write(&backup, b"previous list").unwrap();
+    for servers in [Tag::Int(7), s("not a list"), Tag::Compound(Compound::new())] {
+        let root = NamedTag {
+            name: "".into(),
+            tag: Tag::compound([("servers", servers)]),
+        };
+        let bytes = nbt::write_named(&root, Limits::default()).unwrap();
+        fs::write(&current, &bytes).unwrap();
+        let add = || -> Result<(), String> {
+            let mut list = List::load_for_edit(&home)?;
+            list.add("New", "new.example")?;
+            list.save(&home)
+        };
+        assert!(add().is_err(), "a wrong tag type must not be saved over");
+        assert_eq!(fs::read(&current).unwrap(), bytes);
+        assert_eq!(fs::read(&backup).unwrap(), b"previous list");
+        assert!(!home.join("servers.dat_new").exists());
+        assert!(
+            List::load(&home).servers().is_empty(),
+            "display stays forgiving"
+        );
+    }
+    fs::remove_dir_all(home).unwrap();
+}
