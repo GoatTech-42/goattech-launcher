@@ -2386,7 +2386,6 @@ fn account_command(action: AccountCmd, as_json: bool) -> Result<(), String> {
         }
         AccountCmd::ForgetOffline { name } => {
             accounts.remove_offline(&name, &crate::skins::dir())?;
-            accounts.save()?;
             println!("Forgot the offline name {name}.");
         }
     }

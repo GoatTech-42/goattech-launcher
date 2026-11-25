@@ -2004,23 +2004,35 @@ impl Accounts {
         Ok(name.to_string())
     }
 
-    /// Forgets an offline name: its look and its skin and cape files (`skins`) go with it; if
-    /// it was playing, the game's own name plays.
+    /// Persists forgetting an offline name, then removes its skin and cape files (`skins`).
+    /// If it was playing, the game's own name plays. A failed save keeps the name and files.
     pub fn remove_offline(&mut self, name: &str, skins_dir: &Path) -> Result<(), String> {
-        let before = self.offline.len();
-        self.offline.retain(|n| !n.eq_ignore_ascii_case(name));
-        self.looks.remove(&name.to_ascii_lowercase());
-        if self.offline.len() == before {
+        self.remove_offline_in(name, skins_dir, &Self::path())
+    }
+
+    fn remove_offline_in(
+        &mut self,
+        name: &str,
+        skins_dir: &Path,
+        path: &Path,
+    ) -> Result<(), String> {
+        let mut next = self.clone();
+        let before = next.offline.len();
+        next.offline.retain(|n| !n.eq_ignore_ascii_case(name));
+        if next.offline.len() == before {
             return Err(format!("No offline name {name}."));
         }
-        crate::skins::forget(skins_dir, name);
-        if self
+        next.looks.remove(&name.to_ascii_lowercase());
+        if next
             .offline_selected
             .as_ref()
             .is_some_and(|n| n.eq_ignore_ascii_case(name))
         {
-            self.offline_selected = None;
+            next.offline_selected = None;
         }
+        next.save_to(path)?;
+        crate::skins::forget(skins_dir, name);
+        *self = next;
         Ok(())
     }
 

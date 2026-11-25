@@ -1044,11 +1044,14 @@ fn offline_names_switch_with_accounts() {
             ..crate::skins::Look::default()
         },
     );
-    a.remove_offline("BUILDER_1", &dir).unwrap();
+    a.remove_offline_in("BUILDER_1", &dir, &dir.join("accounts.json"))
+        .unwrap();
     assert_eq!(a.player(), Player::GameName);
     assert!(a.looks.is_empty() && !skin.exists() && !cape.exists());
     let _ = std::fs::remove_dir_all(&dir);
-    assert!(a.remove_offline("Builder_1", &dir).is_err());
+    assert!(a
+        .remove_offline_in("Builder_1", &dir, &dir.join("accounts.json"))
+        .is_err());
     // An accounts.json from before offline names reads as it was, and writes nothing new.
     let old: Accounts = serde_json::from_str(r#"{"accounts":[],"selected":null}"#).unwrap();
     assert_eq!(old.player(), Player::GameName);
@@ -2723,7 +2726,9 @@ fn with_no_accounts_every_change_of_player_either_works_or_says_why_and_changes_
     // Forgetting a name that was never kept, or signing out an account that was never in, is
     // refused or a no-op; neither invents a selection.
     let dir = empty_start_dir("forget");
-    let err = accounts.remove_offline("Builder_1", &dir).unwrap_err();
+    let err = accounts
+        .remove_offline_in("Builder_1", &dir, &dir.join("accounts.json"))
+        .unwrap_err();
     assert_eq!(err, "No offline name Builder_1.");
     accounts.remove(&store, UUID).unwrap();
     assert_eq!(accounts, Accounts::default());
@@ -3054,5 +3059,69 @@ fn the_text_a_player_sees_without_sign_in_names_no_setting_but_the_details_line_
         } else {
             assert!(details.is_some(), "{language:?}");
         }
+    }
+}
+
+#[test]
+fn forgetting_an_offline_name_keeps_appearance_when_the_accounts_save_fails() {
+    for blocked_backup in [false, true] {
+        let dir = empty_start_dir(if blocked_backup {
+            "forget-save-backup"
+        } else {
+            "forget-save-read"
+        });
+        let skins = dir.join("skins");
+        std::fs::create_dir_all(&skins).unwrap();
+        let file = dir.join("accounts.json");
+        if blocked_backup {
+            std::fs::write(&file, b"broken accounts").unwrap();
+            std::fs::create_dir(dir.join("accounts.json.damaged")).unwrap();
+        } else {
+            std::fs::create_dir(&file).unwrap();
+        }
+        let (skin, cape) = crate::skins::files(&skins, "Builder_1");
+        std::fs::write(&skin, b"original skin").unwrap();
+        std::fs::write(&cape, b"original cape").unwrap();
+        let mut accounts = Accounts {
+            offline: vec!["Builder_1".into(), "Other_2".into()],
+            offline_selected: Some("Builder_1".into()),
+            ..Accounts::default()
+        };
+        accounts.looks.insert(
+            "builder_1".into(),
+            crate::skins::Look {
+                skin: true,
+                cape: true,
+                ..crate::skins::Look::default()
+            },
+        );
+        let before = accounts.clone();
+        assert!(accounts
+            .remove_offline_in("BUILDER_1", &skins, &file)
+            .is_err());
+        assert_eq!(accounts, before);
+        assert_eq!(std::fs::read(&skin).unwrap(), b"original skin");
+        assert_eq!(std::fs::read(&cape).unwrap(), b"original cape");
+        if blocked_backup {
+            assert_eq!(std::fs::read(&file).unwrap(), b"broken accounts");
+            std::fs::remove_dir(dir.join("accounts.json.damaged")).unwrap();
+        } else {
+            assert!(file.is_dir());
+            std::fs::remove_dir(&file).unwrap();
+        }
+        accounts
+            .remove_offline_in("BUILDER_1", &skins, &file)
+            .unwrap();
+        assert_eq!(accounts.offline, ["Other_2"]);
+        assert_eq!(accounts.offline_selected, None);
+        assert!(accounts.looks.is_empty());
+        assert!(!skin.exists() && !cape.exists());
+        assert_eq!(Accounts::load_from(&file), accounts);
+        let saved = std::fs::read(&file).unwrap();
+        assert!(accounts
+            .remove_offline_in("Builder_1", &skins, &file)
+            .is_err());
+        assert_eq!(std::fs::read(&file).unwrap(), saved);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }
