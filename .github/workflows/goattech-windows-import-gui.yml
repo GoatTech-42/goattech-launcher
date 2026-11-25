@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: 1cf14202456e931d4ba1d9479da24d4bf9174dfb
+          ref: c4c7384ae61d4795205791209f6196618e04c462
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -49,7 +49,7 @@ jobs:
             New-Item -ItemType Directory -Force $diag | Out-Null
             $text=($_.Exception.GetType().FullName+': '+$_.Exception.Message+'; '+$_.InvocationInfo.PositionMessage)
             if ($text.Length -gt 3000) {$text=$text.Substring(0,3000)}
-            @{stage='gui';error=$text;source='1cf14202456e931d4ba1d9479da24d4bf9174dfb'}|ConvertTo-Json|Set-Content (Join-Path $diag 'gui-error.json')
+            @{stage='gui';error=$text;source='c4c7384ae61d4795205791209f6196618e04c462'}|ConvertTo-Json|Set-Content (Join-Path $diag 'gui-error.json')
             Add-Content $env:GITHUB_STEP_SUMMARY ('GUI diagnostic: '+($text -replace '[`<>]','_'))
             throw 'GUI failed; bounded diagnostic retained'
           }
@@ -62,27 +62,35 @@ jobs:
           $ErrorActionPreference='Stop'
           try {
           $out=Join-Path $env:RUNNER_TEMP 'import-gui-evidence'
-          if (-not (Test-Path $out)) {New-Item -ItemType Directory $out | Out-Null;@{status='did not reach GUI script';source='1cf14202456e931d4ba1d9479da24d4bf9174dfb'}|ConvertTo-Json|Set-Content (Join-Path $out 'receipt.json')}
+          if (-not (Test-Path $out)) {New-Item -ItemType Directory $out | Out-Null;@{status='did not reach GUI script';source='c4c7384ae61d4795205791209f6196618e04c462'}|ConvertTo-Json|Set-Content (Join-Path $out 'receipt.json')}
           # Output holds only fixture-derived evidence, never raw process logs or credentials.
           Get-ChildItem $out -File | Where-Object {$_.Extension -notin @('.png','.json')} | Remove-Item
           $files=@(Get-ChildItem $out -File)
           if ($files.Count -gt 200 -or ($files | Measure-Object Length -Sum).Sum -gt 40000000) {throw 'Evidence budget exceeded'}
-          git -C $out init -b tmp-importgui-1cf1420-output
           if ($files.Count -eq 0) {throw 'No evidence files to stage'}
-          foreach ($file in $files) {
-            git -C $out add -- $file.Name
-            if ($LASTEXITCODE -ne 0) {throw 'Evidence staging failed'}
-          }
-          git -C $out -c user.name=GoatTech-42 -c user.email=156948079+GoatTech-42@users.noreply.github.com commit -m 'Temporary synthetic GUI import evidence'
+          $publish=Join-Path $env:RUNNER_TEMP 'import-gui-publish'
+          $remote='https://github.com/GoatTech-42/goattech-launcher.git'
+          $branch='tmp-importgui-1cf1420-output'
           $header=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:OUTPUT_TOKEN"))
-          git -C $out -c "http.extraheader=AUTHORIZATION: basic $header" push https://github.com/GoatTech-42/goattech-launcher.git HEAD:refs/heads/tmp-importgui-1cf1420-output
+          git -c "http.extraheader=AUTHORIZATION: basic $header" clone --single-branch --branch $branch --depth 1 $remote $publish
+          if ($LASTEXITCODE -ne 0) {throw 'Evidence branch fetch failed'}
+          $runPath=Join-Path 'runs' "$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          $destination=Join-Path $publish $runPath
+          if (Test-Path $destination) {throw 'Evidence run destination already exists'}
+          New-Item -ItemType Directory -Path $destination -Force | Out-Null
+          foreach ($file in $files) {Copy-Item -LiteralPath $file.FullName -Destination $destination}
+          git -C $publish add -- $runPath
+          if ($LASTEXITCODE -ne 0) {throw 'Evidence staging failed'}
+          git -C $publish -c user.name=GoatTech-42 -c user.email=156948079+GoatTech-42@users.noreply.github.com commit -m 'Temporary synthetic GUI import evidence'
+          if ($LASTEXITCODE -ne 0) {throw 'Evidence commit failed'}
+          git -C $publish -c "http.extraheader=AUTHORIZATION: basic $header" push $remote HEAD:refs/heads/tmp-importgui-1cf1420-output
           if ($LASTEXITCODE -ne 0) {throw 'Evidence push failed'}
           } catch {
             $diag=Join-Path $env:RUNNER_TEMP 'import-diagnostic'
             New-Item -ItemType Directory -Force $diag | Out-Null
             $text=($_.Exception.GetType().FullName+': '+$_.Exception.Message+'; '+$_.InvocationInfo.PositionMessage)
             if ($text.Length -gt 3000) {$text=$text.Substring(0,3000)}
-            @{stage='evidence-push';error=$text;source='1cf14202456e931d4ba1d9479da24d4bf9174dfb'}|ConvertTo-Json|Set-Content (Join-Path $diag 'push-error.json')
+            @{stage='evidence-push';error=$text;source='c4c7384ae61d4795205791209f6196618e04c462'}|ConvertTo-Json|Set-Content (Join-Path $diag 'push-error.json')
             Add-Content $env:GITHUB_STEP_SUMMARY ('Evidence diagnostic: '+($text -replace '[`<>]','_'))
             throw 'Evidence push failed; bounded diagnostic retained'
           }

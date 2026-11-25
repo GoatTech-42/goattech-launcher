@@ -1,5 +1,5 @@
 $ErrorActionPreference='Stop'
-$source='1cf14202456e931d4ba1d9479da24d4bf9174dfb'
+$source='c4c7384ae61d4795205791209f6196618e04c462'
 if ((git rev-parse HEAD).Trim() -ne $source) {throw 'Unexpected source'}
 $evidence=Join-Path $env:RUNNER_TEMP 'import-gui-evidence';New-Item -ItemType Directory $evidence | Out-Null
 $root=Join-Path $env:RUNNER_TEMP 'import-gui-profile';if (Test-Path $root) {throw 'Profile already exists'}
@@ -117,6 +117,18 @@ function ImportRow($name,$noMods) {
  Start-Sleep -Seconds 20
  Snap ('after-'+$name.Replace(' ','-'))|Out-Null
 }
+function VisibleCopyError($lines) {
+ # Match only the visible prefix. The long path/suffix can be clipped by the window.
+ $v=OwnedWindow
+ return @($lines | Where-Object {
+  $words=@($_.words)
+  $words.Count -ge 3 -and (($words[0..2].text -join ' ') -ieq 'Could not copy') -and
+  @($words[0..2] | Where-Object {
+   $_.x -le $v.r.L+85 -or $_.x+$_.w -ge $v.r.R -or
+   $_.y -le $v.r.T+30 -or $_.y+$_.h -ge $v.r.B
+  }).Count -eq 0
+ })
+}
 function Store {return Get-Content (Join-Path $env:HORIZON_LAUNCHER_HOME 'instances.json') -Raw|ConvertFrom-Json}
 function Entry($name) {return @((Store).instances.PSObject.Properties | Where-Object {$_.Value.name -eq $name})}
 function VerifyImported($id,$name,$noMods) {
@@ -173,8 +185,9 @@ try {
  Search;ImportRow 'qa no loader import' $true;$plain=VerifyImported 'qa-no-loader' 'qa no loader import' $true
  Search;$line=Target '^qa vanished import\s*-\s*Prism Launcher$' 'vanished-current-row' $true;Rename-Item -LiteralPath $vanished -NewName 'minecraft-held'
  ImportRow 'qa vanished import' $true
- $failure=Target 'could not copy|not find|cannot find|os error' 'visible-missing-source-error' $true
- Check 'missing-source-visible-error' ($null -ne $failure)
+ $failureFrame=Snap 'visible-missing-source-error'
+ $failure=@(VisibleCopyError $failureFrame.lines)
+ Check 'missing-source-visible-error' ($failure.Count -eq 1)
  Check 'vanished-no-metadata' ((Entry 'qa vanished import').Count -eq 0)
  Check 'vanished-no-folder' (-not (Test-Path (Join-Path $env:HORIZON_HOME 'instances/qa-vanished-import')))
  Rename-Item -LiteralPath $held -NewName 'minecraft'
