@@ -3125,3 +3125,118 @@ fn forgetting_an_offline_name_keeps_appearance_when_the_accounts_save_fails() {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }
+
+#[test]
+fn replacing_appearance_preserves_files_and_accounts_on_save_or_source_failure() {
+    let dir = empty_start_dir("look-save-failure");
+    let skins = dir.join("skins");
+    std::fs::create_dir_all(&skins).unwrap();
+    let file = dir.join("accounts.json");
+    let source = dir.join("new.png");
+    image::RgbaImage::from_pixel(64, 32, image::Rgba([20, 30, 40, 255]))
+        .save(&source)
+        .unwrap();
+    let mut accounts = Accounts {
+        offline: vec!["Builder_1".into()],
+        offline_selected: Some("Builder_1".into()),
+        ..Accounts::default()
+    };
+    let look = crate::skins::Look {
+        skin: true,
+        cape: true,
+        model: crate::skins::Model::Slim,
+    };
+    let before = accounts.clone();
+    let (skin, cape) = crate::skins::files(&skins, "Builder_1");
+    std::fs::write(&skin, b"original skin").unwrap();
+    std::fs::write(&cape, b"original cape").unwrap();
+    std::fs::create_dir(&file).unwrap();
+    assert!(accounts
+        .keep_look_in(
+            "Builder_1",
+            Some(&source),
+            Some(&source),
+            look.clone(),
+            &skins,
+            &file
+        )
+        .is_err());
+    assert_eq!(accounts, before);
+    assert_eq!(std::fs::read(&skin).unwrap(), b"original skin");
+    assert_eq!(std::fs::read(&cape).unwrap(), b"original cape");
+    std::fs::remove_dir(&file).unwrap();
+    let absent = dir.join("missing.png");
+    assert!(accounts
+        .keep_look_in(
+            "Builder_1",
+            Some(&source),
+            Some(&absent),
+            look.clone(),
+            &skins,
+            &file
+        )
+        .is_err());
+    assert_eq!(accounts, before);
+    assert_eq!(std::fs::read(&skin).unwrap(), b"original skin");
+    assert_eq!(std::fs::read(&cape).unwrap(), b"original cape");
+    assert!(!file.exists());
+    // A blocked second destination must leave the first file unchanged too.
+    std::fs::remove_file(&cape).unwrap();
+    std::fs::create_dir(&cape).unwrap();
+    assert!(accounts
+        .keep_look_in(
+            "Builder_1",
+            Some(&source),
+            Some(&source),
+            look.clone(),
+            &skins,
+            &file
+        )
+        .is_err());
+    assert_eq!(std::fs::read(&skin).unwrap(), b"original skin");
+    assert!(cape.is_dir());
+    assert!(!file.exists());
+    std::fs::remove_dir(&cape).unwrap();
+    // When there was no cape, a failed save must remove the new one.
+    std::fs::create_dir(&file).unwrap();
+    assert!(accounts
+        .keep_look_in(
+            "Builder_1",
+            Some(&source),
+            Some(&source),
+            look.clone(),
+            &skins,
+            &file
+        )
+        .is_err());
+    assert!(!cape.exists());
+    assert_eq!(std::fs::read(&skin).unwrap(), b"original skin");
+    std::fs::remove_dir(&file).unwrap();
+    accounts
+        .keep_look_in(
+            "BUILDER_1",
+            Some(&source),
+            Some(&source),
+            look.clone(),
+            &skins,
+            &file,
+        )
+        .unwrap();
+    assert_eq!(accounts.look("Builder_1"), look);
+    assert_eq!(Accounts::load_from(&file), accounts);
+    assert_eq!(
+        std::fs::read(&skin).unwrap(),
+        std::fs::read(&source).unwrap()
+    );
+    assert_eq!(
+        std::fs::read(&cape).unwrap(),
+        std::fs::read(&source).unwrap()
+    );
+    // No artifacts are kept for an unknown name.
+    assert!(accounts
+        .keep_look_in("Unknown", Some(&source), None, look, &skins, &file)
+        .is_err());
+    assert!(!skins.join("unknown.png").exists());
+    assert_eq!(std::fs::read_dir(&skins).unwrap().count(), 2);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
