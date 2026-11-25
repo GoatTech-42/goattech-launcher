@@ -571,7 +571,8 @@ pub fn copy_game_skipping(found: &Found, to: &Path, skip_mods: bool) -> std::io:
     let entries = fs::read_dir(&found.game)?;
     for entry in entries {
         let entry = entry?;
-        if entry.file_type()?.is_symlink() {
+        let kind = entry.file_type()?;
+        if !kind.is_dir() && !kind.is_file() {
             continue;
         }
         let name = entry.file_name();
@@ -587,7 +588,7 @@ pub fn copy_game_skipping(found: &Found, to: &Path, skip_mods: bool) -> std::io:
         if !wanted {
             continue;
         }
-        if entry.file_type()?.is_dir() {
+        if kind.is_dir() {
             copy_dir_no_links(&entry.path(), &to.join(name.as_ref()))?;
         } else {
             fs::copy(entry.path(), to.join(name.as_ref()))?;
@@ -615,7 +616,7 @@ fn copy_dir_no_links(from: &Path, to: &Path) -> std::io::Result<()> {
     for entry in fs::read_dir(from)? {
         let entry = entry?;
         let kind = entry.file_type()?;
-        if kind.is_symlink() {
+        if !kind.is_dir() && !kind.is_file() {
             continue;
         }
         let target = to.join(entry.file_name());

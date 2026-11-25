@@ -1007,3 +1007,40 @@ fn final_import_metadata_failure_rolls_back_or_identifies_the_partial_instance()
         fs::remove_dir_all(root).unwrap();
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn special_files_are_skipped_at_both_levels_of_an_import() {
+    use std::os::unix::ffi::OsStrExt;
+    let root = scratch("special-files");
+    let game = root.join("game");
+    write(&game.join("options.txt"), "options");
+    write(&game.join("saves/world/level.dat"), "world");
+    for path in [game.join("pipe"), game.join("saves/world/pipe")] {
+        let name = std::ffi::CString::new(path.as_os_str().as_bytes()).unwrap();
+        // SAFETY: the C string is valid and names a scratch path owned by this test.
+        assert_eq!(unsafe { libc::mkfifo(name.as_ptr(), 0o600) }, 0);
+    }
+    let found = Found {
+        launcher: "Prism Launcher",
+        name: "Special".into(),
+        minecraft: Some("1.21.1".into()),
+        loader: None,
+        notes: None,
+        icon: None,
+        game: game.clone(),
+        shared: false,
+    };
+    let to = root.join("copy");
+    copy_game(&found, &to).unwrap();
+    assert_eq!(fs::read(to.join("options.txt")).unwrap(), b"options");
+    assert_eq!(
+        fs::read(to.join("saves/world/level.dat")).unwrap(),
+        b"world"
+    );
+    assert!(!to.join("pipe").exists());
+    assert!(!to.join("saves/world/pipe").exists());
+    assert!(game.join("pipe").exists());
+    assert!(game.join("saves/world/pipe").exists());
+    fs::remove_dir_all(root).unwrap();
+}
