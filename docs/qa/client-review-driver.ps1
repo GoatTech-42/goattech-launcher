@@ -6,8 +6,8 @@ if (-not ('WinCap' -as [type])) { Add-Type -TypeDefinition $src -ReferencedAssem
 Add-Type -AssemblyName System.Drawing
 $bin = "$PWD\launcher\target\release\horizon-launcher.exe"
 $actual = (git rev-parse HEAD).Trim()
-if ($actual -ne $env:CAP_EXPECTED_SOURCE) { throw 'Unexpected instrumented source' }
-"source-commit: $actual; app-base: 5e2f1200d36918ea01b93d4aa083923a0f61fa37; instrumented fixture, NOT exact shipping-tip evidence" | Out-File $info
+if ($actual -ne $env:CAP_EXPECTED_SOURCE) { throw 'Unexpected pinned source' }
+"source-commit: $actual; unmodified pinned app source; fake build ID and isolated test profile, not release qualification" | Out-File $info
 "workflow-commit: $env:GITHUB_SHA" | Out-File $info -Append
 "rustc: $env:CAP_RUSTC_VERSION" | Out-File $info -Append
 "cargo: $env:CAP_CARGO_VERSION" | Out-File $info -Append
@@ -50,7 +50,7 @@ function Verify-TestConsent {
 }
 Verify-TestConsent
 "test-consent: preseeded Keep optional data off equivalent; schema=$consentVersion; all four optional categories=false; install_id absent; basic_summaries=false; test profile only" | Add-Content $info
-$env:HORIZON_MONO_SKY_CAPTURE=$env:CAP_ROUTE
+$env:HORIZON_LAUNCHER_PAGE=$env:CAP_ROUTE
 $env:HORIZON_LAUNCHER_MOTION='off'
 Remove-Item Env:HORIZON_LAUNCHER_DESKTOP_ENTRY -ErrorAction SilentlyContinue
 
@@ -166,12 +166,9 @@ try {
     if ($worker.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $png)) { throw 'Capture worker failed' }
     $v=Verify-Window
   }
-  $brightness=Join-Path $env:CAP 'brightness-state.txt'
-  if (-not (Test-Path -LiteralPath $brightness)) { throw 'Missing frozen brightness receipt' }
-  Get-Content -LiteralPath $brightness -TotalCount 1 | Add-Content $info
   Verify-TestConsent
-  'AUTOMATION-CHECKS: 2 originals saved; instrumented fixture; star pixels still require review' | Add-Content $info
-  'LIMITS: no input injected; descendants can be missed between snapshots; no zero-network or shipping-tip claim' | Add-Content $info
+  'AUTOMATION-CHECKS: 2 full-desktop originals saved; home/settings pixels require review' | Add-Content $info
+  'LIMITS: no input injected; descendants can be missed between snapshots; no zero-network or release-qualification claim' | Add-Content $info
 } catch {
   # Never print an unbounded exception object, filename or window title.
   "FAIL: error-type=$($_.Exception.GetType().Name)" | Add-Content $info

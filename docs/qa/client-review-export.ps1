@@ -28,10 +28,10 @@ foreach ($name in $expected) {
   if ($png.Length -eq 0 -or $png.Length -gt $maxPngBytes -or $script:ClientEncodedTotal+$enc -gt $maxEncodedTotal) { Write-Output "FRAME-SKIP: $name size-or-shared-budget";continue }
   $bytes=[IO.File]::ReadAllBytes($path);$sha=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
   if ($bytes.Length -ne $png.Length) { throw 'Frame changed during read' }
-  Write-Output "###FRAME-BEGIN instrumented-$env:CAP_ROUTE-$name sha256=$sha bytes=$($bytes.Length)"
+  Write-Output "###FRAME-BEGIN desktop-$env:CAP_ROUTE-$name sha256=$sha bytes=$($bytes.Length)"
   $b64=[Convert]::ToBase64String($bytes)
   for ($i=0;$i -lt $b64.Length;$i+=76) {Write-Output $b64.Substring($i,[Math]::Min(76,$b64.Length-$i))}
-  Write-Output "###FRAME-END instrumented-$env:CAP_ROUTE-$name"
+  Write-Output "###FRAME-END desktop-$env:CAP_ROUTE-$name"
   $script:ClientEncodedTotal+=$enc;$found++
 }
 Write-Output "###EXPORT-SUMMARY frames=$found expected=2 shared-encoded=$script:ClientEncodedTotal ceiling=$maxEncodedTotal"
