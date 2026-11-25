@@ -337,6 +337,8 @@ struct Launcher {
     offline_play_error: Option<String>,
     /// The last player-selection save failed; independent of Microsoft sign-in.
     player_selection_error: Option<String>,
+    /// The last generated game-name save failed; independent of Microsoft sign-in.
+    game_name_error: Option<String>,
     /// What to say when the keychain doesn't keep sign-ins ([`account::no_keychain`]).
     keychain: Option<String>,
     /// Whether an account here owns the game, by the keychain's last answers (the owner gate);
@@ -903,6 +905,7 @@ impl Launcher {
             offline_forget_error: None,
             offline_play_error: None,
             player_selection_error: None,
+            game_name_error: None,
             keychain: None,
             owner: None,
             owner_screen_open: false,
@@ -3214,6 +3217,21 @@ fn account_status_line(
         .text_color(color)
         .child(blocks::icon(icon, 14., color))
         .child(tr(label).to_owned())
+}
+
+/// Only a saved game name replaces the one shown; sign-in polling owns neither field.
+fn game_name_result(
+    name: &mut Option<String>,
+    error: &mut Option<String>,
+    result: Result<String, String>,
+) {
+    match result {
+        Ok(saved) => {
+            *name = Some(saved);
+            *error = None;
+        }
+        Err(e) => *error = Some(e),
+    }
 }
 
 /// Polling must handle each sign-in transition once. Replaying a completed sign-in
@@ -7159,6 +7177,27 @@ mod tests {
         assert!(!starts_now(true, true, false), "prepared again under way");
         assert!(!starts_now(false, false, false), "not prepared");
         assert!(!starts_now(true, false, true), "already running");
+    }
+
+    #[test]
+    fn failed_game_name_save_keeps_the_name_and_its_error_across_sign_in_polls() {
+        use super::{game_name_result, sign_in_change, SignInState};
+        let mut name = Some("Player12345".to_string());
+        let mut error = None;
+        game_name_result(&mut name, &mut error, Err("name file is read-only".into()));
+        let mut shown = None;
+        for _ in 0..3 {
+            sign_in_change(
+                &mut shown,
+                SignInState::Done(Err("sign-in cancelled".into())),
+            );
+        }
+        assert_eq!(name.as_deref(), Some("Player12345"));
+        assert_eq!(error.as_deref(), Some("name file is read-only"));
+        game_name_result(&mut name, &mut error, Ok("Player54321".into()));
+        assert_eq!(name.as_deref(), Some("Player54321"));
+        assert!(error.is_none());
+        assert!(matches!(shown, Some(SignInState::Done(Err(_)))));
     }
 
     #[test]
