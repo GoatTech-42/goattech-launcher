@@ -469,6 +469,7 @@
   "account checks": "正版账号验证",
   "settings, packs and horizon mods go in; logs, screenshots, backups and your account never do. worlds go without their per-player files.": "包含设置、包和 Horizon 模组；日志、截图、备份和你的账户绝不会包含在内。世界不包含单人玩家存档数据文件。",
   "block and item icons come from your prepared game files: prepare a version to see them.": "方块和物品图标来自已准备好的游戏文件：请先准备一个版本以查看它们。",
+  "page changes, switches and moving bars hold still.": "页面切换、开关和移动进度条保持静止。",
   "packs": "资源包",
   "Unsigned": "未签名",
   "data packs": "数据包",

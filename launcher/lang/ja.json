@@ -149,6 +149,7 @@
   "not prepared. sign in with the microsoft account that owns minecraft {version} first.": "未準備です。まずMinecraft {version}を所有するMicrosoftアカウントでサインインしてください。",
   "cancel": "キャンセル",
   "worlds": "ワールド",
+  "page changes, switches and moving bars hold still.": "ページ切り替え、スイッチ、動くバーのアニメーションを停止します。",
   "packs": "パック",
   "starting the build": "ビルドを開始中",
   "these mods will run with full access to your computer": "これらのModはコンピューターへのフルアクセス権限を持って実行されます",

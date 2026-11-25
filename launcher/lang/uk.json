@@ -469,6 +469,7 @@
   "account checks": "перевірка облікових записів",
   "settings, packs and horizon mods go in; logs, screenshots, backups and your account never do. worlds go without their per-player files.": "Налаштування, набори та моди Horizon включаються; журнали, знімки екрана, резервні копії та ваш обліковий запис — ніколи. Світи додаються без файлів окремих гравців.",
   "block and item icons come from your prepared game files: prepare a version to see them.": "Піктограми блоків і предметів беруться з підготовлених файлів гри: підготуйте версію, щоб побачити їх.",
+  "page changes, switches and moving bars hold still.": "переходи між сторінками, перемикачі та рухомі смуги залишаються нерухомими.",
   "packs": "Набори",
   "Unsigned": "Без підпису",
   "data packs": "Пакети даних",
