@@ -178,14 +178,7 @@ fn copies_an_instance_but_only_what_a_shared_folder_holds_for_one() {
     copy_game(&found, &own).unwrap();
     assert_eq!(
         listed(&own),
-        [
-            "kubejs",
-            "launcher_profiles.json",
-            "mods",
-            "options.txt",
-            "saves",
-            "versions"
-        ]
+        ["kubejs", "mods", "options.txt", "saves", "versions"]
     );
     assert_eq!(
         fs::read_to_string(own.join("saves/World/level.dat")).unwrap(),
@@ -1042,5 +1035,52 @@ fn special_files_are_skipped_at_both_levels_of_an_import() {
     assert!(!to.join("saves/world/pipe").exists());
     assert!(game.join("pipe").exists());
     assert!(game.join("saves/world/pipe").exists());
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn own_folder_import_leaves_root_credentials_and_sessions_behind() {
+    let root = scratch("root-secrets");
+    let game = root.join("game");
+    let sensitive = [
+        "accounts.json",
+        "launcher_accounts.json",
+        "launcher_profiles.json",
+        "session.json",
+    ];
+    for name in sensitive {
+        write(&game.join(name), "private fixture");
+    }
+    for name in [
+        "options.txt",
+        "saves/World/level.dat",
+        "config/accounts.json",
+    ] {
+        write(&game.join(name), "game fixture");
+    }
+    let found = Found {
+        launcher: "Prism Launcher",
+        name: "Private".into(),
+        minecraft: Some("1.21.1".into()),
+        loader: None,
+        notes: None,
+        icon: None,
+        game: game.clone(),
+        shared: false,
+    };
+    let to = root.join("copy");
+    copy_game(&found, &to).unwrap();
+    for name in sensitive {
+        assert!(!to.join(name).exists(), "copied {name}");
+        assert_eq!(fs::read(game.join(name)).unwrap(), b"private fixture");
+    }
+    for name in [
+        "options.txt",
+        "saves/World/level.dat",
+        "config/accounts.json",
+    ] {
+        assert_eq!(fs::read(to.join(name)).unwrap(), b"game fixture");
+        assert_eq!(fs::read(game.join(name)).unwrap(), b"game fixture");
+    }
     fs::remove_dir_all(root).unwrap();
 }

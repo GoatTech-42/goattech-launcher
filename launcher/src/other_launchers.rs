@@ -93,9 +93,14 @@ const SHARED: [&str; 9] = [
 /// files, and the BlueMap web maps the game asks for tiles around the player
 /// (`horizon_client_render::bluemap::SERVERS_FILE`): only the player names those, never a pack
 /// the other launcher installed.
-const SKIPPED: [&str; 6] = [
+const SKIPPED: [&str; 10] = [
     "logs",
     "crash-reports",
+    // Launcher identities and sessions are not part of an imported game instance.
+    "accounts.json",
+    "launcher_accounts.json",
+    "launcher_profiles.json",
+    "session.json",
     "minecraftinstance.json",
     ".curseclient",
     "horizon-bluemap.txt",
