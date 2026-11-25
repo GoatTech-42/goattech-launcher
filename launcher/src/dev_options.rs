@@ -29,8 +29,12 @@ impl Launcher {
         let t = self.theme;
         let toggle = scaled_switch("dev-offline", self.settings.dev_offline, &t).on_click(
             cx.listener(|this, _: &ClickEvent, _, cx| {
-                this.settings.dev_offline = !this.settings.dev_offline;
-                let _ = this.settings.save();
+                let previous = this.settings.dev_offline;
+                this.settings.dev_offline = !previous;
+                this.dev_offline_save_error = this.settings.save().err().map(|e| e.to_string());
+                if this.dev_offline_save_error.is_some() {
+                    this.settings.dev_offline = previous;
+                }
                 cx.notify();
             }),
         );
@@ -48,9 +52,13 @@ impl Launcher {
                     tr("offline names without an account"),
                     Some(
                         div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(theme::chrome(6.)))
                             .child(tr(
                                 "offline names play without a microsoft account that owns the game. minecraft still comes from your own install.",
                             ))
+                            .children(self.dev_offline_save_error.clone().map(|e| div().text_color(t.danger).child(e)))
                             .into_any_element(),
                     ),
                     Some(toggle.into_any_element()),

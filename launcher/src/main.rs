@@ -276,6 +276,8 @@ struct Launcher {
     auto_prune_save_error: Option<String>,
     /// The last reduce-motion save failed; the prior local choice was restored.
     reduce_motion_save_error: Option<String>,
+    /// The last developer offline-option save failed; the prior local value was restored.
+    dev_offline_save_error: Option<String>,
     /// The last desktop-entry settings save or menu update failed.
     desktop_entry_error: Option<String>,
     /// The last Minecraft folder save failed; the prior local path was restored.
@@ -848,6 +850,7 @@ impl Launcher {
             auto_install_save_error: None,
             auto_prune_save_error: None,
             reduce_motion_save_error: None,
+            dev_offline_save_error: None,
             desktop_entry_error: None,
             minecraft_folder_save_error: None,
             opening_save_error: None,
