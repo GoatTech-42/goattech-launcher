@@ -1159,3 +1159,43 @@ fn only_regular_jar_files_count_as_mods() {
     assert_eq!(mod_jars(&found), 1);
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn root_identity_names_are_excluded_regardless_of_ascii_case() {
+    let root = scratch("identity-case");
+    let game = root.join("source");
+    fs::create_dir_all(&game).unwrap();
+    let identities = [
+        "Accounts.json",
+        "LAUNCHER_ACCOUNTS.JSON",
+        "Launcher_Profiles.Json",
+        "SESSION.JSON",
+    ];
+    for name in identities {
+        fs::write(game.join(name), b"fixture identity").unwrap();
+    }
+    fs::write(game.join("options.txt"), b"options").unwrap();
+    fs::write(game.join("my-accounts.json"), b"ordinary file").unwrap();
+    let found = Found {
+        launcher: "Prism Launcher",
+        name: "case variants".into(),
+        minecraft: None,
+        loader: None,
+        notes: None,
+        game: game.clone(),
+        icon: None,
+        shared: false,
+    };
+    let to = root.join("copy");
+    copy_game_skipping(&found, &to, false).unwrap();
+    for name in identities {
+        assert!(!to.join(name).exists(), "identity copied: {name}");
+        assert_eq!(fs::read(game.join(name)).unwrap(), b"fixture identity");
+    }
+    assert_eq!(fs::read(to.join("options.txt")).unwrap(), b"options");
+    assert_eq!(
+        fs::read(to.join("my-accounts.json")).unwrap(),
+        b"ordinary file"
+    );
+    fs::remove_dir_all(root).unwrap();
+}
