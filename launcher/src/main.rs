@@ -272,6 +272,8 @@ struct Launcher {
     theme_save_error: Option<String>,
     /// The last automatic-install picker save failed; the prior local choice was restored.
     auto_install_save_error: Option<String>,
+    /// The last automatic-prune toggle save failed; the prior local choice was restored.
+    auto_prune_save_error: Option<String>,
     /// Settings' Java runtimes row: (downloaded by the launcher, installed on this computer),
     /// counted on a thread; None until the count answers and again each time Settings opens.
     java_runtimes: Option<(usize, usize)>,
@@ -828,6 +830,7 @@ impl Launcher {
             background_error: None,
             theme_save_error: None,
             auto_install_save_error: None,
+            auto_prune_save_error: None,
             java_runtimes: None,
             java_runtimes_busy: false,
             args_input: line_edit::LineEdit::new(settings.game_args.clone(), 1024, 38),
@@ -4352,8 +4355,12 @@ impl Launcher {
         );
         let prune = scaled_switch("auto-prune", self.settings.auto_prune(), &t).on_click(
             cx.listener(|this, _: &ClickEvent, _, cx| {
+                let previous = this.settings.prune_old_versions;
                 this.settings.prune_old_versions = Some(!this.settings.auto_prune());
-                let _ = this.settings.save();
+                this.auto_prune_save_error = this.settings.save().err().map(|e| e.to_string());
+                if this.auto_prune_save_error.is_some() {
+                    this.settings.prune_old_versions = previous;
+                }
                 cx.notify();
             }),
         );
@@ -4565,10 +4572,13 @@ impl Launcher {
                         tr("delete old versions automatically"),
                         Some(
                             div()
+                                .flex()
+                                .flex_col()
                                 .child(trf(
                                     "keeps the {count} newest, the one in use and the ones your instances use. deleted versions install again from the versions page.",
                                     &[("count", &self.settings.keep_newest().to_string())],
                                 ))
+                                .children(self.auto_prune_save_error.clone().map(|e| div().text_color(t.danger).child(e)))
                                 .into_any_element(),
                         ),
                         Some(prune.into_any_element()),
