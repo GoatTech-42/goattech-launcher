@@ -1199,3 +1199,38 @@ fn root_identity_names_are_excluded_regardless_of_ascii_case() {
     );
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn own_folder_import_leaves_root_msa_token_behind() {
+    let root = scratch("root-msa-token");
+    let game = root.join("game");
+    for name in ["msa_token.json", "MSA_TOKEN.JSON", "Msa_Token.Json"] {
+        write(&game.join(name), "private token fixture");
+    }
+    write(&game.join("config/msa_token.json"), "mod config fixture");
+    let found = Found {
+        launcher: "Prism Launcher",
+        name: "Private".into(),
+        minecraft: Some("1.21.1".into()),
+        loader: None,
+        notes: None,
+        icon: None,
+        game: game.clone(),
+        shared: false,
+    };
+    let to = root.join("copy");
+    copy_game(&found, &to).unwrap();
+    for name in ["msa_token.json", "MSA_TOKEN.JSON", "Msa_Token.Json"] {
+        assert!(!to.join(name).exists(), "copied root sign-in token: {name}");
+        assert_eq!(fs::read(game.join(name)).unwrap(), b"private token fixture");
+    }
+    assert_eq!(
+        fs::read(to.join("config/msa_token.json")).unwrap(),
+        b"mod config fixture"
+    );
+    assert_eq!(
+        fs::read(game.join("config/msa_token.json")).unwrap(),
+        b"mod config fixture"
+    );
+    fs::remove_dir_all(root).unwrap();
+}

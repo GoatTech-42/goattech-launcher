@@ -594,6 +594,7 @@ pub fn copy_game_skipping(found: &Found, to: &Path, skip_mods: bool) -> std::io:
                     "launcher_accounts.json",
                     "launcher_profiles.json",
                     "session.json",
+                    "msa_token.json",
                 ]
                 .iter()
                 .any(|identity| name.eq_ignore_ascii_case(identity))
