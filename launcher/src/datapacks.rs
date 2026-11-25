@@ -109,7 +109,17 @@ pub fn add(world: &Path, file: &Path) -> Result<DataPack, String> {
     fs::copy(file, &target).map_err(|e| format!("Could not copy {}: {e}", file.display()))?;
     let file_name = target.file_name().unwrap().to_string_lossy().into_owned();
     // A pack of the same name removed while it was disabled would stay off.
-    forget(world, &file_name)?;
+    if let Err(mut error) = forget(world, &file_name) {
+        if let Err(cleanup) = fs::remove_file(&target) {
+            if cleanup.kind() != std::io::ErrorKind::NotFound {
+                error.push_str(&format!(
+                    "; could not remove added data pack {}: {cleanup}",
+                    target.display()
+                ));
+            }
+        }
+        return Err(error);
+    }
     list(world)
         .into_iter()
         .find(|p| p.file == file_name)

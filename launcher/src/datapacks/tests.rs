@@ -165,3 +165,52 @@ fn forgetting_a_pack_replaces_datapacks_json_whole_and_keeps_the_rest_of_it() {
     assert_eq!(fs::read(world.join(SETTINGS)).unwrap(), before);
     let _ = fs::remove_dir_all(&root);
 }
+
+#[cfg(unix)]
+#[test]
+fn an_add_that_cannot_save_settings_leaves_no_copy_and_retries_same_name() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = scratch("add-settings-fails");
+    let world = root.join("world");
+    fs::create_dir_all(world.join("datapacks")).unwrap();
+    let settings = br#"{"disabled":["file/New.zip"],"other":7}"#;
+    fs::write(world.join(SETTINGS), settings).unwrap();
+    let file = root.join("drops/New.zip");
+    zip_file(
+        &file,
+        &[
+            ("pack.mcmeta", META),
+            ("data/t/function/a.mcfunction", "say hi"),
+        ],
+    );
+    struct RestorePermissions(PathBuf, fs::Permissions);
+    impl Drop for RestorePermissions {
+        fn drop(&mut self) {
+            fs::set_permissions(&self.0, self.1.clone()).expect("restore fixture permissions");
+        }
+    }
+    let restore = RestorePermissions(world.clone(), fs::metadata(&world).unwrap().permissions());
+    fs::set_permissions(&world, fs::Permissions::from_mode(0o555)).unwrap();
+    let probe = world.join("write-probe");
+    if fs::write(&probe, b"probe").is_ok() {
+        fs::remove_file(probe).unwrap();
+        drop(restore);
+        fs::remove_dir_all(root).unwrap();
+        eprintln!("skipped permission-denial fixture: process can write mode-555 directory");
+        return;
+    }
+    let error = add(&world, &file).unwrap_err();
+    assert!(error.contains(SETTINGS), "{error}");
+    assert!(
+        !world.join("datapacks/New.zip").exists(),
+        "a failed add must not leave a copied pack"
+    );
+    assert_eq!(fs::read(world.join(SETTINGS)).unwrap(), settings);
+    assert_eq!(fs::read_dir(world.join("datapacks")).unwrap().count(), 0);
+    assert!(file.is_file(), "source remains");
+    drop(restore);
+    let added = add(&world, &file).unwrap();
+    assert_eq!(added.file, "New.zip", "retry uses the original free name");
+    assert!(added.enabled);
+    fs::remove_dir_all(root).unwrap();
+}
