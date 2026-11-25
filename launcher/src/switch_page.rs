@@ -230,12 +230,12 @@ impl Launcher {
                 scaled_button(format!("offline-forget-{i}"), "forget", Kind::Ghost, &t).on_click(
                     cx.listener(move |this, _: &ClickEvent, _, cx| {
                         let mut accounts = Accounts::load();
-                        if accounts
+                        let done = accounts
                             .remove_offline(&forget, &horizon_launcher::skins::dir())
-                            .is_ok()
-                            && accounts.save().is_ok()
-                        {
-                            this.accounts = accounts;
+                            .and_then(|()| accounts.save());
+                        match done {
+                            Ok(()) => this.accounts = accounts,
+                            Err(e) => this.sign_in_state = Some(SignInState::Done(Err(e))),
                         }
                         cx.notify();
                     }),
