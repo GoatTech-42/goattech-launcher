@@ -322,6 +322,8 @@ struct Launcher {
     /// Microsoft accounts (accounts.json), the sign-in under way and what it last showed.
     accounts: Accounts,
     auth_status: HashMap<String, account::session::Status>,
+    /// Sign-out failures belong to their account, not the Microsoft sign-in flow.
+    account_removal_errors: HashMap<String, String>,
     auth_progress: HashMap<String, account::session::Phase>,
     profile_heads: profile_heads::Heads,
     /// When page switches last checked every account's sign-in.
@@ -894,6 +896,7 @@ impl Launcher {
             modal_keys: None,
             accounts: Accounts::load(),
             auth_status: HashMap::new(),
+            account_removal_errors: HashMap::new(),
             auth_progress: HashMap::new(),
             profile_heads: profile_heads::Heads::default(),
             auth_checked: None,
@@ -1332,13 +1335,12 @@ impl Launcher {
                     }
                     self.auth_busy.remove(&uuid);
                     self.auth_progress.remove(&uuid);
-                    match result {
-                        Ok(owns) => {
-                            self.accounts = Accounts::load();
-                            self.auth_status.remove(&uuid);
-                            self.owner = Some(owns);
-                        }
-                        Err(e) => self.sign_in_state = Some(SignInState::Done(Err(e))),
+                    if let Some(owns) =
+                        account_removal_result(&mut self.account_removal_errors, &uuid, result)
+                    {
+                        self.accounts = Accounts::load();
+                        self.auth_status.remove(&uuid);
+                        self.owner = Some(owns);
                     }
                 }
                 Msg::Playing(playing) => self.playing = playing,
@@ -3217,6 +3219,24 @@ fn account_status_line(
         .text_color(color)
         .child(blocks::icon(icon, 14., color))
         .child(tr(label).to_owned())
+}
+
+/// Record each removal's outcome without changing another account's error or sign-in.
+fn account_removal_result(
+    errors: &mut HashMap<String, String>,
+    uuid: &str,
+    result: Result<bool, String>,
+) -> Option<bool> {
+    match result {
+        Ok(owns) => {
+            errors.remove(uuid);
+            Some(owns)
+        }
+        Err(e) => {
+            errors.insert(uuid.into(), e);
+            None
+        }
+    }
 }
 
 /// Only a saved game name replaces the one shown; sign-in polling owns neither field.
@@ -5181,6 +5201,11 @@ impl Launcher {
                             "microsoft account"
                         }))
                         .child(account_status_line(status, progress, &t))
+                        .children(
+                            self.account_removal_errors
+                                .get(&a.uuid)
+                                .map(|e| div().text_color(t.danger).child(e.clone())),
+                        )
                         .when(!busy, |row| {
                             row.when_some(status.filter(|s| s.message != s.label()), |row, s| {
                                 row.child(div().child(tr(&s.message).to_string()))
@@ -7177,6 +7202,44 @@ mod tests {
         assert!(!starts_now(true, true, false), "prepared again under way");
         assert!(!starts_now(false, false, false), "not prepared");
         assert!(!starts_now(true, false, true), "already running");
+    }
+
+    #[test]
+    fn removal_failures_stay_with_their_account_until_that_removal_succeeds() {
+        use super::{account_removal_result, sign_in_change, SignInState};
+        let mut errors = std::collections::HashMap::new();
+        assert_eq!(
+            account_removal_result(&mut errors, "one", Err("keychain locked".into())),
+            None
+        );
+        assert_eq!(
+            account_removal_result(&mut errors, "two", Err("save denied".into())),
+            None
+        );
+        let mut shown = None;
+        for _ in 0..3 {
+            sign_in_change(
+                &mut shown,
+                SignInState::Done(Err("sign-in cancelled".into())),
+            );
+        }
+        assert_eq!(
+            errors.get("one").map(String::as_str),
+            Some("keychain locked")
+        );
+        assert_eq!(errors.get("two").map(String::as_str), Some("save denied"));
+        assert_eq!(
+            account_removal_result(&mut errors, "one", Ok(false)),
+            Some(false)
+        );
+        assert!(!errors.contains_key("one"));
+        assert_eq!(errors.get("two").map(String::as_str), Some("save denied"));
+        assert_eq!(
+            account_removal_result(&mut errors, "two", Ok(true)),
+            Some(true)
+        );
+        assert!(errors.is_empty());
+        assert!(matches!(shown, Some(SignInState::Done(Err(_)))));
     }
 
     #[test]
