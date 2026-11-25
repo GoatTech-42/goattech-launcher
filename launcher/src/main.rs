@@ -378,6 +378,8 @@ struct Launcher {
     args_focus: FocusHandle,
     /// Settings' Proxy field, the same way (`proxy`).
     proxy_input: line_edit::LineEdit,
+    /// The last proxy save failed; typed input stays available to edit or retry.
+    proxy_save_error: Option<String>,
     proxy_focused: bool,
     proxy_focus: FocusHandle,
     /// Opt-in data collection: the player's answer and Settings' section (`collection`).
@@ -845,6 +847,7 @@ impl Launcher {
             args_input: line_edit::LineEdit::new(settings.game_args.clone(), 1024, 38),
             args_focused: false,
             args_focus: cx.focus_handle(),
+            proxy_save_error: None,
             proxy_input: line_edit::LineEdit::new(
                 settings.proxy.clone().unwrap_or_default(),
                 256,
@@ -4971,7 +4974,19 @@ impl Launcher {
         index_row(
             n,
             tr("proxy"),
-            Some(detail),
+            Some(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(theme::chrome(6.)))
+                    .child(detail)
+                    .children(
+                        self.proxy_save_error
+                            .clone()
+                            .map(|e| div().text_color(t.danger).child(e)),
+                    )
+                    .into_any_element(),
+            ),
             Some(field.into_any_element()),
             &t,
         )
@@ -4981,9 +4996,14 @@ impl Launcher {
     /// (`horizon-port-pack`) which proxy to use.
     fn save_proxy(&mut self) {
         let value = self.proxy_input.text().trim().to_owned();
+        let previous = self.settings.proxy.clone();
         self.settings.proxy = (!value.is_empty()).then_some(value);
-        let _ = self.settings.save();
-        horizon_launcher::proxy::announce(self.settings.proxy.clone());
+        self.proxy_save_error = self.settings.save().err().map(|e| e.to_string());
+        if self.proxy_save_error.is_some() {
+            self.settings.proxy = previous;
+        } else {
+            horizon_launcher::proxy::announce(self.settings.proxy.clone());
+        }
     }
 
     /// Settings' Microsoft accounts: who is signed in and plays, the sign-in with its code. The
