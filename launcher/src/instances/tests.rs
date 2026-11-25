@@ -946,3 +946,40 @@ fn a_dangling_instance_link_does_not_block_pruning_a_gone_instance() {
     );
     fs::remove_dir_all(root).unwrap();
 }
+
+#[cfg(unix)]
+#[test]
+fn cloning_skips_special_files_at_the_root_and_inside_folders() {
+    use std::os::unix::ffi::OsStrExt;
+    let root = scratch("clone-special");
+    let source = root.join("source");
+    put(&source.join("options.txt"), "options");
+    put(&source.join("saves/world/level.dat"), "world");
+    for path in [source.join("pipe"), source.join("saves/world/pipe")] {
+        let name = std::ffi::CString::new(path.as_os_str().as_bytes()).unwrap();
+        // SAFETY: valid C string names a scratch path owned by this test.
+        assert_eq!(unsafe { libc::mkfifo(name.as_ptr(), 0o600) }, 0);
+    }
+    std::os::unix::fs::symlink(source.join("pipe"), source.join("linked-pipe")).unwrap();
+    std::os::unix::fs::symlink(
+        source.join("saves/world/pipe"),
+        source.join("saves/world/linked-pipe"),
+    )
+    .unwrap();
+    std::os::unix::fs::symlink(source.join("options.txt"), source.join("linked-options")).unwrap();
+    let to = root.join("copy");
+    copy_home(&source, &to).unwrap();
+    assert_eq!(fs::read(to.join("options.txt")).unwrap(), b"options");
+    assert_eq!(
+        fs::read(to.join("saves/world/level.dat")).unwrap(),
+        b"world"
+    );
+    assert_eq!(fs::read(to.join("linked-options")).unwrap(), b"options");
+    assert!(!to.join("linked-pipe").exists());
+    assert!(!to.join("saves/world/linked-pipe").exists());
+    assert!(!to.join("pipe").exists());
+    assert!(!to.join("saves/world/pipe").exists());
+    assert!(source.join("pipe").symlink_metadata().is_ok());
+    assert!(source.join("saves/world/pipe").symlink_metadata().is_ok());
+    fs::remove_dir_all(root).unwrap();
+}

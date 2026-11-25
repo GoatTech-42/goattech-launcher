@@ -880,7 +880,11 @@ fn copy_home(from: &Path, to: &Path) -> std::io::Result<()> {
             continue;
         }
         let path = entry.path();
-        if entry.file_type()?.is_dir() {
+        let kind = entry.file_type()?;
+        if special_copy_entry(&entry.path(), kind)? {
+            continue;
+        }
+        if kind.is_dir() {
             copy_dir(&path, &to.join(&name))?;
         } else {
             fs::copy(&path, to.join(&name))?;
@@ -894,13 +898,36 @@ fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
     for entry in fs::read_dir(from)? {
         let entry = entry?;
         let target = to.join(entry.file_name());
-        if entry.file_type()?.is_dir() {
+        let kind = entry.file_type()?;
+        if special_copy_entry(&entry.path(), kind)? {
+            continue;
+        }
+        if kind.is_dir() {
             copy_dir(&entry.path(), &target)?;
         } else {
             fs::copy(entry.path(), target)?;
         }
     }
     Ok(())
+}
+
+/// A clone keeps ordinary symlink behavior, but must never open a device or wait on a pipe.
+fn special_copy_entry(path: &Path, kind: fs::FileType) -> std::io::Result<bool> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::FileTypeExt;
+        let kind = if kind.is_symlink() {
+            fs::metadata(path)?.file_type()
+        } else {
+            kind
+        };
+        Ok(kind.is_fifo() || kind.is_socket() || kind.is_char_device() || kind.is_block_device())
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (path, kind);
+        Ok(false)
+    }
 }
 
 /// A Java instance's `-Xmx` choice in MiB, if it set one (`JavaGame::memory_mb`);
