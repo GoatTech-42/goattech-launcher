@@ -96,22 +96,23 @@ impl List {
         };
         let entries = match bytes.is_empty() {
             true => Vec::new(),
-            false => match nbt::read_named(&bytes, Limits::default())
-                .ok()?
-                .0
-                .tag
-                .get("servers")
-            {
-                Some(Tag::List(list)) => list
-                    .iter()
-                    .filter_map(|t| match t {
-                        Tag::Compound(c) => Some(c.clone()),
-                        _ => None,
-                    })
-                    .collect(),
-                Some(_) => return None,
-                None => Vec::new(),
-            },
+            false => {
+                let Tag::Compound(root) = nbt::read_named(&bytes, Limits::default()).ok()?.0.tag
+                else {
+                    return None;
+                };
+                match root.get(&key("servers")) {
+                    Some(Tag::List(list)) => list
+                        .iter()
+                        .filter_map(|t| match t {
+                            Tag::Compound(c) => Some(c.clone()),
+                            _ => None,
+                        })
+                        .collect(),
+                    Some(_) => return None,
+                    None => Vec::new(),
+                }
+            }
         };
         Some(List { entries })
     }
