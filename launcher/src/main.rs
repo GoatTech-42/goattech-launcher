@@ -276,6 +276,8 @@ struct Launcher {
     auto_prune_save_error: Option<String>,
     /// The last reduce-motion save failed; the prior local choice was restored.
     reduce_motion_save_error: Option<String>,
+    /// The last Minecraft folder save failed; the prior local path was restored.
+    minecraft_folder_save_error: Option<String>,
     /// The last opening-animation save failed; the prior local choice was restored.
     opening_save_error: Option<String>,
     /// Settings' Java runtimes row: (downloaded by the launcher, installed on this computer),
@@ -836,6 +838,7 @@ impl Launcher {
             auto_install_save_error: None,
             auto_prune_save_error: None,
             reduce_motion_save_error: None,
+            minecraft_folder_save_error: None,
             opening_save_error: None,
             java_runtimes: None,
             java_runtimes_busy: false,
@@ -2345,8 +2348,13 @@ impl Launcher {
             if let Ok(Ok(Some(mut paths))) = paths.await {
                 if let Some(path) = paths.pop() {
                     let _ = this.update(cx, |this, cx| {
+                        let previous = this.settings.minecraft_dir.clone();
                         this.settings.minecraft_dir = Some(path);
-                        let _ = this.settings.save();
+                        this.minecraft_folder_save_error =
+                            this.settings.save().err().map(|e| e.to_string());
+                        if this.minecraft_folder_save_error.is_some() {
+                            this.settings.minecraft_dir = previous;
+                        }
                         cx.notify();
                     });
                 }
@@ -4079,7 +4087,17 @@ impl Launcher {
                 .child(index_row(
                 3,
                 tr("minecraft folder"),
-                Some(minecraft),
+                Some(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(theme::chrome(6.)))
+                        .child(minecraft)
+                        .children(self.minecraft_folder_save_error.clone().map(|e| {
+                            div().text_color(t.danger).child(e)
+                        }))
+                        .into_any_element(),
+                ),
                 Some(
                     button("choose-mc", "choose…", Kind::Ghost, &t)
                         .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.choose_folder(cx)))
