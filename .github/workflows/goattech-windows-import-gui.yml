@@ -41,7 +41,18 @@ jobs:
       - name: Actual GUI import and restart qualification
         shell: powershell
         timeout-minutes: 12
-        run: '& _capture/docs/qa/import-gui.ps1'
+        run: |
+          $ErrorActionPreference='Stop'
+          try { & _capture/docs/qa/import-gui.ps1 }
+          catch {
+            $diag=Join-Path $env:RUNNER_TEMP 'import-diagnostic'
+            New-Item -ItemType Directory -Force $diag | Out-Null
+            $text=($_.Exception.GetType().FullName+': '+$_.Exception.Message+'; '+$_.InvocationInfo.PositionMessage)
+            if ($text.Length -gt 3000) {$text=$text.Substring(0,3000)}
+            @{stage='gui';error=$text;source='1cf14202456e931d4ba1d9479da24d4bf9174dfb'}|ConvertTo-Json|Set-Content (Join-Path $diag 'gui-error.json')
+            Add-Content $env:GITHUB_STEP_SUMMARY ('GUI diagnostic: '+($text -replace '[`<>]','_'))
+            throw 'GUI failed; bounded diagnostic retained'
+          }
       - name: Retain bounded synthetic evidence on temporary output branch
         if: always()
         shell: pwsh
@@ -49,6 +60,7 @@ jobs:
           OUTPUT_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference='Stop'
+          try {
           $out=Join-Path $env:RUNNER_TEMP 'import-gui-evidence'
           if (-not (Test-Path $out)) {New-Item -ItemType Directory $out | Out-Null;@{status='did not reach GUI script';source='1cf14202456e931d4ba1d9479da24d4bf9174dfb'}|ConvertTo-Json|Set-Content (Join-Path $out 'receipt.json')}
           # Output holds only fixture-derived evidence, never raw process logs or credentials.
@@ -61,3 +73,23 @@ jobs:
           $header=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:OUTPUT_TOKEN"))
           git -C $out -c "http.extraheader=AUTHORIZATION: basic $header" push https://github.com/GoatTech-42/goattech-launcher.git HEAD:refs/heads/tmp-importgui-1cf1420-output
           if ($LASTEXITCODE -ne 0) {throw 'Evidence push failed'}
+          } catch {
+            $diag=Join-Path $env:RUNNER_TEMP 'import-diagnostic'
+            New-Item -ItemType Directory -Force $diag | Out-Null
+            $text=($_.Exception.GetType().FullName+': '+$_.Exception.Message+'; '+$_.InvocationInfo.PositionMessage)
+            if ($text.Length -gt 3000) {$text=$text.Substring(0,3000)}
+            @{stage='evidence-push';error=$text;source='1cf14202456e931d4ba1d9479da24d4bf9174dfb'}|ConvertTo-Json|Set-Content (Join-Path $diag 'push-error.json')
+            Add-Content $env:GITHUB_STEP_SUMMARY ('Evidence diagnostic: '+($text -replace '[`<>]','_'))
+            throw 'Evidence push failed; bounded diagnostic retained'
+          }
+      - name: Upload bounded diagnostic and synthetic evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: import-gui-diagnostic
+          retention-days: 2
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/import-diagnostic/*.json
+            ${{ runner.temp }}/import-gui-evidence/*.json
+            ${{ runner.temp }}/import-gui-evidence/*.png
