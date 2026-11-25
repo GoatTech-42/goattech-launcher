@@ -1627,14 +1627,18 @@ impl Launcher {
                                 self.updates.horizon = None;
                             }
                             if as_update.is_none_or(|(_, select)| select) {
-                                self.settings.selected = Some(tag);
+                                self.settings.selected = Some(tag.clone());
                             }
-                            let _ = self.settings.save();
-                            // After the save: the selected version is never pruned.
-                            let tx = self.tx.clone();
-                            std::thread::spawn(move || {
-                                let _ = tx.send(Msg::Pruned(backend::prune_old_versions()));
-                            });
+                            match self.settings.save() {
+                                Ok(()) => {
+                                    // Pruning reloads settings: only start after selection was saved.
+                                    let tx = self.tx.clone();
+                                    std::thread::spawn(move || {
+                                        let _ = tx.send(Msg::Pruned(backend::prune_old_versions()));
+                                    });
+                                }
+                                Err(e) => self.install_error = Some((tag, e.to_string())),
+                            }
                         }
                         Err(e) => self.install_error = Some((tag, e)),
                     }
