@@ -329,6 +329,8 @@ struct Launcher {
     sign_in_state: Option<SignInState>,
     /// The last offline-name Forget failed; independent of background Microsoft sign-in.
     offline_forget_error: Option<String>,
+    /// The last Play offline account save failed; independent of Microsoft sign-in.
+    offline_play_error: Option<String>,
     /// What to say when the keychain doesn't keep sign-ins ([`account::no_keychain`]).
     keychain: Option<String>,
     /// Whether an account here owns the game, by the keychain's last answers (the owner gate);
@@ -891,6 +893,7 @@ impl Launcher {
             sign_in: None,
             sign_in_state: None,
             offline_forget_error: None,
+            offline_play_error: None,
             keychain: None,
             owner: None,
             owner_screen_open: false,
@@ -5053,8 +5056,11 @@ impl Launcher {
                             let mut accounts = Accounts::load();
                             accounts.selected = None;
                             match accounts.save() {
-                                Ok(()) => this.accounts = accounts,
-                                Err(e) => this.sign_in_state = Some(SignInState::Done(Err(e))),
+                                Ok(()) => {
+                                    this.accounts = accounts;
+                                    this.offline_play_error = None;
+                                }
+                                Err(e) => this.offline_play_error = Some(e),
                             }
                             cx.notify();
                         })),
@@ -5222,6 +5228,16 @@ impl Launcher {
                 .child(div().child(said)),
             _ => detail,
         };
+        let detail = div()
+            .flex()
+            .flex_col()
+            .gap(px(theme::chrome(4.)))
+            .child(detail)
+            .children(
+                self.offline_play_error
+                    .clone()
+                    .map(|e| div().text_color(t.danger).child(e)),
+            );
         let action = if !configured {
             None
         } else if let Some(SignInState::Code(code)) = &self.sign_in_state {
