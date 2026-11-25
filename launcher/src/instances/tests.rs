@@ -881,3 +881,68 @@ fn the_first_pick_check_reads_the_versions_folder_only_when_nothing_else_decides
         }
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn an_unreadable_instances_directory_never_prunes_saved_metadata() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = scratch("unreadable-own");
+    let (home, data) = (root.join("home"), root.join("data"));
+    let own = home.join(OWN);
+    fs::create_dir_all(own.join("survival")).unwrap();
+    put(
+        &data.join(FILE),
+        r#"{"instances":{"survival":{"name":"Kept name","notes":"Keep notes"}}}"#,
+    );
+    let original = fs::read(data.join(FILE)).unwrap();
+    struct RestorePermissions(PathBuf, fs::Permissions);
+    impl Drop for RestorePermissions {
+        fn drop(&mut self) {
+            fs::set_permissions(&self.0, self.1.clone()).expect("restore fixture permissions");
+        }
+    }
+    let restore = RestorePermissions(own.clone(), fs::metadata(&own).unwrap().permissions());
+    fs::set_permissions(&own, fs::Permissions::from_mode(0o000)).unwrap();
+    let denied = fs::read_dir(&own).is_err();
+    if !denied {
+        drop(restore);
+        fs::remove_dir_all(root).unwrap();
+        eprintln!("skipped permission-denial fixture: process can read mode-000 directory");
+        return;
+    }
+    let listed = list_in(&home, &data);
+    let after = fs::read(data.join(FILE)).unwrap();
+    drop(restore);
+    assert_eq!(
+        after, original,
+        "listing must not mistake unreadable for empty"
+    );
+    assert!(listed.iter().all(|i| i.id != "survival"));
+    let restored = list_in(&home, &data);
+    let kept = restored.iter().find(|i| i.id == "survival").unwrap();
+    assert_eq!(kept.name, "Kept name");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn a_dangling_instance_link_does_not_block_pruning_a_gone_instance() {
+    let root = scratch("dangling-prune");
+    let (home, data) = (root.join("home"), root.join("data"));
+    fs::create_dir_all(home.join(OWN).join("kept")).unwrap();
+    std::os::unix::fs::symlink("missing-target", home.join(OWN).join("dangling")).unwrap();
+    put(
+        &data.join(FILE),
+        r#"{"instances":{"gone":{"name":"Gone"},"kept":{"name":"Kept"}}}"#,
+    );
+    let all = list_in(&home, &data);
+    assert!(all.iter().any(|i| i.id == "kept" && i.name == "Kept"));
+    assert!(!all.iter().any(|i| i.id == "dangling"));
+    let store = Store::load_strict(&data).unwrap();
+    assert!(!store.instances.contains_key("gone"));
+    assert_eq!(
+        store.instances.get("kept").unwrap().name.as_deref(),
+        Some("Kept")
+    );
+    fs::remove_dir_all(root).unwrap();
+}
