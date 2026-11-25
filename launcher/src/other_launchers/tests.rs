@@ -924,3 +924,86 @@ fn a_copy_failure_reports_when_rollback_leaves_the_partial_instance() {
     );
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn final_import_metadata_failure_rolls_back_or_identifies_the_partial_instance() {
+    for refuse_cleanup in [false, true] {
+        let root = scratch(if refuse_cleanup {
+            "metadata-cleanup-denied"
+        } else {
+            "metadata-cleanup"
+        });
+        let home = root.join("destination");
+        let data = root.join("store");
+        let blocked = data.join(format!("instances.json.tmp-{}", std::process::id()));
+        let found = Found {
+            launcher: "Prism Launcher",
+            name: "Original".into(),
+            minecraft: Some("1.21.1".into()),
+            loader: None,
+            notes: Some("keep my notes".into()),
+            icon: None,
+            game: root.join("source"),
+            shared: false,
+        };
+        write(&found.game.join("options.txt"), "original options");
+        let called = std::cell::RefCell::new(None);
+        let result = import_in(
+            &found,
+            "metadata-copy",
+            None,
+            false,
+            &ImportStore {
+                game_home: &home,
+                data: &data,
+                versions: &|| {
+                    crate::minecraft_versions::Versions::parse(
+                        r#"{"versions":[{"id":"1.21.1","type":"release","url":"unused","sha1":"unused"}]}"#,
+                    )
+                },
+                copy: &|found, to, skip| {
+                    copy_game_skipping(found, to, skip)?;
+                    assert_eq!(
+                        fs::read(to.join("options.txt")).unwrap(),
+                        b"original options"
+                    );
+                    // Fail only the final metadata write, after creation and real copying.
+                    fs::create_dir(&blocked)
+                },
+                rollback: &|id| {
+                    *called.borrow_mut() = Some(id.to_string());
+                    fs::remove_dir(&blocked).unwrap();
+                    crate::instances::delete_in(&home, &data, id, &|path| {
+                        if refuse_cleanup {
+                            Err("Trash denied".into())
+                        } else {
+                            fs::remove_dir_all(path).map_err(|e| e.to_string())
+                        }
+                    })
+                    .map(|_| ())
+                },
+            },
+        );
+        let error = result.unwrap_err();
+        assert!(error.contains("instances.json.tmp-"));
+        let id = called
+            .borrow()
+            .clone()
+            .expect("final metadata failure requested rollback");
+        let remains = crate::instances::list_in(&home, &data)
+            .iter()
+            .any(|i| i.id == id);
+        assert_eq!(remains, refuse_cleanup);
+        assert_eq!(home.join("instances").join(&id).exists(), refuse_cleanup);
+        if refuse_cleanup {
+            assert!(error.contains("Trash denied"));
+            assert!(error.contains(&id));
+            assert!(error.contains("partial instance"));
+        }
+        assert_eq!(
+            fs::read(found.game.join("options.txt")).unwrap(),
+            b"original options"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+}

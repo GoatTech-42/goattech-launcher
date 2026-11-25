@@ -786,11 +786,20 @@ fn import_in(
     if loader.is_some() || notes.is_some() {
         // edit returns the instance as written, so the caller (and --json) never sees the
         // pre-edit snapshot.
-        return instances::edit_in(game_home, data, &instance.id, |m| {
+        let edited = instances::edit_in(game_home, data, &instance.id, |m| {
             if let Some(l) = loader {
                 m.java.get_or_insert_with(Default::default).loader = Some(l);
             }
             m.notes = notes;
+        });
+        return edited.map_err(|mut error| {
+            if let Err(cleanup) = rollback(&instance.id) {
+                error.push_str(&format!(
+                    "; could not remove partial instance {}: {cleanup}",
+                    instance.id
+                ));
+            }
+            error
         });
     }
     Ok(instance)
