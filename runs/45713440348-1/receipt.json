@@ -1,0 +1,560 @@
+{
+    "binary_sha256":  "DC08E4471AFE4A327D3F26FDDB1C10BCE7B018E57E2D5477583D7B3FA28A8E5F",
+    "image_version":  "20261123.321.1",
+    "harness":  "25e44ab26764523abcd9ddef5560d0ff9b01974d",
+    "run":  "45713440348",
+    "prism":  "C:\\Users\\runneradmin\\AppData\\Roaming\\PrismLauncher",
+    "game_home":  "D:\\a\\_temp\\import-gui-profile\\game",
+    "source":  "cdbc87ee2a6d65e81555603be30b7690afb52c5f",
+    "os":  "win25-vs2026",
+    "launcher_home":  "D:\\a\\_temp\\import-gui-profile\\launcher",
+    "roaming":  "C:\\Users\\runneradmin\\AppData\\Roaming",
+    "frames":  [
+                   {
+                       "sha256":  "17C105B571D33B773291C03B305DDFD78FDF966410BAAC78E17D1109D300CA96",
+                       "file":  "01-initial-instances.png",
+                       "bytes":  696548
+                   },
+                   {
+                       "sha256":  "17C105B571D33B773291C03B305DDFD78FDF966410BAAC78E17D1109D300CA96",
+                       "file":  "02-locate-search.png",
+                       "bytes":  696548
+                   },
+                   {
+                       "sha256":  "9F3B361EEB9122F82A8FBD1642943AB74391EF43FF9DE0895D7CF58CA7C31E28",
+                       "file":  "03-locate-search.png",
+                       "bytes":  694594
+                   },
+                   {
+                       "sha256":  "F58091143B9C96053FD12907AF9CD454A7EFDABDBC00739D5B07877537797331",
+                       "file":  "04-discovered-rows.png",
+                       "bytes":  696461
+                   },
+                   {
+                       "sha256":  "F58091143B9C96053FD12907AF9CD454A7EFDABDBC00739D5B07877537797331",
+                       "file":  "05-no-error-960.png",
+                       "bytes":  696461
+                   },
+                   {
+                       "sha256":  "F58091143B9C96053FD12907AF9CD454A7EFDABDBC00739D5B07877537797331",
+                       "file":  "06-no-error-960-search.png",
+                       "bytes":  696461
+                   },
+                   {
+                       "sha256":  "A9F1BA9DAB42EF0BB0CD888D8F390D9CCE386E24300A5A5A1081255E6F85E7F4",
+                       "file":  "07-no-error-960-search.png",
+                       "bytes":  702733
+                   },
+                   {
+                       "sha256":  "A9F1BA9DAB42EF0BB0CD888D8F390D9CCE386E24300A5A5A1081255E6F85E7F4",
+                       "file":  "08-button-qa-fabric-import.png",
+                       "bytes":  702733
+                   },
+                   {
+                       "sha256":  "E6147E622DDA1B2A931A405CBF99BFB9ED979A520BAA9B1E03781A66DDF8E738",
+                       "file":  "09-after-qa-fabric-import.png",
+                       "bytes":  677754
+                   },
+                   {
+                       "sha256":  "F102A21914CB9761D3F9249D3C95B80F88C4DA1FD7CEDAD35CD59BCEE7D15560",
+                       "file":  "10-locate-search.png",
+                       "bytes":  698136
+                   },
+                   {
+                       "sha256":  "4DD224D7F5A54882421F5DD33D62D72E5895685D75A73BCFF29C2F8CB80223F7",
+                       "file":  "11-locate-search.png",
+                       "bytes":  701822
+                   },
+                   {
+                       "sha256":  "F5E27F8D177C5F7B6D9AD35EEA27102516838E58894580605B3C454013581BF8",
+                       "file":  "12-locate-search.png",
+                       "bytes":  697961
+                   },
+                   {
+                       "sha256":  "0C7B3EC9F6AED4E457E7C2549AD6E6B480DD6D797D98DDCB3FB8F7AD4D7F0875",
+                       "file":  "13-button-qa-no-loader-import.png",
+                       "bytes":  698133
+                   },
+                   {
+                       "sha256":  "37EE610DD66F66054CE00A676A5A4E5D10A98F56C0A03AF50FD7B85CEE38E7CB",
+                       "file":  "14-button-qa-no-loader-import.png",
+                       "bytes":  693949
+                   },
+                   {
+                       "sha256":  "9FB0992CA03D78492C88B12459E4478E5957AF2D16E6675CAF3E0D40F551BD1E",
+                       "file":  "15-after-qa-no-loader-import.png",
+                       "bytes":  676716
+                   },
+                   {
+                       "sha256":  "EB1F2D93DDFEDDB1E76F357F751A60C35A5FFB4FBBA81F52AD361287330FA581",
+                       "file":  "16-locate-search.png",
+                       "bytes":  701001
+                   },
+                   {
+                       "sha256":  "EFBB36CD15C6BF3419A13CD848615714B9CF60D52AD33C25973306336C4ABFA9",
+                       "file":  "17-locate-search.png",
+                       "bytes":  695355
+                   },
+                   {
+                       "sha256":  "3D65778CE76DF176753816CF3A9845D6EA6663820B86EBCB88C5F9DEB6C836C9",
+                       "file":  "18-locate-search.png",
+                       "bytes":  691505
+                   },
+                   {
+                       "sha256":  "687FDCDC170B3EA9C4A61E5FC42C1FD6F29D45539B5CDF879FCBF56F0928884D",
+                       "file":  "19-vanished-current-row.png",
+                       "bytes":  700997
+                   },
+                   {
+                       "sha256":  "2CC11EDEF64BE6508CC91D5257534FB1072C0F50A1F218B004078F78314CB13C",
+                       "file":  "20-vanished-current-row.png",
+                       "bytes":  695211
+                   },
+                   {
+                       "sha256":  "089CF3CA3B8BB6B53FF2D993E8230F39126A5F06055DEA5B6CBF12D9861A2221",
+                       "file":  "21-vanished-current-row.png",
+                       "bytes":  700220
+                   },
+                   {
+                       "sha256":  "089CF3CA3B8BB6B53FF2D993E8230F39126A5F06055DEA5B6CBF12D9861A2221",
+                       "file":  "22-button-qa-vanished-import.png",
+                       "bytes":  700220
+                   },
+                   {
+                       "sha256":  "DA62776C7320A9523FA6EA76840C9BB13CEA8AC9D6D16D6E419E550AEFC652F5",
+                       "file":  "23-after-qa-vanished-import.png",
+                       "bytes":  706031
+                   },
+                   {
+                       "sha256":  "DA62776C7320A9523FA6EA76840C9BB13CEA8AC9D6D16D6E419E550AEFC652F5",
+                       "file":  "24-visible-missing-source-error.png",
+                       "bytes":  706031
+                   },
+                   {
+                       "sha256":  "DA62776C7320A9523FA6EA76840C9BB13CEA8AC9D6D16D6E419E550AEFC652F5",
+                       "file":  "25-long-unbroken-error-960.png",
+                       "bytes":  706031
+                   },
+                   {
+                       "sha256":  "DA62776C7320A9523FA6EA76840C9BB13CEA8AC9D6D16D6E419E550AEFC652F5",
+                       "file":  "26-failure-state.png",
+                       "bytes":  706031
+                   }
+               ],
+    "checks":  [
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/icon.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/instance.cfg"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/accounts.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/config/qa/settings.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/kubejs/qa.js"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/logs/latest.log"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/mods/qa.jar"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/msa_token.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/options.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/optionsshaders.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/resourcepacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/saves/qa world/level.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/screenshots/qa.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/servers.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/shaderpacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/mmc-pack.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/icon.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/instance.cfg"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/accounts.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/config/qa/settings.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/kubejs/qa.js"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/logs/latest.log"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/mods/qa.jar"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/msa_token.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/options.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/optionsshaders.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/resourcepacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/saves/qa world/level.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/screenshots/qa.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/servers.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/shaderpacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/mmc-pack.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/icon.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/instance.cfg"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/accounts.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/config/qa/settings.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/kubejs/qa.js"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/logs/latest.log"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/mods/qa.jar"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/msa_token.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/options.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/optionsshaders.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/resourcepacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/saves/qa world/level.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/screenshots/qa.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/servers.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/shaderpacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/mmc-pack.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "display-resize-command-available"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "owned-window-ready"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "client-size-960-600"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "window-in-screen-960-600"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "no-error-960-no-error-prefix"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "no-error-960-search-available"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "unique-import-button-qa fabric import"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "honest-import-label-qa fabric import"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "saved-single-qa-fabric"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "destination-folder-qa-fabric"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "excluded-qa-fabric-accounts.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-config/qa/settings.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-kubejs/qa.js"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "excluded-qa-fabric-logs/latest.log"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-mods/qa.jar"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "excluded-qa-fabric-msa_token.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-options.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-optionsshaders.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-resourcepacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-saves/qa world/level.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-screenshots/qa.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-servers.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-shaderpacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "icon-qa-fabric"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "version-qa-fabric"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "notes-qa-fabric"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "loader-qa-fabric"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "unique-import-button-qa no loader import"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "honest-import-label-qa no loader import"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "saved-single-qa-no-loader"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "destination-folder-qa-no-loader"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "excluded-qa-no-loader-accounts.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-config/qa/settings.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-kubejs/qa.js"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "excluded-qa-no-loader-logs/latest.log"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "excluded-qa-no-loader-mods/qa.jar"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "excluded-qa-no-loader-msa_token.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-options.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-optionsshaders.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-resourcepacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-saves/qa world/level.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-screenshots/qa.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-servers.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-shaderpacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "icon-qa-no-loader"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "version-qa-no-loader"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "notes-qa-no-loader"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "loader-absent-qa-no-loader"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "unique-import-button-qa vanished import"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "honest-import-label-qa vanished import"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "missing-source-visible-error"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-960-search-above-error"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-960-error-below-search"
+                   },
+                   {
+                       "pass":  false,
+                       "name":  "long-unbroken-error-960-frame-0-horizontal-bounds"
+                   },
+                   {
+                       "detail":  "Check failed: long-unbroken-error-960-frame-0-horizontal-bounds",
+                       "pass":  false,
+                       "name":  "run-exception"
+                   }
+               ],
+    "limits":  "synthetic Prism slice only; no Play/sign-in/junction/race/mod compatibility claim"
+}
