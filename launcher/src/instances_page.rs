@@ -539,13 +539,21 @@ impl Launcher {
         }
         let mut footer = div()
             .flex()
-            .items_center()
+            .flex_col()
+            .items_start()
+            .w_full()
+            .min_w_0()
             .gap(px(theme::chrome(12.)))
             .mt(px(theme::chrome(10.)))
-            .child(find);
+            .child(find.flex_none());
         if let Some(e) = &self.instances.others_error {
-            footer = footer
-                .child(shell::text(theme::night::CAPTION, shell::c(n.muted)).child(e.clone()));
+            footer = footer.child(
+                shell::text(theme::night::CAPTION, shell::c(n.muted))
+                    .w_full()
+                    .min_w_0()
+                    .whitespace_normal()
+                    .child(e.clone()),
+            );
         }
         div()
             .flex()
