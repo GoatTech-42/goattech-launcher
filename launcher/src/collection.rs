@@ -182,13 +182,11 @@ fn json_view(view: &(String, String), t: &Theme, scroll: &Scrollbar, scale: f32)
         .flex()
         .flex_col()
         .gap(px(12. * scale))
-        .child(
-            // How to read on, said where the reading starts.
-            text(theme::CAPTION)
-                .text_color(t.accent)
-                .child(tr("down and up read through the examples.")),
-        )
-        .child(text(theme::UI).text_color(t.ink_soft).child(view.0.clone()))
+        .children(view.0.lines().map(|line| {
+            text(theme::UI)
+                .text_color(t.ink_soft)
+                .child(line.to_string())
+        }))
         .child(
             div()
                 .flex()
@@ -764,7 +762,7 @@ impl Launcher {
             )
             .children(self.collection.view.as_ref().map(|_| {
                 text(theme::UI).text_color(t.ink_soft).child(tr(
-                    "the player-count ping is separate from these switches. retention below describes the code's rules, not a verified live service. cleanup failures can delay deletion.",
+                    "the player-count ping runs separately from these switches. the storage times below are rules in the code, not checks of the live service. failures can delay deletion.",
                 ))
             }))
             .children(self.collection.view.as_ref().map(|v| {

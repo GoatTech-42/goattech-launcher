@@ -306,7 +306,7 @@ pub fn preview() -> (String, String) {
     }))
     .unwrap_or_default();
     (
-        "Nothing is waiting. One example of each kind, from this machine; the game fills in the GPU and screen it uses where these say example (a benchmark upload is the report itself, see docs/benchmark-report.md):".into(),
+        "nothing is waiting.\nthese examples use this computer's details.\nthe game supplies its own graphics and screen details.\nbenchmark uploads contain the report you choose.".into(),
         json,
     )
 }
