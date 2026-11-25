@@ -983,3 +983,38 @@ fn cloning_skips_special_files_at_the_root_and_inside_folders() {
     assert!(source.join("saves/world/pipe").symlink_metadata().is_ok());
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn reservations_are_distinct_and_never_reuse_existing_paths() {
+    let root = scratch("reserve-instance");
+    let own = root.join("instances");
+    fs::create_dir_all(own.join("copy")).unwrap();
+    fs::write(own.join("copy/keep"), b"existing").unwrap();
+    let mut workers = Vec::new();
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(8));
+    for _ in 0..8 {
+        let (own, barrier) = (own.clone(), barrier.clone());
+        workers.push(std::thread::spawn(move || {
+            barrier.wait();
+            reserve_instance_dir(&own, "copy").unwrap()
+        }));
+    }
+    let mut names: Vec<_> = workers.into_iter().map(|w| w.join().unwrap()).collect();
+    names.sort();
+    names.dedup();
+    assert_eq!(names.len(), 8);
+    assert!(names.iter().all(|name| name != "copy"));
+    assert_eq!(fs::read(own.join("copy/keep")).unwrap(), b"existing");
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink("nowhere", own.join("linked")).unwrap();
+        assert_eq!(reserve_instance_dir(&own, "linked").unwrap(), "linked-2");
+        assert!(own
+            .join("linked")
+            .symlink_metadata()
+            .unwrap()
+            .file_type()
+            .is_symlink());
+    }
+    fs::remove_dir_all(root).unwrap();
+}
