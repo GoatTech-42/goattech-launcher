@@ -2344,9 +2344,14 @@ pub fn remove_version(tag: &str) -> Result<(), String> {
     let mut settings = Settings::load();
     if settings.selected.as_deref() == Some(tag) {
         settings.selected = installed().first().cloned();
-        let _ = settings.save();
+        removal_selection_result(tag, settings.save())?;
     }
     Ok(())
+}
+
+/// Removal already happened: a settings failure must not imply it was rolled back.
+fn removal_selection_result(tag: &str, saved: std::io::Result<()>) -> Result<(), String> {
+    saved.map_err(|e| format!("{tag} was removed, but the selection could not be saved: {e}"))
 }
 
 /// How many of the newest release versions stay installed when the player has not said.
@@ -6113,5 +6118,30 @@ pub fn {f}("
             "sky:false\ngraphicsApi:dx12\n"
         );
         let _ = fs::remove_dir_all(&home);
+    }
+    #[test]
+    fn selection_save_failure_after_removal_reports_the_partial_effect() {
+        let root =
+            std::env::temp_dir().join(format!("horizon-remove-selection-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("settings.json")).unwrap();
+        let removed = root.join("removed-version");
+        fs::create_dir_all(&removed).unwrap();
+        fs::remove_dir_all(&removed).unwrap();
+        let error = removal_selection_result(
+            "fixture-version",
+            fs::write(root.join("settings.json"), b"replacement"),
+        )
+        .unwrap_err();
+        assert!(error.contains("fixture-version was removed"));
+        assert!(error.contains("selection could not be saved"));
+        assert!(!removed.exists());
+        fs::remove_dir_all(root.join("settings.json")).unwrap();
+        assert!(removal_selection_result(
+            "fixture-version",
+            fs::write(root.join("settings.json"), b"replacement")
+        )
+        .is_ok());
+        fs::remove_dir_all(root).unwrap();
     }
 }
