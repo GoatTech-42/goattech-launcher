@@ -1265,3 +1265,58 @@ fn a_game_folder_replaced_by_a_link_is_not_read() {
     );
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn import_copy_matrix_preserves_game_data_and_originals_with_or_without_mods() {
+    let root = scratch("copy-matrix");
+    let game = root.join("source");
+    let files = [
+        ("saves/world/level.dat", "world fixture"),
+        ("mods/mod.jar", "mod fixture"),
+        ("config/mod/settings.json", "config fixture"),
+        ("resourcepacks/pack.zip", "resource fixture"),
+        ("shaderpacks/pack.zip", "shader fixture"),
+        ("screenshots/screen.png", "screenshot fixture"),
+        ("options.txt", "options fixture"),
+        ("servers.dat", "servers fixture"),
+        ("optionsshaders.txt", "shader options fixture"),
+        ("kubejs/startup.js", "script fixture"),
+        ("accounts.json", "private fixture"),
+        ("msa_token.json", "private token fixture"),
+        ("logs/latest.log", "log fixture"),
+    ];
+    for (name, contents) in files {
+        write(&game.join(name), contents);
+    }
+    for shared in [false, true] {
+        for skip_mods in [false, true] {
+            let found = Found {
+                launcher: "Prism Launcher",
+                name: "matrix".into(),
+                minecraft: Some("1.21.1".into()),
+                loader: None,
+                notes: None,
+                icon: None,
+                game: game.clone(),
+                shared,
+            };
+            let to = root.join(format!("copy-{shared}-{skip_mods}"));
+            copy_game_skipping(&found, &to, skip_mods).unwrap();
+            for (name, contents) in files {
+                let kept = match name {
+                    "accounts.json" | "msa_token.json" | "logs/latest.log" => false,
+                    "mods/mod.jar" => !skip_mods,
+                    "kubejs/startup.js" => !shared,
+                    _ => true,
+                };
+                if kept {
+                    assert_eq!(fs::read(to.join(name)).unwrap(), contents.as_bytes());
+                } else {
+                    assert!(!to.join(name).exists(), "unexpected file: {name}");
+                }
+                assert_eq!(fs::read(game.join(name)).unwrap(), contents.as_bytes());
+            }
+        }
+    }
+    fs::remove_dir_all(root).unwrap();
+}
