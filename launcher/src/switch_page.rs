@@ -230,12 +230,15 @@ impl Launcher {
                 scaled_button(format!("offline-forget-{i}"), "forget", Kind::Ghost, &t).on_click(
                     cx.listener(move |this, _: &ClickEvent, _, cx| {
                         let mut accounts = Accounts::load();
-                        if accounts
+                        let done = accounts
                             .remove_offline(&forget, &horizon_launcher::skins::dir())
-                            .is_ok()
-                            && accounts.save().is_ok()
-                        {
-                            this.accounts = accounts;
+                            .and_then(|()| accounts.save());
+                        match done {
+                            Ok(()) => {
+                                this.accounts = accounts;
+                                this.offline_forget_error = None;
+                            }
+                            Err(e) => this.offline_forget_error = Some(e),
                         }
                         cx.notify();
                     }),
@@ -258,6 +261,7 @@ impl Launcher {
                 &t,
             ));
         }
+        rows = rows.children(self.offline_forget_error.clone().map(|e| notice(e, &t)));
         rows = rows.children(self.skin_panel(cx));
         // The name the game made up can't be forgotten — it's what an offline player is —
         // only rolled for a new one.

@@ -327,6 +327,8 @@ struct Launcher {
     auth_next: u64,
     sign_in: Option<SignIn>,
     sign_in_state: Option<SignInState>,
+    /// The last offline-name Forget failed; independent of background Microsoft sign-in.
+    offline_forget_error: Option<String>,
     /// What to say when the keychain doesn't keep sign-ins ([`account::no_keychain`]).
     keychain: Option<String>,
     /// Whether an account here owns the game, by the keychain's last answers (the owner gate);
@@ -888,6 +890,7 @@ impl Launcher {
             auth_next: 0,
             sign_in: None,
             sign_in_state: None,
+            offline_forget_error: None,
             keychain: None,
             owner: None,
             owner_screen_open: false,
