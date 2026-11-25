@@ -568,9 +568,7 @@ pub fn copy_game(found: &Found, to: &Path) -> std::io::Result<()> {
 /// `copy_game`, optionally leaving `mods/` behind (a copy whose mods could never load).
 pub fn copy_game_skipping(found: &Found, to: &Path, skip_mods: bool) -> std::io::Result<()> {
     fs::create_dir_all(to)?;
-    let Ok(entries) = fs::read_dir(&found.game) else {
-        return Ok(());
-    };
+    let entries = fs::read_dir(&found.game)?;
     for entry in entries {
         let entry = entry?;
         if entry.file_type()?.is_symlink() {
