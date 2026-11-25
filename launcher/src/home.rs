@@ -660,7 +660,7 @@ impl Launcher {
     }
 
     /// The home stage's center (concept Home): the player model, 3D-projected from its skin,
-    /// under its pixel nametag. Account textures load off-thread; the labelled fixture is
+    /// under its pixel nametag when a player name is known. Account textures load off-thread; the labelled fixture is
     /// kept only while no supported account texture is available.
     pub(super) fn home_stage(&mut self, cx: &mut Context<Self>) -> Div {
         let t = self.theme;
@@ -754,14 +754,20 @@ impl Launcher {
             .flex_col()
             .items_center()
             .gap(px(if compact { 2. } else { 4. }))
-            .pt(px(if compact { 0. } else { 8. }))
-            .child(
+            .pt(px(if compact { 0. } else { 8. }));
+        let named_player = !matches!(
+            self.accounts.player(),
+            horizon_launcher::account::Player::GameName if self.offline_name.is_none()
+        );
+        if named_player {
+            stage = stage.child(
                 shell::text(night::CAPTION, c(n.ink))
                     .font_family(theme::PIXEL)
                     .text_size(px(12.))
                     .line_height(px(17.))
                     .child(who.to_lowercase()),
             );
+        }
         if let Some(i) = baked {
             // The model is a keyboard stop: Enter or Space waves, Left and Right turn it.
             let model = div()
