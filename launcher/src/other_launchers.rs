@@ -767,8 +767,14 @@ fn import_in(
     let version = versions.find(minecraft)?.id.clone();
     let instance = instances::create_in(game_home, data, name, None, Some(&version))?;
     if let Err(e) = copy(found, &instance.home, !with_mods) {
-        let _ = rollback(&instance.id);
-        return Err(format!("Could not copy {}: {e}", found.game.display()));
+        let mut error = format!("Could not copy {}: {e}", found.game.display());
+        if let Err(cleanup) = rollback(&instance.id) {
+            error.push_str(&format!(
+                "; could not remove partial instance {}: {cleanup}",
+                instance.id
+            ));
+        }
+        return Err(error);
     }
     let loader = loader(found).map(|mut l| {
         // Name the build the way its Maven artifact does, so the installer download resolves
