@@ -242,7 +242,7 @@ fn consent_is_fully_english_but_the_rest_of_the_ui_stays_translated() {
         "only the reports you write and send yourself, with the game's log if you add it after reading it.",
         "performance statistics",
         "save choices",
-        "the results of benchmarks you run, for the community results on playhorizon.dev.",
+        "reports from benchmarks you choose to upload. uploads need a configured server.",
         "the short version: on a new install, basic performance summaries start on; the four report kinds start off. \"keep optional data off\" turns all five off in one click - the anonymous player-count ping runs while you play either way. settings can change any choice later.",
         "the short version: on a new install, basic performance summaries start on; the four report kinds start off. \"keep optional data off\" turns all five off in one click - the player-count ping is off in this configuration. settings can change any choice later.",
         "upload this log to mclo.gs, a paste service for minecraft logs? anyone with the link can read it, until it is deleted or unread for 90 days. your home folder, user name and account names are taken out first.",

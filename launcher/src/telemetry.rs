@@ -32,7 +32,7 @@ pub const SWITCHES: [(Kind, &str, &str); 4] = [
     (
         Kind::Benchmark,
         "benchmark uploads",
-        "the results of benchmarks you run, for the community results on playhorizon.dev.",
+        "reports from benchmarks you choose to upload. uploads need a configured server.",
     ),
 ];
 
@@ -108,7 +108,7 @@ pub fn ping_short() -> &'static str {
 }
 
 /// Payload fields are distinct from network metadata and player-written bug reports.
-pub const NEVER: &str = "the automatic report bodies do not include your account name or uuid, world names, server addresses, chat or ip address. network requests still expose ip information to the receiving service; GoatTech's collector uses it temporarily in memory for rate limiting, not in its database. detailed optional reports carry a day and a random install id you can delete; basic summaries carry no id. bug-report text and any log you choose to attach need your review before sending.";
+pub const NEVER: &str = "if reports are uploaded, their automatic bodies do not include your account name or uuid, world names, server addresses, chat or ip address. network requests still expose ip information to the receiving service; GoatTech's collector uses it temporarily in memory for rate limiting, not in its database. detailed optional reports carry a day and a random install id; deleting remote reports needs their configured server; basic summaries carry no id. bug-report text and any log you choose to attach need your review before sending.";
 
 /// The anonymous "I'm playing" ping. In this build it is ALWAYS ON: the game sends it to
 /// GoatTech's own collector (`horizon_telemetry::LIVE_ENDPOINT`) whatever the switches say;

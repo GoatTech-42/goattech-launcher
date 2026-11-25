@@ -454,13 +454,24 @@ impl Launcher {
                     .text_color(t.ink)
                     .child(tr("help make GoatTech faster and steadier?")),
             )
-            .child(text(theme::UI).text_color(t.muted).child(tr(
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(theme::chrome(8.)))
+                    .child(text(theme::UI).text_color(t.muted).child(tr(
                 if horizon_telemetry::live_endpoint().is_some() {
                     "the short version: on a new install, basic performance summaries start on; the four report kinds start off. \"keep optional data off\" turns all five off in one click - the anonymous player-count ping runs while you play either way. settings can change any choice later."
                 } else {
                     "the short version: on a new install, basic performance summaries start on; the four report kinds start off. \"keep optional data off\" turns all five off in one click - the player-count ping is off in this configuration. settings can change any choice later."
                 },
             )))
+                    .children(horizon_telemetry::endpoint().is_none().then(|| {
+                        text(theme::UI).text_color(t.ink_soft).child(tr(
+                            "optional uploads are unavailable: no upload server is configured. the player-count ping is separate.",
+                        ))
+                    })),
+            )
             .child(basic)
             .children(rows)
             .child(ping_row(&t))
@@ -619,7 +630,7 @@ impl Launcher {
                             }
                             DataKind::Bug => "reports you send, with a log only if you add one.",
                             DataKind::Benchmark => {
-                                "benchmarks you run, shared with community results."
+                                "reports from benchmarks you choose to upload."
                             }
                         }))
                         .into_any_element(),
@@ -772,6 +783,11 @@ impl Launcher {
                     &self.collection.json_scroll,
                     theme::ui_scale_current(),
                 )
+            }))
+            .children(horizon_telemetry::endpoint().is_none().then(|| {
+                text(theme::UI).text_color(t.ink_soft).child(tr(
+                    "optional uploads are unavailable: no upload server is configured. the player-count ping is separate.",
+                ))
             }))
             .child(list)
             .child(
