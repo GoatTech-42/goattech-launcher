@@ -572,6 +572,13 @@ pub fn copy_game(found: &Found, to: &Path) -> std::io::Result<()> {
 
 /// `copy_game`, optionally leaving `mods/` behind (a copy whose mods could never load).
 pub fn copy_game_skipping(found: &Found, to: &Path, skip_mods: bool) -> std::io::Result<()> {
+    let source = fs::symlink_metadata(&found.game)?;
+    if source.file_type().is_symlink() || !source.is_dir() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "the source game folder is not a real directory",
+        ));
+    }
     fs::create_dir_all(to)?;
     let entries = fs::read_dir(&found.game)?;
     for entry in entries {

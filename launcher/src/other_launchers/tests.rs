@@ -1234,3 +1234,34 @@ fn own_folder_import_leaves_root_msa_token_behind() {
     );
     fs::remove_dir_all(root).unwrap();
 }
+
+#[cfg(unix)]
+#[test]
+fn a_game_folder_replaced_by_a_link_is_not_read() {
+    let root = scratch("root-link");
+    let game = root.join("game");
+    let outside = root.join("outside");
+    write(&outside.join("options.txt"), "outside fixture");
+    std::os::unix::fs::symlink(&outside, &game).unwrap();
+    let found = Found {
+        launcher: "Prism Launcher",
+        name: "Changed".into(),
+        minecraft: Some("1.21.1".into()),
+        loader: None,
+        notes: None,
+        icon: None,
+        game,
+        shared: false,
+    };
+    let to = root.join("copy");
+    assert!(
+        copy_game(&found, &to).is_err(),
+        "followed linked game folder"
+    );
+    assert!(!to.exists(), "created destination before checking source");
+    assert_eq!(
+        fs::read(outside.join("options.txt")).unwrap(),
+        b"outside fixture"
+    );
+    fs::remove_dir_all(root).unwrap();
+}
