@@ -1,0 +1,57 @@
+[
+    {
+        "path":  "config/qa/settings.json",
+        "sha256":  "ffbc2dfc402782325da71132100e74ff511d1585dd80e4ea196ed4bcace3fef2",
+        "bytes":  16
+    },
+    {
+        "path":  "icon.png",
+        "sha256":  "ba7d406079f8cfaa8afaf7ddaf7ff9f6541d196a8dde97b2b4bd91ef94ac003b",
+        "bytes":  108
+    },
+    {
+        "path":  "kubejs/qa.js",
+        "sha256":  "04a1b46b6636ba6b7ec5b102ab91d1c81b774d6640ed7b7994be5e10f0f18bb2",
+        "bytes":  20
+    },
+    {
+        "path":  "mods/qa.jar",
+        "sha256":  "0302d47c931c0e064447d882fc202d433f59690ffba3ea585226602fef5ff1b7",
+        "bytes":  32
+    },
+    {
+        "path":  "options.txt",
+        "sha256":  "7a1f55e9212867e78d35c8fad2bf02f608034bd83cbd60908eaafcf94dbd45af",
+        "bytes":  19
+    },
+    {
+        "path":  "optionsshaders.txt",
+        "sha256":  "3a7a8f98f117fe0370124a95c0303466eee2bc10cdbeb1c0dd710d1a7041a869",
+        "bytes":  17
+    },
+    {
+        "path":  "resourcepacks/qa.zip",
+        "sha256":  "75f5a6cabba7b552e2510595ff0c6088c8f7016a57b1e47621740a26fcc45ea7",
+        "bytes":  19
+    },
+    {
+        "path":  "saves/qa world/level.dat",
+        "sha256":  "c5dcdad24361e0dc3b167adc91d45d9134135e876d16b7317966bf6bd007c9aa",
+        "bytes":  32
+    },
+    {
+        "path":  "screenshots/qa.png",
+        "sha256":  "a3050c0f40448127c3cc29274d1af406b18874d8774c93e3cad8646954013207",
+        "bytes":  21
+    },
+    {
+        "path":  "servers.dat",
+        "sha256":  "5f1bd5a1360cf87c87c2eec64cfcefc5a851c2cbd559529fbb2827eaeb097090",
+        "bytes":  24
+    },
+    {
+        "path":  "shaderpacks/qa.zip",
+        "sha256":  "66c51976982d4fa5828ceafa882cf769b0b3c08dcf4f06bd11058e06563035fb",
+        "bytes":  17
+    }
+]

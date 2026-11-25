@@ -1,0 +1,197 @@
+[
+    {
+        "y":  114,
+        "at":  "2026-11-25T22:02:08.2711541Z",
+        "reason":  "Instances sidebar",
+        "action":  "click",
+        "x":  44
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  true,
+        "action":  "scroll"
+    },
+    {
+        "y":  534,
+        "at":  "2026-11-25T22:02:17.3647043Z",
+        "reason":  "Search other launchers",
+        "action":  "click",
+        "x":  162
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  true,
+        "action":  "scroll"
+    },
+    {
+        "y":  280,
+        "at":  "2026-11-25T22:02:28.9800912Z",
+        "reason":  "Import qa fabric import",
+        "action":  "click",
+        "x":  873
+    },
+    {
+        "y":  114,
+        "at":  "2026-11-25T22:02:51.1595813Z",
+        "reason":  "Instances sidebar",
+        "action":  "click",
+        "x":  44
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  true,
+        "action":  "scroll"
+    },
+    {
+        "down":  true,
+        "action":  "scroll"
+    },
+    {
+        "y":  534,
+        "at":  "2026-11-25T22:03:01.7975009Z",
+        "reason":  "Search other launchers",
+        "action":  "click",
+        "x":  162
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  true,
+        "action":  "scroll"
+    },
+    {
+        "y":  530,
+        "at":  "2026-11-25T22:03:12.7623196Z",
+        "reason":  "Import qa no loader import",
+        "action":  "click",
+        "x":  817
+    },
+    {
+        "y":  114,
+        "at":  "2026-11-25T22:03:34.7811774Z",
+        "reason":  "Instances sidebar",
+        "action":  "click",
+        "x":  44
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  true,
+        "action":  "scroll"
+    },
+    {
+        "down":  true,
+        "action":  "scroll"
+    },
+    {
+        "y":  534,
+        "at":  "2026-11-25T22:03:45.3648527Z",
+        "reason":  "Search other launchers",
+        "action":  "click",
+        "x":  162
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  false,
+        "action":  "scroll"
+    },
+    {
+        "down":  true,
+        "action":  "scroll"
+    },
+    {
+        "down":  true,
+        "action":  "scroll"
+    },
+    {
+        "y":  458,
+        "at":  "2026-11-25T22:03:58.5526690Z",
+        "reason":  "Import qa vanished import",
+        "action":  "click",
+        "x":  817
+    }
+]

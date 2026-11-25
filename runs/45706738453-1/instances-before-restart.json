@@ -1,0 +1,22 @@
+{
+    "instances":  {
+                      "qa-fabric-import":  {
+                                               "name":  "qa fabric import",
+                                               "notes":  "qa fixture note\nsecond line",
+                                               "java":  {
+                                                            "minecraft":  "1.21.1",
+                                                            "loader":  {
+                                                                           "kind":  "fabric",
+                                                                           "version":  "0.16.9"
+                                                                       }
+                                                        }
+                                           },
+                      "qa-no-loader-import":  {
+                                                  "name":  "qa no loader import",
+                                                  "notes":  "qa fixture note\nsecond line",
+                                                  "java":  {
+                                                               "minecraft":  "1.21.1"
+                                                           }
+                                              }
+                  }
+}
