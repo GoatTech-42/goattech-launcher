@@ -276,6 +276,8 @@ struct Launcher {
     auto_prune_save_error: Option<String>,
     /// The last reduce-motion save failed; the prior local choice was restored.
     reduce_motion_save_error: Option<String>,
+    /// The last desktop-entry settings save or menu update failed.
+    desktop_entry_error: Option<String>,
     /// The last Minecraft folder save failed; the prior local path was restored.
     minecraft_folder_save_error: Option<String>,
     /// The last opening-animation save failed; the prior local choice was restored.
@@ -842,6 +844,7 @@ impl Launcher {
             auto_install_save_error: None,
             auto_prune_save_error: None,
             reduce_motion_save_error: None,
+            desktop_entry_error: None,
             minecraft_folder_save_error: None,
             opening_save_error: None,
             java_runtimes: None,
@@ -4426,14 +4429,22 @@ impl Launcher {
         // Linux: the launcher's entry in the applications menu (`horizon_launcher::desktop`).
         let menu_entry = scaled_switch("desktop-entry", self.settings.desktop_entry(), &t)
             .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
+                let previous = this.settings.desktop_entry;
                 let on = !this.settings.desktop_entry();
                 this.settings.desktop_entry = Some(on);
-                let _ = this.settings.save();
-                let _ = if on {
-                    horizon_launcher::desktop::install(backend::exe_path()).map(|_| ())
+                this.desktop_entry_error = this.settings.save().err().map(|e| e.to_string());
+                if this.desktop_entry_error.is_some() {
+                    this.settings.desktop_entry = previous;
                 } else {
-                    horizon_launcher::desktop::remove()
-                };
+                    // Menu files can change before an error; keep the saved requested preference.
+                    this.desktop_entry_error = if on {
+                        horizon_launcher::desktop::install(backend::exe_path()).map(|_| ())
+                    } else {
+                        horizon_launcher::desktop::remove()
+                    }
+                    .err()
+                    .map(|e| e.to_string());
+                }
                 cx.notify();
             }));
         let horizon = match (&self.updates.horizon, &self.update_error) {
@@ -4737,11 +4748,14 @@ impl Launcher {
                         d.child(index_row(
                             n + 11,
                             tr("applications menu"),
-                            Some(plain(if self.settings.desktop_entry() {
-                                "GoatTech Launcher and its icon are in your desktop's menu."
-                            } else {
-                                "not in your desktop's menu."
-                            })),
+                            Some(match &self.desktop_entry_error {
+                                Some(e) => div().text_color(t.danger).child(e.clone()).into_any_element(),
+                                None => plain(if self.settings.desktop_entry() {
+                                    "GoatTech Launcher and its icon are in your desktop's menu."
+                                } else {
+                                    "not in your desktop's menu."
+                                }),
+                            }),
                             Some(menu_entry.into_any_element()),
                             &t,
                         ))
