@@ -831,3 +831,37 @@ fn a_copy_failure_calls_the_owners_rollback_on_the_published_instance() {
     assert!(!home.join("instances").join(id).exists());
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn an_unreadable_game_folder_is_an_import_error_not_an_empty_copy() {
+    let root = scratch("source-gone");
+    let game = root.join("game");
+    let found = Found {
+        launcher: "Prism Launcher",
+        name: "Vanished".into(),
+        minecraft: Some("1.21.1".into()),
+        loader: None,
+        notes: None,
+        icon: None,
+        game: game.clone(),
+        shared: false,
+    };
+    for shared in [false, true] {
+        let found = Found {
+            shared,
+            ..found.clone()
+        };
+        let to = root.join(if shared { "shared" } else { "own" });
+        assert!(copy_game(&found, &to).is_err());
+        fs::write(&game, b"not a directory").unwrap();
+        assert!(copy_game(&found, &to).is_err());
+        assert_eq!(fs::read(&game).unwrap(), b"not a directory");
+        fs::remove_file(&game).unwrap();
+        fs::create_dir(&game).unwrap();
+        copy_game(&found, &to).unwrap();
+        assert_eq!(fs::read_dir(&to).unwrap().count(), 0);
+        assert_eq!(fs::read_dir(&game).unwrap().count(), 0);
+        fs::remove_dir(&game).unwrap();
+    }
+    fs::remove_dir_all(&root).unwrap();
+}
