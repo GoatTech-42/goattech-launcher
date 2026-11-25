@@ -284,11 +284,29 @@ fn install_in(
         .map_err(|e| e.to_string())
         .and_then(|()| native_mods::copy_base(&versions.join(base), &partial, Target::Client))
         .and_then(|()| finish(&partial, &dir, program, &record).map_err(|e| e.to_string()));
-    let _ = retried(|| fs::remove_dir_all(&partial).or_else(|_| gone(&partial)));
-    if let Err(e) = made {
+    let cleanup = retried(|| fs::remove_dir_all(&partial).or_else(|_| gone(&partial)));
+    if let Err(e) = import_cleanup_result(made, cleanup, &partial) {
         return Err(trf("could not import the build: {error}", &[("error", &e)]));
     }
     Ok(tag)
+}
+
+/// Cleanup failure matters even when another import already published the same build.
+fn import_cleanup_result(
+    made: Result<(), String>,
+    cleanup: std::io::Result<()>,
+    partial: &Path,
+) -> Result<(), String> {
+    match (made, cleanup) {
+        (made, Ok(())) => made,
+        (made, Err(cleanup)) => {
+            let primary = made.err().unwrap_or_else(|| "the build was saved".into());
+            Err(format!(
+                "{primary}; staging cleanup failed at {}: {cleanup}",
+                partial.display()
+            ))
+        }
+    }
 }
 
 /// A short tag is only a lookup hint, never proof that two programs are the same.
@@ -633,5 +651,28 @@ mod tests {
         fs::remove_file(kept.join(RECORD)).unwrap();
         assert!(install_in(&versions, "unused", first, "fixture", "2026-11-02").is_err());
         fs::remove_dir_all(versions).unwrap();
+    }
+    #[test]
+    fn import_staging_cleanup_failure_keeps_the_primary_result_and_path() {
+        let root = dir("staging-cleanup");
+        let partial = root.join("partial");
+        fs::write(&partial, b"leftover").unwrap();
+        let cleanup = || fs::remove_dir_all(&partial).or_else(|_| gone(&partial));
+        let error =
+            import_cleanup_result(Err("copy failed".into()), cleanup(), &partial).unwrap_err();
+        assert!(error.contains("copy failed"));
+        assert!(error.contains("staging cleanup failed"));
+        assert!(error.contains(partial.to_string_lossy().as_ref()));
+        let error = import_cleanup_result(Ok(()), cleanup(), &partial).unwrap_err();
+        assert!(error.contains("build was saved"));
+        assert!(error.contains("staging cleanup failed"));
+        assert_eq!(fs::read(&partial).unwrap(), b"leftover");
+        fs::remove_file(&partial).unwrap();
+        assert!(import_cleanup_result(Ok(()), cleanup(), &partial).is_ok());
+        assert_eq!(
+            import_cleanup_result(Err("copy failed".into()), cleanup(), &partial).unwrap_err(),
+            "copy failed"
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 }
