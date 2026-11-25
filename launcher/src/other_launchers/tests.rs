@@ -865,3 +865,62 @@ fn an_unreadable_game_folder_is_an_import_error_not_an_empty_copy() {
     }
     fs::remove_dir_all(&root).unwrap();
 }
+
+#[test]
+fn a_copy_failure_reports_when_rollback_leaves_the_partial_instance() {
+    let root = scratch("rollback-failure");
+    let home = root.join("destination");
+    let data = root.join("store");
+    let found = Found {
+        launcher: "Prism Launcher",
+        name: "Original".into(),
+        minecraft: Some("1.21.1".into()),
+        loader: None,
+        notes: None,
+        icon: None,
+        game: root.join("source"),
+        shared: false,
+    };
+    write(&found.game.join("options.txt"), "original options");
+    let called = std::cell::RefCell::new(None);
+    let result = import_in(
+        &found,
+        "partial-copy",
+        None,
+        false,
+        &ImportStore {
+            copy: &|found, to, skip| {
+                fs::create_dir_all(to.join("options.txt")).unwrap();
+                copy_game_skipping(found, to, skip)
+            },
+            game_home: &home,
+            data: &data,
+            versions: &|| {
+                crate::minecraft_versions::Versions::parse(
+                    r#"{"versions":[{"id":"1.21.1","type":"release","url":"unused","sha1":"unused"}]}"#,
+                )
+            },
+            rollback: &|id| {
+                *called.borrow_mut() = Some(id.to_string());
+                // A failed Trash operation must remain visible to the person importing.
+                crate::instances::delete_in(&home, &data, id, &|_| Err("Trash denied".into()))
+                    .map(|_| ())
+            },
+        },
+    );
+    let error = result.unwrap_err();
+    let id = called.borrow().clone().expect("rollback called");
+    assert!(error.contains("Could not copy"));
+    assert!(error.contains("Trash denied"));
+    assert!(error.contains(&id));
+    assert!(error.contains("partial instance"));
+    assert!(crate::instances::list_in(&home, &data)
+        .iter()
+        .any(|i| i.id == id));
+    assert!(home.join("instances").join(&id).is_dir());
+    assert_eq!(
+        fs::read(found.game.join("options.txt")).unwrap(),
+        b"original options"
+    );
+    fs::remove_dir_all(root).unwrap();
+}
