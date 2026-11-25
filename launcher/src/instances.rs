@@ -815,17 +815,8 @@ pub(crate) fn create_in(
         return Err(NOT_A_REAL_DIR.into());
     }
     let base = modpacks::slug(name);
-    let taken = |s: &str| s == DEFAULT || game_home.join(OWN).join(s).exists();
-    let slug = (1..)
-        .map(|n| {
-            if n == 1 {
-                base.clone()
-            } else {
-                format!("{base}-{n}")
-            }
-        })
-        .find(|s| !taken(s))
-        .unwrap();
+    let slug = reserve_instance_dir(&game_home.join(OWN), &base)
+        .map_err(|e| format!("Could not reserve an instance folder: {e}"))?;
     let dir = game_home.join(OWN).join(&slug);
     let made = match from {
         Some(from) => copy_home(&from.home, &dir),
@@ -847,7 +838,7 @@ pub(crate) fn create_in(
             dir.display()
         ));
     }
-    // The folder is new (its name was free above): when the choices can't be stored, it goes
+    // This call reserved the folder: when its choices cannot be stored, it goes
     // again, or the instance would be listed that the player was told did not get made.
     let stored = || -> Result<(), String> {
         let _lock = StoreLock::take(data)?;
@@ -869,6 +860,27 @@ pub(crate) fn create_in(
         return Err(e);
     }
     find_in(&list_in(game_home, data), &slug)
+}
+
+/// Reserve before copying: another creator must never share this call's cleanup target.
+fn reserve_instance_dir(own: &Path, base: &str) -> std::io::Result<String> {
+    fs::create_dir_all(own)?;
+    for n in 1.. {
+        let slug = if n == 1 {
+            base.to_string()
+        } else {
+            format!("{base}-{n}")
+        };
+        if slug == DEFAULT {
+            continue;
+        }
+        match fs::create_dir(own.join(&slug)) {
+            Ok(()) => return Ok(slug),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    unreachable!()
 }
 
 fn copy_home(from: &Path, to: &Path) -> std::io::Result<()> {
