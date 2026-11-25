@@ -276,6 +276,8 @@ struct Launcher {
     auto_prune_save_error: Option<String>,
     /// The last reduce-motion save failed; the prior local choice was restored.
     reduce_motion_save_error: Option<String>,
+    /// The last opening-animation save failed; the prior local choice was restored.
+    opening_save_error: Option<String>,
     /// Settings' Java runtimes row: (downloaded by the launcher, installed on this computer),
     /// counted on a thread; None until the count answers and again each time Settings opens.
     java_runtimes: Option<(usize, usize)>,
@@ -834,6 +836,7 @@ impl Launcher {
             auto_install_save_error: None,
             auto_prune_save_error: None,
             reduce_motion_save_error: None,
+            opening_save_error: None,
             java_runtimes: None,
             java_runtimes_busy: false,
             args_input: line_edit::LineEdit::new(settings.game_args.clone(), 1024, 38),
@@ -4369,8 +4372,12 @@ impl Launcher {
         );
         let opening = scaled_switch("opening", !self.settings.skip_opening, &t).on_click(
             cx.listener(|this, _: &ClickEvent, _, cx| {
-                this.settings.skip_opening = !this.settings.skip_opening;
-                let _ = this.settings.save();
+                let previous = this.settings.skip_opening;
+                this.settings.skip_opening = !previous;
+                this.opening_save_error = this.settings.save().err().map(|e| e.to_string());
+                if this.opening_save_error.is_some() {
+                    this.settings.skip_opening = previous;
+                }
                 cx.notify();
             }),
         );
@@ -4608,7 +4615,10 @@ impl Launcher {
                     .child(index_row(
                         n + 3,
                         tr("show the opening"),
-                        Some(plain("the wordmark, while the release list loads.")),
+                        Some(div().flex().flex_col()
+                            .child(plain("the wordmark, while the release list loads."))
+                            .children(self.opening_save_error.clone().map(|e| div().text_color(t.danger).child(e)))
+                            .into_any_element()),
                         Some(opening.into_any_element()),
                         &t,
                     ))
