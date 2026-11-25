@@ -264,6 +264,7 @@ impl Launcher {
             ));
         }
         rows = rows.children(self.offline_forget_error.clone().map(|e| notice(e, &t)));
+        rows = rows.children(self.game_name_error.clone().map(|e| notice(e, &t)));
         rows = rows.children(self.skin_panel(cx));
         // The name the game made up can't be forgotten — it's what an offline player is —
         // only rolled for a new one.
@@ -285,10 +286,11 @@ impl Launcher {
                 Some(
                     scaled_button("game-name-new", "new name", Kind::Ghost, &t)
                         .on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
-                            match instances::new_player_name() {
-                                Ok(name) => this.offline_name = Some(name),
-                                Err(e) => this.sign_in_state = Some(SignInState::Done(Err(e))),
-                            }
+                            game_name_result(
+                                &mut this.offline_name,
+                                &mut this.game_name_error,
+                                instances::new_player_name(),
+                            );
                             cx.notify();
                         }))
                         .into_any_element(),
