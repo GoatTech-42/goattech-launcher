@@ -230,9 +230,8 @@ impl Launcher {
                 scaled_button(format!("offline-forget-{i}"), "forget", Kind::Ghost, &t).on_click(
                     cx.listener(move |this, _: &ClickEvent, _, cx| {
                         let mut accounts = Accounts::load();
-                        let done = accounts
-                            .remove_offline(&forget, &horizon_launcher::skins::dir())
-                            .and_then(|()| accounts.save());
+                        let done =
+                            accounts.remove_offline(&forget, &horizon_launcher::skins::dir());
                         match done {
                             Ok(()) => {
                                 this.accounts = accounts;
