@@ -580,8 +580,8 @@ pub fn copy_game_skipping(found: &Found, to: &Path, skip_mods: bool) -> std::io:
         if !kind.is_dir() && !kind.is_file() {
             continue;
         }
-        let name = entry.file_name();
-        let name = name.to_string_lossy();
+        let file_name = entry.file_name();
+        let name = file_name.to_string_lossy();
         if skip_mods && name == "mods" {
             continue;
         }
@@ -594,9 +594,9 @@ pub fn copy_game_skipping(found: &Found, to: &Path, skip_mods: bool) -> std::io:
             continue;
         }
         if kind.is_dir() {
-            copy_dir_no_links(&entry.path(), &to.join(name.as_ref()))?;
+            copy_dir_no_links(&entry.path(), &to.join(&file_name))?;
         } else {
-            fs::copy(entry.path(), to.join(name.as_ref()))?;
+            fs::copy(entry.path(), to.join(&file_name))?;
         }
     }
     // The instance's icon from its launcher's folder; a link is never followed (the same
