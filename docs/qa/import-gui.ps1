@@ -164,7 +164,8 @@ function ErrorLayout($label) {
    $start=if($prefix.Count -eq 1){$prefix[0].words[0].y}else{60}
    $frameWords=@($textLines|Where-Object {$_.words[0].y -ge $start}|ForEach-Object {$_.words})
    Check ($label+'-frame-'+$attempt+'-horizontal-bounds') (@($frameWords|Where-Object {$_.x -le $v.r.L+85 -or $_.x+$_.w -ge $v.r.R-5}).Count -eq 0)
-   $tail=@($textLines|Where-Object {$_.text -match '(?i)os error\s*3\s*\)'})
+   # The fixture renames only the leaf folder; symlink_metadata reports file-not-found (2).
+   $tail=@($textLines|Where-Object {$_.text -match '(?i)The system cannot find the file specified\s*\.?\s*\(os error\s*2\s*\)'})
    if($tail.Count -eq 1) {
     $seenTail=$true
     $bottom=($tail[0].words|ForEach-Object {$_.y+$_.h}|Measure-Object -Maximum).Maximum
