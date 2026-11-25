@@ -1018,3 +1018,29 @@ fn reservations_are_distinct_and_never_reuse_existing_paths() {
     }
     fs::remove_dir_all(root).unwrap();
 }
+
+#[cfg(unix)]
+#[test]
+fn failed_creation_reports_leftover_cleanup_without_losing_the_cause() {
+    let root = scratch("create-cleanup");
+    let partial = root.join("partial");
+    fs::write(&partial, b"leftover").unwrap();
+    let error = cleanup_failed_creation(&partial, "metadata save failed".into());
+    assert!(error.contains("metadata save failed"));
+    assert!(error.contains("could not remove partial instance"));
+    assert!(error.contains(partial.to_string_lossy().as_ref()));
+    assert_eq!(fs::read(&partial).unwrap(), b"leftover");
+    fs::remove_file(&partial).unwrap();
+    assert_eq!(
+        cleanup_failed_creation(&partial, "copy failed".into()),
+        "copy failed"
+    );
+    fs::create_dir_all(&partial).unwrap();
+    fs::write(partial.join("copied"), b"partial").unwrap();
+    assert_eq!(
+        cleanup_failed_creation(&partial, "copy failed".into()),
+        "copy failed"
+    );
+    assert!(!partial.exists());
+    fs::remove_dir_all(root).unwrap();
+}
