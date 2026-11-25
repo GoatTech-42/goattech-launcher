@@ -335,6 +335,8 @@ struct Launcher {
     offline_forget_error: Option<String>,
     /// The last Play offline account save failed; independent of Microsoft sign-in.
     offline_play_error: Option<String>,
+    /// The last player-selection save failed; independent of Microsoft sign-in.
+    player_selection_error: Option<String>,
     /// What to say when the keychain doesn't keep sign-ins ([`account::no_keychain`]).
     keychain: Option<String>,
     /// Whether an account here owns the game, by the keychain's last answers (the owner gate);
@@ -900,6 +902,7 @@ impl Launcher {
             sign_in_state: None,
             offline_forget_error: None,
             offline_play_error: None,
+            player_selection_error: None,
             keychain: None,
             owner: None,
             owner_screen_open: false,
@@ -5241,6 +5244,11 @@ impl Launcher {
             .child(detail)
             .children(
                 self.offline_play_error
+                    .clone()
+                    .map(|e| div().text_color(t.danger).child(e)),
+            )
+            .children(
+                self.player_selection_error
                     .clone()
                     .map(|e| div().text_color(t.danger).child(e)),
             );
