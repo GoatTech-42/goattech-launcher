@@ -229,6 +229,8 @@ struct Launcher {
     native_started: Option<(Instant, u64)>,
     /// How the last native build ended ("Built in 42 s (fast, incremental)", or "Up to date").
     native_done: Option<String>,
+    /// The last native build-profile save failed; the prior local settings were restored.
+    native_profile_save_error: Option<String>,
     native_error: Option<String>,
     native_confirm: Option<Result<Vec<native_mods::Bundle>, String>>,
     /// The instance (id) the build under way, or the last one's error, is for.
@@ -813,6 +815,7 @@ impl Launcher {
             native_step: None,
             native_started: None,
             native_done: None,
+            native_profile_save_error: None,
             native_error: None,
             native_confirm: None,
             native_for: None,
