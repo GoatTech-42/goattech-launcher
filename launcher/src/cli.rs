@@ -2000,7 +2000,7 @@ fn execute(command: Cmd, as_json: bool) -> Result<(), String> {
         Cmd::DesktopEntry { remove } => {
             let mut settings = backend::Settings::load();
             settings.desktop_entry = Some(!remove);
-            let _ = settings.save();
+            settings.save().map_err(|e| e.to_string())?;
             if remove {
                 crate::desktop::remove()?;
                 println!("Removed GoatTech Launcher from the applications menu.");
