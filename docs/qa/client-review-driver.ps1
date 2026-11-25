@@ -50,7 +50,7 @@ function Verify-TestConsent {
 }
 Verify-TestConsent
 "test-consent: preseeded Keep optional data off equivalent; schema=$consentVersion; all four optional categories=false; install_id absent; basic_summaries=false; test profile only" | Add-Content $info
-$env:HORIZON_LAUNCHER_PAGE=$env:CAP_ROUTE
+$env:HORIZON_LAUNCHER_PAGE=$(if ($env:CAP_ROUTE -eq 'settings-expanded') {'settings'} else {$env:CAP_ROUTE})
 $env:HORIZON_LAUNCHER_MOTION='off'
 Remove-Item Env:HORIZON_LAUNCHER_DESKTOP_ENTRY -ErrorAction SilentlyContinue
 
@@ -155,7 +155,7 @@ try {
     $png=Join-Path $env:CAP ("frame-{0:D2}-{1}.png" -f $f,$step.Name)
     # Full-desktop capture runs in its recorded no-new-console worker.
     # Timeout cannot guarantee a hung native worker exits gracefully. Any survivor stops the run.
-    $workerArgs=@('-NoProfile','-File',"$PSScriptRoot\client-review-worker.ps1",'-WindowHandle',[string]$v.Handle,'-LauncherPid',[string]$proc.Id,'-LauncherBirth',[string]$owned[[string]$proc.Id].Birth,'-Width',[string]$width,'-Height',[string]$height,'-Output',$png)
+    $workerArgs=@('-NoProfile','-File',"$PSScriptRoot\client-review-worker.ps1",'-WindowHandle',[string]$v.Handle,'-LauncherPid',[string]$proc.Id,'-LauncherBirth',[string]$owned[[string]$proc.Id].Birth,'-Width',[string]$width,'-Height',[string]$height,'-Output',$png,'-Expand',[string]$(if ($env:CAP_ROUTE -eq 'settings-expanded' -and $f -eq 1) {1} else {0}))
     $quotedArgs=($workerArgs | ForEach-Object { '"' + ([string]$_).Replace('"','\"') + '"' }) -join ' '
     $worker=Start-Process -NoNewWindow -FilePath (Join-Path $PSHOME 'pwsh.exe') -ArgumentList $quotedArgs -PassThru -RedirectStandardOutput "$env:CAP\worker-$f.stdout" -RedirectStandardError "$env:CAP\worker-$f.stderr"
     Track $worker 'capture-worker'

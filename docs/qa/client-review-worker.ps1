@@ -1,6 +1,6 @@
-param([long]$WindowHandle,[int]$LauncherPid,[long]$LauncherBirth,[int]$Width,[int]$Height,[string]$Output)
+param([long]$WindowHandle,[int]$LauncherPid,[long]$LauncherBirth,[int]$Width,[int]$Height,[string]$Output,[int]$Expand=0)
 $ErrorActionPreference='Stop'
-$src='using System;using System.Runtime.InteropServices;public class WorkerCap{[DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);[DllImport("user32.dll")]public static extern bool SetWindowPos(IntPtr h,IntPtr a,int x,int y,int w,int z,uint f);[DllImport("user32.dll")]public static extern bool SetForegroundWindow(IntPtr h);[DllImport("user32.dll")]public static extern IntPtr GetForegroundWindow();}'
+$src='using System;using System.Runtime.InteropServices;public class WorkerCap{[DllImport("user32.dll")]public static extern bool SetCursorPos(int x,int y);[DllImport("user32.dll")]public static extern void mouse_event(uint f,uint x,uint y,uint d,UIntPtr e);[DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);[DllImport("user32.dll")]public static extern bool SetWindowPos(IntPtr h,IntPtr a,int x,int y,int w,int z,uint f);[DllImport("user32.dll")]public static extern bool SetForegroundWindow(IntPtr h);[DllImport("user32.dll")]public static extern IntPtr GetForegroundWindow();}'
 Add-Type -TypeDefinition $src
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
@@ -23,6 +23,13 @@ try {
   [WorkerCap]::SetForegroundWindow($h) | Out-Null
   Start-Sleep -Milliseconds 750
   if ([WorkerCap]::GetForegroundWindow() -ne $h) {throw 'Owned launcher is not foreground'}
+  if ($Expand -eq 1) {
+    [WorkerCap]::SetCursorPos(500,282) | Out-Null
+    [WorkerCap]::mouse_event(2,0,0,0,[UIntPtr]::Zero)
+    [WorkerCap]::mouse_event(4,0,0,0,[UIntPtr]::Zero)
+    Start-Sleep -Seconds 2
+    if ([WorkerCap]::GetForegroundWindow() -ne $h) {throw 'Foreground changed after details click'}
+  }
   $g.CopyFromScreen($screen.Left,$screen.Top,0,0,$screen.Size)
   $bmp.Save($Output,[System.Drawing.Imaging.ImageFormat]::Png)
 } finally { if ($dc -ne [IntPtr]::Zero) {$g.ReleaseHdc($dc)};$g.Dispose();$bmp.Dispose() }
