@@ -113,7 +113,7 @@ pub fn import(path: &Path, requested: Option<&str>) -> Result<String, String> {
     // Read again: the window may have saved other settings during the copy.
     let mut settings = backend::Settings::load();
     settings.selected = Some(tag.clone());
-    let _ = settings.save();
+    settings.save().map_err(|e| e.to_string())?;
     Ok(tag)
 }
 
