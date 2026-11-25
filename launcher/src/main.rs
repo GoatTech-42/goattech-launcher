@@ -5283,8 +5283,15 @@ impl Launcher {
                 d.child(
                     scaled_button(format!("use-{tag}"), "use", Kind::Ghost, &t).on_click(
                         cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            let previous = this.settings.selected.clone();
                             this.settings.selected = Some(t1.clone());
-                            let _ = this.settings.save();
+                            match this.settings.save() {
+                                Ok(()) => this.install_error = None,
+                                Err(e) => {
+                                    this.settings.selected = previous;
+                                    this.install_error = Some((t1.clone(), e.to_string()));
+                                }
+                            }
                             cx.notify();
                         }),
                     ),
