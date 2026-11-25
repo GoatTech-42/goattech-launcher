@@ -343,7 +343,19 @@ impl Store {
             let _ = fs::remove_file(&tmp);
             return Err(e);
         }
-        fs::rename(&tmp, &path).map_err(|e| format!("{}: {e}", path.display()))
+        if let Err(e) = fs::rename(&tmp, &path) {
+            let mut error = format!("{}: {e}", path.display());
+            if let Err(cleanup) = fs::remove_file(&tmp) {
+                if cleanup.kind() != std::io::ErrorKind::NotFound {
+                    error.push_str(&format!(
+                        "; could not remove temporary store {}: {cleanup}",
+                        tmp.display()
+                    ));
+                }
+            }
+            return Err(error);
+        }
+        Ok(())
     }
 }
 
