@@ -1,0 +1,1161 @@
+[
+    {
+        "text":  "A",
+        "words":  [
+                      {
+                          "y":  13,
+                          "w":  12,
+                          "h":  12,
+                          "text":  "A",
+                          "x":  27
+                      }
+                  ]
+    },
+    {
+        "text":  "GoatTech",
+        "words":  [
+                      {
+                          "y":  14,
+                          "w":  64,
+                          "h":  8,
+                          "text":  "GoatTech",
+                          "x":  49
+                      }
+                  ]
+    },
+    {
+        "text":  "plas",
+        "words":  [
+                      {
+                          "y":  71,
+                          "w":  25,
+                          "h":  10,
+                          "text":  "plas",
+                          "x":  32
+                      }
+                  ]
+    },
+    {
+        "text":  "instances",
+        "words":  [
+                      {
+                          "y":  127,
+                          "w":  60,
+                          "h":  8,
+                          "text":  "instances",
+                          "x":  15
+                      }
+                  ]
+    },
+    {
+        "text":  "mods",
+        "words":  [
+                      {
+                          "y":  187,
+                          "w":  30,
+                          "h":  8,
+                          "text":  "mods",
+                          "x":  30
+                      }
+                  ]
+    },
+    {
+        "text":  "versions",
+        "words":  [
+                      {
+                          "y":  303,
+                          "w":  52,
+                          "h":  8,
+                          "text":  "versions",
+                          "x":  19
+                      }
+                  ]
+    },
+    {
+        "text":  "patch",
+        "words":  [
+                      {
+                          "y":  354,
+                          "w":  37,
+                          "h":  10,
+                          "text":  "patch",
+                          "x":  13
+                      }
+                  ]
+    },
+    {
+        "text":  "notes",
+        "words":  [
+                      {
+                          "y":  368,
+                          "w":  37,
+                          "h":  8,
+                          "text":  "notes",
+                          "x":  13
+                      }
+                  ]
+    },
+    {
+        "text":  "settinss",
+        "words":  [
+                      {
+                          "y":  648,
+                          "w":  55,
+                          "h":  10,
+                          "text":  "settinss",
+                          "x":  18
+                      }
+                  ]
+    },
+    {
+        "text":  "site",
+        "words":  [
+                      {
+                          "y":  698,
+                          "w":  21,
+                          "h":  9,
+                          "text":  "site",
+                          "x":  35
+                      }
+                  ]
+    },
+    {
+        "text":  "player",
+        "words":  [
+                      {
+                          "y":  751,
+                          "w":  35,
+                          "h":  11,
+                          "text":  "player",
+                          "x":  28
+                      }
+                  ]
+    },
+    {
+        "text":  "020",
+        "words":  [
+                      {
+                          "y":  775,
+                          "w":  27,
+                          "h":  8,
+                          "text":  "020",
+                          "x":  32
+                      }
+                  ]
+    },
+    {
+        "text":  "not",
+        "words":  [
+                      {
+                          "y":  50,
+                          "w":  22,
+                          "h":  9,
+                          "text":  "not",
+                          "x":  133
+                      }
+                  ]
+    },
+    {
+        "text":  "rust",
+        "words":  [
+                      {
+                          "y":  155,
+                          "w":  27,
+                          "h":  10,
+                          "text":  "rust",
+                          "x":  117
+                      }
+                  ]
+    },
+    {
+        "text":  "played",
+        "words":  [
+                      {
+                          "y":  50,
+                          "w":  46,
+                          "h":  11,
+                          "text":  "played",
+                          "x":  164
+                      }
+                  ]
+    },
+    {
+        "text":  "yet",
+        "words":  [
+                      {
+                          "y":  50,
+                          "w":  22,
+                          "h":  11,
+                          "text":  "yet",
+                          "x":  219
+                      }
+                  ]
+    },
+    {
+        "text":  "play",
+        "words":  [
+                      {
+                          "y":  84,
+                          "w":  27,
+                          "h":  13,
+                          "text":  "play",
+                          "x":  295
+                      }
+                  ]
+    },
+    {
+        "text":  "play",
+        "words":  [
+                      {
+                          "y":  311,
+                          "w":  27,
+                          "h":  13,
+                          "text":  "play",
+                          "x":  295
+                      }
+                  ]
+    },
+    {
+        "text":  "not played yet",
+        "words":  [
+                      {
+                          "y":  50,
+                          "w":  22,
+                          "h":  9,
+                          "text":  "not",
+                          "x":  511
+                      },
+                      {
+                          "y":  50,
+                          "w":  46,
+                          "h":  11,
+                          "text":  "played",
+                          "x":  542
+                      },
+                      {
+                          "y":  50,
+                          "w":  22,
+                          "h":  11,
+                          "text":  "yet",
+                          "x":  597
+                      }
+                  ]
+    },
+    {
+        "text":  "open",
+        "words":  [
+                      {
+                          "y":  209,
+                          "w":  34,
+                          "h":  11,
+                          "text":  "open",
+                          "x":  412
+                      }
+                  ]
+    },
+    {
+        "text":  "A Horizon",
+        "words":  [
+                      {
+                          "y":  205,
+                          "w":  18,
+                          "h":  19,
+                          "text":  "A",
+                          "x":  141
+                      },
+                      {
+                          "y":  207,
+                          "w":  51,
+                          "h":  12,
+                          "text":  "Horizon",
+                          "x":  179
+                      }
+                  ]
+    },
+    {
+        "text":  "horizon engine",
+        "words":  [
+                      {
+                          "y":  246,
+                          "w":  41,
+                          "h":  9,
+                          "text":  "horizon",
+                          "x":  142
+                      },
+                      {
+                          "y":  246,
+                          "w":  38,
+                          "h":  11,
+                          "text":  "engine",
+                          "x":  187
+                      }
+                  ]
+    },
+    {
+        "text":  "not played yet",
+        "words":  [
+                      {
+                          "y":  277,
+                          "w":  22,
+                          "h":  9,
+                          "text":  "not",
+                          "x":  133
+                      },
+                      {
+                          "y":  277,
+                          "w":  46,
+                          "h":  11,
+                          "text":  "played",
+                          "x":  164
+                      },
+                      {
+                          "y":  277,
+                          "w":  22,
+                          "h":  11,
+                          "text":  "yet",
+                          "x":  219
+                      }
+                  ]
+    },
+    {
+        "text":  "from Other launchers",
+        "words":  [
+                      {
+                          "y":  379,
+                          "w":  27,
+                          "h":  9,
+                          "text":  "from",
+                          "x":  116
+                      },
+                      {
+                          "y":  379,
+                          "w":  30,
+                          "h":  9,
+                          "text":  "Other",
+                          "x":  147
+                      },
+                      {
+                          "y":  379,
+                          "w":  55,
+                          "h":  9,
+                          "text":  "launchers",
+                          "x":  181
+                      }
+                  ]
+    },
+    {
+        "text":  "import a copy - the other launcher\u0027s instance stays as It is",
+        "words":  [
+                      {
+                          "y":  401,
+                          "w":  42,
+                          "h":  11,
+                          "text":  "import",
+                          "x":  117
+                      },
+                      {
+                          "y":  403,
+                          "w":  7,
+                          "h":  7,
+                          "text":  "a",
+                          "x":  167
+                      },
+                      {
+                          "y":  403,
+                          "w":  28,
+                          "h":  9,
+                          "text":  "copy",
+                          "x":  182
+                      },
+                      {
+                          "y":  406,
+                          "w":  5,
+                          "h":  1,
+                          "text":  "-",
+                          "x":  219
+                      },
+                      {
+                          "y":  401,
+                          "w":  21,
+                          "h":  9,
+                          "text":  "the",
+                          "x":  232
+                      },
+                      {
+                          "y":  401,
+                          "w":  36,
+                          "h":  9,
+                          "text":  "other",
+                          "x":  261
+                      },
+                      {
+                          "y":  401,
+                          "w":  71,
+                          "h":  9,
+                          "text":  "launcher\u0027s",
+                          "x":  305
+                      },
+                      {
+                          "y":  401,
+                          "w":  57,
+                          "h":  9,
+                          "text":  "instance",
+                          "x":  385
+                      },
+                      {
+                          "y":  401,
+                          "w":  35,
+                          "h":  11,
+                          "text":  "stays",
+                          "x":  450
+                      },
+                      {
+                          "y":  403,
+                          "w":  14,
+                          "h":  7,
+                          "text":  "as",
+                          "x":  493
+                      },
+                      {
+                          "y":  401,
+                          "w":  13,
+                          "h":  9,
+                          "text":  "It",
+                          "x":  515
+                      },
+                      {
+                          "y":  401,
+                          "w":  13,
+                          "h":  9,
+                          "text":  "is",
+                          "x":  537
+                      }
+                  ]
+    },
+    {
+        "text":  "qa fabric import - Prism Launcher",
+        "words":  [
+                      {
+                          "y":  443,
+                          "w":  14,
+                          "h":  9,
+                          "text":  "qa",
+                          "x":  130
+                      },
+                      {
+                          "y":  441,
+                          "w":  35,
+                          "h":  10,
+                          "text":  "fabric",
+                          "x":  147
+                      },
+                      {
+                          "y":  441,
+                          "w":  39,
+                          "h":  11,
+                          "text":  "import",
+                          "x":  185
+                      },
+                      {
+                          "y":  446,
+                          "w":  4,
+                          "h":  2,
+                          "text":  "-",
+                          "x":  227
+                      },
+                      {
+                          "y":  441,
+                          "w":  33,
+                          "h":  10,
+                          "text":  "Prism",
+                          "x":  234
+                      },
+                      {
+                          "y":  441,
+                          "w":  54,
+                          "h":  10,
+                          "text":  "Launcher",
+                          "x":  271
+                      }
+                  ]
+    },
+    {
+        "text":  "Minecraft 121.1 with Fabric",
+        "words":  [
+                      {
+                          "y":  460,
+                          "w":  54,
+                          "h":  9,
+                          "text":  "Minecraft",
+                          "x":  131
+                      },
+                      {
+                          "y":  461,
+                          "w":  22,
+                          "h":  8,
+                          "text":  "121.1",
+                          "x":  188
+                      },
+                      {
+                          "y":  460,
+                          "w":  23,
+                          "h":  9,
+                          "text":  "with",
+                          "x":  214
+                      },
+                      {
+                          "y":  460,
+                          "w":  33,
+                          "h":  9,
+                          "text":  "Fabric",
+                          "x":  241
+                      }
+                  ]
+    },
+    {
+        "text":  "qa no loader import - Prism Launcher",
+        "words":  [
+                      {
+                          "y":  517,
+                          "w":  14,
+                          "h":  9,
+                          "text":  "qa",
+                          "x":  130
+                      },
+                      {
+                          "y":  517,
+                          "w":  14,
+                          "h":  8,
+                          "text":  "no",
+                          "x":  148
+                      },
+                      {
+                          "y":  515,
+                          "w":  37,
+                          "h":  9,
+                          "text":  "loader",
+                          "x":  165
+                      },
+                      {
+                          "y":  515,
+                          "w":  39,
+                          "h":  11,
+                          "text":  "import",
+                          "x":  205
+                      },
+                      {
+                          "y":  520,
+                          "w":  4,
+                          "h":  2,
+                          "text":  "-",
+                          "x":  247
+                      },
+                      {
+                          "y":  515,
+                          "w":  33,
+                          "h":  10,
+                          "text":  "Prism",
+                          "x":  255
+                      },
+                      {
+                          "y":  515,
+                          "w":  54,
+                          "h":  10,
+                          "text":  "Launcher",
+                          "x":  291
+                      }
+                  ]
+    },
+    {
+        "text":  "Minecraft 121.1",
+        "words":  [
+                      {
+                          "y":  534,
+                          "w":  54,
+                          "h":  9,
+                          "text":  "Minecraft",
+                          "x":  131
+                      },
+                      {
+                          "y":  535,
+                          "w":  22,
+                          "h":  8,
+                          "text":  "121.1",
+                          "x":  188
+                      }
+                  ]
+    },
+    {
+        "text":  "play",
+        "words":  [
+                      {
+                          "y":  84,
+                          "w":  27,
+                          "h":  13,
+                          "text":  "play",
+                          "x":  673
+                      }
+                  ]
+    },
+    {
+        "text":  "import",
+        "words":  [
+                      {
+                          "y":  450,
+                          "w":  54,
+                          "h":  13,
+                          "text":  "import",
+                          "x":  1086
+                      }
+                  ]
+    },
+    {
+        "text":  "import withouE mods",
+        "words":  [
+                      {
+                          "y":  542,
+                          "w":  54,
+                          "h":  13,
+                          "text":  "import",
+                          "x":  973
+                      },
+                      {
+                          "y":  542,
+                          "w":  66,
+                          "h":  10,
+                          "text":  "withouE",
+                          "x":  1031
+                      },
+                      {
+                          "y":  542,
+                          "w":  40,
+                          "h":  10,
+                          "text":  "mods",
+                          "x":  1101
+                      }
+                  ]
+    },
+    {
+        "text":  "qa no loader import comes with I mod(s), but Prism Launcher records no mod loader for it: plain Minecraft doesnt load mods, and which loader",
+        "words":  [
+                      {
+                          "y":  555,
+                          "w":  14,
+                          "h":  9,
+                          "text":  "qa",
+                          "x":  130
+                      },
+                      {
+                          "y":  555,
+                          "w":  13,
+                          "h":  7,
+                          "text":  "no",
+                          "x":  148
+                      },
+                      {
+                          "y":  553,
+                          "w":  36,
+                          "h":  9,
+                          "text":  "loader",
+                          "x":  165
+                      },
+                      {
+                          "y":  553,
+                          "w":  37,
+                          "h":  11,
+                          "text":  "import",
+                          "x":  204
+                      },
+                      {
+                          "y":  555,
+                          "w":  37,
+                          "h":  7,
+                          "text":  "comes",
+                          "x":  245
+                      },
+                      {
+                          "y":  553,
+                          "w":  24,
+                          "h":  9,
+                          "text":  "with",
+                          "x":  285
+                      },
+                      {
+                          "y":  554,
+                          "w":  3,
+                          "h":  8,
+                          "text":  "I",
+                          "x":  313
+                      },
+                      {
+                          "y":  553,
+                          "w":  40,
+                          "h":  11,
+                          "text":  "mod(s),",
+                          "x":  320
+                      },
+                      {
+                          "y":  553,
+                          "w":  18,
+                          "h":  9,
+                          "text":  "but",
+                          "x":  364
+                      },
+                      {
+                          "y":  553,
+                          "w":  31,
+                          "h":  9,
+                          "text":  "Prism",
+                          "x":  386
+                      },
+                      {
+                          "y":  553,
+                          "w":  52,
+                          "h":  9,
+                          "text":  "Launcher",
+                          "x":  421
+                      },
+                      {
+                          "y":  553,
+                          "w":  43,
+                          "h":  9,
+                          "text":  "records",
+                          "x":  477
+                      },
+                      {
+                          "y":  555,
+                          "w":  14,
+                          "h":  7,
+                          "text":  "no",
+                          "x":  524
+                      },
+                      {
+                          "y":  553,
+                          "w":  24,
+                          "h":  9,
+                          "text":  "mod",
+                          "x":  542
+                      },
+                      {
+                          "y":  553,
+                          "w":  35,
+                          "h":  9,
+                          "text":  "loader",
+                          "x":  570
+                      },
+                      {
+                          "y":  553,
+                          "w":  17,
+                          "h":  9,
+                          "text":  "for",
+                          "x":  608
+                      },
+                      {
+                          "y":  553,
+                          "w":  9,
+                          "h":  9,
+                          "text":  "it:",
+                          "x":  629
+                      },
+                      {
+                          "y":  553,
+                          "w":  27,
+                          "h":  11,
+                          "text":  "plain",
+                          "x":  641
+                      },
+                      {
+                          "y":  553,
+                          "w":  54,
+                          "h":  9,
+                          "text":  "Minecraft",
+                          "x":  672
+                      },
+                      {
+                          "y":  553,
+                          "w":  41,
+                          "h":  9,
+                          "text":  "doesnt",
+                          "x":  729
+                      },
+                      {
+                          "y":  553,
+                          "w":  23,
+                          "h":  9,
+                          "text":  "load",
+                          "x":  774
+                      },
+                      {
+                          "y":  553,
+                          "w":  33,
+                          "h":  11,
+                          "text":  "mods,",
+                          "x":  801
+                      },
+                      {
+                          "y":  553,
+                          "w":  20,
+                          "h":  9,
+                          "text":  "and",
+                          "x":  838
+                      },
+                      {
+                          "y":  553,
+                          "w":  33,
+                          "h":  9,
+                          "text":  "which",
+                          "x":  862
+                      },
+                      {
+                          "y":  553,
+                          "w":  36,
+                          "h":  9,
+                          "text":  "loader",
+                          "x":  899
+                      }
+                  ]
+    },
+    {
+        "text":  "they need is unknown.",
+        "words":  [
+                      {
+                          "y":  570,
+                          "w":  25,
+                          "h":  11,
+                          "text":  "they",
+                          "x":  130
+                      },
+                      {
+                          "y":  570,
+                          "w":  27,
+                          "h":  9,
+                          "text":  "need",
+                          "x":  159
+                      },
+                      {
+                          "y":  570,
+                          "w":  9,
+                          "h":  9,
+                          "text":  "is",
+                          "x":  190
+                      },
+                      {
+                          "y":  570,
+                          "w":  54,
+                          "h":  9,
+                          "text":  "unknown.",
+                          "x":  203
+                      }
+                  ]
+    },
+    {
+        "text":  "qa vanished import - Prism Launcher",
+        "words":  [
+                      {
+                          "y":  627,
+                          "w":  14,
+                          "h":  9,
+                          "text":  "qa",
+                          "x":  130
+                      },
+                      {
+                          "y":  625,
+                          "w":  53,
+                          "h":  10,
+                          "text":  "vanished",
+                          "x":  147
+                      },
+                      {
+                          "y":  625,
+                          "w":  39,
+                          "h":  11,
+                          "text":  "import",
+                          "x":  204
+                      },
+                      {
+                          "y":  630,
+                          "w":  5,
+                          "h":  2,
+                          "text":  "-",
+                          "x":  245
+                      },
+                      {
+                          "y":  625,
+                          "w":  33,
+                          "h":  10,
+                          "text":  "Prism",
+                          "x":  253
+                      },
+                      {
+                          "y":  625,
+                          "w":  53,
+                          "h":  10,
+                          "text":  "Launcher",
+                          "x":  290
+                      }
+                  ]
+    },
+    {
+        "text":  "Minecraft 121.1",
+        "words":  [
+                      {
+                          "y":  644,
+                          "w":  54,
+                          "h":  9,
+                          "text":  "Minecraft",
+                          "x":  131
+                      },
+                      {
+                          "y":  645,
+                          "w":  22,
+                          "h":  8,
+                          "text":  "121.1",
+                          "x":  188
+                      }
+                  ]
+    },
+    {
+        "text":  "import withouE mods",
+        "words":  [
+                      {
+                          "y":  652,
+                          "w":  54,
+                          "h":  13,
+                          "text":  "import",
+                          "x":  973
+                      },
+                      {
+                          "y":  652,
+                          "w":  66,
+                          "h":  10,
+                          "text":  "withouE",
+                          "x":  1031
+                      },
+                      {
+                          "y":  652,
+                          "w":  40,
+                          "h":  10,
+                          "text":  "mods",
+                          "x":  1101
+                      }
+                  ]
+    },
+    {
+        "text":  "qa vanished import comes with I mod(s), but Prism Launcher records no mod loader For it: plain Minecraft doesn\u0027t load mods, and which loader",
+        "words":  [
+                      {
+                          "y":  665,
+                          "w":  14,
+                          "h":  9,
+                          "text":  "qa",
+                          "x":  130
+                      },
+                      {
+                          "y":  663,
+                          "w":  51,
+                          "h":  9,
+                          "text":  "vanished",
+                          "x":  147
+                      },
+                      {
+                          "y":  663,
+                          "w":  37,
+                          "h":  11,
+                          "text":  "import",
+                          "x":  202
+                      },
+                      {
+                          "y":  665,
+                          "w":  38,
+                          "h":  7,
+                          "text":  "comes",
+                          "x":  242
+                      },
+                      {
+                          "y":  663,
+                          "w":  24,
+                          "h":  9,
+                          "text":  "with",
+                          "x":  283
+                      },
+                      {
+                          "y":  664,
+                          "w":  3,
+                          "h":  8,
+                          "text":  "I",
+                          "x":  311
+                      },
+                      {
+                          "y":  663,
+                          "w":  40,
+                          "h":  11,
+                          "text":  "mod(s),",
+                          "x":  318
+                      },
+                      {
+                          "y":  663,
+                          "w":  18,
+                          "h":  9,
+                          "text":  "but",
+                          "x":  362
+                      },
+                      {
+                          "y":  663,
+                          "w":  31,
+                          "h":  9,
+                          "text":  "Prism",
+                          "x":  384
+                      },
+                      {
+                          "y":  663,
+                          "w":  52,
+                          "h":  9,
+                          "text":  "Launcher",
+                          "x":  419
+                      },
+                      {
+                          "y":  663,
+                          "w":  43,
+                          "h":  9,
+                          "text":  "records",
+                          "x":  475
+                      },
+                      {
+                          "y":  665,
+                          "w":  13,
+                          "h":  7,
+                          "text":  "no",
+                          "x":  522
+                      },
+                      {
+                          "y":  663,
+                          "w":  25,
+                          "h":  9,
+                          "text":  "mod",
+                          "x":  539
+                      },
+                      {
+                          "y":  663,
+                          "w":  35,
+                          "h":  9,
+                          "text":  "loader",
+                          "x":  568
+                      },
+                      {
+                          "y":  663,
+                          "w":  17,
+                          "h":  9,
+                          "text":  "For",
+                          "x":  606
+                      },
+                      {
+                          "y":  663,
+                          "w":  10,
+                          "h":  9,
+                          "text":  "it:",
+                          "x":  626
+                      },
+                      {
+                          "y":  663,
+                          "w":  26,
+                          "h":  11,
+                          "text":  "plain",
+                          "x":  639
+                      },
+                      {
+                          "y":  663,
+                          "w":  54,
+                          "h":  9,
+                          "text":  "Minecraft",
+                          "x":  670
+                      },
+                      {
+                          "y":  663,
+                          "w":  41,
+                          "h":  9,
+                          "text":  "doesn\u0027t",
+                          "x":  727
+                      },
+                      {
+                          "y":  663,
+                          "w":  23,
+                          "h":  9,
+                          "text":  "load",
+                          "x":  772
+                      },
+                      {
+                          "y":  663,
+                          "w":  33,
+                          "h":  11,
+                          "text":  "mods,",
+                          "x":  799
+                      },
+                      {
+                          "y":  663,
+                          "w":  21,
+                          "h":  9,
+                          "text":  "and",
+                          "x":  835
+                      },
+                      {
+                          "y":  663,
+                          "w":  33,
+                          "h":  9,
+                          "text":  "which",
+                          "x":  860
+                      },
+                      {
+                          "y":  663,
+                          "w":  35,
+                          "h":  9,
+                          "text":  "loader",
+                          "x":  897
+                      }
+                  ]
+    },
+    {
+        "text":  "they need is unknown.",
+        "words":  [
+                      {
+                          "y":  680,
+                          "w":  25,
+                          "h":  11,
+                          "text":  "they",
+                          "x":  130
+                      },
+                      {
+                          "y":  680,
+                          "w":  27,
+                          "h":  9,
+                          "text":  "need",
+                          "x":  159
+                      },
+                      {
+                          "y":  680,
+                          "w":  9,
+                          "h":  9,
+                          "text":  "is",
+                          "x":  190
+                      },
+                      {
+                          "y":  680,
+                          "w":  54,
+                          "h":  9,
+                          "text":  "unknown.",
+                          "x":  203
+                      }
+                  ]
+    },
+    {
+        "text":  "search",
+        "words":  [
+                      {
+                          "y":  729,
+                          "w":  57,
+                          "h":  10,
+                          "text":  "search",
+                          "x":  133
+                      }
+                  ]
+    }
+]

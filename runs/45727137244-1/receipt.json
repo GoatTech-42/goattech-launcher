@@ -1,0 +1,1070 @@
+{
+    "binary_sha256":  "C7C89B00A9D1BC3F3D3038259349E31B976BF43ADCE591F14A80B36D21E5B192",
+    "image_version":  "20261116.315.1",
+    "harness":  "d498d60909194d9f91ad11012ec873f0c70e7a8f",
+    "run":  "45727137244",
+    "prism":  "C:\\Users\\runneradmin\\AppData\\Roaming\\PrismLauncher",
+    "game_home":  "D:\\a\\_temp\\import-gui-profile\\game",
+    "source":  "cdbc87ee2a6d65e81555603be30b7690afb52c5f",
+    "os":  "win25-vs2026",
+    "launcher_home":  "D:\\a\\_temp\\import-gui-profile\\launcher",
+    "roaming":  "C:\\Users\\runneradmin\\AppData\\Roaming",
+    "frames":  [
+                   {
+                       "sha256":  "D3B115D15CBC02BE148D92DA3505B1A3C9BAF466A3EA64EACE2C1A3C21D48FAA",
+                       "bytes":  52095,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "01-initial-instances.png"
+                   },
+                   {
+                       "sha256":  "D3B115D15CBC02BE148D92DA3505B1A3C9BAF466A3EA64EACE2C1A3C21D48FAA",
+                       "bytes":  52095,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "02-locate-search.png"
+                   },
+                   {
+                       "sha256":  "128EEF31533FB89FD1173EE595044027226EB8C5A20E0F3C2222453BC6C258CC",
+                       "bytes":  49977,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "03-locate-search.png"
+                   },
+                   {
+                       "sha256":  "C45BFAD4D535F5413BE551D9BA642C3C3FF0C130B1FEDC97716CE8B69F088BF9",
+                       "bytes":  52094,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "04-discovered-rows.png"
+                   },
+                   {
+                       "sha256":  "C45BFAD4D535F5413BE551D9BA642C3C3FF0C130B1FEDC97716CE8B69F088BF9",
+                       "bytes":  52094,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "05-no-error-960.png"
+                   },
+                   {
+                       "sha256":  "C45BFAD4D535F5413BE551D9BA642C3C3FF0C130B1FEDC97716CE8B69F088BF9",
+                       "bytes":  52094,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "06-no-error-960-search.png"
+                   },
+                   {
+                       "sha256":  "FF1139E36A28F157477FD0BEE00EA91056336D8C506651BF7C1D1481A6D43B9D",
+                       "bytes":  58290,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "07-no-error-960-search.png"
+                   },
+                   {
+                       "sha256":  "FF1139E36A28F157477FD0BEE00EA91056336D8C506651BF7C1D1481A6D43B9D",
+                       "bytes":  58290,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "08-button-qa-fabric-import.png"
+                   },
+                   {
+                       "sha256":  "99A4761D39A7D2E7E870C3E7904A15FD72A4314CE5BBBB25BEA1796B77A28F37",
+                       "bytes":  34091,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "09-after-qa-fabric-import.png"
+                   },
+                   {
+                       "sha256":  "7D7796B173486E027AD2C418D3773466C9DCEC19F28938F68FA4C8C4EEC2C34B",
+                       "bytes":  53901,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "10-locate-search.png"
+                   },
+                   {
+                       "sha256":  "42DD209AD59507BF59624D3E850E6FF5A6FABD3D9D39C1BB3A874B1DAFA1F969",
+                       "bytes":  56848,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "11-locate-search.png"
+                   },
+                   {
+                       "sha256":  "32060C4063349E42AAB71B9CE3449E052B79EB41441B2AF4609C76E5225B2804",
+                       "bytes":  53672,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "12-locate-search.png"
+                   },
+                   {
+                       "sha256":  "DF50BD1686340F4C319E5590B7C21253898E118CB4C3D8C5A0855BDBF90B6D05",
+                       "bytes":  53906,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "13-button-qa-no-loader-import.png"
+                   },
+                   {
+                       "sha256":  "1F0479682F5F6ED8A5E632BB0B504FDED1E3D3A9378BEEB5F159E19F5B201E77",
+                       "bytes":  49369,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "14-button-qa-no-loader-import.png"
+                   },
+                   {
+                       "sha256":  "6F421A24868DDD883AD183D7579539B0195E02773BA7C24017BDC414961C91AF",
+                       "bytes":  33169,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "15-after-qa-no-loader-import.png"
+                   },
+                   {
+                       "sha256":  "5FDB5DD27D00E8D3B69426210489023BDA906FC5041999CC2EFCE9B99A741DB7",
+                       "bytes":  56695,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "16-locate-search.png"
+                   },
+                   {
+                       "sha256":  "FC596CB5DE4061932658730D693EA7189A021FEFE8A2C94BA51254DBD83EBBA7",
+                       "bytes":  50787,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "17-locate-search.png"
+                   },
+                   {
+                       "sha256":  "3B32F4C13D676D3DC37D708FED24E1CBA07AA61F5EB122CCB1A43519C00D590B",
+                       "bytes":  47142,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "18-locate-search.png"
+                   },
+                   {
+                       "sha256":  "16D1145F4627B61213784BD383788F86B9E9D21F2EE0C2F7CCF1C8560FD7CEA9",
+                       "bytes":  56701,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "19-vanished-current-row.png"
+                   },
+                   {
+                       "sha256":  "DE1D2446DE37E7F099A13D3B6F0C0D126FADAA3419B8C936177D13AC40DD7362",
+                       "bytes":  50655,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "20-vanished-current-row.png"
+                   },
+                   {
+                       "sha256":  "FBF6120D98A22283DDF7C781F778B82D984F777701BE1802CE1C7A140C357680",
+                       "bytes":  55688,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "21-vanished-current-row.png"
+                   },
+                   {
+                       "sha256":  "FBF6120D98A22283DDF7C781F778B82D984F777701BE1802CE1C7A140C357680",
+                       "bytes":  55688,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "22-button-qa-vanished-import.png"
+                   },
+                   {
+                       "sha256":  "BFE7496532A39D92EC31509B68DF1A0D9912FC1385AF1B47AE7EBB13BEB969D6",
+                       "bytes":  61378,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "23-after-qa-vanished-import.png"
+                   },
+                   {
+                       "sha256":  "BFE7496532A39D92EC31509B68DF1A0D9912FC1385AF1B47AE7EBB13BEB969D6",
+                       "bytes":  61378,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "24-visible-missing-source-error.png"
+                   },
+                   {
+                       "sha256":  "BFE7496532A39D92EC31509B68DF1A0D9912FC1385AF1B47AE7EBB13BEB969D6",
+                       "bytes":  61378,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "25-long-unbroken-error-960.png"
+                   },
+                   {
+                       "sha256":  "FB218E378665BB37697F14A581519FDFA11666B6A817E3D806F620023F9199E9",
+                       "bytes":  63477,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "26-long-unbroken-error-960.png"
+                   },
+                   {
+                       "sha256":  "3B613B2596117CE9C26815E80F71DDC3BFA8012D4583E7D3686DC8BB93B10CB6",
+                       "bytes":  74318,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  1200,
+                       "capture_height":  800,
+                       "file":  "27-long-unbroken-error-1200.png"
+                   },
+                   {
+                       "sha256":  "E1B9D2E159381FEAFF13381590F03307234F0D45F8088A2A06C2EAD308F25715",
+                       "bytes":  56699,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "28-locate-search.png"
+                   },
+                   {
+                       "sha256":  "EEF77FF7E592A6295BAFA9E151582211752310092468B7E3C113FBAA9DC2F2F4",
+                       "bytes":  50655,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "29-locate-search.png"
+                   },
+                   {
+                       "sha256":  "FB218E378665BB37697F14A581519FDFA11666B6A817E3D806F620023F9199E9",
+                       "bytes":  63477,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "30-locate-search.png"
+                   },
+                   {
+                       "sha256":  "16D1145F4627B61213784BD383788F86B9E9D21F2EE0C2F7CCF1C8560FD7CEA9",
+                       "bytes":  56701,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "31-standard-vanished-row.png"
+                   },
+                   {
+                       "sha256":  "DE1D2446DE37E7F099A13D3B6F0C0D126FADAA3419B8C936177D13AC40DD7362",
+                       "bytes":  50655,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "32-standard-vanished-row.png"
+                   },
+                   {
+                       "sha256":  "FBF6120D98A22283DDF7C781F778B82D984F777701BE1802CE1C7A140C357680",
+                       "bytes":  55688,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "33-standard-vanished-row.png"
+                   },
+                   {
+                       "sha256":  "FBF6120D98A22283DDF7C781F778B82D984F777701BE1802CE1C7A140C357680",
+                       "bytes":  55688,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "34-button-qa-vanished-import.png"
+                   },
+                   {
+                       "sha256":  "A111FAEF120C1F63830A48F28B94AF07323362FB27432153DC70108BAD9BF736",
+                       "bytes":  63026,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "35-after-qa-vanished-import.png"
+                   },
+                   {
+                       "sha256":  "A111FAEF120C1F63830A48F28B94AF07323362FB27432153DC70108BAD9BF736",
+                       "bytes":  63026,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "36-standard-error-960.png"
+                   },
+                   {
+                       "sha256":  "B1D3C3C63FAA04EFFF5D5709EB2A8965BDD5EC1412EBCF84F5B23F1F082DD140",
+                       "bytes":  71638,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  1200,
+                       "capture_height":  800,
+                       "file":  "37-standard-error-1200.png"
+                   },
+                   {
+                       "sha256":  "79E34C43520CCA3AEBED58E05A28CFD87CED94538FA7663C6749815C5C6D789B",
+                       "bytes":  56699,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "38-locate-search.png"
+                   },
+                   {
+                       "sha256":  "06C9566E19E4588F79F300B9A458752CBCDE78C5743E468B61589E13AF8EDCE3",
+                       "bytes":  50655,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "39-locate-search.png"
+                   },
+                   {
+                       "sha256":  "610D263256A83894D73BB92A2B9AB94DE6DBF8693E070CA4F13517127F799F5F",
+                       "bytes":  61905,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "40-locate-search.png"
+                   },
+                   {
+                       "sha256":  "16D1145F4627B61213784BD383788F86B9E9D21F2EE0C2F7CCF1C8560FD7CEA9",
+                       "bytes":  56701,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "41-cleared-error-960.png"
+                   },
+                   {
+                       "sha256":  "16D1145F4627B61213784BD383788F86B9E9D21F2EE0C2F7CCF1C8560FD7CEA9",
+                       "bytes":  56701,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "42-cleared-error-960-search.png"
+                   },
+                   {
+                       "sha256":  "DE1D2446DE37E7F099A13D3B6F0C0D126FADAA3419B8C936177D13AC40DD7362",
+                       "bytes":  50655,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "43-cleared-error-960-search.png"
+                   },
+                   {
+                       "sha256":  "FBF6120D98A22283DDF7C781F778B82D984F777701BE1802CE1C7A140C357680",
+                       "bytes":  55688,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  960,
+                       "capture_height":  600,
+                       "file":  "44-cleared-error-960-search.png"
+                   },
+                   {
+                       "sha256":  "6B4D37D1D9B07BAAFF4557F53A115D7B6F900873B7038BDFC9AF174E13F7D388",
+                       "bytes":  66674,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  1200,
+                       "capture_height":  800,
+                       "file":  "45-no-error-1200.png"
+                   },
+                   {
+                       "sha256":  "6B4D37D1D9B07BAAFF4557F53A115D7B6F900873B7038BDFC9AF174E13F7D388",
+                       "bytes":  66674,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  1200,
+                       "capture_height":  800,
+                       "file":  "46-no-error-1200-search.png"
+                   },
+                   {
+                       "sha256":  "6B4D37D1D9B07BAAFF4557F53A115D7B6F900873B7038BDFC9AF174E13F7D388",
+                       "bytes":  66674,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  1200,
+                       "capture_height":  800,
+                       "file":  "47-no-error-1200-search.png"
+                   },
+                   {
+                       "sha256":  "6B4D37D1D9B07BAAFF4557F53A115D7B6F900873B7038BDFC9AF174E13F7D388",
+                       "bytes":  66674,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  1200,
+                       "capture_height":  800,
+                       "file":  "48-no-error-1200-search.png"
+                   },
+                   {
+                       "sha256":  "6B4D37D1D9B07BAAFF4557F53A115D7B6F900873B7038BDFC9AF174E13F7D388",
+                       "bytes":  66674,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  1200,
+                       "capture_height":  800,
+                       "file":  "49-no-error-1200-search.png"
+                   },
+                   {
+                       "sha256":  "6B4D37D1D9B07BAAFF4557F53A115D7B6F900873B7038BDFC9AF174E13F7D388",
+                       "bytes":  66674,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  1200,
+                       "capture_height":  800,
+                       "file":  "50-no-error-1200-search.png"
+                   },
+                   {
+                       "sha256":  "6B4D37D1D9B07BAAFF4557F53A115D7B6F900873B7038BDFC9AF174E13F7D388",
+                       "bytes":  66674,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  1200,
+                       "capture_height":  800,
+                       "file":  "51-no-error-1200-search.png"
+                   },
+                   {
+                       "sha256":  "6B4D37D1D9B07BAAFF4557F53A115D7B6F900873B7038BDFC9AF174E13F7D388",
+                       "bytes":  66674,
+                       "capture_x":  8,
+                       "capture_y":  0,
+                       "capture_width":  1200,
+                       "capture_height":  800,
+                       "file":  "52-failure-state.png"
+                   }
+               ],
+    "checks":  [
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/icon.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/instance.cfg"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/accounts.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/config/qa/settings.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/kubejs/qa.js"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/logs/latest.log"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/mods/qa.jar"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/msa_token.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/options.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/optionsshaders.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/resourcepacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/saves/qa world/level.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/screenshots/qa.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/servers.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/minecraft/shaderpacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-fabric/mmc-pack.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/icon.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/instance.cfg"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/accounts.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/config/qa/settings.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/kubejs/qa.js"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/logs/latest.log"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/mods/qa.jar"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/msa_token.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/options.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/optionsshaders.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/resourcepacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/saves/qa world/level.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/screenshots/qa.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/servers.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/minecraft/shaderpacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-no-loader/mmc-pack.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/icon.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/instance.cfg"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/accounts.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/config/qa/settings.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/kubejs/qa.js"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/logs/latest.log"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/mods/qa.jar"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/msa_token.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/options.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/optionsshaders.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/resourcepacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/saves/qa world/level.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/screenshots/qa.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/servers.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/minecraft/shaderpacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "packet-PrismLauncher/instances/qa-vanished/mmc-pack.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "display-resize-command-available"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "owned-window-ready"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "client-size-960-600"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "window-in-screen-960-600"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "no-error-960-no-error-prefix"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "no-error-960-search-available"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "unique-import-button-qa fabric import"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "honest-import-label-qa fabric import"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "saved-single-qa-fabric"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "destination-folder-qa-fabric"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "excluded-qa-fabric-accounts.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-config/qa/settings.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-kubejs/qa.js"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "excluded-qa-fabric-logs/latest.log"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-mods/qa.jar"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "excluded-qa-fabric-msa_token.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-options.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-optionsshaders.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-resourcepacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-saves/qa world/level.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-screenshots/qa.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-servers.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-fabric-shaderpacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "icon-qa-fabric"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "version-qa-fabric"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "notes-qa-fabric"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "loader-qa-fabric"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "unique-import-button-qa no loader import"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "honest-import-label-qa no loader import"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "saved-single-qa-no-loader"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "destination-folder-qa-no-loader"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "excluded-qa-no-loader-accounts.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-config/qa/settings.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-kubejs/qa.js"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "excluded-qa-no-loader-logs/latest.log"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "excluded-qa-no-loader-mods/qa.jar"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "excluded-qa-no-loader-msa_token.json"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-options.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-optionsshaders.txt"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-resourcepacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-saves/qa world/level.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-screenshots/qa.png"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-servers.dat"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "copy-qa-no-loader-shaderpacks/qa.zip"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "icon-qa-no-loader"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "version-qa-no-loader"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "notes-qa-no-loader"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "loader-absent-qa-no-loader"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "unique-import-button-qa vanished import"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "honest-import-label-qa vanished import"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "missing-source-visible-error"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-960-search-above-error"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-960-error-below-search"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-960-frame-0-horizontal-bounds"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-960-search-above-error"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-960-error-below-search"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-960-frame-1-horizontal-bounds"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-960-all-visible-error-words-in-bounds"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-960-prefix-seen"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-960-full-os-error-tail-seen"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "client-size-1200-800"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "window-in-screen-1200-800"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-1200-search-above-error"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-1200-error-below-search"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-1200-frame-0-horizontal-bounds"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-1200-all-visible-error-words-in-bounds"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-1200-prefix-seen"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "long-unbroken-error-1200-full-os-error-tail-seen"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "client-size-960-600"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "window-in-screen-960-600"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "vanished-no-metadata"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "vanished-no-folder"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "unique-import-button-qa vanished import"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "honest-import-label-qa vanished import"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "standard-error-960-search-above-error"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "standard-error-960-error-below-search"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "standard-error-960-frame-0-horizontal-bounds"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "standard-error-960-all-visible-error-words-in-bounds"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "standard-error-960-prefix-seen"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "standard-error-960-full-os-error-tail-seen"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "client-size-1200-800"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "window-in-screen-1200-800"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "standard-error-1200-search-above-error"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "standard-error-1200-error-below-search"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "standard-error-1200-frame-0-horizontal-bounds"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "standard-error-1200-all-visible-error-words-in-bounds"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "standard-error-1200-prefix-seen"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "standard-error-1200-full-os-error-tail-seen"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "client-size-960-600"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "window-in-screen-960-600"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "standard-vanished-no-metadata"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "standard-vanished-no-folder"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "cleared-error-960-no-error-prefix"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "cleared-error-960-search-available"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "client-size-1200-800"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "window-in-screen-1200-800"
+                   },
+                   {
+                       "pass":  true,
+                       "name":  "no-error-1200-no-error-prefix"
+                   },
+                   {
+                       "detail":  "OCR target missing: no-error-1200-search",
+                       "pass":  false,
+                       "name":  "run-exception"
+                   }
+               ],
+    "limits":  "synthetic Prism slice only; no Play/sign-in/junction/race/mod compatibility claim"
+}
