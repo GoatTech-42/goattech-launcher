@@ -182,6 +182,39 @@ async function count(expected) {
     assert.equal(db.prepare('SELECT COUNT(*) n FROM hour_totals WHERE hour < ?').get(second - 90 * 86400).n, 0, fault);
     assert.equal(db.prepare('SELECT COUNT(*) n FROM basic_daily WHERE release = ?').get(fault).n, 0, fault);
   }
+  // A failed uncached public read must be503, never a cached zero or stale success.
+  db.exec('DELETE FROM sessions');
+  now += 11000;
+  failSql = 'COUNT(*) AS n';
+  faultHits = 0;
+  assert.equal((await request('GET')).status, 503);
+  assert.equal(faultHits, 1);
+  failSql = null;
+  insert.run('a'.repeat(32), 'recovered', 'linux', 0, Math.floor(now / 1000));
+  await count({ playing: 1, lan: 0, versions: { recovered: 1 }, platforms: { linux: 1 } });
+  // A failure after UPDATE but before INSERT rolls the batch back: a rejected
+  // refresh must not quietly change the old version, LAN flag or timestamp.
+  const oldSession = db.prepare('SELECT * FROM sessions').get();
+  now += 11000;
+  failSql = 'INSERT INTO sessions';
+  faultHits = 0;
+  assert.equal((await request('POST', ping('a', 'not-committed', 'windows', true))).status, 503);
+  assert.equal(faultHits, 1);
+  failSql = null;
+  assert.deepEqual(db.prepare('SELECT * FROM sessions').get(), oldSession);
+  assert.equal((await request('POST', ping('a', 'committed', 'windows', true))).status, 204);
+  await count({ playing: 1, lan: 1, versions: { committed: 1 }, platforms: { windows: 1 } });
+  // Failed cleanup must surface to the scheduler. In a transactional batch the
+  // earlier deletes roll back, and a later healthy cron removes actual rows.
+  insert.run('b'.repeat(32), 'expired', 'linux', 0, Math.floor(now / 1000) - 7200);
+  failSql = 'DELETE FROM basic_daily';
+  faultHits = 0;
+  await assert.rejects(context.worker.scheduled({}, env), /synthetic write failure/);
+  assert.equal(faultHits, 1);
+  failSql = null;
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM sessions WHERE version = ?').get('expired').n, 1);
+  await context.worker.scheduled({}, env);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM sessions WHERE version = ?').get('expired').n, 0);
   db.close();
   console.log('PASS real worker + SQLite: admission, capped refresh, live count/LAN/version/OS, strict120s cutoff, stale exclusion, cron expiry and readmission');
 })().catch(error => { console.error(error); process.exitCode = 1; });
