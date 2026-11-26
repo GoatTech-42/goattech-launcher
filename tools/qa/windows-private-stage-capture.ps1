@@ -16,8 +16,16 @@ $sourcePath=(Resolve-Path -LiteralPath $SourceRoot).Path.TrimEnd('\','/')
 if ($outPath.Equals($sourcePath,[StringComparison]::OrdinalIgnoreCase) -or $outPath.StartsWith($sourcePath+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) {throw 'Output cannot be inside source checkout'}
 $ancestor=Split-Path -Parent $outPath
 while (-not (Test-Path -LiteralPath $ancestor)) {$parent=Split-Path -Parent $ancestor;if ($parent -eq $ancestor -or -not $parent) {throw 'No existing output ancestor'};$ancestor=$parent}
-$worktree=& git -C $ancestor rev-parse --is-inside-work-tree 2>$null
-if ($LASTEXITCODE -eq 0 -and $worktree -eq 'true') {throw 'Output cannot be inside any git work tree'}
+# Windows PowerShell5.1 can promote expected native stderr to a terminating error.
+# Keep that expected non-repository result local; restore strict errors immediately.
+$previousErrorAction=$ErrorActionPreference
+try {
+ $ErrorActionPreference='Continue'
+ $worktree=@(& git -C $ancestor rev-parse --is-inside-work-tree 2>&1)
+ $gitExit=$LASTEXITCODE
+} finally {$ErrorActionPreference=$previousErrorAction}
+if ($gitExit -eq 0 -and $worktree -contains 'true') {throw 'Output cannot be inside any git work tree'}
+if ($gitExit -ne 0 -and $gitExit -ne 128) {throw 'Git output-path check failed unexpectedly'}
 $Out=$outPath
 $binaryPath=(Resolve-Path -LiteralPath $Binary).Path
 $actual=(Get-FileHash -LiteralPath $binaryPath -Algorithm SHA256).Hash
