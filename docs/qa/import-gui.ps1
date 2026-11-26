@@ -146,6 +146,21 @@ function ResizeLauncher($width,$height) {
  $screen=[Windows.Forms.SystemInformation]::VirtualScreen
  Check ("window-in-screen-$width-$height") ($v.r.L -ge $screen.Left -and $v.r.T -ge $screen.Top -and $v.r.R -le $screen.Right -and $v.r.B -le $screen.Bottom)
 }
+function CompleteCopyErrorTail($lines) {
+ # Join only adjacent error-region lines. OCR reads the visible opening parenthesis as I.
+ $ordered=@($lines|Sort-Object {$_.words[0].y})
+ return @(for($i=0;$i -lt $ordered.Count;$i++) {
+  $joined=$ordered[$i].text
+  if($joined -match '(?i)The system cannot find the file specified\s*\.?\s*[\(I]os error\s*2\s*\)') {$ordered[$i];continue}
+  if($i+1 -lt $ordered.Count) {
+   $pitch=$ordered[$i+1].words[0].y-$ordered[$i].words[0].y
+   if($pitch -gt 0 -and $pitch -le 25 -and $ordered[$i+1].text -notmatch '(?i)The system cannot find the file specified\s*\.?\s*[\(I]os error\s*2\s*\)') {
+    $joined+=' '+$ordered[$i+1].text
+    if($joined -match '(?i)The system cannot find the file specified\s*\.?\s*[\(I]os error\s*2\s*\)') {$ordered[$i+1]}
+   }
+  }
+ })
+}
 function ErrorLayout($label) {
  # Require the complete OS-error tail, not only the prefix used by the import gate.
  $seenPrefix=$false;$seenTail=$false;$searchBottom=$null
@@ -165,7 +180,7 @@ function ErrorLayout($label) {
    $frameWords=@($textLines|Where-Object {$_.words[0].y -ge $start}|ForEach-Object {$_.words})
    Check ($label+'-frame-'+$attempt+'-horizontal-bounds') (@($frameWords|Where-Object {$_.x -le $v.r.L+85 -or $_.x+$_.w -ge $v.r.R-5}).Count -eq 0)
    # The fixture renames only the leaf folder; symlink_metadata reports file-not-found (2).
-   $tail=@($textLines|Where-Object {$_.text -match '(?i)The system cannot find the file specified\s*\.?\s*\(os error\s*2\s*\)'})
+   $tail=@(CompleteCopyErrorTail @($textLines|Where-Object {$_.words[0].y -ge $start}))
    if($tail.Count -eq 1) {
     $seenTail=$true
     $bottom=($tail[0].words|ForEach-Object {$_.y+$_.h}|Measure-Object -Maximum).Maximum
@@ -261,6 +276,8 @@ try {
  Search;$line=Target '^qa vanished import\s*-\s*Prism Launcher$' 'standard-vanished-row' $true
  Rename-Item -LiteralPath $vanished -NewName 'minecraft-held'
  ImportRow 'qa vanished import' $true;ErrorLayout 'standard-error-960'
+ ResizeLauncher 1200 800;ErrorLayout 'standard-error-1200'
+ ResizeLauncher 960 600
  Check 'standard-vanished-no-metadata' ((Entry 'qa vanished import').Count -eq 0)
  Check 'standard-vanished-no-folder' (-not (Test-Path (Join-Path $env:HORIZON_HOME 'instances/qa-vanished-import')))
  Rename-Item -LiteralPath $held -NewName 'minecraft'
