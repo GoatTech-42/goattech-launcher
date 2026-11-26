@@ -119,6 +119,45 @@ async function count(expected) {
   await context.worker.scheduled({}, env);
   assert.deepEqual(db.prepare('SELECT minute FROM minute_totals ORDER BY minute').all().map(r => r.minute), [minuteCutoff, minuteCutoff + 1]);
   assert.deepEqual(db.prepare('SELECT hour FROM hour_totals ORDER BY hour').all().map(r => r.hour), [hourCutoff, hourCutoff + 1]);
+  // At an hour boundary cron snapshots the live minute and rolls up ONLY the
+  // previous hour, taking playing/LAN maxima independently.
+  db.exec('DELETE FROM sessions; DELETE FROM minute_totals; DELETE FROM hour_totals');
+  now = Date.parse('2026-11-27T12:00:00Z');
+  const hour = Math.floor(now / 1000);
+  for (const id of ['a', 'd', 'e', 'f']) insert.run(id.repeat(32), 'live', 'linux', 1, hour);
+  const snapshotInsert = db.prepare('INSERT INTO minute_totals VALUES (?, ?, ?, ?, ?)');
+  snapshotInsert.run(hour - 3660, 99, 99, '{}', '{}');
+  snapshotInsert.run(hour - 3600, 3, 1, '{}', '{}');
+  snapshotInsert.run(hour - 60, 2, 2, '{}', '{}');
+  await context.worker.scheduled({}, env);
+  const snapshot = db.prepare('SELECT * FROM minute_totals WHERE minute = ?').get(hour);
+  assert.equal(snapshot.playing, 4);
+  assert.equal(snapshot.lan, 4);
+  assert.deepEqual(JSON.parse(snapshot.versions), { live: 4 });
+  assert.deepEqual(JSON.parse(snapshot.platforms), { linux: 4 });
+  const totals = db.prepare('SELECT * FROM hour_totals').all();
+  assert.equal(totals.length, 1);
+  assert.equal(totals[0].hour, hour - 3600);
+  assert.equal(totals[0].playing_max, 3);
+  assert.equal(totals[0].lan_max, 2);
+  // Re-running that minute replaces one snapshot, never duplicates it.
+  await context.worker.scheduled({}, env);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM minute_totals WHERE minute = ?').get(hour).n, 1);
+  // Only the hour boundary rolls up, and empty minutes add no snapshot.
+  now += 60000;
+  db.exec('DELETE FROM sessions; DELETE FROM hour_totals');
+  await context.worker.scheduled({}, env);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM hour_totals').get().n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM minute_totals WHERE minute = ?').get(hour + 60).n, 0);
+  // Stored sessions survive the exact1hour TTL but disappear1second later.
+  const ttlNow = Math.floor(now / 1000);
+  insert.run('b'.repeat(32), 'ttl', 'linux', 0, ttlNow - 3600);
+  insert.run('c'.repeat(32), 'expired', 'linux', 0, ttlNow - 3601);
+  await context.worker.scheduled({}, env);
+  assert.deepEqual(db.prepare('SELECT version FROM sessions').all().map(r => r.version), ['ttl']);
+  now += 1000;
+  await context.worker.scheduled({}, env);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM sessions').get().n, 0);
   db.close();
   console.log('PASS real worker + SQLite: admission, capped refresh, live count/LAN/version/OS, strict120s cutoff, stale exclusion, cron expiry and readmission');
 })().catch(error => { console.error(error); process.exitCode = 1; });
