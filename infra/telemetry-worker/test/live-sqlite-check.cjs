@@ -12,11 +12,12 @@ class Clock extends Date {
   constructor(...args) { super(...(args.length ? args : [now])); }
   static now() { return now; }
 }
+let failSql = null, faultHits = 0;
 const DB = {
   prepare(sql) {
     return { sql, args: [], bind(...args) { this.args = args; return this; },
-      async all() { return { results: db.prepare(sql).all(...this.args) }; },
-      async run() { return { meta: db.prepare(sql).run(...this.args) }; } };
+      async all() { if (failSql && sql.includes(failSql)) { faultHits++; throw Error('synthetic read failure'); } return { results: db.prepare(sql).all(...this.args) }; },
+      async run() { if (failSql && sql.includes(failSql)) { faultHits++; throw Error('synthetic write failure'); } return { meta: db.prepare(sql).run(...this.args) }; } };
   },
   async batch(statements) {
     db.exec('BEGIN');
@@ -158,6 +159,29 @@ async function count(expected) {
   now += 1000;
   await context.worker.scheduled({}, env);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM sessions').get().n, 0);
+  // Snapshot reads and writes can fail independently of viable cleanup. Exercise
+  // actual expired rows, not just a recorded DELETE call, for each failure point.
+  for (const fault of ['COUNT(*) AS n', 'INSERT OR REPLACE INTO minute_totals', 'SELECT MAX(playing)', 'INSERT OR REPLACE INTO hour_totals']) {
+    now = Date.parse('2026-11-28T12:00:00Z');
+    const second = Math.floor(now / 1000);
+    db.exec('DELETE FROM sessions; DELETE FROM minute_totals; DELETE FROM hour_totals');
+    insert.run('a'.repeat(32), 'current', 'linux', 0, second);
+    insert.run('b'.repeat(32), 'expired', 'linux', 0, second - 7200);
+    snapshotInsert.run(second - 60, 1, 0, '{}', '{}');
+    snapshotInsert.run(second - 8 * 86400, 1, 0, '{}', '{}');
+    hourInsert.run(second - 91 * 86400);
+    const basicInsert = db.prepare('INSERT INTO basic_daily VALUES (?, ?, ?, ?, ?, ?)');
+    basicInsert.run('2026-11-21', fault, 'linux', 'ttt_ms', 'lt500', 1);
+    failSql = fault;
+    faultHits = 0;
+    await context.worker.scheduled({}, env);
+    failSql = null;
+    assert.equal(faultHits, 1, `fault reached exactly once: ${fault}`);
+    assert.deepEqual(db.prepare('SELECT version FROM sessions').all().map(r => r.version), ['current'], fault);
+    assert.equal(db.prepare('SELECT COUNT(*) n FROM minute_totals WHERE minute < ?').get(second - 7 * 86400).n, 0, fault);
+    assert.equal(db.prepare('SELECT COUNT(*) n FROM hour_totals WHERE hour < ?').get(second - 90 * 86400).n, 0, fault);
+    assert.equal(db.prepare('SELECT COUNT(*) n FROM basic_daily WHERE release = ?').get(fault).n, 0, fault);
+  }
   db.close();
   console.log('PASS real worker + SQLite: admission, capped refresh, live count/LAN/version/OS, strict120s cutoff, stale exclusion, cron expiry and readmission');
 })().catch(error => { console.error(error); process.exitCode = 1; });
