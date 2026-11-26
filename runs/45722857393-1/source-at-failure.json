@@ -1,0 +1,242 @@
+[
+    {
+        "path":  "instances/qa-fabric/icon.png",
+        "sha256":  "ba7d406079f8cfaa8afaf7ddaf7ff9f6541d196a8dde97b2b4bd91ef94ac003b",
+        "bytes":  108
+    },
+    {
+        "path":  "instances/qa-fabric/instance.cfg",
+        "sha256":  "148de01502a360e46029ecf53cf1e3e62f101ec06d0b4d406d86e6fd06a09a0a",
+        "bytes":  67
+    },
+    {
+        "path":  "instances/qa-fabric/minecraft/accounts.json",
+        "sha256":  "1aa0e30354c41471bf13419b12e69d78e9c0bba7bdbd9a58a3da92addc9995b3",
+        "bytes":  31
+    },
+    {
+        "path":  "instances/qa-fabric/minecraft/config/qa/settings.json",
+        "sha256":  "ffbc2dfc402782325da71132100e74ff511d1585dd80e4ea196ed4bcace3fef2",
+        "bytes":  16
+    },
+    {
+        "path":  "instances/qa-fabric/minecraft/kubejs/qa.js",
+        "sha256":  "04a1b46b6636ba6b7ec5b102ab91d1c81b774d6640ed7b7994be5e10f0f18bb2",
+        "bytes":  20
+    },
+    {
+        "path":  "instances/qa-fabric/minecraft/logs/latest.log",
+        "sha256":  "f09344d289f46268089b0c46630c7a8f050d08aafb476a64243e5a4b3636fb19",
+        "bytes":  15
+    },
+    {
+        "path":  "instances/qa-fabric/minecraft/mods/qa.jar",
+        "sha256":  "0302d47c931c0e064447d882fc202d433f59690ffba3ea585226602fef5ff1b7",
+        "bytes":  32
+    },
+    {
+        "path":  "instances/qa-fabric/minecraft/msa_token.json",
+        "sha256":  "4dca6a68ba78eb15609e1c798f53fe58b9eb464cdf74895cbedd6bbff176ef86",
+        "bytes":  30
+    },
+    {
+        "path":  "instances/qa-fabric/minecraft/options.txt",
+        "sha256":  "7a1f55e9212867e78d35c8fad2bf02f608034bd83cbd60908eaafcf94dbd45af",
+        "bytes":  19
+    },
+    {
+        "path":  "instances/qa-fabric/minecraft/optionsshaders.txt",
+        "sha256":  "3a7a8f98f117fe0370124a95c0303466eee2bc10cdbeb1c0dd710d1a7041a869",
+        "bytes":  17
+    },
+    {
+        "path":  "instances/qa-fabric/minecraft/resourcepacks/qa.zip",
+        "sha256":  "75f5a6cabba7b552e2510595ff0c6088c8f7016a57b1e47621740a26fcc45ea7",
+        "bytes":  19
+    },
+    {
+        "path":  "instances/qa-fabric/minecraft/saves/qa world/level.dat",
+        "sha256":  "c5dcdad24361e0dc3b167adc91d45d9134135e876d16b7317966bf6bd007c9aa",
+        "bytes":  32
+    },
+    {
+        "path":  "instances/qa-fabric/minecraft/screenshots/qa.png",
+        "sha256":  "a3050c0f40448127c3cc29274d1af406b18874d8774c93e3cad8646954013207",
+        "bytes":  21
+    },
+    {
+        "path":  "instances/qa-fabric/minecraft/servers.dat",
+        "sha256":  "5f1bd5a1360cf87c87c2eec64cfcefc5a851c2cbd559529fbb2827eaeb097090",
+        "bytes":  24
+    },
+    {
+        "path":  "instances/qa-fabric/minecraft/shaderpacks/qa.zip",
+        "sha256":  "66c51976982d4fa5828ceafa882cf769b0b3c08dcf4f06bd11058e06563035fb",
+        "bytes":  17
+    },
+    {
+        "path":  "instances/qa-fabric/mmc-pack.json",
+        "sha256":  "feaca241f96e5eef7a01034ca51488955cf4cf5f1955fd8118718fbf9207cb9b",
+        "bytes":  143
+    },
+    {
+        "path":  "instances/qa-no-loader/icon.png",
+        "sha256":  "ba7d406079f8cfaa8afaf7ddaf7ff9f6541d196a8dde97b2b4bd91ef94ac003b",
+        "bytes":  108
+    },
+    {
+        "path":  "instances/qa-no-loader/instance.cfg",
+        "sha256":  "c4c2a6f8f9c8a2823e0a0333a464890bde27ea7a948653a0e45c255b03bb5081",
+        "bytes":  70
+    },
+    {
+        "path":  "instances/qa-no-loader/minecraft/accounts.json",
+        "sha256":  "1aa0e30354c41471bf13419b12e69d78e9c0bba7bdbd9a58a3da92addc9995b3",
+        "bytes":  31
+    },
+    {
+        "path":  "instances/qa-no-loader/minecraft/config/qa/settings.json",
+        "sha256":  "ffbc2dfc402782325da71132100e74ff511d1585dd80e4ea196ed4bcace3fef2",
+        "bytes":  16
+    },
+    {
+        "path":  "instances/qa-no-loader/minecraft/kubejs/qa.js",
+        "sha256":  "04a1b46b6636ba6b7ec5b102ab91d1c81b774d6640ed7b7994be5e10f0f18bb2",
+        "bytes":  20
+    },
+    {
+        "path":  "instances/qa-no-loader/minecraft/logs/latest.log",
+        "sha256":  "f09344d289f46268089b0c46630c7a8f050d08aafb476a64243e5a4b3636fb19",
+        "bytes":  15
+    },
+    {
+        "path":  "instances/qa-no-loader/minecraft/mods/qa.jar",
+        "sha256":  "0302d47c931c0e064447d882fc202d433f59690ffba3ea585226602fef5ff1b7",
+        "bytes":  32
+    },
+    {
+        "path":  "instances/qa-no-loader/minecraft/msa_token.json",
+        "sha256":  "4dca6a68ba78eb15609e1c798f53fe58b9eb464cdf74895cbedd6bbff176ef86",
+        "bytes":  30
+    },
+    {
+        "path":  "instances/qa-no-loader/minecraft/options.txt",
+        "sha256":  "7a1f55e9212867e78d35c8fad2bf02f608034bd83cbd60908eaafcf94dbd45af",
+        "bytes":  19
+    },
+    {
+        "path":  "instances/qa-no-loader/minecraft/optionsshaders.txt",
+        "sha256":  "3a7a8f98f117fe0370124a95c0303466eee2bc10cdbeb1c0dd710d1a7041a869",
+        "bytes":  17
+    },
+    {
+        "path":  "instances/qa-no-loader/minecraft/resourcepacks/qa.zip",
+        "sha256":  "75f5a6cabba7b552e2510595ff0c6088c8f7016a57b1e47621740a26fcc45ea7",
+        "bytes":  19
+    },
+    {
+        "path":  "instances/qa-no-loader/minecraft/saves/qa world/level.dat",
+        "sha256":  "c5dcdad24361e0dc3b167adc91d45d9134135e876d16b7317966bf6bd007c9aa",
+        "bytes":  32
+    },
+    {
+        "path":  "instances/qa-no-loader/minecraft/screenshots/qa.png",
+        "sha256":  "a3050c0f40448127c3cc29274d1af406b18874d8774c93e3cad8646954013207",
+        "bytes":  21
+    },
+    {
+        "path":  "instances/qa-no-loader/minecraft/servers.dat",
+        "sha256":  "5f1bd5a1360cf87c87c2eec64cfcefc5a851c2cbd559529fbb2827eaeb097090",
+        "bytes":  24
+    },
+    {
+        "path":  "instances/qa-no-loader/minecraft/shaderpacks/qa.zip",
+        "sha256":  "66c51976982d4fa5828ceafa882cf769b0b3c08dcf4f06bd11058e06563035fb",
+        "bytes":  17
+    },
+    {
+        "path":  "instances/qa-no-loader/mmc-pack.json",
+        "sha256":  "fdf22d30ce3389ddb8cc2f41794115c572bd2f280e00bbd78331ce50a7442ad5",
+        "bytes":  83
+    },
+    {
+        "path":  "instances/qa-vanished/icon.png",
+        "sha256":  "ba7d406079f8cfaa8afaf7ddaf7ff9f6541d196a8dde97b2b4bd91ef94ac003b",
+        "bytes":  108
+    },
+    {
+        "path":  "instances/qa-vanished/instance.cfg",
+        "sha256":  "afae9ab62e781dd475f6aab1c192117118a7a0efa57f000b88c402c97af8073d",
+        "bytes":  69
+    },
+    {
+        "path":  "instances/qa-vanished/minecraft-held/accounts.json",
+        "sha256":  "1aa0e30354c41471bf13419b12e69d78e9c0bba7bdbd9a58a3da92addc9995b3",
+        "bytes":  31
+    },
+    {
+        "path":  "instances/qa-vanished/minecraft-held/config/qa/settings.json",
+        "sha256":  "ffbc2dfc402782325da71132100e74ff511d1585dd80e4ea196ed4bcace3fef2",
+        "bytes":  16
+    },
+    {
+        "path":  "instances/qa-vanished/minecraft-held/kubejs/qa.js",
+        "sha256":  "04a1b46b6636ba6b7ec5b102ab91d1c81b774d6640ed7b7994be5e10f0f18bb2",
+        "bytes":  20
+    },
+    {
+        "path":  "instances/qa-vanished/minecraft-held/logs/latest.log",
+        "sha256":  "f09344d289f46268089b0c46630c7a8f050d08aafb476a64243e5a4b3636fb19",
+        "bytes":  15
+    },
+    {
+        "path":  "instances/qa-vanished/minecraft-held/mods/qa.jar",
+        "sha256":  "0302d47c931c0e064447d882fc202d433f59690ffba3ea585226602fef5ff1b7",
+        "bytes":  32
+    },
+    {
+        "path":  "instances/qa-vanished/minecraft-held/msa_token.json",
+        "sha256":  "4dca6a68ba78eb15609e1c798f53fe58b9eb464cdf74895cbedd6bbff176ef86",
+        "bytes":  30
+    },
+    {
+        "path":  "instances/qa-vanished/minecraft-held/options.txt",
+        "sha256":  "7a1f55e9212867e78d35c8fad2bf02f608034bd83cbd60908eaafcf94dbd45af",
+        "bytes":  19
+    },
+    {
+        "path":  "instances/qa-vanished/minecraft-held/optionsshaders.txt",
+        "sha256":  "3a7a8f98f117fe0370124a95c0303466eee2bc10cdbeb1c0dd710d1a7041a869",
+        "bytes":  17
+    },
+    {
+        "path":  "instances/qa-vanished/minecraft-held/resourcepacks/qa.zip",
+        "sha256":  "75f5a6cabba7b552e2510595ff0c6088c8f7016a57b1e47621740a26fcc45ea7",
+        "bytes":  19
+    },
+    {
+        "path":  "instances/qa-vanished/minecraft-held/saves/qa world/level.dat",
+        "sha256":  "c5dcdad24361e0dc3b167adc91d45d9134135e876d16b7317966bf6bd007c9aa",
+        "bytes":  32
+    },
+    {
+        "path":  "instances/qa-vanished/minecraft-held/screenshots/qa.png",
+        "sha256":  "a3050c0f40448127c3cc29274d1af406b18874d8774c93e3cad8646954013207",
+        "bytes":  21
+    },
+    {
+        "path":  "instances/qa-vanished/minecraft-held/servers.dat",
+        "sha256":  "5f1bd5a1360cf87c87c2eec64cfcefc5a851c2cbd559529fbb2827eaeb097090",
+        "bytes":  24
+    },
+    {
+        "path":  "instances/qa-vanished/minecraft-held/shaderpacks/qa.zip",
+        "sha256":  "66c51976982d4fa5828ceafa882cf769b0b3c08dcf4f06bd11058e06563035fb",
+        "bytes":  17
+    },
+    {
+        "path":  "instances/qa-vanished/mmc-pack.json",
+        "sha256":  "fdf22d30ce3389ddb8cc2f41794115c572bd2f280e00bbd78331ce50a7442ad5",
+        "bytes":  83
+    }
+]
