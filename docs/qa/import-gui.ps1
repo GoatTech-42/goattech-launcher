@@ -66,7 +66,7 @@ function Snap($label) {
  } finally {$stream.Dispose()}
  $lines=@($result.Lines | ForEach-Object { @{text=$_.Text;words=@($_.Words | ForEach-Object {@{text=$_.Text;x=($_.BoundingRect.X+$captureX);y=($_.BoundingRect.Y+$captureY);w=$_.BoundingRect.Width;h=$_.BoundingRect.Height}})} })
  Json $lines (Join-Path $evidence ($name+'.ocr.json'));$frames.Add(@{capture_x=$captureX;capture_y=$captureY;capture_width=$client.R;capture_height=$client.B;file=$name;sha256=(Get-FileHash $path -Algorithm SHA256).Hash;bytes=(Get-Item $path).Length})
- return @{lines=$lines;file=$name}
+ return @{lines=$lines;file=$name;x=$captureX;y=$captureY;width=$client.R;height=$client.B}
 }
 function ClickAt($x,$y,$why) {
  Foreground;$v=OwnedWindow
@@ -77,7 +77,12 @@ function ClickAt($x,$y,$why) {
 function Scroll($down) {Foreground;$actions.Add(@{action='scroll';down=$down});[ImportNative]::SetCursorPos(800,420)|Out-Null;$delta=if ($down) {[uint32]::MaxValue-599} else {[uint32]600};[ImportNative]::mouse_event(0x800,0,0,$delta,[UIntPtr]::Zero);Start-Sleep -Milliseconds 700}
 function Target($pattern,$label,$scroll=$false) {
  for ($i=0;$i -lt $(if ($scroll) {6}else{1});$i++) {
-  $s=Snap $label;$matches=@($s.lines | Where-Object {$_.text -match $pattern -and $_.words[0].x -gt 85 -and $_.words[-1].x -lt 950 -and $_.words[0].y -lt 590})
+  $s=Snap $label
+  $matches=@($s.lines | Where-Object {
+   $_.text -match $pattern -and $_.words[0].x -gt $s.x+85 -and
+   $_.words[-1].x -lt $s.x+$s.width-10 -and $_.words[0].y -lt $s.y+$s.height-10 -and
+   @($_.words|Where-Object {$_.x -le $s.x+85 -or $_.x+$_.w -ge $s.x+$s.width-10 -or $_.y -le $s.y+30 -or $_.y+$_.h -ge $s.y+$s.height-10}).Count -eq 0
+  })
   if ($matches.Count -eq 1) {return $matches[0]}
   if ($matches.Count -gt 1) {throw "Ambiguous OCR target: $label"}
   if ($scroll) {Scroll $true}
