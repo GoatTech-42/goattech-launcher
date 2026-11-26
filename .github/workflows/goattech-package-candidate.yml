@@ -115,6 +115,37 @@ jobs:
           cargo metadata --manifest-path launcher/Cargo.toml --locked --offline --filter-platform ${{ matrix.target }} --format-version 1 > dependency-metadata.json
           python tools/package_goattech.py --binary binary-input/${{ matrix.binary }} --output candidate --platform ${{ matrix.platform }} --version "$HORIZON_LAUNCHER_VERSION" --source-commit "$GITHUB_SHA" --dependency-metadata dependency-metadata.json --dependency-root "$GITHUB_WORKSPACE" --dependency-root "$HOME/.cargo/registry/src"
           cat candidate/SHA256SUMS
+      - name: Independently verify Windows archive and notice inventory
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/verify_candidate.py --archive "candidate/goattech-launcher-$HORIZON_LAUNCHER_VERSION-windows-x64.zip" --source "$GITHUB_SHA" --metadata dependency-metadata.json
+      - name: Qualify extracted Windows package without auth
+        if: runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 6
+        run: |
+          ./tools/qa/windows-package-qualification.ps1 -Candidate "$PWD/candidate" -Out "$env:RUNNER_TEMP/package-evidence"
+      - name: Export synthetic package evidence to log, never package artifacts
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 2
+        run: |
+          $dir=Join-Path $env:RUNNER_TEMP 'package-evidence'
+          $receipt=Join-Path $dir 'package-receipt.json'
+          if (Test-Path $receipt) {Get-Content -LiteralPath $receipt}
+          else {Write-Output 'PACKAGE-RECEIPT-MISSING'}
+          foreach ($name in @('portable.png','installed.png')) {
+            $path=Join-Path $dir $name
+            if (-not (Test-Path $path)) {Write-Output "FRAME-MISSING $name";continue}
+            if ((Get-Item -LiteralPath $path).Length -gt 1500000) {throw 'Frame exceeds export bound'}
+            $sha=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+            Write-Output "###FRAME-BEGIN $name sha256=$sha"
+            $b64=[Convert]::ToBase64String([IO.File]::ReadAllBytes($path))
+            for ($i=0;$i -lt $b64.Length;$i+=76) {Write-Output $b64.Substring($i,[Math]::Min(76,$b64.Length-$i))}
+            Write-Output "###FRAME-END $name"
+          }
       # Off by default. This repository is public, so anyone signed in to GitHub can download a
       # workflow artifact: turning it on distributes a build and needs the audience admitted first.
       # A candidate, not a release; publishing is a separate, approved step.

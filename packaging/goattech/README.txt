@@ -7,7 +7,9 @@ Project website: https://launcher.goattech.us
 Extract the archive to a folder you own. Start horizon-launcher.exe on Windows,
 or ./horizon-launcher on a Linux x64 desktop. The internal binary name is kept
 for compatibility. Do not rename it to horizon-launcher-setup.exe: this portable
-package is not an installer and must not use the inherited Horizon setup path.
+package is not an installer. If a separate horizon-launcher-setup.exe is supplied,
+use that file for the per-user GoatTech setup instead. Keep its NOTICES.txt and
+the matching portable archive beside it for the license texts and covered source.
 There is no Start menu registration, automatic update feed or bundled Java/game.
 Linux needs a supported desktop, graphics drivers and the system libraries the
 launcher links to. This archive is not an AppImage or a distribution package.
