@@ -85,6 +85,40 @@ async function count(expected) {
   assert.equal(db.prepare('SELECT platform FROM sessions WHERE session = ?').get('f'.repeat(32)).platform, 'other');
   now += 11000;
   await count({ playing: 4, lan: 0, versions: { v3: 1, v4: 1, v5: 1, v6: 1 }, platforms: { macos: 1, linux: 2, other: 1 } });
+  // Cache is deliberately stale for <10s, then refreshes at exactly10s.
+  assert.equal((await request('POST', ping('1', 'v7', 'linux', false))).status, 204);
+  await count({ playing: 4, lan: 0, versions: { v3: 1, v4: 1, v5: 1, v6: 1 }, platforms: { macos: 1, linux: 2, other: 1 } });
+  now += 9999;
+  await count({ playing: 4, lan: 0, versions: { v3: 1, v4: 1, v5: 1, v6: 1 }, platforms: { macos: 1, linux: 2, other: 1 } });
+  now += 1;
+  await count({ playing: 5, lan: 0, versions: { v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }, platforms: { macos: 1, linux: 3, other: 1 } });
+  // More than12versions must preserve totals, including a real version named other.
+  db.exec('DELETE FROM sessions');
+  const insert = db.prepare('INSERT INTO sessions VALUES (?, ?, ?, ?, ?)');
+  for (let i = 0; i < 14; i++) insert.run(i.toString(16).padStart(32, '0'), i === 0 ? 'other' : `v${String(i).padStart(2, '0')}`, 'linux', i % 2, Math.floor(now / 1000));
+  now += 10000;
+  const overflow = await (await request('GET')).json();
+  assert.equal(overflow.playing, 14);
+  assert.equal(overflow.lan, 7);
+  assert.deepEqual(overflow.platforms, { linux: 14 });
+  assert.equal(Object.keys(overflow.versions).length, 13);
+  assert.equal(overflow.versions.other, 1);
+  assert.equal(overflow.versions['(other)'], 2);
+  assert.equal(Object.values(overflow.versions).reduce((a, b) => a + b, 0), 14);
+  // SQL retention keeps the strict boundary and removes only older snapshots.
+  db.exec('DELETE FROM sessions; DELETE FROM minute_totals; DELETE FROM hour_totals');
+  const second = Math.floor(now / 1000);
+  const minuteCutoff = second - 7 * 24 * 3600;
+  const hourCutoff = second - 90 * 24 * 3600;
+  const minuteInsert = db.prepare('INSERT INTO minute_totals VALUES (?, 1, 0, ?, ?)');
+  minuteInsert.run(minuteCutoff - 1, '{}', '{}');
+  minuteInsert.run(minuteCutoff, '{}', '{}');
+  minuteInsert.run(minuteCutoff + 1, '{}', '{}');
+  const hourInsert = db.prepare('INSERT INTO hour_totals VALUES (?, 1, 0)');
+  for (const offset of [-1, 0, 1]) hourInsert.run(hourCutoff + offset);
+  await context.worker.scheduled({}, env);
+  assert.deepEqual(db.prepare('SELECT minute FROM minute_totals ORDER BY minute').all().map(r => r.minute), [minuteCutoff, minuteCutoff + 1]);
+  assert.deepEqual(db.prepare('SELECT hour FROM hour_totals ORDER BY hour').all().map(r => r.hour), [hourCutoff, hourCutoff + 1]);
   db.close();
   console.log('PASS real worker + SQLite: admission, capped refresh, live count/LAN/version/OS, strict120s cutoff, stale exclusion, cron expiry and readmission');
 })().catch(error => { console.error(error); process.exitCode = 1; });

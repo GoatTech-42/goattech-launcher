@@ -8,8 +8,9 @@
 //! ID), the Horizon version, the platform and whether a LAN or play-with-friends world is open.
 //! The game sends
 //! one every [`INTERVAL`]; the server counts a session while its last ping is under
-//! [`WINDOW`] old and serves the counts exactly. It writes down only the totals, once a minute,
-//! for the history on playhorizon.dev/stats: never a session.
+//! [`WINDOW`] old. The collector stores short-lived session rows for counting and minute/hour
+//! aggregate snapshots. Public counts can be cached for up to ten seconds; deployment and
+//! recovery-retention settings must be checked separately from this client contract.
 use std::collections::BTreeMap;
 use std::time::Duration;
 
