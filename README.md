@@ -8,7 +8,7 @@
 
 one launcher for every way you play minecraft. the horizon rust engine and ordinary java edition instances side by side. fabric and quilt mods from modrinth. imports from the launchers you already have. your settings follow you across all of it.
 
-**[flip at release] v1.0.0 is out. download: https://launcher.goattech.us**
+v1 is being qualified. a candidate build or a passing source check is not release approval.
 
 - website: https://launcher.goattech.us
 - documentation: [docs/README.md](docs/README.md)
@@ -27,11 +27,11 @@ one launcher for every way you play minecraft. the horizon rust engine and ordin
 - pinned versions. launcher updates never move your game.
 - no ads, ever.
 - a real 3d model of your skin on the home screen. drag it to turn it; it sways, looks around and waves on its own.
-- light, useful stats on by default. opt out any time. an anonymous player-count ping runs while you play either way.
+- basic performance summaries have a separate switch. new gui installs default it on; existing installs keep their choice. release allowlists are empty, so no public-release summary is sent yet. detailed reports stay off unless chosen. the player-count ping is on while the game runs, separate from the other switches. see [data collection](docs/telemetry.md).
 
 ## how it ships
 
-every version passes an independent review of the actual running app before it publishes. the bar is a score above 9 out of 10. no exceptions. that is why there is a download button instead of a promise.
+before v1 ships, the complete running app must pass independent review above 9 out of 10. scoped source checks, synthetic imports and a candidate package do not clear that gate. windows java/fabric gameplay and packaged-app checks still need current-candidate evidence.
 
 ## the layout of this repo
 
