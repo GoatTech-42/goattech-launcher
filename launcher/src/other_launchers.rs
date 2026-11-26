@@ -579,6 +579,7 @@ pub fn copy_game_skipping(found: &Found, to: &Path, skip_mods: bool) -> std::io:
             "the source game folder is not a real directory",
         ));
     }
+    reject_copy_overlap(&found.game, to)?;
     fs::create_dir_all(to)?;
     let entries = fs::read_dir(&found.game)?;
     for entry in entries {
@@ -626,6 +627,45 @@ pub fn copy_game_skipping(found: &Found, to: &Path, skip_mods: bool) -> std::io:
         if carried {
             let _ = fs::copy(icon, to.join(crate::instances::PICTURE));
         }
+    }
+    Ok(())
+}
+
+/// Resolve the existing ancestor before checking a not-yet-created destination.
+fn copy_destination(path: &Path) -> std::io::Result<PathBuf> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()?.join(path)
+    };
+    let mut ancestor = absolute.as_path();
+    let mut missing = Vec::new();
+    while !ancestor.try_exists()? {
+        missing.push(
+            ancestor
+                .file_name()
+                .ok_or_else(|| std::io::Error::other("invalid copy destination"))?
+                .to_os_string(),
+        );
+        ancestor = ancestor
+            .parent()
+            .ok_or_else(|| std::io::Error::other("invalid copy destination"))?;
+    }
+    let mut resolved = fs::canonicalize(ancestor)?;
+    for part in missing.into_iter().rev() {
+        resolved.push(part);
+    }
+    Ok(resolved)
+}
+
+fn reject_copy_overlap(from: &Path, to: &Path) -> std::io::Result<()> {
+    let source = fs::canonicalize(from)?;
+    let target = copy_destination(to)?;
+    if source.starts_with(&target) || target.starts_with(&source) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "source and destination folders overlap",
+        ));
     }
     Ok(())
 }
@@ -784,6 +824,13 @@ fn import_in(
                 "{why} Copy everything but the mods with --no-mods."
             ));
         }
+    }
+    // Refuse before reserving a new instance inside the original game folder.
+    let source = fs::canonicalize(&found.game)
+        .map_err(|e| format!("Could not copy {}: {e}", found.game.display()))?;
+    let destination = copy_destination(game_home).map_err(|e| e.to_string())?;
+    if destination.starts_with(&source) {
+        return Err("source and destination folders overlap".into());
     }
     let versions = versions()?;
     let version = versions.find(minecraft)?.id.clone();

@@ -1320,3 +1320,124 @@ fn import_copy_matrix_preserves_game_data_and_originals_with_or_without_mods() {
     }
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn overlapping_copy_folders_are_refused_before_destination_mutation() {
+    let root = scratch("copy-overlap");
+    let game = root.join("source");
+    write(&game.join("options.txt"), "original fixture");
+    let found = Found {
+        launcher: "Prism Launcher",
+        name: "overlap".into(),
+        minecraft: Some("1.21.1".into()),
+        loader: None,
+        notes: None,
+        game: game.clone(),
+        icon: None,
+        shared: false,
+    };
+    let nested = game.join("nested/deeper");
+    assert!(copy_game(&found, &nested).is_err());
+    assert!(!game.join("nested").exists());
+    assert!(copy_game(&found, &game).is_err());
+    assert_eq!(
+        fs::read(game.join("options.txt")).unwrap(),
+        b"original fixture"
+    );
+    assert!(copy_game(&found, &root).is_err());
+    assert!(!root.join("options.txt").exists());
+    let separate = root.join("copy");
+    copy_game(&found, &separate).unwrap();
+    assert_eq!(
+        fs::read(separate.join("options.txt")).unwrap(),
+        b"original fixture"
+    );
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn destination_alias_inside_original_is_refused_before_copy() {
+    let root = scratch("copy-overlap-alias");
+    let game = root.join("source");
+    write(&game.join("options.txt"), "original fixture");
+    let alias = root.join("alias");
+    std::os::unix::fs::symlink(&game, &alias).unwrap();
+    assert!(reject_copy_overlap(&game, &alias.join("nested")).is_err());
+    assert!(!game.join("nested").exists());
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn import_destination_inside_original_is_refused_before_reserving_an_instance() {
+    let root = scratch("import-overlap-preflight");
+    let game = root.join("source");
+    write(&game.join("options.txt"), "original fixture");
+    let found = Found {
+        launcher: "Prism Launcher",
+        name: "overlap".into(),
+        minecraft: Some("1.21.1".into()),
+        loader: None,
+        notes: None,
+        game: game.clone(),
+        icon: None,
+        shared: false,
+    };
+    let destination = game.join("nested-home");
+    let error = import_in(
+        &found,
+        "copy",
+        None,
+        false,
+        &ImportStore {
+            game_home: &destination,
+            data: &root.join("data"),
+            versions: &|| panic!("must refuse before loading versions"),
+            rollback: &|_| panic!("must not create an instance"),
+            copy: &|_, _, _| panic!("must not start copying"),
+        },
+    )
+    .unwrap_err();
+    assert!(error.contains("overlap"));
+    assert!(!destination.exists());
+    assert_eq!(
+        fs::read(game.join("options.txt")).unwrap(),
+        b"original fixture"
+    );
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn missing_import_source_keeps_the_copy_context_and_source_path() {
+    let root = scratch("missing-source-context");
+    let missing = root.join("gone-game");
+    let found = Found {
+        launcher: "Prism Launcher",
+        name: "gone".into(),
+        minecraft: Some("1.21.1".into()),
+        loader: None,
+        notes: None,
+        game: missing.clone(),
+        icon: None,
+        shared: false,
+    };
+    let destination = root.join("destination");
+    let error = import_in(
+        &found,
+        "copy",
+        None,
+        false,
+        &ImportStore {
+            game_home: &destination,
+            data: &root.join("data"),
+            versions: &|| panic!("must refuse before loading versions"),
+            rollback: &|_| panic!("must not create an instance"),
+            copy: &|_, _, _| panic!("must not start copying"),
+        },
+    )
+    .unwrap_err();
+    assert!(error.starts_with("Could not copy "));
+    assert!(error.contains(&missing.display().to_string()));
+    assert!(!destination.exists());
+    fs::remove_dir_all(root).unwrap();
+}
