@@ -28,11 +28,57 @@ fn next_target(ids: &[String], current: Option<&str>) -> Option<String> {
     }
 }
 
-/// The target the install will really use: the chosen id only while it is still an eligible
-/// instance, else none (a new instance). Render and install both go through this.
-fn valid_target(eligible: &[(String, String)], chosen: Option<&str>) -> Option<(String, String)> {
-    let id = chosen?;
-    eligible.iter().find(|(i, _)| i == id).cloned()
+/// An explicit new-instance choice is distinct from an unavailable existing target.
+#[derive(Debug, PartialEq, Eq)]
+enum ClientTarget {
+    New,
+    Existing(String, String),
+    Unavailable,
+}
+
+fn valid_target(eligible: &[(String, String)], chosen: Option<&str>) -> ClientTarget {
+    match chosen {
+        None => ClientTarget::New,
+        Some(id) => match eligible.iter().find(|(i, _)| i == id) {
+            Some((id, name)) => ClientTarget::Existing(id.clone(), name.clone()),
+            None => ClientTarget::Unavailable,
+        },
+    }
+}
+
+/// Declarations from the inspected bytes, not verified compatibility or a security review.
+fn client_review_lines(info: &ClientJar) -> Vec<String> {
+    let declaration = |value: &Option<String>| {
+        value
+            .as_deref()
+            .filter(|v| !v.trim().is_empty())
+            .unwrap_or("not declared")
+            .to_string()
+    };
+    let mut lines = vec![
+        "JAR metadata declarations, not a safety or compatibility guarantee.".into(),
+        format!("Minecraft: {}", declaration(&info.minecraft_wants)),
+        format!("Java: {}", declaration(&info.java_wants)),
+        format!("Fabric Loader: {}", declaration(&info.loader_wants)),
+        format!(
+            "Side: {}. License: {}",
+            info.side.label(),
+            declaration(&info.license)
+        ),
+    ];
+    if info.mod_wants.is_empty() {
+        lines.push("Other required mods: none declared.".into());
+    } else {
+        lines.push(format!(
+            "Other required mods: {}",
+            info.mod_wants
+                .iter()
+                .map(|(id, range)| format!("{id} {range}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+    lines
 }
 
 impl ClientInstall {
@@ -122,13 +168,20 @@ impl Launcher {
         let Some((path, _, hash)) = self.instances.client.chosen.clone() else {
             return;
         };
-        self.instances.client.busy = true;
-        self.instances.client.report = None;
-        let target = valid_target(
+        let target = match valid_target(
             &self.client_targets(),
             self.instances.client.target.as_deref(),
-        )
-        .map(|(id, _)| id);
+        ) {
+            ClientTarget::New => None,
+            ClientTarget::Existing(id, _) => Some(id),
+            ClientTarget::Unavailable => {
+                self.instances.client.report = Some("The chosen instance is no longer available for this client. Use the into button to choose a target again.".into());
+                cx.notify();
+                return;
+            }
+        };
+        self.instances.client.busy = true;
+        self.instances.client.report = None;
         let task = cx.background_executor().spawn(async move {
             let versions = horizon_launcher::minecraft_versions::load()?;
             client_jar::install_reviewed(
@@ -219,19 +272,28 @@ impl Launcher {
                     path.file_name().unwrap_or_default().to_string_lossy()
                 ),
             ));
+            for line in client_review_lines(info) {
+                section = section
+                    .child(shell::text(theme::night::CAPTION, shell::c(n.muted)).child(line));
+            }
             let ids = self.client_targets();
             let chosen = valid_target(&ids, self.instances.client.target.as_deref());
-            let target_name = chosen.map(|(_, name)| name);
+            let target_name = match &chosen {
+                ClientTarget::Existing(_, name) => Some(name.clone()),
+                _ => None,
+            };
+            let unavailable = chosen == ClientTarget::Unavailable;
             let mut pick = button(
                 "client-jar-target",
                 &match &target_name {
                     Some(name) => format!("into: {name}"),
+                    None if unavailable => "into: unavailable, choose again".to_string(),
                     None => "into: a new instance".to_string(),
                 },
                 Kind::Secondary,
                 &t,
             );
-            if !busy && !ids.is_empty() {
+            if !busy && (!ids.is_empty() || unavailable) {
                 pick = pick.on_click(cx.listener(|this, _: &ClickEvent, _, cx| {
                     let ids: Vec<String> = this
                         .client_targets()
@@ -248,6 +310,8 @@ impl Launcher {
                 "install-client-jar",
                 if busy {
                     "installing..."
+                } else if unavailable {
+                    "choose an available target"
                 } else if target_name.is_some() {
                     "install in this instance"
                 } else {
@@ -256,7 +320,9 @@ impl Launcher {
                 Kind::Secondary,
                 &t,
             );
-            if !busy {
+            if unavailable {
+                install = disabled(install);
+            } else if !busy {
                 install = install.on_click(
                     cx.listener(|this, _: &ClickEvent, _, cx| this.install_chosen_client(cx)),
                 );
@@ -305,16 +371,74 @@ impl Launcher {
 mod tests {
     use super::*;
 
+    fn jar() -> ClientJar {
+        ClientJar {
+            mod_id: "fixture".into(),
+            name: "Fixture".into(),
+            version: "1".into(),
+            license: None,
+            side: client_jar::Side::Client,
+            entrypoints: false,
+            loader_wants: None,
+            minecraft_wants: None,
+            java_wants: None,
+            mod_wants: Vec::new(),
+        }
+    }
+
     #[test]
-    fn a_removed_or_ineligible_target_is_not_handed_to_the_installer() {
+    fn client_review_labels_missing_declarations_without_implying_compatibility() {
+        let lines = client_review_lines(&jar());
+        for field in [
+            "Minecraft: not declared",
+            "Java: not declared",
+            "Fabric Loader: not declared",
+            "License: not declared",
+        ] {
+            assert!(lines.iter().any(|line| line.contains(field)));
+        }
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("not a safety or compatibility guarantee")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("Other required mods: none declared")));
+    }
+
+    #[test]
+    fn client_review_preserves_declared_ranges_and_dependency_names() {
+        let mut info = jar();
+        info.minecraft_wants = Some("~1.21".into());
+        info.java_wants = Some(">=21".into());
+        info.loader_wants = Some(">=0.16".into());
+        info.license = Some("MIT".into());
+        info.mod_wants = vec![("fabric-api".into(), ">=0.100".into())];
+        let lines = client_review_lines(&info).join("\n");
+        for detail in [
+            "~1.21",
+            ">=21",
+            ">=0.16",
+            "MIT",
+            "fabric-api >=0.100",
+            "client",
+        ] {
+            assert!(lines.contains(detail));
+        }
+    }
+
+    #[test]
+    fn client_target_resolution_never_turns_unavailable_into_new() {
         let eligible = vec![("a".to_string(), "Alpha".to_string())];
+        assert_eq!(valid_target(&eligible, None), ClientTarget::New);
         assert_eq!(
             valid_target(&eligible, Some("a")),
-            Some(("a".to_string(), "Alpha".to_string()))
+            ClientTarget::Existing("a".into(), "Alpha".into())
         );
-        assert_eq!(valid_target(&eligible, Some("gone")), None);
-        assert_eq!(valid_target(&[], Some("a")), None);
-        assert_eq!(valid_target(&eligible, None), None);
+        assert_eq!(
+            valid_target(&eligible, Some("gone")),
+            ClientTarget::Unavailable
+        );
+        assert_eq!(valid_target(&[], Some("a")), ClientTarget::Unavailable);
     }
 
     #[test]
