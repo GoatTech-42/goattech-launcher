@@ -637,3 +637,56 @@ fn java_pack_without_minecraft_is_an_error_before_any_service_or_creation() {
     assert!(error.contains("names no Minecraft version"), "{error}");
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn conflicting_or_malformed_pack_loaders_are_refused_before_resolution() {
+    let root = scratch("loader-conflict");
+    for (deps, expected) in [
+        (
+            serde_json::json!({"minecraft":"1.21.1","fabric-loader":"0.16","neoforge":"21.1"}),
+            "This .mrpack declares more than one mod loader; no loader was chosen.",
+        ),
+        (
+            serde_json::json!({"minecraft":"1.21.1","fabric-loader":"0.16","quilt-loader":"0.27"}),
+            "This .mrpack declares more than one mod loader; no loader was chosen.",
+        ),
+        (
+            serde_json::json!({"minecraft":"1.21.1","fabric-loader":null}),
+            "Its modrinth.index.json has no valid version for fabric-loader.",
+        ),
+        (
+            serde_json::json!({"minecraft":"1.21.1","quilt-loader":"   "}),
+            "Its modrinth.index.json has no valid version for quilt-loader.",
+        ),
+        (
+            serde_json::json!({"minecraft":"1.21.1","forge":123}),
+            "Its modrinth.index.json has no valid version for forge.",
+        ),
+    ] {
+        let pack = loader_pack(&root, deps, serde_json::json!([]));
+        let error = import_java_instance_with(
+            &pack,
+            NONE,
+            &|_| panic!("invalid loader reached version resolver"),
+            &|_, _, _| panic!("invalid loader reached loader service"),
+            &java_maker(&root),
+        )
+        .unwrap_err();
+        assert_eq!(error, expected);
+        assert!(!root.join("cool-pack").exists());
+    }
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn single_supported_loader_keeps_its_declared_version() {
+    for (key, kind) in [("fabric-loader", "fabric"), ("quilt-loader", "quilt")] {
+        let mut deps = serde_json::Map::new();
+        deps.insert(key.into(), serde_json::json!("0.16"));
+        assert_eq!(
+            pack_loader(&deps).unwrap(),
+            Some((kind.into(), "0.16".into()))
+        );
+    }
+    assert_eq!(pack_loader(&serde_json::Map::new()).unwrap(), None);
+}

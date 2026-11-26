@@ -238,6 +238,18 @@ fn java_target(home: &Path, relative: &str) -> Option<PathBuf> {
 fn pack_loader(
     deps: &serde_json::Map<String, serde_json::Value>,
 ) -> Result<Option<(String, String)>, String> {
+    let declared: Vec<_> = ["fabric-loader", "quilt-loader", "forge", "neoforge"]
+        .into_iter()
+        .filter(|key| deps.contains_key(*key))
+        .collect();
+    if declared.len() > 1 {
+        return Err("This .mrpack declares more than one mod loader; no loader was chosen.".into());
+    }
+    for key in declared {
+        if !deps[key].as_str().is_some_and(|v| !v.trim().is_empty()) {
+            return Err(format!("Its {INDEX} has no valid version for {key}."));
+        }
+    }
     for (key, kind) in [("fabric-loader", "fabric"), ("quilt-loader", "quilt")] {
         if let Some(version) = deps.get(key).and_then(|v| v.as_str()) {
             return Ok(Some((kind.to_string(), version.to_string())));
