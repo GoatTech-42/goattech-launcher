@@ -58,6 +58,69 @@ fn maker(root: &Path) -> impl Fn(&str) -> Result<Instance, String> + '_ {
 const NONE: &dyn Fn(&str, f32) = &|_, _| {};
 
 #[test]
+fn client_overrides_win_in_either_zip_order_without_path_escape() {
+    let root = scratch("overlay-order");
+    for reverse in [false, true] {
+        let archive = root.join(format!("order-{reverse}.mrpack"));
+        let mut entries: Vec<(&str, &[u8])> = vec![
+            ("overrides/config/test.txt", b"generic"),
+            ("client-overrides/config/test.txt", b"client"),
+            ("client-overrides/../escape.txt", b"bad"),
+            ("client-overrides/config/../../escape.txt", b"bad"),
+        ];
+        if reverse {
+            entries.reverse();
+        }
+        zip_file(&archive, &entries);
+        let mut zip = open(&archive).unwrap();
+        let home = root.join(format!("home-{reverse}"));
+        let last_progress = std::cell::Cell::new(0.0);
+        fill_with(
+            &mut zip,
+            Some(&serde_json::json!({"files":[]})),
+            &home,
+            &|_, value| last_progress.set(value),
+            &java_target,
+            MAX_IMPORT,
+        )
+        .unwrap();
+        assert_eq!(last_progress.get(), 1.0);
+        assert_eq!(fs::read(home.join("config/test.txt")).unwrap(), b"client");
+        assert!(!root.join("escape.txt").exists());
+        assert!(!home.join("escape.txt").exists());
+    }
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn unpack_budget_is_shared_across_override_layers() {
+    let root = scratch("overlay-budget");
+    let archive = root.join("budget.mrpack");
+    zip_file(
+        &archive,
+        &[
+            ("overrides/config/shared.txt", b"1234"),
+            ("client-overrides/config/client.txt", b"5678"),
+        ],
+    );
+    let mut zip = open(&archive).unwrap();
+    let home = root.join("home");
+    let error = fill_with(
+        &mut zip,
+        Some(&serde_json::json!({"files":[]})),
+        &home,
+        NONE,
+        &java_target,
+        6,
+    )
+    .unwrap_err();
+    assert!(error.contains("6 bytes"), "{error}");
+    assert_eq!(fs::read(home.join("config/shared.txt")).unwrap(), b"1234");
+    assert_eq!(fs::read(home.join("config/client.txt")).unwrap(), b"56");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn says_what_a_dropped_file_is() {
     let dir = scratch("what");
     let mrpack = |name: &str, deps: &str| {

@@ -392,44 +392,46 @@ fn fill_with(
 ) -> Result<(), String> {
     let mut unpacked: u64 = 0;
     let count = zip.len();
-    for i in 0..count {
-        let mut entry = zip.by_index(i).map_err(|e| e.to_string())?;
-        let name = entry.name().map_err(|e| e.to_string())?.into_owned();
-        let relative = match index {
-            Some(_) => match OVERRIDES.iter().find_map(|o| name.strip_prefix(o)) {
-                Some(r) => r.to_string(),
-                None => continue,
-            },
-            None => name.clone(),
-        };
-        let Some(to) = target(home, &relative) else {
-            continue;
-        };
-        fs::create_dir_all(to.parent().expect("inside home")).map_err(|e| e.to_string())?;
-        let mut out = fs::File::create(&to).map_err(|e| format!("{}: {e}", to.display()))?;
-        // The budget is enforced before bytes land, not counted after: the copy gets at most
-        // the remaining budget, then one detection byte, never written, tells whether the
-        // entry held more. What lands can never pass `limit`.
-        let remaining = limit - unpacked;
-        let wrote = std::io::copy(&mut (&mut entry).take(remaining), &mut out)
-            .map_err(|e| format!("{}: {e}", to.display()))?;
-        unpacked += wrote;
-        let mut detection = [0u8; 1];
-        if entry
-            .read(&mut detection)
-            .map_err(|e| format!("{}: {e}", to.display()))?
-            > 0
-        {
-            return Err(format!(
-                "{relative} unpacks past the {} an import may hold: refusing the archive.",
-                describe(limit)
-            ));
+    // Client settings overlay generic settings even when ZIP entries are reversed.
+    // A plain game-folder ZIP still has a single pass with no stripped prefix.
+    let layers: &[&str] = if index.is_some() { &OVERRIDES } else { &[""] };
+    for (layer, prefix) in layers.iter().enumerate() {
+        for i in 0..count {
+            let mut entry = zip.by_index(i).map_err(|e| e.to_string())?;
+            let name = entry.name().map_err(|e| e.to_string())?.into_owned();
+            let Some(relative) = name.strip_prefix(prefix) else {
+                continue;
+            };
+            let Some(to) = target(home, relative) else {
+                continue;
+            };
+            fs::create_dir_all(to.parent().expect("inside home")).map_err(|e| e.to_string())?;
+            let mut out = fs::File::create(&to).map_err(|e| format!("{}: {e}", to.display()))?;
+            // The budget is enforced before bytes land, not counted after: the copy gets at most
+            // the remaining budget, then one detection byte, never written, tells whether the
+            // entry held more. What lands can never pass `limit`.
+            let remaining = limit - unpacked;
+            let wrote = std::io::copy(&mut (&mut entry).take(remaining), &mut out)
+                .map_err(|e| format!("{}: {e}", to.display()))?;
+            unpacked += wrote;
+            let mut detection = [0u8; 1];
+            if entry
+                .read(&mut detection)
+                .map_err(|e| format!("{}: {e}", to.display()))?
+                > 0
+            {
+                return Err(format!(
+                    "{relative} unpacks past the {} an import may hold: refusing the archive.",
+                    describe(limit)
+                ));
+            }
+            progress(
+                &format!("Copying {relative}"),
+                (layer * count + i + 1) as f32 / (layers.len() * count) as f32,
+            );
         }
-        progress(
-            &format!("Copying {relative}"),
-            (i + 1) as f32 / count as f32,
-        );
     }
+    progress("Copied archive files", 1.0);
     let files = index
         .and_then(|i| i["files"].as_array())
         .cloned()
