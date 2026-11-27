@@ -28,8 +28,10 @@ const OVERRIDES: [&str; 2] = ["overrides/", "client-overrides/"];
 /// so an archive that claims small files but keeps producing them is refused instead of
 /// filling the disk.
 /// The most an import may unpack from its archive: 8 GiB. This bounds what the archive itself
-/// unpacks to; the files an index lists are downloaded afterwards, each bounded on its own, so
-/// it is not a promise about an import's total size.
+/// unpacks to; the files an index lists are downloaded before the archive's own files land,
+/// each bounded on its own, so it is not a promise about an import's total size. Downloads run
+/// before the archive is read, so an archive the budget later refuses has already cost its
+/// downloads; checking the budget first would mean inflating every entry twice.
 pub const MAX_IMPORT: u64 = 8 << 30;
 
 /// What a dropped file is.
@@ -318,6 +320,7 @@ pub fn import_java_instance_with(
         &home,
         progress,
         &java_target,
+        &download_fetch,
         MAX_IMPORT,
     ) {
         return Err(cleanup_failed_import(&home, e));
@@ -372,7 +375,12 @@ fn fill(
     progress: &dyn Fn(&str, f32),
     limit: u64,
 ) -> Result<(), String> {
-    fill_with(zip, index, home, progress, &target, limit)
+    fill_with(zip, index, home, progress, &target, &download_fetch, limit)
+}
+
+/// `download::fetch` in the shape `fill_with` takes it, so a test can stand in for the network.
+fn download_fetch(file: &FileRef, folder: &Path, progress: &dyn Fn(f32)) -> Result<(), String> {
+    download::fetch(file, folder, progress).map(|_| ())
 }
 
 /// `fill` with the rule for where an entry may land: Horizon instances take their own files,
@@ -380,16 +388,46 @@ fn fill(
 /// `limit` bounds the bytes unpacked from the archive in total, and only those: an entry's
 /// declared size is the archive's own word, so the budget is enforced on what actually comes
 /// out, before it lands — a copy stops at the remaining budget and one detection byte, never
-/// written, decides the refusal. Files an index lists for download are fetched afterwards and
-/// don't come from the archive: each is bounded on its own, with no total promised here.
+/// written, decides the refusal. Files an index lists for download are fetched first, before
+/// any archive entry lands: they don't come from the archive, each is bounded on its own with
+/// no total promised here, and landing first means an override the archive carries always wins
+/// a shared path.
 fn fill_with(
     zip: &mut zip::ZipArchive<fs::File>,
     index: Option<&serde_json::Value>,
     home: &Path,
     progress: &dyn Fn(&str, f32),
     target: &dyn Fn(&Path, &str) -> Option<PathBuf>,
+    fetch: &dyn Fn(&FileRef, &Path, &dyn Fn(f32)) -> Result<(), String>,
     limit: u64,
 ) -> Result<(), String> {
+    // Downloads land before the archive's own files: where an index file and an override
+    // name the same place, the override is the pack author's final word. The Modrinth app
+    // (app-lib install_mrpack.rs at c530671b) downloads first, then applies override layers.
+    let files = index
+        .and_then(|i| i["files"].as_array())
+        .cloned()
+        .unwrap_or_default();
+    for f in files {
+        if f["env"]["client"] == "unsupported" {
+            continue;
+        }
+        let relative = f["path"].as_str().unwrap_or_default();
+        let to = target(home, relative)
+            .ok_or_else(|| format!("{relative} isn't a place an instance keeps files."))?;
+        let file = FileRef {
+            url: f["downloads"][0].as_str().unwrap_or_default().to_string(),
+            name: to.file_name().unwrap().to_string_lossy().into_owned(),
+            size: f["fileSize"].as_u64().unwrap_or(0),
+            sha512: f["hashes"]["sha512"].as_str().map(str::to_ascii_lowercase),
+            sha256: None,
+            sha1: f["hashes"]["sha1"].as_str().map(str::to_ascii_lowercase),
+            primary: true,
+        };
+        let folder = to.parent().expect("inside home");
+        fetch(&file, folder, &|p| progress(&file.name, p))
+            .map_err(|e| format!("{relative}: {e}"))?;
+    }
     let mut unpacked: u64 = 0;
     let count = zip.len();
     // Client settings overlay generic settings even when ZIP entries are reversed.
@@ -432,30 +470,6 @@ fn fill_with(
         }
     }
     progress("Copied archive files", 1.0);
-    let files = index
-        .and_then(|i| i["files"].as_array())
-        .cloned()
-        .unwrap_or_default();
-    for f in files {
-        if f["env"]["client"] == "unsupported" {
-            continue;
-        }
-        let relative = f["path"].as_str().unwrap_or_default();
-        let to = target(home, relative)
-            .ok_or_else(|| format!("{relative} isn't a place an instance keeps files."))?;
-        let file = FileRef {
-            url: f["downloads"][0].as_str().unwrap_or_default().to_string(),
-            name: to.file_name().unwrap().to_string_lossy().into_owned(),
-            size: f["fileSize"].as_u64().unwrap_or(0),
-            sha512: f["hashes"]["sha512"].as_str().map(str::to_ascii_lowercase),
-            sha256: None,
-            sha1: f["hashes"]["sha1"].as_str().map(str::to_ascii_lowercase),
-            primary: true,
-        };
-        let folder = to.parent().expect("inside home");
-        download::fetch(&file, folder, &|p| progress(&file.name, p))
-            .map_err(|e| format!("{relative}: {e}"))?;
-    }
     Ok(())
 }
 

@@ -57,6 +57,10 @@ fn maker(root: &Path) -> impl Fn(&str) -> Result<Instance, String> + '_ {
 
 const NONE: &dyn Fn(&str, f32) = &|_, _| {};
 
+/// Fixtures whose index lists no files: a download attempt means the fill went wrong.
+const NO_DOWNLOADS: &dyn Fn(&FileRef, &Path, &dyn Fn(f32)) -> Result<(), String> =
+    &|_, _, _| panic!("this fixture downloads nothing");
+
 #[test]
 fn client_overrides_win_in_either_zip_order_without_path_escape() {
     let root = scratch("overlay-order");
@@ -81,6 +85,7 @@ fn client_overrides_win_in_either_zip_order_without_path_escape() {
             &home,
             &|_, value| last_progress.set(value),
             &java_target,
+            NO_DOWNLOADS,
             MAX_IMPORT,
         )
         .unwrap();
@@ -111,12 +116,71 @@ fn unpack_budget_is_shared_across_override_layers() {
         &home,
         NONE,
         &java_target,
+        NO_DOWNLOADS,
         6,
     )
     .unwrap_err();
     assert!(error.contains("6 bytes"), "{error}");
     assert_eq!(fs::read(home.join("config/shared.txt")).unwrap(), b"1234");
     assert_eq!(fs::read(home.join("config/client.txt")).unwrap(), b"56");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn an_index_download_never_overwrites_an_override() {
+    let root = scratch("download-then-override");
+    let index = serde_json::json!({"files":[{
+        "path":"config/pack.cfg",
+        "downloads":["https://cdn.modrinth.com/data/abcdef/pack.cfg"],
+        "fileSize":9,
+        "hashes":{"sha512":"00"}
+    }]});
+    // Rows: the override layers an archive carries, and the bytes that must survive the download.
+    for (row, entries, winner) in [
+        (
+            "both-layers",
+            vec![
+                ("overrides/config/pack.cfg", &b"generic-override"[..]),
+                ("client-overrides/config/pack.cfg", &b"client-override"[..]),
+            ],
+            &b"client-override"[..],
+        ),
+        (
+            "generic-only",
+            vec![("overrides/config/pack.cfg", &b"generic-override"[..])],
+            &b"generic-override"[..],
+        ),
+    ] {
+        let archive = root.join(format!("{row}.mrpack"));
+        zip_file(&archive, &entries);
+        let mut zip = open(&archive).unwrap();
+        let home = root.join(format!("home-{row}"));
+        // The network, stood in for: bytes that would overwrite the override if downloads ran
+        // last. The assertion inside pins the order: no archive layer has landed yet.
+        let cdn = &|file: &FileRef, folder: &Path, _: &dyn Fn(f32)| {
+            assert!(
+                !folder.join(&file.name).exists(),
+                "download ran after an archive layer"
+            );
+            put(&folder.join(&file.name), b"cdn-bytes");
+            Ok(())
+        };
+        fill_with(
+            &mut zip,
+            Some(&index),
+            &home,
+            NONE,
+            &java_target,
+            cdn,
+            MAX_IMPORT,
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(home.join("config/pack.cfg")).unwrap(),
+            winner,
+            "{row}"
+        );
+    }
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -439,7 +503,7 @@ fn an_archive_unpacking_past_the_limit_is_refused_mid_fill() {
     let home = root.join("inst");
     // A tiny limit stands in for 8 GiB: the budget is enforced on what actually unpacks,
     // entry by entry, so the second file crosses it.
-    let err = fill_with(&mut zip, None, &home, &|_, _| {}, &target, 8).unwrap_err();
+    let err = fill_with(&mut zip, None, &home, &|_, _| {}, &target, NO_DOWNLOADS, 8).unwrap_err();
     assert!(err.contains("unpacks past"), "{err}");
     // Nothing lands past the budget: all five bytes of the first file, three of the second.
     assert_eq!(fs::metadata(home.join("options.txt")).unwrap().len(), 5);
@@ -456,7 +520,16 @@ fn a_single_huge_entry_is_cut_off_before_it_lands() {
     let home = root.join("inst");
     // One entry larger than the whole budget: the copy stops at the remaining budget and
     // one detection byte, never written, refuses the archive.
-    let err = fill_with(&mut zip, None, &home, &|_, _| {}, &target, 1_000).unwrap_err();
+    let err = fill_with(
+        &mut zip,
+        None,
+        &home,
+        &|_, _| {},
+        &target,
+        NO_DOWNLOADS,
+        1_000,
+    )
+    .unwrap_err();
     assert!(err.contains("unpacks past"), "{err}");
     assert_eq!(fs::metadata(home.join("options.txt")).unwrap().len(), 1_000);
 }
@@ -471,7 +544,7 @@ fn an_archive_within_the_limit_unpacks_all_of_it() {
     );
     let mut zip = open(&archive).unwrap();
     let home = root.join("inst");
-    fill_with(&mut zip, None, &home, &|_, _| {}, &target, 10).unwrap();
+    fill_with(&mut zip, None, &home, &|_, _| {}, &target, NO_DOWNLOADS, 10).unwrap();
     assert_eq!(fs::read(home.join("options.txt")).unwrap(), b"12345");
     assert_eq!(fs::read(home.join("config/a.txt")).unwrap(), b"67890");
 }
