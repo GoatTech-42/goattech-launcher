@@ -185,6 +185,171 @@ fn an_index_download_never_overwrites_an_override() {
 }
 
 #[test]
+fn an_index_download_falls_back_through_its_mirrors() {
+    let root = scratch("mirror-fallback");
+    let archive = root.join("pack.mrpack");
+    zip_file(&archive, &[]);
+    let calls = std::cell::RefCell::new(Vec::new());
+    // The network, stood in for: only URLs containing /live/ serve bytes.
+    let mirror = &|file: &FileRef, folder: &Path, _: &dyn Fn(f32)| {
+        calls.borrow_mut().push(file.url.clone());
+        if file.url.contains("/live/") {
+            put(&folder.join(&file.name), b"live");
+            Ok(())
+        } else {
+            Err(format!("{} answered 404.", file.url))
+        }
+    };
+
+    // Row 1: the first mirror is dead, the second serves the file.
+    let index = serde_json::json!({"files":[{
+        "path":"config/pack.cfg",
+        "downloads":["https://cdn.modrinth.com/data/dead/pack.cfg","https://cdn.modrinth.com/data/live/pack.cfg"],
+        "fileSize":4,
+        "hashes":{"sha512":"00"}
+    }]});
+    let mut zip = open(&archive).unwrap();
+    let home = root.join("home-fallback");
+    fill_with(
+        &mut zip,
+        Some(&index),
+        &home,
+        NONE,
+        &java_target,
+        mirror,
+        MAX_IMPORT,
+    )
+    .unwrap();
+    assert_eq!(fs::read(home.join("config/pack.cfg")).unwrap(), b"live");
+    assert_eq!(
+        calls.borrow().as_slice(),
+        [
+            "https://cdn.modrinth.com/data/dead/pack.cfg",
+            "https://cdn.modrinth.com/data/live/pack.cfg"
+        ],
+        "the dead mirror is tried, then the live one"
+    );
+
+    // Row 2: every mirror dead, the error names the file and each mirror's failure.
+    let dead = serde_json::json!({"files":[{
+        "path":"config/pack.cfg",
+        "downloads":["https://cdn.modrinth.com/data/dead-a/pack.cfg","https://cdn.modrinth.com/data/dead-b/pack.cfg"],
+        "fileSize":4,
+        "hashes":{"sha512":"00"}
+    }]});
+    let mut zip = open(&archive).unwrap();
+    let error = fill_with(
+        &mut zip,
+        Some(&dead),
+        &root.join("home-all-dead"),
+        NONE,
+        &java_target,
+        mirror,
+        MAX_IMPORT,
+    )
+    .unwrap_err();
+    assert!(error.contains("config/pack.cfg"), "{error}");
+    assert!(error.contains("any of its mirrors"), "{error}");
+    assert!(error.contains("dead-a"), "{error}");
+    assert!(error.contains("dead-b"), "{error}");
+
+    // Row 3: no URLs at all, the error says so and names the file.
+    let empty = serde_json::json!({"files":[{
+        "path":"config/pack.cfg",
+        "downloads":[],
+        "fileSize":4,
+        "hashes":{"sha512":"00"}
+    }]});
+    let mut zip = open(&archive).unwrap();
+    let error = fill_with(
+        &mut zip,
+        Some(&empty),
+        &root.join("home-empty"),
+        NONE,
+        &java_target,
+        mirror,
+        MAX_IMPORT,
+    )
+    .unwrap_err();
+    assert_eq!(error, "config/pack.cfg lists no download URLs.");
+
+    // Row 4: the first mirror serves, the rest are never fetched.
+    let first_wins = serde_json::json!({"files":[{
+        "path":"config/first.cfg",
+        "downloads":["https://cdn.modrinth.com/data/live/first.cfg","https://cdn.modrinth.com/data/dead-b/first.cfg","https://cdn.modrinth.com/data/dead-c/first.cfg"],
+        "fileSize":4,
+        "hashes":{"sha512":"00"}
+    }]});
+    calls.borrow_mut().clear();
+    let mut zip = open(&archive).unwrap();
+    let home = root.join("home-first-wins");
+    fill_with(
+        &mut zip,
+        Some(&first_wins),
+        &home,
+        NONE,
+        &java_target,
+        mirror,
+        MAX_IMPORT,
+    )
+    .unwrap();
+    assert_eq!(fs::read(home.join("config/first.cfg")).unwrap(), b"live");
+    assert_eq!(
+        calls.borrow().as_slice(),
+        ["https://cdn.modrinth.com/data/live/first.cfg"],
+        "a serving mirror ends the walk: later mirrors stay unfetched"
+    );
+
+    // Row 5: blank and non-string entries are skipped, never fetched.
+    let messy = serde_json::json!({"files":[{
+        "path":"config/messy.cfg",
+        "downloads":["", 123, "https://cdn.modrinth.com/data/live/messy.cfg"],
+        "fileSize":4,
+        "hashes":{"sha512":"00"}
+    }]});
+    calls.borrow_mut().clear();
+    let mut zip = open(&archive).unwrap();
+    let home = root.join("home-messy");
+    fill_with(
+        &mut zip,
+        Some(&messy),
+        &home,
+        NONE,
+        &java_target,
+        mirror,
+        MAX_IMPORT,
+    )
+    .unwrap();
+    assert_eq!(fs::read(home.join("config/messy.cfg")).unwrap(), b"live");
+    assert_eq!(
+        calls.borrow().as_slice(),
+        ["https://cdn.modrinth.com/data/live/messy.cfg"],
+        "blank and non-string entries are skipped"
+    );
+
+    // Row 6: no downloads key at all behaves like an empty list.
+    let absent = serde_json::json!({"files":[{
+        "path":"config/pack.cfg",
+        "fileSize":4,
+        "hashes":{"sha512":"00"}
+    }]});
+    let mut zip = open(&archive).unwrap();
+    let error = fill_with(
+        &mut zip,
+        Some(&absent),
+        &root.join("home-absent"),
+        NONE,
+        &java_target,
+        mirror,
+        MAX_IMPORT,
+    )
+    .unwrap_err();
+    assert_eq!(error, "config/pack.cfg lists no download URLs.");
+
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn says_what_a_dropped_file_is() {
     let dir = scratch("what");
     let mrpack = |name: &str, deps: &str| {

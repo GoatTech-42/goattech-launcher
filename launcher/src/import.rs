@@ -30,8 +30,8 @@ const OVERRIDES: [&str; 2] = ["overrides/", "client-overrides/"];
 /// The most an import may unpack from its archive: 8 GiB. This bounds what the archive itself
 /// unpacks to; the files an index lists are downloaded before the archive's own files land,
 /// each bounded on its own, so it is not a promise about an import's total size. Downloads run
-/// before the archive is read, so an archive the budget later refuses has already cost its
-/// downloads; checking the budget first would mean inflating every entry twice.
+/// before the archive's files are unpacked, so an archive the budget later refuses has already
+/// cost its downloads; checking the budget first would mean inflating every entry twice.
 pub const MAX_IMPORT: u64 = 8 << 30;
 
 /// What a dropped file is.
@@ -415,18 +415,55 @@ fn fill_with(
         let relative = f["path"].as_str().unwrap_or_default();
         let to = target(home, relative)
             .ok_or_else(|| format!("{relative} isn't a place an instance keeps files."))?;
-        let file = FileRef {
-            url: f["downloads"][0].as_str().unwrap_or_default().to_string(),
-            name: to.file_name().unwrap().to_string_lossy().into_owned(),
-            size: f["fileSize"].as_u64().unwrap_or(0),
-            sha512: f["hashes"]["sha512"].as_str().map(str::to_ascii_lowercase),
-            sha256: None,
-            sha1: f["hashes"]["sha1"].as_str().map(str::to_ascii_lowercase),
-            primary: true,
-        };
+        // The index lists alternates for one hash-checked file: try each in turn until one
+        // saves, the order fetch_mirrors uses in the Modrinth app (app-lib util/fetch.rs at
+        // c530671b, called from install_mrpack.rs). Blank and non-string entries are skipped.
+        // A miss, whatever its reason (a refused host, a failed transfer, a size or hash
+        // mismatch), moves to the next URL under the same checks: a refused host is never
+        // contacted, its error is only collected, and a failed attempt removes its own
+        // partial file (see browser::download). Each attempt counts its own bytes from 0, so
+        // the fraction a progress callback reports can go back between attempts; no callback
+        // fires at 0, and a refused host or a failed request fires none.
+        let urls: Vec<&str> = f["downloads"]
+            .as_array()
+            .map(|urls| {
+                urls.iter()
+                    .filter_map(|u| u.as_str())
+                    .filter(|u| !u.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+        if urls.is_empty() {
+            return Err(format!("{relative} lists no download URLs."));
+        }
+        let name = to.file_name().unwrap().to_string_lossy().into_owned();
         let folder = to.parent().expect("inside home");
-        fetch(&file, folder, &|p| progress(&file.name, p))
-            .map_err(|e| format!("{relative}: {e}"))?;
+        let mut misses = Vec::new();
+        let mut saved = false;
+        for url in urls {
+            let file = FileRef {
+                url: url.to_string(),
+                name: name.clone(),
+                size: f["fileSize"].as_u64().unwrap_or(0),
+                sha512: f["hashes"]["sha512"].as_str().map(str::to_ascii_lowercase),
+                sha256: None,
+                sha1: f["hashes"]["sha1"].as_str().map(str::to_ascii_lowercase),
+                primary: true,
+            };
+            match fetch(&file, folder, &|p| progress(&file.name, p)) {
+                Ok(()) => {
+                    saved = true;
+                    break;
+                }
+                Err(e) => misses.push(format!("{url}: {e}")),
+            }
+        }
+        if !saved {
+            return Err(format!(
+                "{relative} could not be downloaded from any of its mirrors: {}",
+                misses.join("; ")
+            ));
+        }
     }
     let mut unpacked: u64 = 0;
     let count = zip.len();
